@@ -1,0 +1,36 @@
+# Codex 활용 기록
+
+## 2026-08-12
+
+### 대회 요구사항 조사
+
+- 목표: OpenAI Game Builders Seoul Track 1의 게임 제작 요구사항을 확인한다.
+- Codex 활용: 공식 행사 페이지와 참가 약관을 조사해 필수 웹 빌드, 공개 플레이 링크, Codex 활용, 심사 기준, 에셋 권리 조건을 정리했다.
+- 사용 도구: 웹 탐색, 브라우저 지침.
+- 산출물: 게임 구현 요구사항과 완료 검증 기준을 `AGENTS.md`에 반영했다.
+- 다음 단계: 실제 게임 설계와 구현 시 요구사항 충족 여부를 지속해서 검증한다.
+
+### 프로젝트 개발 지침 정리
+
+- 목표: 코딩 에이전트와 게임 제작에 필요한 프로젝트 지침을 만든다.
+- Codex 활용: 카파시의 관찰에서 도출된 개발 원칙, 구조화된 UI 질문 우선 원칙, Track 1 게임 요구사항을 한국어 명령형 지침으로 정리했다.
+- 산출물: `AGENTS.md`.
+- 사용자 결정: 부가 설명을 제거하고 실행 가능한 지침만 유지한다.
+
+### Claude CLI Advisor 스킬 설계
+
+- 목표: Codex가 별도의 Claude Advisor 감독 아래 구현과 검증을 수행하도록 한다.
+- Codex 활용: Claude에 설치된 기존 `advisor` 스킬을 분석하고, 개인 전역 Codex 스킬로 이식하는 구조를 설계했다.
+- 사용 스킬·도구: `superpowers:brainstorming`, `skill-creator`, `superpowers:writing-skills`, `superpowers:test-driven-development`, Claude CLI 도움말.
+- 주요 결정: `claude -p`, 기본 `fable`, 사용량 초과 시 `opus`, 읽기 전용 Advisor, 상태 기반 검증 루프를 사용한다.
+- 산출물: `docs/superpowers/specs/2026-08-12-claude-cli-advisor-skill-design.md`, `docs/superpowers/plans/2026-08-12-claude-cli-advisor-skill.md`.
+- 검증 근거: Claude CLI 2.1.226에서 `-p`, `--model`, `--fallback-model`, `--resume`, 도구 제한 옵션을 확인했다.
+- 다음 단계: 구현 계획을 검토한 뒤 전역 스킬을 테스트 우선으로 구현한다.
+
+### 게임 레퍼런스 병렬 조사
+
+- 목표: 사용자가 별도 스펙을 작성하지 않아도 비교 제안서를 보고 게임 방향을 선택할 수 있도록 한다.
+- Codex 활용: 독립 조사 에이전트에 《뱀파이어 서바이벌》과 《퍼스트 퀸 4》의 시스템·페이싱·성장·기술·IP 안전성 분석을 병렬 위임했다.
+- 사용 스킬·도구: `superpowers:dispatching-parallel-agents`, 병렬 에이전트, 웹 조사.
+- 현재 결과: 《뱀파이어 서바이벌》의 이동 중심 생존 루프·성장·브라우저 성능 전략과 《퍼스트 퀸 4》의 지휘관 전환·AI 분대·피로·구조·사기 시스템을 각각 조사했다.
+- 다음 단계: Advisor 스킬 구현과 검토를 마친 뒤 두 결과를 결합해 장르·콘셉트·아트·기술 제안서를 각각 여러 안으로 작성하고 Advisor의 평가를 받는다.

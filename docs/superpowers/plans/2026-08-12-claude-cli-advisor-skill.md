@@ -4,13 +4,13 @@
 
 **Goal:** Codex가 `claude -p`로 읽기 전용 Claude Advisor 세션을 시작·재개하고, 기본 `fable` 실패 시 `opus`로 대체하며, 브리프와 검증 판정을 반복할 수 있는 개인 전역 `advisor` 스킬을 만든다.
 
-**Architecture:** `/Users/courtesy/.codex/skills/advisor`에 스킬 본문, UI 메타데이터, 셸 래퍼와 자동 테스트를 둔다. Codex Worker가 구현과 명령 실행을 소유하고, Claude Advisor는 `Read`, `Grep`, `Glob`만 사용해 브리프와 판정을 반환한다. 래퍼는 JSON 결과를 그대로 전달해 Worker가 `session_id`와 응답을 추출하도록 한다.
+**Architecture:** 저장소의 `skills/advisor`에 버전 관리 원본과 테스트를 두고, 최종 리뷰를 통과한 원본을 `/Users/courtesy/.codex/skills/advisor`에 설치한다. Codex Worker가 구현과 명령 실행을 소유하고, Claude Advisor는 `Read`, `Grep`, `Glob`만 사용해 브리프와 판정을 반환한다. 래퍼는 JSON 결과를 그대로 전달해 Worker가 `session_id`와 응답을 추출하도록 한다.
 
 **Tech Stack:** Codex Skills, Bash 3.2 호환 셸, Claude Code CLI 2.1.226+, `jq`, `shellcheck`, Python `skill-creator` 검증 도구, `uv`/PyYAML
 
 ## Global Constraints
 
-- 개인 전역 설치 경로는 `/Users/courtesy/.codex/skills/advisor`로 고정한다.
+- 버전 관리 원본은 `skills/advisor`, 개인 전역 설치 경로는 `/Users/courtesy/.codex/skills/advisor`로 고정한다.
 - 기본 모델은 `fable`, 기본 모델의 사용량 초과·이용 불가·과부하 시 대체 모델은 `opus`다.
 - 사용자가 `fable` 이외의 모델을 명시하면 자동으로 다른 모델로 바꾸지 않는다.
 - Advisor에는 `Read`, `Grep`, `Glob`만 제공하고 `Bash`, `Edit`, `Write`, 커밋 및 푸시를 허용하지 않는다.
@@ -18,7 +18,7 @@
 - 사용자 질문에는 사용 가능한 구조화된 UI 질문 도구를 우선하고, 사용할 수 없을 때만 텍스트 질문을 사용한다.
 - Worker는 사용자가 명시적으로 요청한 경우에만 커밋한다.
 - 실제 Claude 호출은 인증·네트워크·사용량을 소비하므로 별도 사용자 승인 없이는 실행하지 않는다.
-- 전역 스킬 디렉터리는 현재 Git 저장소 밖이므로 구현 파일 자체를 현재 저장소에 커밋하지 않는다. 설계와 계획만 현재 저장소에서 버전 관리한다.
+- 구현과 리뷰는 저장소의 원본을 대상으로 커밋하며, 최종 리뷰 전에는 개인 전역 경로에 설치하지 않는다.
 
 ---
 
@@ -60,10 +60,10 @@ Expected: 최소 한 항목이 빠져 스킬이 필요한 기준 실패가 관�
 ### Task 2: 전역 스킬 스캐폴드와 실패하는 CLI 테스트
 
 **Files:**
-- Create: `/Users/courtesy/.codex/skills/advisor/SKILL.md`
-- Create: `/Users/courtesy/.codex/skills/advisor/agents/openai.yaml`
-- Create: `/Users/courtesy/.codex/skills/advisor/scripts/advisor.sh`
-- Create: `/Users/courtesy/.codex/skills/advisor/tests/test-advisor.sh`
+- Create: `skills/advisor/SKILL.md`
+- Create: `skills/advisor/agents/openai.yaml`
+- Create: `skills/advisor/scripts/advisor.sh`
+- Create: `skills/advisor/tests/test-advisor.sh`
 
 **Interfaces:**
 - Consumes: `skill-creator/scripts/init_skill.py`
@@ -75,19 +75,19 @@ Run:
 
 ```bash
 python3 /Users/courtesy/.codex/skills/.system/skill-creator/scripts/init_skill.py advisor \
-  --path /Users/courtesy/.codex/skills \
+  --path skills \
   --resources scripts \
   --interface 'display_name=Claude Advisor' \
   --interface 'short_description=Claude의 감독 아래 구현하고 결과를 검증합니다' \
   --interface 'default_prompt=Use $advisor to supervise this implementation with a read-only Claude Advisor.'
-mkdir -p /Users/courtesy/.codex/skills/advisor/tests
+mkdir -p skills/advisor/tests
 ```
 
 Expected: `SKILL.md`, `agents/openai.yaml`, `scripts/`, `tests/`가 존재한다.
 
 - [ ] **Step 2: 래퍼 계약을 표현하는 테스트 작성**
 
-`/Users/courtesy/.codex/skills/advisor/tests/test-advisor.sh`에 다음 구조를 작성한다.
+`skills/advisor/tests/test-advisor.sh`에 다음 구조를 작성한다.
 
 ```bash
 #!/usr/bin/env bash
@@ -178,11 +178,11 @@ echo "PASS: advisor wrapper contract"
 
 - [ ] **Step 3: 테스트 실행 권한 부여**
 
-Run: `chmod +x /Users/courtesy/.codex/skills/advisor/tests/test-advisor.sh`
+Run: `chmod +x skills/advisor/tests/test-advisor.sh`
 
 - [ ] **Step 4: 테스트가 올바른 이유로 실패하는지 확인**
 
-Run: `/Users/courtesy/.codex/skills/advisor/tests/test-advisor.sh`
+Run: `skills/advisor/tests/test-advisor.sh`
 
 Expected: FAIL because `scripts/advisor.sh`가 아직 계약을 구현하지 않았다.
 
@@ -191,8 +191,8 @@ Expected: FAIL because `scripts/advisor.sh`가 아직 계약을 구현하지 않
 ### Task 3: Claude CLI 세션 래퍼 구현
 
 **Files:**
-- Modify: `/Users/courtesy/.codex/skills/advisor/scripts/advisor.sh`
-- Test: `/Users/courtesy/.codex/skills/advisor/tests/test-advisor.sh`
+- Modify: `skills/advisor/scripts/advisor.sh`
+- Test: `skills/advisor/tests/test-advisor.sh`
 
 **Interfaces:**
 - Consumes: stdin의 비어 있지 않은 Advisor 메시지, `start|resume`, 선택적 `--model`
@@ -319,13 +319,13 @@ exit "$status"
 
 - [ ] **Step 2: 래퍼 테스트 실행**
 
-Run: `/Users/courtesy/.codex/skills/advisor/tests/test-advisor.sh`
+Run: `skills/advisor/tests/test-advisor.sh`
 
 Expected: `PASS: advisor wrapper contract`
 
 - [ ] **Step 3: 정적 검사 실행**
 
-Run: `shellcheck /Users/courtesy/.codex/skills/advisor/scripts/advisor.sh /Users/courtesy/.codex/skills/advisor/tests/test-advisor.sh`
+Run: `shellcheck skills/advisor/scripts/advisor.sh skills/advisor/tests/test-advisor.sh`
 
 Expected: exit 0 with no findings. `model_is_default`가 미사용이면 삭제한다.
 
@@ -334,8 +334,8 @@ Expected: exit 0 with no findings. `model_is_default`가 미사용이면 삭제�
 ### Task 4: Advisor 작업 프로토콜 작성
 
 **Files:**
-- Modify: `/Users/courtesy/.codex/skills/advisor/SKILL.md`
-- Test: `/Users/courtesy/.codex/skills/advisor/tests/test-advisor.sh`
+- Modify: `skills/advisor/SKILL.md`
+- Test: `skills/advisor/tests/test-advisor.sh`
 
 **Interfaces:**
 - Consumes: 사용자 과제, 저장소 컨텍스트, `advisor.sh`의 JSON 결과
@@ -387,7 +387,7 @@ ESCALATE  → 상황과 선택지를 사용자에게 그대로 전달한다.
 
 - [ ] **Step 5: 기계적 계약 테스트 재실행**
 
-Run: `/Users/courtesy/.codex/skills/advisor/tests/test-advisor.sh`
+Run: `skills/advisor/tests/test-advisor.sh`
 
 Expected: PASS.
 
@@ -396,8 +396,8 @@ Expected: PASS.
 ### Task 5: UI 메타데이터 생성 및 스킬 구조 검증
 
 **Files:**
-- Modify: `/Users/courtesy/.codex/skills/advisor/agents/openai.yaml`
-- Read: `/Users/courtesy/.codex/skills/advisor/SKILL.md`
+- Modify: `skills/advisor/agents/openai.yaml`
+- Read: `skills/advisor/SKILL.md`
 
 **Interfaces:**
 - Consumes: 최종 SKILL.md의 이름과 호출 목적
@@ -409,7 +409,7 @@ Run:
 
 ```bash
 python3 /Users/courtesy/.codex/skills/.system/skill-creator/scripts/generate_openai_yaml.py \
-  /Users/courtesy/.codex/skills/advisor \
+  skills/advisor \
   --interface 'display_name=Claude Advisor' \
   --interface 'short_description=Claude의 감독 아래 구현하고 결과를 검증합니다' \
   --interface 'default_prompt=Use $advisor to supervise this implementation with a read-only Claude Advisor.'
@@ -429,7 +429,7 @@ interface:
 Run:
 
 ```bash
-uv run --with pyyaml python /Users/courtesy/.codex/skills/.system/skill-creator/scripts/quick_validate.py /Users/courtesy/.codex/skills/advisor
+uv run --with pyyaml python /Users/courtesy/.codex/skills/.system/skill-creator/scripts/quick_validate.py skills/advisor
 ```
 
 Expected: skill is valid. 시스템 Python에는 PyYAML이 없으므로 반드시 `uv run --with pyyaml`을 사용한다.
@@ -439,8 +439,8 @@ Expected: skill is valid. 시스템 Python에는 PyYAML이 없으므로 반드�
 Run:
 
 ```bash
-! rg -n 'TODO|TBD|\[TODO' /Users/courtesy/.codex/skills/advisor
-rg -n 'BRIEF|QUESTION|SKIP|APPROVED|REVISE|ESCALATE|fable|opus|구조화된 UI' /Users/courtesy/.codex/skills/advisor/SKILL.md
+! rg -n 'TODO|TBD|\[TODO' skills/advisor
+rg -n 'BRIEF|QUESTION|SKIP|APPROVED|REVISE|ESCALATE|fable|opus|구조화된 UI' skills/advisor/SKILL.md
 ```
 
 Expected: 첫 명령 exit 0, 두 번째 명령이 모든 필수 키워드를 출력한다.
@@ -450,9 +450,9 @@ Expected: 첫 명령 exit 0, 두 번째 명령이 모든 필수 키워드를 출
 ### Task 6: 스킬 동작 검증과 배포 확인
 
 **Files:**
-- Read: `/Users/courtesy/.codex/skills/advisor/SKILL.md`
-- Read: `/Users/courtesy/.codex/skills/advisor/scripts/advisor.sh`
-- Test: `/Users/courtesy/.codex/skills/advisor/tests/test-advisor.sh`
+- Read: `skills/advisor/SKILL.md`
+- Read: `skills/advisor/scripts/advisor.sh`
+- Test: `skills/advisor/tests/test-advisor.sh`
 
 **Interfaces:**
 - Consumes: 완성된 전역 스킬과 기준 시나리오
@@ -463,9 +463,9 @@ Expected: 첫 명령 exit 0, 두 번째 명령이 모든 필수 키워드를 출
 Run:
 
 ```bash
-/Users/courtesy/.codex/skills/advisor/tests/test-advisor.sh
-shellcheck /Users/courtesy/.codex/skills/advisor/scripts/advisor.sh /Users/courtesy/.codex/skills/advisor/tests/test-advisor.sh
-uv run --with pyyaml python /Users/courtesy/.codex/skills/.system/skill-creator/scripts/quick_validate.py /Users/courtesy/.codex/skills/advisor
+skills/advisor/tests/test-advisor.sh
+shellcheck skills/advisor/scripts/advisor.sh skills/advisor/tests/test-advisor.sh
+uv run --with pyyaml python /Users/courtesy/.codex/skills/.system/skill-creator/scripts/quick_validate.py skills/advisor
 ```
 
 Expected: 세 명령 모두 exit 0.
@@ -475,7 +475,7 @@ Expected: 세 명령 모두 exit 0.
 새 에이전트에 다음 프롬프트를 전달한다.
 
 ```text
-Use $advisor at /Users/courtesy/.codex/skills/advisor to supervise a hypothetical implementation. Do not call the real Claude service. Explain the exact start, status-routing, verification, model-fallback, and session-recovery actions you would take.
+Use $advisor at skills/advisor to supervise a hypothetical implementation. Do not call the real Claude service. Explain the exact start, status-routing, verification, model-fallback, and session-recovery actions you would take.
 ```
 
 Expected: Task 1의 여섯 항목을 모두 충족하고, 실제 Claude 호출이나 파일 변경은 수행하지 않는다.
@@ -493,6 +493,8 @@ Expected: Task 1의 여섯 항목을 모두 충족하고, 실제 Claude 호출�
 Run:
 
 ```bash
+mkdir -p /Users/courtesy/.codex/skills/advisor
+cp -R skills/advisor/SKILL.md skills/advisor/agents skills/advisor/scripts /Users/courtesy/.codex/skills/advisor/
 first_json="$(printf '%s' '읽기 전용 Advisor로서 첫 줄을 BRIEF로 시작하고 테스트용 한 줄 브리프만 반환하라.' | /Users/courtesy/.codex/skills/advisor/scripts/advisor.sh start)"
 session_id="$(printf '%s' "$first_json" | jq -r '.session_id')"
 printf '%s' '첫 줄을 APPROVED로 시작해 테스트 세션 종료를 승인하라.' | /Users/courtesy/.codex/skills/advisor/scripts/advisor.sh resume "$session_id"
@@ -506,15 +508,17 @@ Run:
 
 ```bash
 find /Users/courtesy/.codex/skills/advisor -maxdepth 3 -type f -print | sort
+test -x skills/advisor/tests/test-advisor.sh
 ```
 
-Expected files:
+Expected global files:
 
 ```text
 /Users/courtesy/.codex/skills/advisor/SKILL.md
 /Users/courtesy/.codex/skills/advisor/agents/openai.yaml
 /Users/courtesy/.codex/skills/advisor/scripts/advisor.sh
-/Users/courtesy/.codex/skills/advisor/tests/test-advisor.sh
 ```
+
+저장소의 `skills/advisor/tests/test-advisor.sh`는 실행 가능한 상태로 유지한다.
 
 새 Codex 세션에서 `$advisor`가 자동 발견되지 않으면 현재 세션의 스킬 목록 캐시 문제로 보고 새 세션을 시작해 다시 확인한다. 파일을 다른 위치에 중복 설치하지 않는다.

@@ -6,9 +6,12 @@ Codex가 구현 작업을 수행할 때 별도의 Claude Advisor에게 요구사
 
 ## 설치 범위
 
-- 설치 경로: `/Users/courtesy/.codex/skills/advisor`
+- 버전 관리 원본: `skills/advisor`
+- 개인 전역 설치 경로: `/Users/courtesy/.codex/skills/advisor`
 - 적용 범위: 모든 Codex 프로젝트에서 사용하는 개인 전역 스킬
 - 호출 예시: `$advisor <과제>` 또는 자연어로 Advisor 감독 요청
+
+원본은 구현·리뷰·수정 이력을 Git으로 검증할 수 있도록 저장소에 둔다. 최종 리뷰를 통과한 원본만 개인 전역 경로로 설치한다.
 
 ## 구성
 
