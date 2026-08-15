@@ -11,6 +11,13 @@
 - 결정: tick 540은 normal angles를 먼저 모두 소비하고 spawn stream에서 elite angle 하나를 뒤이어 소비한다. warning은 570부터 40 tick cycle의 30 tick 고정 중심이며 damage는 600부터 1 tick, standing targets만 radius 2.0에서 0.35 피해와 `elite-area` event를 기록한다. 정예 사망 victory는 same-tick 전멸보다 우선하고 fixture는 phase 13 outcome만 억제한다.
 - 다음 단계: 별도 UI/renderer 작업에서 snapshot `elite-telegraph` effect를 소비할 수 있으며, 이 task의 authority reducer와 phase order는 유지한다.
 
+#### Task 7 Fix round 1 — binding contract false-positive 제거
+
+- 목표: tick-540 PRNG draw 순서, direct terminal cleanup, formation-wide evasion의 ID별 피해를 binding test로 강화해 draw count·총 hit 수만 같은 잘못된 reducer가 통과하지 못하게 한다.
+- Codex 활용: `superpowers:test-driven-development`로 observable real-stream reference, direct `resolveOutcome` fixture, hand-derived eight-case ID sets를 먼저 작성했다. 이어 temporary mutation으로 elite-before-normal order, missing `handleEliteDeath` call, slot-swapped `[2,6]` damage를 각각 RED로 확인하고 즉시 원복했다. Controller 지시에 따라 Advisor는 호출하지 않았다.
+- 검증 근거: order mutation RED는 expected normal draw positions와 received draw-2/3 positions 불일치, cleanup mutation RED는 stale `spawned/telegraph` fields, slot mutation RED는 expected `[1,5]` 대 received `[2,6]`였다. GREEN focused elite+progression `33/33`이며 아래 full verification을 이어간다.
+- 결정: stream expectation은 PRNG implementation을 mirror하지 않고 controlled state에서 실제 normal reducer 두 번 뒤 elite reducer 한 번을 실행한 observable positions와 facade 결과를 비교한다. evasion matrix는 count 대신 ID sequence와 per-ID HP 결과를 비교한다.
+
 ### 분대 생존 수직 슬라이스 Task 5 — downed/dead와 결정론적 홀드 구조
 
 - 목표: 권위 gameplay reducer에 active squad의 1인 hold rescue, downed/dead timer, same-tick rescue damage 감소와 `rescue-signal` snapshot effect를 추가한다. UI·spawn·upgrade·elite tuning은 제외했다.
