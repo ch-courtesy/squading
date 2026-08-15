@@ -42,6 +42,8 @@ test('discards capped requests while consuming one spawn angle per request', () 
 test('clamps an off-arena spawn without consuming a reroll angle', () => {
   const state = createStateFixture('top-clamp')
   const reference = createStateFixture('top-clamp')
+  state.squads.scarlet.lastCenter = { x: 1, y: 1 }
+  reference.squads.scarlet.lastCenter = { x: 1, y: 1 }
 
   spawnForTick(state, 0)
   spawnForTick(reference, 0)
@@ -50,6 +52,24 @@ test('clamps an off-arena spawn without consuming a reroll angle', () => {
   expect(state.normalEnemies.map((enemy) => enemy.position)).toEqual(reference.normalEnemies.map((enemy) => enemy.position))
   expect(state.normalEnemies).toHaveLength(2)
   expect(state.normalEnemies.some((enemy) => enemy.position.x === 0 || enemy.position.x === ARENA_WIDTH || enemy.position.y === 0 || enemy.position.y === ARENA_HEIGHT)).toBe(true)
+})
+
+test('spawns normals exactly 11 units from the active center before clamping', () => {
+  const left = createStateFixture('active-center-radius')
+  const right = createStateFixture('active-center-radius')
+  left.squads.scarlet.lastCenter = { x: 24, y: 13.5 }
+  right.squads.scarlet.lastCenter = { x: 25, y: 13.5 }
+
+  spawnForTick(left, 0)
+  spawnForTick(right, 0)
+
+  for (const [index, enemy] of left.normalEnemies.entries()) {
+    const shifted = right.normalEnemies[index]
+    expect(Math.hypot(enemy.position.x - 24, enemy.position.y - 13.5)).toBeCloseTo(11)
+    expect(Math.hypot(shifted.position.x - 25, shifted.position.y - 13.5)).toBeCloseTo(11)
+    expect(shifted.position.x - enemy.position.x).toBeCloseTo(1)
+    expect(shifted.position.y).toBeCloseTo(enemy.position.y)
+  }
 })
 
 test('uses request order for partial-cap spawns, discards, and the next event', () => {

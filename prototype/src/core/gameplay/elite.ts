@@ -48,12 +48,15 @@ export function spawnElite(state: GameState, tick: number): void {
   state.elite.position = { x: center.x + Math.cos(angle) * 5, y: center.y + Math.sin(angle) * 5 }
 }
 
-export function advanceElite(state: GameState, tick: number): void {
+export function advanceEliteMovement(state: GameState): void {
   if (!state.elite.spawned || state.elite.hp <= 0) return
-
   state.elite.position = moveTowards(state.elite.position, activeCenter(state), ELITE_MOVE_SPEED)
+}
+
+export function advanceEliteTelegraph(state: GameState, tick: number): void {
+  if (!state.elite.spawned || state.elite.hp <= 0) return
   if (isWarningTick(tick)) {
-    state.elite.telegraphCenter = { ...activeCenter(state) }
+    state.elite.telegraphCenter = { ...state.elite.position }
     state.elite.telegraphRemaining = WARNING_TICKS
     state.elite.cycleIndex = (tick - FIRST_WARNING_TICK) / CYCLE_TICKS
     state.elite.warningTicks.push(tick)
@@ -74,6 +77,11 @@ export function advanceElite(state: GameState, tick: number): void {
     return
   }
   if (state.elite.telegraphRemaining > 0) state.elite.telegraphRemaining -= 1
+}
+
+export function advanceElite(state: GameState, tick: number): void {
+  advanceEliteMovement(state)
+  advanceEliteTelegraph(state, tick)
 }
 
 export function handleEliteDeath(state: GameState): boolean {

@@ -26,7 +26,11 @@ function clearRescueLocks(state: GameState): void {
 
 function activeCasualty(state: GameState): FriendlyState | null {
   return state.friendlies
-    .filter((friendly) => friendly.squad === state.activeSquad && friendly.life === 'downed')
+    .filter((friendly) => (
+      friendly.squad === state.activeSquad
+      && friendly.life === 'downed'
+      && activeRescuer(state, friendly) !== null
+    ))
     .sort((left, right) => left.downedTicks - right.downedTicks || byId(left, right))[0] ?? null
 }
 
@@ -71,19 +75,7 @@ export function prepareRescueLock(state: GameState, held = state.input.rescueHel
     clearRescueLocks(state)
     return false
   }
-
-  const casualty = activeCasualty(state)
-  const rescuer = casualty ? activeRescuer(state, casualty) : null
-  if (!casualty || !rescuer) {
-    clearRescueLocks(state)
-    return false
-  }
-
-  const previousProgress = rescuer.rescueTargetId === casualty.id ? rescuer.rescueProgress : 0
-  clearRescueLocks(state)
-  rescuer.rescueTargetId = casualty.id
-  rescuer.rescueProgress = previousProgress
-  return true
+  return lockedRescuer(state) !== null
 }
 
 export function advanceSelectedRescueProgress(state: GameState, held = state.input.rescueHeld): boolean {
@@ -91,14 +83,24 @@ export function advanceSelectedRescueProgress(state: GameState, held = state.inp
     clearRescueLocks(state)
     return false
   }
-  const lock = lockedRescuer(state)
+  let lock = lockedRescuer(state)
+  if (!lock) {
+    const casualty = activeCasualty(state)
+    const rescuer = casualty ? activeRescuer(state, casualty) : null
+    if (!casualty || !rescuer) return false
+    clearRescueLocks(state)
+    rescuer.rescueTargetId = casualty.id
+    rescuer.rescueProgress = 0
+    lock = { rescuer, casualty }
+  }
   if (!lock) return false
   lock.rescuer.rescueProgress += 1
   return true
 }
 
 export function advanceRescueProgress(state: GameState, held = state.input.rescueHeld): boolean {
-  return prepareRescueLock(state, held) && advanceSelectedRescueProgress(state, held)
+  prepareRescueLock(state, held)
+  return advanceSelectedRescueProgress(state, held)
 }
 
 function applyRescueDamage(state: GameState): void {

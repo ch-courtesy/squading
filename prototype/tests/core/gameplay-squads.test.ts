@@ -3,6 +3,7 @@ import { expect, test } from 'vitest'
 import { SCARLET_ATTACK_INTERVAL, SCARLET_MOVE_SPEED } from '../../src/core/gameplay/constants'
 import { attackInterval } from '../../src/core/gameplay/combat'
 import { advanceMovement } from '../../src/core/gameplay/movement'
+import { SPAWN_TABLE } from '../../src/core/gameplay/progression'
 import { createGameplaySimulation } from '../../src/core/gameplay/simulation'
 import { advanceFatigue, movementMultiplier } from '../../src/core/gameplay/squads'
 import { createStateFixture, makeNormalEnemy, repeat, startRunningGame } from '../helpers/gameplay-fixtures'
@@ -110,9 +111,12 @@ test('keeps a defeated controlled squad selected until an explicit switch event'
 })
 
 function controlledDamage(seed: string, policy: 'alternate' | 'teal' | 'scarlet'): number {
-  const game = startRunningGame(seed)
+  const game = createGameplaySimulation({ seed, fixture: 'determinism' })
+  game.enqueue({ applyTick: 0, sequence: 0, kind: 'start-battle' })
   const state = game.getState() as ReturnType<typeof createStateFixture>
   state.activeSquad = policy === 'teal' ? 'teal' : 'scarlet'
+  state.wave.cursor = SPAWN_TABLE.length
+  state.elite.hp = 0
   const target = makeNormalEnemy(999, 24, 13)
   target.hp = 1_000
   target.attackCooldown = 1_000

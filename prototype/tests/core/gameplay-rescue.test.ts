@@ -27,6 +27,19 @@ test('does not lock a remote casualty after 90 held ticks', () => {
   expect(rescuer).toMatchObject({ rescueTargetId: null, rescueProgress: 0 })
 })
 
+test('filters to eligible casualties before remaining time and id ordering', () => {
+  const state = createStateFixture()
+  const rescuer = makeFriendly(1, 'teal', 0, 0)
+  const remoteUrgent = downedFriendly(2, 'teal', 3, 0, 1)
+  const eligible = downedFriendly(3, 'teal', 1, 0, 10)
+  state.friendlies = [rescuer, remoteUrgent, eligible]
+  state.activeSquad = 'teal'
+
+  expect(advanceRescueProgress(state, true)).toBe(true)
+
+  expect(rescuer).toMatchObject({ rescueTargetId: eligible.id, rescueProgress: 1 })
+})
+
 test.each([['teal', 29, 30], ['scarlet', 44, 45]] as const)(
   '%s completes only on the exact hold boundary',
   (squad, before, complete) => {
@@ -97,7 +110,7 @@ test('locks exactly one nearest active rescuer out of movement and attacks', () 
   expect(state.normalEnemies[0].hp).toBeCloseTo(0.86)
 })
 
-test('locks the selected rescuer before the simulation movement phase and advances rescue work after it', () => {
+test('moves a newly selected rescuer before phase 7 locks it and adds one work', () => {
   const game = startRunningGame('rescue-phase-order')
   const state = game.getState() as ReturnType<typeof createStateFixture>
   const rescuer = makeFriendly(1, 'teal', 0, 0)
@@ -110,7 +123,8 @@ test('locks the selected rescuer before the simulation movement phase and advanc
 
   game.step()
 
-  expect(nearest).toMatchObject({ position: { x: 0.5, y: 0 }, rescueTargetId: casualty.id, rescueProgress: 1 })
+  expect(nearest).toMatchObject({ rescueTargetId: casualty.id, rescueProgress: 1 })
+  expect(nearest.position.x).toBeCloseTo(0.61)
   expect(rescuer.position.x).toBeGreaterThan(0)
 })
 
@@ -123,6 +137,7 @@ test('keeps the phase-6 rescuer when a moving teammate becomes closer before pha
   state.friendlies = [firstRescuer, movingTeammate, casualty]
   state.normalEnemies = [makeNormalEnemy(101, 0.5, 0)]
   state.activeSquad = 'teal'
+  firstRescuer.rescueTargetId = casualty.id
   game.enqueue({ applyTick: 0, sequence: 1, kind: 'set-move', x: 1, y: 0 })
   game.enqueue({ applyTick: 0, sequence: 2, kind: 'set-rescue', held: true })
 
@@ -132,6 +147,24 @@ test('keeps the phase-6 rescuer when a moving teammate becomes closer before pha
   expect(movingTeammate).toMatchObject({ rescueTargetId: null })
   expect(movingTeammate.position.x).toBeCloseTo(0.01)
   expect(movingTeammate.attackCooldown).toBeGreaterThan(0)
+})
+
+test('clears a released lock before movement so its former rescuer can move', () => {
+  const game = startRunningGame('rescue-release-before-move')
+  const state = game.getState() as ReturnType<typeof createStateFixture>
+  const rescuer = makeFriendly(1, 'teal', 0, 0)
+  const casualty = downedFriendly(2, 'teal', 1, 0)
+  rescuer.rescueTargetId = casualty.id
+  rescuer.rescueProgress = 10
+  state.friendlies = [rescuer, casualty]
+  state.activeSquad = 'teal'
+  game.enqueue({ applyTick: 0, sequence: 1, kind: 'set-move', x: 1, y: 0 })
+  game.enqueue({ applyTick: 0, sequence: 2, kind: 'set-rescue', held: false })
+
+  game.step()
+
+  expect(rescuer.position.x).toBeCloseTo(0.11)
+  expect(rescuer).toMatchObject({ rescueTargetId: null, rescueProgress: 0 })
 })
 
 test('applies +1 rescue work then contact damage for a net -14 progress', () => {

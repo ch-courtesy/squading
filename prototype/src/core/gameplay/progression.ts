@@ -32,10 +32,10 @@ function clamp(value: number, maximum: number): number {
   return Math.max(0, Math.min(maximum, value))
 }
 
-function spawnPosition(angle: number): Vec2 {
+function spawnPosition(center: Vec2, angle: number): Vec2 {
   return {
-    x: clamp(ARENA_WIDTH / 2 + Math.cos(angle) * NORMAL_ENEMY_SPAWN_RADIUS, ARENA_WIDTH),
-    y: clamp(ARENA_HEIGHT / 2 + Math.sin(angle) * NORMAL_ENEMY_SPAWN_RADIUS, ARENA_HEIGHT),
+    x: clamp(center.x + Math.cos(angle) * NORMAL_ENEMY_SPAWN_RADIUS, ARENA_WIDTH),
+    y: clamp(center.y + Math.sin(angle) * NORMAL_ENEMY_SPAWN_RADIUS, ARENA_HEIGHT),
   }
 }
 
@@ -53,6 +53,7 @@ export function spawnForTick(state: GameState, tick: number): void {
   if (eventIndex < 0 || eventIndex < state.wave.cursor) return
 
   const event = SPAWN_TABLE[eventIndex]
+  const center = state.squads[state.activeSquad].lastCenter
   state.wave.cursor = eventIndex + 1
   for (let index = 0; index < event.count; index += 1) {
     const angle = nextStreamFloat(state.prng, 'spawn') * Math.PI * 2
@@ -64,7 +65,7 @@ export function spawnForTick(state: GameState, tick: number): void {
     state.normalEnemies.push({
       id: 18 + state.wave.requested - 1,
       hp: NORMAL_ENEMY_MAX_HP,
-      position: spawnPosition(angle),
+      position: spawnPosition(center, angle),
       attackCooldown: 0,
       targetId: null,
     })

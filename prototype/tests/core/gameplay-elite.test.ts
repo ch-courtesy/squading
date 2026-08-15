@@ -75,18 +75,49 @@ test('spawns five units from the active center and clamps elite tracking at the 
   expect(state.elite.position).toEqual({ x: 10, y: 10 })
 })
 
-test('freezes the warning center before a squad can move away', () => {
+test('moves the elite once in phase 6 before friendly attacks', () => {
+  const observed: Array<{ phase: string; x: number }> = []
+  const game = createGameplaySimulation({
+    seed: 'elite-phase-six',
+    phases: {
+      movement: () => observed.push({ phase: 'movement', x: game.getState().elite.position.x }),
+      friendlyAttacks: () => observed.push({ phase: 'friendly-attacks', x: game.getState().elite.position.x }),
+      eliteTelegraph: () => observed.push({ phase: 'elite-telegraph', x: game.getState().elite.position.x }),
+    },
+  })
+  game.enqueue({ applyTick: 0, sequence: 0, kind: 'start-battle' })
+  const state = game.getState() as ReturnType<typeof createStateFixture>
+  state.activeSquad = 'scarlet'
+  state.friendlies = [makeFriendly(1, 'scarlet', 10, 0)]
+  state.squads.scarlet.lastCenter = { x: 10, y: 0 }
+  state.elite.spawned = true
+  state.elite.position = { x: 0, y: 0 }
+
+  game.step()
+
+  expect(observed).toEqual([
+    { phase: 'movement', x: ELITE_MOVE_SPEED },
+    { phase: 'friendly-attacks', x: ELITE_MOVE_SPEED },
+    { phase: 'elite-telegraph', x: ELITE_MOVE_SPEED },
+  ])
+})
+
+test('freezes the warning at the elite post-movement position instead of the active center', () => {
   const state = createStateFixture()
   state.elite.spawned = true
   state.elite.position = { x: 0, y: 0 }
   state.activeSquad = 'scarlet'
   state.squads.scarlet.lastCenter = { x: 4, y: 6 }
+  const distance = Math.hypot(4, 6)
+  const warningCenter = { x: ELITE_MOVE_SPEED * 4 / distance, y: ELITE_MOVE_SPEED * 6 / distance }
 
   advanceElite(state, 570)
   state.squads.scarlet.lastCenter = { x: 20, y: 20 }
   advanceElite(state, 571)
 
-  expect(state.elite).toMatchObject({ telegraphCenter: { x: 4, y: 6 }, telegraphRemaining: 29 })
+  expect(state.elite.telegraphCenter?.x).toBeCloseTo(warningCenter.x)
+  expect(state.elite.telegraphCenter?.y).toBeCloseTo(warningCenter.y)
+  expect(state.elite.telegraphRemaining).toBe(29)
 })
 
 test('damages only standing friendlies at or inside the two-unit boundary and feeds rescue damage', () => {

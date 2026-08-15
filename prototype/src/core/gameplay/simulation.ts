@@ -1,7 +1,7 @@
 import { BATTLE_TICKS } from './constants'
 import { advanceAttackCooldowns, advanceFriendlyAttacks, advanceNormalAttacks } from './combat'
 import { digestGameState } from './digest'
-import { advanceElite, resolveOutcome, spawnElite } from './elite'
+import { advanceEliteMovement, advanceEliteTelegraph, resolveOutcome, spawnElite } from './elite'
 import { createGameplayInputQueue } from './input-queue'
 import { advanceMovement } from './movement'
 import { applyPendingUpgrade, applyUpgradeChoice, enterUpgradeIfEligible, spawnForTick } from './progression'
@@ -137,11 +137,12 @@ export function createGameplaySimulation(options: GameplaySimulationOptions): Ga
     movement: () => {
       prepareRescueLock(state)
       squadActivity.moved = advanceMovement(state)
+      advanceEliteMovement(state)
     },
     rescueProgress: () => { squadActivity.rescued = advanceSelectedRescueProgress(state) },
     friendlyAttacks: () => { squadActivity.attacked = advanceFriendlyAttacks(state) },
     normalAttacks: () => { advanceNormalAttacks(state) },
-    eliteTelegraph: () => { advanceElite(state, state.combatTick) },
+    eliteTelegraph: () => { advanceEliteTelegraph(state, state.combatTick) },
     rescueDeathXp: () => {
       resolveRescueAndDownedTimers(state)
       advanceFatigue(state, squadActivity)

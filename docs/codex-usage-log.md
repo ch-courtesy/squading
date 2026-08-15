@@ -2,6 +2,16 @@
 
 ## 2026-08-15
 
+### 분대 생존 수직 슬라이스 Task 8 — 결정론·8-seed 정책 GREEN
+
+- 목표: 공개 `GameplaySimulation` 명령만 사용하는 결정론 fixture와 전술 무입력·이동 전용·숙련 정책을 구현하고, 고정 8-seed 승률 및 tutorial seed 47 timing gate를 실제 권위 simulation으로 증명한다.
+- Codex 활용: `superpowers:test-driven-development`, `superpowers:systematic-debugging`, `superpowers:receiving-code-review`, `superpowers:verification-before-completion`을 적용했다. 정책 모듈 부재, spawn radius `23`, 신규 구조자의 선이동 차단, 도달 불가능 casualty 우선, phase-6 elite 미이동, active-center warning, stale-switch 및 priority command를 각각 RED로 관찰한 뒤 한 동작씩 승인 계약으로 복구했다. Controller 지시에 따라 Advisor는 호출하지 않았다.
+- 주요 결정: rescue는 pre-movement에 기존 valid lock만 보존하고 post-movement에 reachable casualty의 새 lock을 선택해 `+1` 한다. elite는 phase 6에서 정확히 한 번 이동하고 phase 10 warning을 post-movement elite 위치에 고정한다. skilled는 prospective fatigue switch 뒤 `telegraph > safe rescue > live elite > nearest normal` 우선순위로 public event만 enqueue한다. normal standing-target retention과 damage `0.09`는 유지했다.
+- 명세 복구·tuning 감사: `NORMAL_ENEMY_SPAWN_RADIUS=11`과 active squad center spawn은 이미 승인 명세에 적힌 값이므로 코드 defect만 복구하고 명세 문구는 바꾸지 않았다. 이전 `0.07` 실험은 최종 ruling 전의 불완전 reducer/policy baseline에서 수행돼 무효화되었고 `0.09`로 원복했다. 최종 GREEN 측정에는 balance lever를 쓰지 않았다.
+- 측정 근거: fixture의 정확한 `[0,150,300,360,540,660,780,900]` 두 실행 equality와 24개 seed/policy의 terminal/checkpoint/final digest 두 실행 equality가 통과했다. 최종 승률은 tactical `0/8`, movement `0/8`, skilled `6/8`; seed47 skilled timing은 attack/downed/upgrade `70/595/321`이다. 숙련 정책의 완료 rescue는 8 seed 모두 0이지만 command-level safe approach/eligible hold 계약은 별도 통과했다.
+- 산출물·검증: `gameplay-policies.ts`, 공개 policy suite, radius-11 spawn regression, two-stage rescue lifecycle, elite phase split, controlled-damage fixture isolation, 24-run 결과·산술·self-review task report를 완성했다. affected `68/68`, core `121/121`, full Vitest `162/162`, TypeScript·Vite build가 통과했으며 build에는 기존 large-chunk warning만 남았다.
+- 다음 단계: Task 9 이후 UI/controller는 이 authority 계약과 public command 우선순위를 소비한다. rescue 완료가 필수 coverage가 되면 별도 고정 public-facade scenario를 추가한다.
+
 ### 분대 생존 수직 슬라이스 Task 7 — 정예 예고·범위 피해·승패 우선순위
 
 - 목표: tick 540 정예 spawn stream 순서, 30/1/9 예고 cycle, fixed-center AoE, rescue damage event 경계와 terminal outcome 우선순위를 authority gameplay reducer에 추가한다. UI·renderer·후속 정책은 제외했다.
