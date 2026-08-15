@@ -21,7 +21,7 @@ function createSquadState(center: Vec2): SquadState {
   return {
     fatigue: 0,
     exhausted: false,
-    lastCenter: center,
+    lastCenter: { x: center.x, y: center.y },
     lastDirection: { x: 0, y: 0 },
     damageMultiplier: 1,
     movementMultiplier: 1,
@@ -38,7 +38,7 @@ function createFriendly(id: number, squad: 'teal' | 'scarlet', center: Vec2, for
     maxHp,
     life: 'standing',
     position: { x: center.x + formationOffset.x, y: center.y + formationOffset.y },
-    formationOffset,
+    formationOffset: { x: formationOffset.x, y: formationOffset.y },
     attackCooldown: 0,
     targetId: null,
     downedTicks: 0,
@@ -50,7 +50,8 @@ function createFriendly(id: number, squad: 'teal' | 'scarlet', center: Vec2, for
 function createFormationOffsets(seed: string): { offsets: Vec2[]; state: number } {
   const formation = createPrng(`${seed}:formation`)
   const offsets: Vec2[] = []
-  for (const offset of INITIAL_FORMATION_OFFSETS) {
+  for (let index = 0; index < ROSTER_SIZE; index += 1) {
+    const offset = INITIAL_FORMATION_OFFSETS[index % SQUAD_SIZE]
     const jitter = { x: formation.range(-FORMATION_JITTER, FORMATION_JITTER), y: formation.range(-FORMATION_JITTER, FORMATION_JITTER) }
     offsets.push({ x: offset.x + jitter.x, y: offset.y + jitter.y })
   }

@@ -11,6 +11,13 @@
 - 결정: state는 plain numeric PRNG state만 저장하고 `:spawn`, `:cards`, `:formation` stream을 분리했다. formation은 초기 16개 X/Y jitter만 소비하며, 초기 분대 중심은 teal `(21,13)`, scarlet `(27,13)`로 설계 수치에 맞췄다.
 - 다음 단계: Task 2에서 이 state를 소비하는 simulation facade와 digest를 추가한다.
 
+#### Task 1 fix round 1
+
+- 목표: review에서 발견된 formation PRNG under-consumption과 mutable vector alias를 권위 state 경계에서 제거했다.
+- 변경: 두 분대 16명 모두 별도의 formation PRNG X/Y jitter pair를 소비하도록 고쳤고, 각 `formationOffset`·`lastCenter`를 소유 객체로 복사했다. 16개 고유 offset object, 32회 PRNG 소비, sibling/constant mutation isolation을 테스트로 고정했다.
+- 검증: foundation 4/4, foundation+determinism 13/13, 전체 Vitest 71/71, TypeScript·Vite build, `git diff --check` 통과. Vite 기존 large-chunk warning만 남았다.
+- 산출물: fix commit `fa3569c` (`fix: isolate gameplay formation state`).
+
 ### 30초 수직 슬라이스 구현 계획
 
 - 목표: 승인된 게임 명세를 기존 renderer 비교 프로토타입에 안전하게 연결할 task별 TDD·리뷰 계획으로 변환한다.
