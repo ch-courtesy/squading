@@ -37,6 +37,20 @@ test('only the two lowest enemy ids damage one friendly', () => {
   expect(state.damageEvents.map((event) => event.sourceId)).toEqual([101, 102])
 })
 
+test('does not let out-of-range enemies reserve contact attack slots', () => {
+  const state = createStateFixture()
+  state.friendlies = [makeFriendly(1, 'scarlet', 0, 0)]
+  state.normalEnemies = [
+    makeNormalEnemy(101, 10, 0),
+    makeNormalEnemy(102, 11, 0),
+    makeNormalEnemy(103, 0.5, 0),
+  ]
+
+  advanceNormalAttacks(state)
+
+  expect(state.damageEvents.map((event) => event.sourceId)).toEqual([103])
+})
+
 test('retains a third enemy re-target through the next movement phase', () => {
   const state = createStateFixture()
   state.friendlies = [makeFriendly(1, 'scarlet', 0, 0), makeFriendly(2, 'scarlet', 3, 0)]

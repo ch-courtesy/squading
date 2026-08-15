@@ -11,6 +11,13 @@
 - 결정: friendly는 매 공격 직전 정예 우선·거리/ID normal target을 다시 계산해 같은 tick overkill을 막는다. 2개 slot을 넘은 normal은 damage 없이 다음 tick용 열린 slot target을 보존하며, movement는 standing target이 유효한 동안 그 재표적을 덮어쓰지 않는다.
 - 다음 단계: 후속 Task 4가 normal damage의 downed/dead transition과 rescue를, Task 5~6이 spawn/elite/fatigue·upgrade 효과를 같은 phase order에 추가한다.
 
+#### Task 3 Fix round 1 — 접촉 범위 기반 슬롯 소비
+
+- 목표: 접촉 범위 밖의 낮은 ID 일반 적이 slot을 예약하여 실제 접촉 중인 적의 피해를 막는 결함을 수정한다.
+- Codex 활용: `superpowers:systematic-debugging`으로 slot assignment가 거리 판정보다 먼저 일어나는 경로를 추적하고, TDD로 `(101@10, 102@11, 103@0.5)` mixed-distance RED를 만들었다. Advisor는 controller 지시에 따라 호출하지 않았다.
+- 검증 근거: RED는 damage event `[]` 대 expected `[103]`였고, 수정 후 targeted combat+determinism `23/23`, full Vitest `94/94`, TypeScript·Vite build, `git diff --check`를 직접 실행했다. Vite 기존 large-chunk warning만 출력됐다.
+- 결정: normal target은 접촉 밖에서도 유지·이동할 수 있지만, `0.75` contact range 안에 있는 적만 해당 friendly의 두 공격 slot을 소비한다. 그 안에서는 기존 ID 오름차순 결정론을 유지한다.
+
 ### 분대 생존 수직 슬라이스 Task 2 — 권위 digest·14단계 simulation facade
 
 - 목표: Task 1의 권위 상태·입력 queue·named PRNG state를 소비하는 결정론 digest, 정렬 render snapshot, 후속 reducer가 연결할 14단계 simulation 경계를 추가한다.

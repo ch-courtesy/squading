@@ -103,6 +103,7 @@ export function assignNormalContactSlots(state: GameState): ReadonlySet<number> 
       enemy.targetId = target?.id ?? null
     }
     if (!target) continue
+    if (distanceSquared(enemy.position, target.position) > NORMAL_ENEMY_ATTACK_RANGE ** 2) continue
 
     const assignedCount = slotCounts.get(target.id) ?? 0
     if (assignedCount < CONTACT_SLOTS_PER_FRIENDLY) {
