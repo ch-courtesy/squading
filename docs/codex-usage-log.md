@@ -2,6 +2,15 @@
 
 ## 2026-08-15
 
+### 분대 생존 수직 슬라이스 Task 4 — 교대 cooldown과 한 단계 피로
+
+- 목표: 명시적 분대 교대의 60 tick cooldown, active/inactive 피로 경계, exhausted 이동·공격 간격 배율을 기존 14단계 authority phase에 연결한다. 전멸 자동 교대, rescue/spawn/upgrade/elite/UI는 범위에서 제외했다.
+- Codex 활용: Codebase Knowledge Graph로 현재 simulation/combat/movement 경계를 확인하고 `superpowers:test-driven-development`로 squad reducer suite를 먼저 만들었다. RED는 `squads` reducer import 미해결을 직접 확인했고, 이후 최소 reducer와 phase wiring을 구현했다. Controller 지시에 따라 Advisor는 호출하지 않았다.
+- 주요 산출물: `squads.ts`의 `applySquadSwitch`·900 단위 fixed-point `advanceFatigue`·controlled movement multiplier, combat `attackInterval`의 1.80 exhausted 배율, gameplay-squads 계약 6건.
+- 검증 근거: RED `tests/core/gameplay-squads.test.ts`에서 missing `squads` module resolution과 attack-target exertion regression을 확인했다. GREEN targeted squads+combat `18/18`, full Vitest `100/100`, TypeScript·Vite build, `git diff --check`를 직접 실행했다. Vite 기존 large-chunk warning만 출력됐다.
+- 결정: cooldown은 phase 1에서 먼저 줄어들고, 성공 교대는 그 입력 단계에서 60으로 설정되어 다음 tick부터 감소한다. 피로는 active squad가 move/attack/rescue 중일 때만 `1/450` 증가하고 inactive는 `1/300` 회복한다. exhaustion은 active controlled movement `×0.70`, active attack cooldown `×1.80`에만 적용한다.
+- 다음 단계: Task 5 rescue/spawn과 이후 task가 이미 고정된 phase order 및 명시적 교대 agency를 보존해야 한다.
+
 ### 분대 생존 수직 슬라이스 Task 3 — 위치 기반 전투와 두 접촉 슬롯
 
 - 목표: 권위 상태와 Task 2 simulation facade에 활성 이동·비활성 추종·arena clamp, 결정론적 표적 선택, 일반 적 접촉 피해의 병사당 2-slot 제한을 연결한다.

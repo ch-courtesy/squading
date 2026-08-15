@@ -1,8 +1,9 @@
-import { BATTLE_TICKS, SQUAD_SWITCH_COOLDOWN_TICKS } from './constants'
+import { BATTLE_TICKS } from './constants'
 import { advanceAttackCooldowns, advanceFriendlyAttacks, advanceNormalAttacks } from './combat'
 import { digestGameState } from './digest'
 import { createGameplayInputQueue } from './input-queue'
 import { advanceMovement } from './movement'
+import { advanceFatigue, applySquadSwitch } from './squads'
 import { projectRenderSnapshot } from './snapshot'
 import { createInitialGameState } from './state'
 import type { GameInputEvent, GameState, GameplayFixture, GameplaySimulation } from './types'
@@ -102,10 +103,7 @@ export function createGameplaySimulation(options: GameplaySimulationOptions): Ga
         state.input = { ...state.input, rescueHeld: event.held }
         return
       case 'switch-squad':
-        if (state.switchCooldown === 0) {
-          state.activeSquad = state.activeSquad === 'teal' ? 'scarlet' : 'teal'
-          state.switchCooldown = SQUAD_SWITCH_COOLDOWN_TICKS
-        }
+        applySquadSwitch(state)
         return
       case 'toggle-pause':
         state.mode = state.mode === 'running' ? 'paused' : state.mode === 'paused' ? 'running' : state.mode
@@ -129,7 +127,7 @@ export function createGameplaySimulation(options: GameplaySimulationOptions): Ga
     },
     spawn: () => {},
     commandsUpgrades: () => {},
-    fatigue: () => {},
+    fatigue: () => { advanceFatigue(state) },
     movement: () => { advanceMovement(state) },
     rescueProgress: () => {},
     friendlyAttacks: () => { advanceFriendlyAttacks(state) },

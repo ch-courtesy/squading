@@ -47,8 +47,10 @@ function friendlyAttackDamage(state: GameState, friendly: FriendlyState): number
   return base * state.squads[friendly.squad].damageMultiplier * inactiveMultiplier
 }
 
-function friendlyAttackInterval(friendly: FriendlyState): number {
-  return friendly.squad === 'teal' ? TEAL_ATTACK_INTERVAL : SCARLET_ATTACK_INTERVAL
+export function attackInterval(state: GameState, friendly: FriendlyState): number {
+  const base = friendly.squad === 'teal' ? TEAL_ATTACK_INTERVAL : SCARLET_ATTACK_INTERVAL
+  const isExhaustedControlledSquad = friendly.squad === state.activeSquad && state.squads[friendly.squad].exhausted
+  return base * (isExhaustedControlledSquad ? 1.8 : 1)
 }
 
 export function selectTarget(state: GameState, friendly: FriendlyState): number | null {
@@ -82,7 +84,7 @@ export function advanceFriendlyAttacks(state: GameState): void {
       if (!target) continue
       target.hp = Math.max(0, target.hp - damage)
     }
-    friendly.attackCooldown = friendlyAttackInterval(friendly)
+    friendly.attackCooldown = attackInterval(state, friendly)
   }
 }
 

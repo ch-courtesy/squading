@@ -5,6 +5,7 @@ import {
   SCARLET_MOVE_SPEED,
   TEAL_MOVE_SPEED,
 } from './constants'
+import { movementMultiplier } from './squads'
 import type { FriendlyState, GameState, Vec2 } from './types'
 
 const FOLLOW_DISTANCE = 3.5
@@ -47,7 +48,7 @@ function normalized(direction: Vec2): Vec2 | null {
 
 function squadMoveSpeed(state: GameState, squad: FriendlyState['squad']): number {
   const base = squad === 'teal' ? TEAL_MOVE_SPEED : SCARLET_MOVE_SPEED
-  return base * state.squads[squad].movementMultiplier
+  return base * movementMultiplier(state, squad)
 }
 
 function updateLastCenter(state: GameState, squad: FriendlyState['squad']): Vec2 {
