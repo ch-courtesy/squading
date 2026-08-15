@@ -1,0 +1,179 @@
+:root {
+  color: #f8ead2;
+  background: #171510;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-synthesis: none;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  min-width: 320px;
+  min-height: 100vh;
+  margin: 0;
+  background:
+    radial-gradient(circle at 20% 0%, rgb(45 93 88 / 35%), transparent 36rem),
+    radial-gradient(circle at 90% 70%, rgb(142 63 50 / 25%), transparent 34rem),
+    #171510;
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+.app-shell {
+  width: min(70rem, calc(100% - 2rem));
+  margin: 0 auto;
+  padding: clamp(2.5rem, 7vw, 6rem) 0;
+}
+
+.hero {
+  max-width: 48rem;
+  margin-bottom: 2.5rem;
+}
+
+.eyebrow {
+  margin: 0 0 0.75rem;
+  color: #e1b55f;
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+}
+
+h1,
+h2,
+p {
+  margin-top: 0;
+}
+
+h1 {
+  margin-bottom: 1rem;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(2.5rem, 7vw, 5.25rem);
+  line-height: 0.96;
+}
+
+.lede {
+  color: #c9c0ae;
+  font-size: 1.1rem;
+  line-height: 1.7;
+}
+
+.panel,
+.controls {
+  margin-top: 1rem;
+  padding: clamp(1.2rem, 4vw, 2rem);
+  border: 1px solid #4c4638;
+  border-radius: 1rem;
+  background: rgb(28 26 21 / 88%);
+  box-shadow: 0 1.25rem 3rem rgb(0 0 0 / 25%);
+}
+
+.panel h2,
+.controls h2 {
+  font-size: 1rem;
+  letter-spacing: 0.04em;
+}
+
+.renderer-grid,
+.settings-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.renderer-card {
+  display: grid;
+  gap: 0.45rem;
+  min-height: 7.5rem;
+  padding: 1rem;
+  border: 1px solid #625b49;
+  border-radius: 0.75rem;
+  color: inherit;
+  background: #242119;
+  text-align: left;
+  cursor: pointer;
+}
+
+.renderer-card span,
+.controls p,
+label span {
+  color: #bdb3a0;
+}
+
+.renderer-card[aria-pressed="true"] {
+  border-color: #e1b55f;
+  outline: 2px solid rgb(225 181 95 / 24%);
+  background: #343025;
+}
+
+.renderer-card:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 3px solid #71c9bd;
+  outline-offset: 3px;
+}
+
+.settings-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+label {
+  display: grid;
+  gap: 0.5rem;
+}
+
+input,
+select {
+  width: 100%;
+  min-height: 3rem;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid #625b49;
+  border-radius: 0.5rem;
+  color: inherit;
+  background: #13120f;
+}
+
+.controls {
+  border-color: #397a72;
+}
+
+.controls p:last-child {
+  margin-bottom: 0;
+}
+
+.game-shell {
+  padding-top: 2rem;
+}
+
+.game-stage {
+  min-height: min(62vw, 34rem);
+  overflow: hidden;
+  border: 1px solid #625b49;
+  border-radius: 1rem;
+  background: #201d16;
+}
+
+.game-stage canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: crosshair;
+}
+
+.game-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+@media (max-width: 42rem) {
+  .renderer-grid,
+  .settings-grid {
+    grid-template-columns: 1fr;
+  }
+}
