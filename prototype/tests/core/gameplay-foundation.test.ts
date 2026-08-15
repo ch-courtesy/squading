@@ -3,7 +3,11 @@ import { expect, test } from 'vitest'
 import { createPrng } from '../../src/core/prng'
 import { createGameplayInputQueue } from '../../src/core/gameplay/input-queue'
 import { createInitialGameState } from '../../src/core/gameplay/state'
-import { FORMATION_JITTER, TEAL_INITIAL_CENTER } from '../../src/core/gameplay/constants'
+import {
+  FORMATION_JITTER,
+  INITIAL_FORMATION_OFFSETS,
+  TEAL_INITIAL_CENTER,
+} from '../../src/core/gameplay/constants'
 
 test('starts at tick zero with scarlet active and three independent streams', () => {
   const state = createInitialGameState('47')
@@ -25,13 +29,18 @@ test('orders same-tick commands by sequence and copies payloads', () => {
 test('consumes one formation jitter pair for each of the sixteen units', () => {
   const state = createInitialGameState('47')
   const expectedFormation = createPrng('47:formation')
+  const expectedOffsets = []
 
   for (let index = 0; index < 16; index += 1) {
-    expectedFormation.range(-FORMATION_JITTER, FORMATION_JITTER)
-    expectedFormation.range(-FORMATION_JITTER, FORMATION_JITTER)
+    const base = INITIAL_FORMATION_OFFSETS[index % INITIAL_FORMATION_OFFSETS.length]
+    expectedOffsets.push({
+      x: base.x + expectedFormation.range(-FORMATION_JITTER, FORMATION_JITTER),
+      y: base.y + expectedFormation.range(-FORMATION_JITTER, FORMATION_JITTER),
+    })
   }
 
   expect(new Set(state.friendlies.map((unit) => unit.formationOffset)).size).toBe(16)
+  expect(state.friendlies.map((unit) => unit.formationOffset)).toEqual(expectedOffsets)
   expect(state.prng.formation).toBe(expectedFormation.getState())
 })
 

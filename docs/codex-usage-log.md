@@ -16,7 +16,7 @@
 - 목표: review에서 발견된 formation PRNG under-consumption과 mutable vector alias를 권위 state 경계에서 제거했다.
 - 변경: 두 분대 16명 모두 별도의 formation PRNG X/Y jitter pair를 소비하도록 고쳤고, 각 `formationOffset`·`lastCenter`를 소유 객체로 복사했다. 16개 고유 offset object, 32회 PRNG 소비, sibling/constant mutation isolation을 테스트로 고정했다.
 - 검증: foundation 4/4, foundation+determinism 13/13, 전체 Vitest 71/71, TypeScript·Vite build, `git diff --check` 통과. Vite 기존 large-chunk warning만 남았다.
-- 산출물: fix commit `fa3569c` (`fix: isolate gameplay formation state`).
+- 산출물: fix commit `0f1ac7a` (`fix: isolate gameplay formation state`).
 
 ### 30초 수직 슬라이스 구현 계획
 

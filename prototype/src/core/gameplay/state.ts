@@ -67,7 +67,14 @@ export function createInitialGameState(seed: string, _fixture?: GameplayFixture)
     friendlies.push(createFriendly(index + 1, 'teal', TEAL_INITIAL_CENTER, offsets[index]))
   }
   for (let index = 0; index < SQUAD_SIZE; index += 1) {
-    friendlies.push(createFriendly(index + SQUAD_SIZE + 1, 'scarlet', SCARLET_INITIAL_CENTER, offsets[index]))
+    friendlies.push(
+      createFriendly(
+        index + SQUAD_SIZE + 1,
+        'scarlet',
+        SCARLET_INITIAL_CENTER,
+        offsets[index + SQUAD_SIZE],
+      ),
+    )
   }
 
   const normalEnemies: NormalEnemyState[] = []
