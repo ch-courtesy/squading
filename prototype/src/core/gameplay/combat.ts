@@ -68,7 +68,8 @@ export function advanceAttackCooldowns(state: GameState): void {
   for (const enemy of state.normalEnemies) enemy.attackCooldown = Math.max(0, enemy.attackCooldown - 1)
 }
 
-export function advanceFriendlyAttacks(state: GameState): void {
+export function advanceFriendlyAttacks(state: GameState): boolean {
+  let activeSquadAttacked = false
   for (const friendly of [...state.friendlies].sort(byId)) {
     if (friendly.life !== 'standing' || friendly.attackCooldown > 0) continue
 
@@ -85,7 +86,9 @@ export function advanceFriendlyAttacks(state: GameState): void {
       target.hp = Math.max(0, target.hp - damage)
     }
     friendly.attackCooldown = attackInterval(state, friendly)
+    activeSquadAttacked ||= friendly.squad === state.activeSquad
   }
+  return activeSquadAttacked
 }
 
 function nearestStandingFriendly(state: GameState, position: Vec2, onlyWithOpenSlot: ReadonlyMap<number, number> | null): FriendlyState | null {

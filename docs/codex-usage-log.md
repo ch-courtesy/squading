@@ -11,6 +11,14 @@
 - 결정: cooldown은 phase 1에서 먼저 줄어들고, 성공 교대는 그 입력 단계에서 60으로 설정되어 다음 tick부터 감소한다. 피로는 active squad가 move/attack/rescue 중일 때만 `1/450` 증가하고 inactive는 `1/300` 회복한다. exhaustion은 active controlled movement `×0.70`, active attack cooldown `×1.80`에만 적용한다.
 - 다음 단계: Task 5 rescue/spawn과 이후 task가 이미 고정된 phase order 및 명시적 교대 agency를 보존해야 한다.
 
+#### Task 4 Fix round 1 — 실제 활동 피로와 공정한 교대 benchmark
+
+- 목표: review에서 확인된 controlled-target 비교의 roster 불일치, raw input·stale cooldown 기반 피로 판정, exhausted active에 의한 inactive follow 감속을 수정한다. accepted-event 로그는 Task 4 authority 계약 밖이므로 추가하지 않았다.
+- Codex 활용: `superpowers:test-driven-development`로 (1) 동일 seed·두 분대·normal target·공통 사각 movement input에서 switch event만 다른 strict `>1.20×` 비교, (2) 실제 공격 tick의 fatigue gain과 다음 cooldown-only tick의 no-gain, (3) scarlet active exhausted 때 inactive `0.14` follow speed RED를 차례로 재현했다. Controller 지시에 따라 Advisor는 호출하지 않았다.
+- 주요 산출물: reducer 결과를 담는 `SquadActivity`, actual movement/active hit 결과를 반환하는 reducer 경계, 공격·이동 이후 단 한 번 피로를 정산하는 simulation wiring, exhaustion과 무관한 base follow speed, 공정한 30초 policy benchmark.
+- 검증 근거: activity RED는 actual hit 후 fatigue `0` 대 `1/450`, follow RED는 `0.13` 대 `0.14`였다. 실제 activity 도입 후 고정된 initial benchmark도 `101.46` 대 teal threshold `106.82`로 RED가 되어 공통 movement input setup으로 교정했다. GREEN targeted `19/19`, full Vitest `101/101`, TypeScript·Vite build, `git diff --check`를 직접 실행했다. Vite 기존 large-chunk warning만 출력됐다.
+- 결정: active exhaustion은 same-tick reducer output (`moved || attacked || rescued`)이 true일 때만 증가하며, inactive recovery는 그대로 유지한다. Task 5 rescue reducer는 같은 per-step activity object에 `rescued`를 기록해 이 경계를 사용할 수 있다. follower speed는 `max(0.11, 0.12) + 0.02 = 0.14`로 계산한다.
+
 ### 분대 생존 수직 슬라이스 Task 3 — 위치 기반 전투와 두 접촉 슬롯
 
 - 목표: 권위 상태와 Task 2 simulation facade에 활성 이동·비활성 추종·arena clamp, 결정론적 표적 선택, 일반 적 접촉 피해의 병사당 2-slot 제한을 연결한다.

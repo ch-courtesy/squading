@@ -4,11 +4,21 @@ import {
   FATIGUE_RECOVERY_PER_TICK,
   SQUAD_SWITCH_COOLDOWN_TICKS,
 } from './constants'
-import type { FriendlyState, GameState, SquadState } from './types'
+import type { GameState, SquadState } from './types'
 import type { Squad } from '../types'
 
 const FATIGUE_SCALE = 900
 const EXHAUSTED_MULTIPLIER = 0.7
+
+export type SquadActivity = {
+  moved: boolean
+  attacked: boolean
+  rescued: boolean
+}
+
+export function createSquadActivity(): SquadActivity {
+  return { moved: false, attacked: false, rescued: false }
+}
 
 function fatigueUnits(fatigue: number): number {
   return Math.round(fatigue * FATIGUE_SCALE)
@@ -19,24 +29,14 @@ function setFatigue(squad: SquadState, units: number): void {
   squad.exhausted = squad.fatigue >= EXHAUSTED_THRESHOLD
 }
 
-function activeSquadIsExerting(state: GameState): boolean {
-  if (state.input.move.x !== 0 || state.input.move.y !== 0 || state.input.rescueHeld) return true
-  return state.friendlies.some(
-    (friendly: FriendlyState) =>
-      friendly.squad === state.activeSquad &&
-      friendly.life === 'standing' &&
-      (friendly.attackCooldown > 0 || friendly.targetId !== null || friendly.rescueTargetId !== null || friendly.rescueProgress > 0),
-  )
-}
-
 export function applySquadSwitch(state: GameState): void {
   if (state.switchCooldown !== 0) return
   state.activeSquad = state.activeSquad === 'teal' ? 'scarlet' : 'teal'
   state.switchCooldown = SQUAD_SWITCH_COOLDOWN_TICKS
 }
 
-export function advanceFatigue(state: GameState): void {
-  const activeExerting = activeSquadIsExerting(state)
+export function advanceFatigue(state: GameState, activity: SquadActivity): void {
+  const activeExerting = activity.moved || activity.attacked || activity.rescued
   for (const squad of ['teal', 'scarlet'] as const) {
     const squadState = state.squads[squad]
     if (squad === state.activeSquad && activeExerting) {

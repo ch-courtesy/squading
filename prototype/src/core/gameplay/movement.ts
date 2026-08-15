@@ -57,20 +57,23 @@ function updateLastCenter(state: GameState, squad: FriendlyState['squad']): Vec2
   return state.squads[squad].lastCenter
 }
 
-function moveActiveSquad(state: GameState): Vec2 {
+function moveActiveSquad(state: GameState): { center: Vec2; moved: boolean } {
   const squad = state.activeSquad
   const standing = standingFriendlies(state, squad)
-  if (standing.length === 0) return state.squads[squad].lastCenter
+  if (standing.length === 0) return { center: state.squads[squad].lastCenter, moved: false }
 
   const direction = normalized(state.input.move)
-  if (!direction) return updateLastCenter(state, squad)
+  if (!direction) return { center: updateLastCenter(state, squad), moved: false }
 
   state.squads[squad].lastDirection = direction
   const speed = squadMoveSpeed(state, squad)
+  let moved = false
   for (const friendly of standing) {
-    friendly.position = clampToArena({ x: friendly.position.x + direction.x * speed, y: friendly.position.y + direction.y * speed })
+    const position = clampToArena({ x: friendly.position.x + direction.x * speed, y: friendly.position.y + direction.y * speed })
+    moved ||= position.x !== friendly.position.x || position.y !== friendly.position.y
+    friendly.position = position
   }
-  return updateLastCenter(state, squad)
+  return { center: updateLastCenter(state, squad), moved }
 }
 
 function moveInactiveSquad(state: GameState, activeCenter: Vec2): void {
@@ -83,7 +86,7 @@ function moveInactiveSquad(state: GameState, activeCenter: Vec2): void {
     x: activeCenter.x - activeDirection.x * FOLLOW_DISTANCE,
     y: activeCenter.y - activeDirection.y * FOLLOW_DISTANCE,
   })
-  const speed = Math.max(squadMoveSpeed(state, 'teal'), squadMoveSpeed(state, 'scarlet')) + 0.02
+  const speed = Math.max(TEAL_MOVE_SPEED, SCARLET_MOVE_SPEED) + 0.02
 
   for (const friendly of standing) {
     const target = clampToArena({ x: followCenter.x + friendly.formationOffset.x, y: followCenter.y + friendly.formationOffset.y })
@@ -113,8 +116,9 @@ function moveNormalEnemies(state: GameState): void {
   }
 }
 
-export function advanceMovement(state: GameState): void {
-  const activeCenter = moveActiveSquad(state)
-  moveInactiveSquad(state, activeCenter)
+export function advanceMovement(state: GameState): boolean {
+  const active = moveActiveSquad(state)
+  moveInactiveSquad(state, active.center)
   moveNormalEnemies(state)
+  return active.moved
 }
