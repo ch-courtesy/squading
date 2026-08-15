@@ -3,6 +3,7 @@ import { advanceAttackCooldowns, advanceFriendlyAttacks, advanceNormalAttacks } 
 import { digestGameState } from './digest'
 import { createGameplayInputQueue } from './input-queue'
 import { advanceMovement } from './movement'
+import { advanceRescueProgress, prepareRescueLock, resolveRescueAndDownedTimers } from './rescue'
 import { advanceFatigue, applySquadSwitch, createSquadActivity } from './squads'
 import type { SquadActivity } from './squads'
 import { projectRenderSnapshot } from './snapshot'
@@ -130,12 +131,18 @@ export function createGameplaySimulation(options: GameplaySimulationOptions): Ga
     spawn: () => {},
     commandsUpgrades: () => {},
     fatigue: () => { squadActivity = createSquadActivity() },
-    movement: () => { squadActivity.moved = advanceMovement(state) },
-    rescueProgress: () => {},
+    movement: () => {
+      prepareRescueLock(state)
+      squadActivity.moved = advanceMovement(state)
+    },
+    rescueProgress: () => { squadActivity.rescued = advanceRescueProgress(state) },
     friendlyAttacks: () => { squadActivity.attacked = advanceFriendlyAttacks(state) },
     normalAttacks: () => { advanceNormalAttacks(state) },
     eliteTelegraph: () => {},
-    rescueDeathXp: () => { advanceFatigue(state, squadActivity) },
+    rescueDeathXp: () => {
+      resolveRescueAndDownedTimers(state)
+      advanceFatigue(state, squadActivity)
+    },
     tick: () => { state.combatTick += 1 },
     outcome: () => {},
     upgradeEntry: () => {},

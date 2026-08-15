@@ -1,5 +1,6 @@
 import type { RenderEffect, RenderSnapshot, RenderUnit } from '../types'
 import { ARENA_HEIGHT, ARENA_WIDTH, TICKS_PER_SECOND } from './constants'
+import { rescueTicks } from './rescue'
 import type { FriendlyState, GameState, NormalEnemyState } from './types'
 
 const byId = <T extends { id: number }>(left: T, right: T): number => left.id - right.id
@@ -86,6 +87,20 @@ export function projectRenderSnapshot(state: Readonly<GameState>): RenderSnapsho
       y: state.elite.telegraphCenter.y,
       startedTick: state.combatTick,
       durationTicks: state.elite.telegraphRemaining,
+    })
+  }
+  for (const rescuer of state.friendlies) {
+    if (rescuer.rescueTargetId === null) continue
+    const casualty = state.friendlies.find((friendly) => friendly.id === rescuer.rescueTargetId && friendly.life === 'downed')
+    if (!casualty) continue
+    effects.push({
+      id: casualty.id,
+      kind: 'rescue-signal',
+      team: casualty.squad,
+      x: casualty.position.x,
+      y: casualty.position.y,
+      startedTick: state.combatTick,
+      durationTicks: Math.max(0, rescueTicks(rescuer.squad) - rescuer.rescueProgress),
     })
   }
 

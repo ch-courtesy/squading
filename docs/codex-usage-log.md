@@ -2,6 +2,15 @@
 
 ## 2026-08-15
 
+### 분대 생존 수직 슬라이스 Task 5 — downed/dead와 결정론적 홀드 구조
+
+- 목표: 권위 gameplay reducer에 active squad의 1인 hold rescue, downed/dead timer, same-tick rescue damage 감소와 `rescue-signal` snapshot effect를 추가한다. UI·spawn·upgrade·elite tuning은 제외했다.
+- Codex 활용: Codebase Knowledge Graph로 Task 4 phase·movement·combat·snapshot 경계와 `SquadActivity`를 확인하고, `superpowers:test-driven-development` 절차로 rescue suite를 먼저 작성했다. 첫 RED는 `rescue.ts` module resolution 실패였고, phase-order regression은 초기 implementation에서 selected rescuer가 `0.61`로 움직인 실제 failure를 재현해 movement 전 lock preparation으로 교정했다. Controller 지시에 따라 Advisor는 호출하지 않았다.
+- 주요 산출물: `rescue.ts`의 remaining-timer/거리/ID 결정론적 lock·progress·damage/timer reducer, movement/attack rescue exclusion, phase 6 lock preparation·phase 7 progress·phase 11 completion/timer wiring, `rescue-signal` snapshot, rescue contract 10건.
+- 검증 근거: RED에서 missing rescue reducer 및 pre-movement lock 기대 `0.5` 대 actual `0.61`을 직접 확인했다. GREEN focused rescue+combat `22/22`, full Vitest `111/111`, TypeScript·Vite build, `git diff --check`를 직접 실행했다. Vite 기존 large-chunk warning만 출력됐다.
+- 결정: target은 active squad downed 중 남은 timer·ID, rescuer는 rescue range 안 standing active squad 중 거리·ID 순이다. 구조 work는 phase 7에서만 `+1`이고, phase 11에서 same-tick 피해 event마다 `-15`(하한 0), completion 후 applied maximum HP의 50% revive, completion-before-expiry, 새 downed의 다음 tick부터 감소를 적용한다. `rescued` activity는 유효한 same-tick work만 기록한다.
+- 다음 단계: 이후 spawn/elite/upgrade reducer는 `damageEvents`가 phase 11에 소비되는 boundary와 downed/dead life state를 보존해야 한다.
+
 ### 분대 생존 수직 슬라이스 Task 4 — 교대 cooldown과 한 단계 피로
 
 - 목표: 명시적 분대 교대의 60 tick cooldown, active/inactive 피로 경계, exhausted 이동·공격 간격 배율을 기존 14단계 authority phase에 연결한다. 전멸 자동 교대, rescue/spawn/upgrade/elite/UI는 범위에서 제외했다.

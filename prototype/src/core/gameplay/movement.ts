@@ -69,6 +69,7 @@ function moveActiveSquad(state: GameState): { center: Vec2; moved: boolean } {
   const speed = squadMoveSpeed(state, squad)
   let moved = false
   for (const friendly of standing) {
+    if (friendly.rescueTargetId !== null) continue
     const position = clampToArena({ x: friendly.position.x + direction.x * speed, y: friendly.position.y + direction.y * speed })
     moved ||= position.x !== friendly.position.x || position.y !== friendly.position.y
     friendly.position = position

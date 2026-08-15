@@ -71,7 +71,7 @@ export function advanceAttackCooldowns(state: GameState): void {
 export function advanceFriendlyAttacks(state: GameState): boolean {
   let activeSquadAttacked = false
   for (const friendly of [...state.friendlies].sort(byId)) {
-    if (friendly.life !== 'standing' || friendly.attackCooldown > 0) continue
+    if (friendly.life !== 'standing' || friendly.rescueTargetId !== null || friendly.attackCooldown > 0) continue
 
     const targetId = selectTarget(state, friendly)
     friendly.targetId = targetId
