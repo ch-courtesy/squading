@@ -11,6 +11,14 @@
 - 결정: target은 active squad downed 중 남은 timer·ID, rescuer는 rescue range 안 standing active squad 중 거리·ID 순이다. 구조 work는 phase 7에서만 `+1`이고, phase 11에서 same-tick 피해 event마다 `-15`(하한 0), completion 후 applied maximum HP의 50% revive, completion-before-expiry, 새 downed의 다음 tick부터 감소를 적용한다. `rescued` activity는 유효한 same-tick work만 기록한다.
 - 다음 단계: 이후 spawn/elite/upgrade reducer는 `damageEvents`가 phase 11에 소비되는 boundary와 downed/dead life state를 보존해야 한다.
 
+#### Task 5 Fix round 1 — phase-6 구조자 고정
+
+- 목표: phase 6에서 멈춘 구조자가 phase 7의 재선택으로 다른 이동 teammate에게 교체되는 overtaking 결함을 제거한다.
+- Codex 활용: `superpowers:test-driven-development`로 casualty `x=1.4`, A `x=0`, B `x=-0.1` geometry의 authority facade regression을 먼저 만들었다. RED에서 A는 lock/progress 없이 attack cooldown `18`을 받고 B가 lock을 가져가는 결과를 확인했다. Controller 지시에 따라 Advisor는 호출하지 않았다.
+- 주요 산출물: pre-movement `prepareRescueLock`과 phase-7 `advanceSelectedRescueProgress`를 분리해, 같은 tick에는 선택된 lock만 held/range/life 조건으로 검증·진행하도록 했다.
+- 검증 근거: fix 후 A는 `x=0`, target `3`, progress `1`, cooldown `0`; B는 `x≈0.01`, unlock, attack으로 GREEN을 확인했다. focused rescue suite `11/11`을 실행했고, 아래 최종 회귀 검증을 이어간다.
+- 결정: reselect는 다음 tick의 phase 6에서만 허용한다. 현재 tick phase 7은 새 rescuer를 선택하지 않아 movement/attack exclusion의 소유자가 일치한다.
+
 ### 분대 생존 수직 슬라이스 Task 4 — 교대 cooldown과 한 단계 피로
 
 - 목표: 명시적 분대 교대의 60 tick cooldown, active/inactive 피로 경계, exhausted 이동·공격 간격 배율을 기존 14단계 authority phase에 연결한다. 전멸 자동 교대, rescue/spawn/upgrade/elite/UI는 범위에서 제외했다.

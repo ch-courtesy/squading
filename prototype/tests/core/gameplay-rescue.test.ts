@@ -114,6 +114,26 @@ test('locks the selected rescuer before the simulation movement phase and advanc
   expect(rescuer.position.x).toBeGreaterThan(0)
 })
 
+test('keeps the phase-6 rescuer when a moving teammate becomes closer before phase 7', () => {
+  const game = startRunningGame('rescue-overtake')
+  const state = game.getState() as ReturnType<typeof createStateFixture>
+  const firstRescuer = makeFriendly(1, 'teal', 0, 0)
+  const movingTeammate = makeFriendly(2, 'teal', -0.1, 0)
+  const casualty = downedFriendly(3, 'teal', 1.4, 0)
+  state.friendlies = [firstRescuer, movingTeammate, casualty]
+  state.normalEnemies = [makeNormalEnemy(101, 0.5, 0)]
+  state.activeSquad = 'teal'
+  game.enqueue({ applyTick: 0, sequence: 1, kind: 'set-move', x: 1, y: 0 })
+  game.enqueue({ applyTick: 0, sequence: 2, kind: 'set-rescue', held: true })
+
+  game.step()
+
+  expect(firstRescuer).toMatchObject({ position: { x: 0, y: 0 }, rescueTargetId: casualty.id, rescueProgress: 1, attackCooldown: 0 })
+  expect(movingTeammate).toMatchObject({ rescueTargetId: null })
+  expect(movingTeammate.position.x).toBeCloseTo(0.01)
+  expect(movingTeammate.attackCooldown).toBeGreaterThan(0)
+})
+
 test('applies +1 rescue work then contact damage for a net -14 progress', () => {
   const state = createStateFixture()
   const rescuer = makeFriendly(1, 'teal', 0, 0)

@@ -86,12 +86,19 @@ export function prepareRescueLock(state: GameState, held = state.input.rescueHel
   return true
 }
 
-export function advanceRescueProgress(state: GameState, held = state.input.rescueHeld): boolean {
-  if (!prepareRescueLock(state, held)) return false
+export function advanceSelectedRescueProgress(state: GameState, held = state.input.rescueHeld): boolean {
+  if (!held) {
+    clearRescueLocks(state)
+    return false
+  }
   const lock = lockedRescuer(state)
   if (!lock) return false
   lock.rescuer.rescueProgress += 1
   return true
+}
+
+export function advanceRescueProgress(state: GameState, held = state.input.rescueHeld): boolean {
+  return prepareRescueLock(state, held) && advanceSelectedRescueProgress(state, held)
 }
 
 function applyRescueDamage(state: GameState): void {

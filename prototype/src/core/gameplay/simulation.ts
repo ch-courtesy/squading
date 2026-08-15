@@ -3,7 +3,7 @@ import { advanceAttackCooldowns, advanceFriendlyAttacks, advanceNormalAttacks } 
 import { digestGameState } from './digest'
 import { createGameplayInputQueue } from './input-queue'
 import { advanceMovement } from './movement'
-import { advanceRescueProgress, prepareRescueLock, resolveRescueAndDownedTimers } from './rescue'
+import { advanceSelectedRescueProgress, prepareRescueLock, resolveRescueAndDownedTimers } from './rescue'
 import { advanceFatigue, applySquadSwitch, createSquadActivity } from './squads'
 import type { SquadActivity } from './squads'
 import { projectRenderSnapshot } from './snapshot'
@@ -135,7 +135,7 @@ export function createGameplaySimulation(options: GameplaySimulationOptions): Ga
       prepareRescueLock(state)
       squadActivity.moved = advanceMovement(state)
     },
-    rescueProgress: () => { squadActivity.rescued = advanceRescueProgress(state) },
+    rescueProgress: () => { squadActivity.rescued = advanceSelectedRescueProgress(state) },
     friendlyAttacks: () => { squadActivity.attacked = advanceFriendlyAttacks(state) },
     normalAttacks: () => { advanceNormalAttacks(state) },
     eliteTelegraph: () => {},
