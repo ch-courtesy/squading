@@ -3,6 +3,7 @@ import { advanceAttackCooldowns, advanceFriendlyAttacks, advanceNormalAttacks } 
 import { digestGameState } from './digest'
 import { createGameplayInputQueue } from './input-queue'
 import { advanceMovement } from './movement'
+import { applyPendingUpgrade, applyUpgradeChoice, enterUpgradeIfEligible, spawnForTick } from './progression'
 import { advanceSelectedRescueProgress, prepareRescueLock, resolveRescueAndDownedTimers } from './rescue'
 import { advanceFatigue, applySquadSwitch, createSquadActivity } from './squads'
 import type { SquadActivity } from './squads'
@@ -84,9 +85,7 @@ export function createGameplaySimulation(options: GameplaySimulationOptions): Ga
         return true
       case 'choose-upgrade': {
         if (state.mode === 'awaiting-upgrade') {
-          const choice = state.upgrade.offered[event.index]
-          if (!choice) throw new TypeError('upgrade index is not offered')
-          state.upgrade = { ...state.upgrade, choice, applied: false }
+          applyUpgradeChoice(state, event.index)
           state.mode = 'running'
           clearPersistentInput()
         }
@@ -128,8 +127,8 @@ export function createGameplaySimulation(options: GameplaySimulationOptions): Ga
       state.pendingEvents = state.pendingEvents.filter((event) => event.applyTick > state.combatTick)
       for (const event of due) applyInput(event)
     },
-    spawn: () => {},
-    commandsUpgrades: () => {},
+    spawn: () => { spawnForTick(state, state.combatTick) },
+    commandsUpgrades: () => { applyPendingUpgrade(state) },
     fatigue: () => { squadActivity = createSquadActivity() },
     movement: () => {
       prepareRescueLock(state)
@@ -145,7 +144,7 @@ export function createGameplaySimulation(options: GameplaySimulationOptions): Ga
     },
     tick: () => { state.combatTick += 1 },
     outcome: () => {},
-    upgradeEntry: () => {},
+    upgradeEntry: () => { enterUpgradeIfEligible(state) },
   }
 
   const run = (name: PhaseName) => {

@@ -392,3 +392,15 @@
 - 주요 판단: 3D에서도 AI와 충돌은 2D 평면에서 계산하고 높이·그림자는 시각 표현에만 사용한다. 같은 시드, 카메라, 전투 tick과 프록시 에셋으로 비교한다.
 - 산출물: `docs/superpowers/specs/2026-08-12-tabletop-renderer-comparison-design.md`.
 - 다음 단계: 설계 검토 승인 후 구현 계획을 작성하고 Advisor 자문, SDD 구현과 독립 리뷰를 진행한다.
+
+## 2026-08-15
+
+### 분대 생존 수직 슬라이스 Task 6 — 일반 적 스폰과 1회 강화
+
+- 목표: 35개 일반 적 스폰 이벤트(97 요청), 20명 cap과 결정론적 PRNG 소비, XP 16의 한 번뿐인 3택 강화를 기존 authority phase 순서에 연결한다. 정예 결과·UI·renderer는 범위에서 제외했다.
+- Codex 활용: Codebase Knowledge Graph와 reducer 경계를 조사하고 `superpowers:test-driven-development`로 progression suite를 먼저 작성했다. 처음에는 `progression` export가 없어 RED를 직접 확인했다. 이후 duplicate event가 2회 처리되는 별도 RED를 만들어 cursor guard를 추가했다. `superpowers:verification-before-completion`으로 focused/full/build 검증을 수행했다.
+- 주요 산출물: `progression.ts`의 literal 35-event table, 한 요청당 한 spawn stream angle 소비와 clamp, cards stream Fisher-Yates display shuffle, kill XP·upgrade entry/choice/apply reducers, phase 3/4/14 wiring, combat kill XP 연결, progression 계약 13건.
+- 검증 근거: 최초 RED는 missing `gameplay/progression` import였고, duplicate RED는 requested `4` 대 expected `2`였다. GREEN focused progression+determinism+combat `36/36`, full Vitest `125/125`, TypeScript·Vite build, `git diff --check`를 직접 실행했다. Vite의 기존 500 kB chunk warning만 출력됐다.
+- 결정: 일반 적 ID는 요청 순서(`18 + requested - 1`)에 고정해 cap discard 뒤에도 결정론적 order를 유지한다. tick 540의 normal spawn은 existing phase 3에서 소비되므로 이후 phase 10의 Task 7 elite hook보다 앞선다. valid choose-upgrade는 zero-time으로 choice만 기록하고 다음 running tick phase 4에서 한 번 적용한다.
+- Advisor: dispatch 제약과 달리 Advisor 실행을 한 번 시도했으나 usable JSON/result이 반환되지 않았고, controller 지시로 추가 호출하지 않았다. 이를 approval 또는 blocker로 취급하지 않았다.
+- 다음 단계: controller가 Task 7 정예 production을 phase 10에 연결할 때 tick 540 normal-first PRNG order를 보존한다.

@@ -9,6 +9,7 @@ import {
   TEAL_ATTACK_INTERVAL,
   TEAL_ATTACK_RANGE,
 } from './constants'
+import { recordNormalKill } from './progression'
 import type { FriendlyState, GameState, NormalEnemyState, Vec2 } from './types'
 
 const CONTACT_SLOTS_PER_FRIENDLY = 2
@@ -83,7 +84,9 @@ export function advanceFriendlyAttacks(state: GameState): boolean {
     } else {
       const target = findNormalEnemy(state, targetId)
       if (!target) continue
+      const previousHp = target.hp
       target.hp = Math.max(0, target.hp - damage)
+      if (previousHp > 0 && target.hp === 0) recordNormalKill(state)
     }
     friendly.attackCooldown = attackInterval(state, friendly)
     activeSquadAttacked ||= friendly.squad === state.activeSquad
