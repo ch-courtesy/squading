@@ -14,14 +14,6 @@ import { digestGameState } from '../../src/core/gameplay/digest'
 import { advanceFriendlyAttacks } from '../../src/core/gameplay/combat'
 import { createStateFixture, makeFriendly, makeNormalEnemy } from '../helpers/gameplay-fixtures'
 
-function nextXorshift32(state: number): number {
-  let value = state >>> 0
-  value ^= value << 13
-  value ^= value >>> 17
-  value ^= value << 5
-  return value >>> 0
-}
-
 test('defines 35 spawn events requesting exactly 97 normal enemies including the tick 870 tail', () => {
   expect(SPAWN_TABLE).toHaveLength(35)
   expect(SPAWN_TABLE.reduce((sum, event) => sum + event.count, 0)).toBe(97)
@@ -36,25 +28,49 @@ test('defines 35 spawn events requesting exactly 97 normal enemies including the
 
 test('discards capped requests while consuming one spawn angle per request', () => {
   const state = createStateFixture()
+  const reference = createStateFixture()
   state.normalEnemies = Array.from({ length: 20 }, (_, index) => makeNormalEnemy(101 + index, 0, 0))
-  const before = state.prng.spawn
 
   spawnForTick(state, 360)
+  spawnForTick(reference, 360)
 
   expect(state.normalEnemies).toHaveLength(20)
-  expect(state.prng.spawn).toBe(nextXorshift32(nextXorshift32(nextXorshift32(nextXorshift32(before)))))
+  expect(state.prng.spawn).toBe(reference.prng.spawn)
   expect(state.wave).toEqual({ cursor: 15, requested: 4, discarded: 4 })
 })
 
 test('clamps an off-arena spawn without consuming a reroll angle', () => {
   const state = createStateFixture('top-clamp')
-  const before = state.prng.spawn
+  const reference = createStateFixture('top-clamp')
 
   spawnForTick(state, 0)
+  spawnForTick(reference, 0)
 
-  expect(state.prng.spawn).toBe(nextXorshift32(nextXorshift32(before)))
+  expect(state.prng.spawn).toBe(reference.prng.spawn)
+  expect(state.normalEnemies.map((enemy) => enemy.position)).toEqual(reference.normalEnemies.map((enemy) => enemy.position))
   expect(state.normalEnemies).toHaveLength(2)
   expect(state.normalEnemies.some((enemy) => enemy.position.x === 0 || enemy.position.x === ARENA_WIDTH || enemy.position.y === 0 || enemy.position.y === ARENA_HEIGHT)).toBe(true)
+})
+
+test('uses request order for partial-cap spawns, discards, and the next event', () => {
+  const state = createStateFixture('partial-cap')
+  const reference = createStateFixture('partial-cap')
+  state.normalEnemies = Array.from({ length: 18 }, (_, index) => makeNormalEnemy(101 + index, 0, 0))
+
+  spawnForTick(state, 360)
+  spawnForTick(reference, 360)
+  state.normalEnemies.find((enemy) => enemy.id === 18)!.hp = 0
+  spawnForTick(state, 380)
+  spawnForTick(reference, 380)
+
+  expect(state.wave).toEqual({ cursor: 16, requested: 8, discarded: 5 })
+  expect(state.prng.spawn).toBe(reference.prng.spawn)
+  expect(state.normalEnemies.filter((enemy) => enemy.id < 100).map((enemy) => enemy.id)).toEqual([18, 19, 22])
+  expect(state.normalEnemies.filter((enemy) => enemy.id < 100).map((enemy) => enemy.position)).toEqual([
+    reference.normalEnemies[0].position,
+    reference.normalEnemies[1].position,
+    reference.normalEnemies[4].position,
+  ])
 })
 
 test('processes each scheduled spawn event only once', () => {
@@ -77,8 +93,20 @@ test('records the XP 15 to 16 transition and pauses exactly once with a card off
   expect(state.stats).toMatchObject({ kills: 1, xp: 16 })
   expect(state.mode).toBe('awaiting-upgrade')
   expect([...state.upgrade.offered].sort()).toEqual(['march', 'power', 'vigor'])
+})
+
+test('does not reshuffle or consume cards again after the one-time offer is created', () => {
+  const state = createStateFixture('offer-once')
+  state.stats.xp = 16
+
   enterUpgradeIfEligible(state)
+  const offered = state.upgrade.offered
+  const cards = state.prng.cards
+  enterUpgradeIfEligible(state)
+
   expect(state.mode).toBe('awaiting-upgrade')
+  expect(state.upgrade.offered).toEqual(offered)
+  expect(state.prng.cards).toBe(cards)
 })
 
 test('awards one XP when a friendly attack kills a normal enemy', () => {
@@ -181,4 +209,32 @@ test('different valid card choices produce different authority digests', () => {
   applyPendingUpgrade(right)
 
   expect(digestGameState(left)).not.toBe(digestGameState(right))
+})
+
+test('different valid choices keep the next scheduled spawn identical while diverging authority', () => {
+  const left = createGameplaySimulation({ seed: 'choice-spawn-binding' })
+  const right = createGameplaySimulation({ seed: 'choice-spawn-binding' })
+  for (const game of [left, right]) {
+    game.enqueue({ applyTick: 0, sequence: 0, kind: 'start-battle' })
+    ;(game.getState() as ReturnType<typeof createStateFixture>).stats.xp = 16
+    game.step()
+  }
+
+  const leftState = left.getState() as ReturnType<typeof createStateFixture>
+  const rightState = right.getState() as ReturnType<typeof createStateFixture>
+  left.enqueue({ applyTick: leftState.combatTick, sequence: 1, kind: 'choose-upgrade', index: leftState.upgrade.offered.indexOf('power') as 0 | 1 | 2 })
+  right.enqueue({ applyTick: rightState.combatTick, sequence: 1, kind: 'choose-upgrade', index: rightState.upgrade.offered.indexOf('march') as 0 | 1 | 2 })
+
+  while (left.getState().combatTick <= 30) {
+    left.step()
+    right.step()
+  }
+
+  expect(leftState.upgrade).toMatchObject({ choice: 'power', applied: true })
+  expect(rightState.upgrade).toMatchObject({ choice: 'march', applied: true })
+  expect(leftState.prng.spawn).toBe(rightState.prng.spawn)
+  expect(leftState.normalEnemies.map((enemy) => ({ id: enemy.id, position: enemy.position }))).toEqual(
+    rightState.normalEnemies.map((enemy) => ({ id: enemy.id, position: enemy.position })),
+  )
+  expect(left.getDigest()).not.toBe(right.getDigest())
 })

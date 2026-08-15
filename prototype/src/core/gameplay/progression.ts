@@ -77,7 +77,7 @@ export function recordNormalKill(state: GameState): void {
 }
 
 export function enterUpgradeIfEligible(state: GameState): void {
-  if (state.stats.xp < UPGRADE_XP || state.upgrade.choice !== null || state.upgrade.applied) return
+  if (state.stats.xp < UPGRADE_XP || state.upgrade.offered.length > 0 || state.upgrade.choice !== null || state.upgrade.applied) return
   state.upgrade = { offered: shuffleOfferedCards(state), choice: null, applied: false }
   state.mode = 'awaiting-upgrade'
 }
