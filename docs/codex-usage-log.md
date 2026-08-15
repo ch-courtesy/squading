@@ -2,6 +2,15 @@
 
 ## 2026-08-15
 
+### 분대 생존 수직 슬라이스 Task 7 — 정예 예고·범위 피해·승패 우선순위
+
+- 목표: tick 540 정예 spawn stream 순서, 30/1/9 예고 cycle, fixed-center AoE, rescue damage event 경계와 terminal outcome 우선순위를 authority gameplay reducer에 추가한다. UI·renderer·후속 정책은 제외했다.
+- Codex 활용: Codebase Knowledge Graph로 simulation 14-phase 순서, spawn/card stream, rescue damage event 소비 지점을 확인하고 `superpowers:test-driven-development`로 elite contract를 먼저 작성했다. RED는 `core/gameplay/elite` module resolution 실패를 직접 확인한 뒤 최소 reducer를 구현했다. Controller 지시에 따라 Advisor는 호출하지 않았다.
+- 주요 산출물: `elite.ts`의 spawn/movement/telegraph/AoE/death/outcome reducer, phase 3 normal-request 뒤 elite spawn·phase 10 telegraph·phase 13 fixture-aware terminal wiring, constant-backed elite snapshot HP, focused elite contract 17건.
+- 검증 근거: RED에서 missing elite reducer를 확인했다. GREEN focused elite+progression `33/33`, full Vitest `145/145`, `npm run build`, `git diff --check`를 직접 실행했다. build는 기존 500 kB chunk warning만 출력했다.
+- 결정: tick 540은 normal angles를 먼저 모두 소비하고 spawn stream에서 elite angle 하나를 뒤이어 소비한다. warning은 570부터 40 tick cycle의 30 tick 고정 중심이며 damage는 600부터 1 tick, standing targets만 radius 2.0에서 0.35 피해와 `elite-area` event를 기록한다. 정예 사망 victory는 same-tick 전멸보다 우선하고 fixture는 phase 13 outcome만 억제한다.
+- 다음 단계: 별도 UI/renderer 작업에서 snapshot `elite-telegraph` effect를 소비할 수 있으며, 이 task의 authority reducer와 phase order는 유지한다.
+
 ### 분대 생존 수직 슬라이스 Task 5 — downed/dead와 결정론적 홀드 구조
 
 - 목표: 권위 gameplay reducer에 active squad의 1인 hold rescue, downed/dead timer, same-tick rescue damage 감소와 `rescue-signal` snapshot effect를 추가한다. UI·spawn·upgrade·elite tuning은 제외했다.

@@ -1,6 +1,7 @@
 import { BATTLE_TICKS } from './constants'
 import { advanceAttackCooldowns, advanceFriendlyAttacks, advanceNormalAttacks } from './combat'
 import { digestGameState } from './digest'
+import { advanceElite, resolveOutcome, spawnElite } from './elite'
 import { createGameplayInputQueue } from './input-queue'
 import { advanceMovement } from './movement'
 import { applyPendingUpgrade, applyUpgradeChoice, enterUpgradeIfEligible, spawnForTick } from './progression'
@@ -127,7 +128,10 @@ export function createGameplaySimulation(options: GameplaySimulationOptions): Ga
       state.pendingEvents = state.pendingEvents.filter((event) => event.applyTick > state.combatTick)
       for (const event of due) applyInput(event)
     },
-    spawn: () => { spawnForTick(state, state.combatTick) },
+    spawn: () => {
+      spawnForTick(state, state.combatTick)
+      spawnElite(state, state.combatTick)
+    },
     commandsUpgrades: () => { applyPendingUpgrade(state) },
     fatigue: () => { squadActivity = createSquadActivity() },
     movement: () => {
@@ -137,14 +141,14 @@ export function createGameplaySimulation(options: GameplaySimulationOptions): Ga
     rescueProgress: () => { squadActivity.rescued = advanceSelectedRescueProgress(state) },
     friendlyAttacks: () => { squadActivity.attacked = advanceFriendlyAttacks(state) },
     normalAttacks: () => { advanceNormalAttacks(state) },
-    eliteTelegraph: () => {},
+    eliteTelegraph: () => { advanceElite(state, state.combatTick) },
     rescueDeathXp: () => {
       resolveRescueAndDownedTimers(state)
       advanceFatigue(state, squadActivity)
     },
     tick: () => { state.combatTick += 1 },
-    outcome: () => {},
-    upgradeEntry: () => { enterUpgradeIfEligible(state) },
+    outcome: () => { if (fixture !== 'determinism') resolveOutcome(state) },
+    upgradeEntry: () => { if (state.mode === 'running') enterUpgradeIfEligible(state) },
   }
 
   const run = (name: PhaseName) => {

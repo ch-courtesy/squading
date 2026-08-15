@@ -1,5 +1,5 @@
 import type { RenderEffect, RenderSnapshot, RenderUnit } from '../types'
-import { ARENA_HEIGHT, ARENA_WIDTH, TICKS_PER_SECOND } from './constants'
+import { ARENA_HEIGHT, ARENA_WIDTH, ELITE_MAX_HP, TICKS_PER_SECOND } from './constants'
 import { rescueTicks } from './rescue'
 import type { FriendlyState, GameState, NormalEnemyState } from './types'
 
@@ -72,7 +72,7 @@ export function projectRenderSnapshot(state: Readonly<GameState>): RenderSnapsho
       y: state.elite.position.y,
       facingRadians: 0,
       radius: 0.8,
-      hp01: clamp01(state.elite.hp / 24.5),
+      hp01: clamp01(state.elite.hp / ELITE_MAX_HP),
       fatigue01: 0,
       morale01: 1,
       state: state.elite.targetId === null ? 'idle' : 'attacking',
