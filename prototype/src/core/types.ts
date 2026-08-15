@@ -1,6 +1,6 @@
 export type Team = 'teal' | 'scarlet' | 'enemy'
 export type Squad = Exclude<Team, 'enemy'>
-export type UnitKind = 'commander' | 'soldier' | 'enemy-commander' | 'enemy'
+export type UnitKind = 'commander' | 'soldier' | 'enemy-commander' | 'enemy' | 'elite'
 export type UnitState =
   | 'idle'
   | 'moving'
@@ -51,7 +51,7 @@ export type RenderProjectile = {
 
 export type RenderEffect = {
   readonly id: number
-  readonly kind: 'hit' | 'rescue' | 'morale-break' | 'rescue-signal'
+  readonly kind: 'hit' | 'rescue' | 'morale-break' | 'rescue-signal' | 'elite-telegraph'
   readonly team: Team | null
   readonly x: number
   readonly y: number
@@ -73,6 +73,7 @@ export type RenderSnapshot = {
   readonly projectiles: readonly RenderProjectile[]
   readonly effects: readonly RenderEffect[]
   readonly camera: CameraState
+  readonly activeSquad?: Squad
 }
 
 export interface Simulation {

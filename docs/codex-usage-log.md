@@ -2,6 +2,15 @@
 
 ## 2026-08-15
 
+### 분대 생존 수직 슬라이스 Task 2 — 권위 digest·14단계 simulation facade
+
+- 목표: Task 1의 권위 상태·입력 queue·named PRNG state를 소비하는 결정론 digest, 정렬 render snapshot, 후속 reducer가 연결할 14단계 simulation 경계를 추가한다.
+- Codex 활용: Codebase Knowledge Graph와 Task 1 source를 확인하고 `superpowers:test-driven-development`로 gameplay determinism 계약을 먼저 작성했다. RED는 새 simulation module import 미해결로 1 suite 실패를 확인했다. 이후 최소 facade·digest·projection·공유 fixture를 구현하고 `superpowers:verification-before-completion`으로 targeted/full regression과 build 증거를 직접 확인했다. Controller 지시에 따라 Advisor는 호출하지 않았다.
+- 주요 산출물: `prototype/src/core/gameplay/{digest,snapshot,simulation}.ts`, renderer compatibility type 확장, `gameplay-fixtures.ts`, gameplay determinism 테스트.
+- 검증 근거: RED `npm test -- tests/core/gameplay-determinism.test.ts`에서 simulation module 미해결. GREEN targeted+foundation `2 files / 10 tests`, 전체 Vitest `9 files / 77 tests`, TypeScript·Vite build, `git diff --check` 통과. Vite 기존 large-chunk warning만 출력됐다.
+- 결정: digest는 모든 authority field를 6자리 정규화한 canonical JSON에서 FNV-1a로 생성하며, entity/event collection은 numeric ID 또는 `(applyTick, sequence)`로 정렬한다. ready 상태의 `start-battle`은 enqueue 시점에 tick 0을 소비하지 않고 running으로 전환하며, running step은 명시된 14 phase 순서를 no-op hook으로도 관찰 가능하게 고정한다.
+- 다음 단계: Task 3~8이 `GameplayStepPhases` boundary에 실제 reducer를 연결한다.
+
 ### 분대 생존 수직 슬라이스 Task 1 — 권위 상태·named PRNG·입력 queue
 
 - 목표: 이후 gameplay task가 공유할 초기 권위 상태, 세 개의 이름 있는 PRNG stream, 정렬·복사 입력 queue의 최소 계약을 고정한다.
