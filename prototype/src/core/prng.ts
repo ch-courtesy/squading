@@ -10,6 +10,7 @@ function hashSeed(seed: string): number {
 }
 
 export type Prng = {
+  getState(): number
   nextUint32(): number
   nextFloat(): number
   range(min: number, max: number): number
@@ -26,6 +27,7 @@ export function createPrng(seed: string): Prng {
   }
 
   return {
+    getState: () => state >>> 0,
     nextUint32,
     nextFloat: () => nextUint32() / 0x1_0000_0000,
     range: (min, max) => min + (max - min) * (nextUint32() / 0x1_0000_0000),

@@ -2,6 +2,15 @@
 
 ## 2026-08-15
 
+### 분대 생존 수직 슬라이스 Task 1 — 권위 상태·named PRNG·입력 queue
+
+- 목표: 이후 gameplay task가 공유할 초기 권위 상태, 세 개의 이름 있는 PRNG stream, 정렬·복사 입력 queue의 최소 계약을 고정한다.
+- Codex 활용: Codebase Knowledge Graph로 기존 `createPrng`와 prototype 구조를 확인하고 `superpowers:test-driven-development` 절차로 foundation 테스트를 먼저 작성했다. RED에서 gameplay 모듈 부재를 확인한 뒤 타입·상수·초기 state·queue를 최소 구현했다. 읽기 전용 Advisor 호출은 시도했으나 Fable 사용량 제한과 Opus 호출 무응답으로 판정 근거를 받지 못해 승인으로 표시하지 않았다.
+- 주요 산출물: `prototype/src/core/gameplay/types.ts`, `constants.ts`, `input-queue.ts`, `state.ts`, `prototype/src/core/prng.ts`의 `getState()`, foundation 테스트.
+- 검증 근거: RED `npm test -- tests/core/gameplay-foundation.test.ts`에서 gameplay import 미해결 실패. GREEN foundation+determinism `2 files / 11 tests`, 전체 Vitest `8 files / 69 tests`, TypeScript·Vite build 통과, `git diff --check` 통과.
+- 결정: state는 plain numeric PRNG state만 저장하고 `:spawn`, `:cards`, `:formation` stream을 분리했다. formation은 초기 16개 X/Y jitter만 소비하며, 초기 분대 중심은 teal `(21,13)`, scarlet `(27,13)`로 설계 수치에 맞췄다.
+- 다음 단계: Task 2에서 이 state를 소비하는 simulation facade와 digest를 추가한다.
+
 ### 30초 수직 슬라이스 구현 계획
 
 - 목표: 승인된 게임 명세를 기존 renderer 비교 프로토타입에 안전하게 연결할 task별 TDD·리뷰 계획으로 변환한다.
