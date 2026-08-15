@@ -3,7 +3,7 @@ import type { RenderSnapshot, Squad } from '../types'
 export type BattleMode = 'ready' | 'running' | 'awaiting-upgrade' | 'paused' | 'won' | 'lost'
 export type FailureReason = 'all-units-lost' | 'elite-survived' | null
 export type UpgradeId = 'power' | 'march' | 'vigor'
-export type GameplayFixture = 'determinism' | 'damage-events'
+export type GameplayFixture = 'determinism' | 'damage-events' | 'rescue-agency'
 export type Vec2 = { readonly x: number; readonly y: number }
 export type LifeState = 'standing' | 'downed' | 'dead'
 export type PersistentInput = { move: Vec2; rescueHeld: boolean }

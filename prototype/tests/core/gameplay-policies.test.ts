@@ -4,6 +4,7 @@ import {
   decideSkilledCommands,
   runDeterminismFixture,
   runGameplayPolicy,
+  runRescueAgencyScenario,
   type GameplayPolicy,
   type PolicyRun,
 } from '../../src/scenarios/gameplay-policies'
@@ -137,6 +138,36 @@ describe('gameplay determinism fixture', () => {
     expect(first.checkpoints.map((point) => point.tick)).toEqual(CHECKPOINT_TICKS)
     expect(second).toEqual(first)
   })
+
+  test('continues authoritative mutation after seed 47 loses every standing unit', () => {
+    const run = runDeterminismFixture('47')
+
+    expect(run.zeroStandingTick).toBe(753)
+    expect(run.postWipeObservations[0].tick).toBe(753)
+    expect(run.postWipeObservations.at(-1)?.tick).toBe(900)
+
+    for (let index = 1; index < run.postWipeObservations.length; index += 1) {
+      const previous = run.postWipeObservations[index - 1]
+      const current = run.postWipeObservations[index]
+      const previousPositions = new Map(previous.normalPositions.map((normal) => [normal.id, normal.position]))
+      for (const normal of current.normalPositions) {
+        const previousPosition = previousPositions.get(normal.id)
+        if (previousPosition) expect(normal.position).toEqual(previousPosition)
+      }
+    }
+
+    const wipe = run.postWipeObservations[0]
+    const afterOneTick = run.postWipeObservations[1]
+    const advancingTimer = wipe.downedTimers.find((casualty) => casualty.ticks > 1)!
+    expect(afterOneTick.downedTimers).toContainEqual({ id: advancingTimer.id, ticks: advancingTimer.ticks - 1 })
+
+    const final = run.postWipeObservations.at(-1)!
+    expect(final.spawnPrng).not.toBe(wipe.spawnPrng)
+    expect(final.wave.requested).toBeGreaterThan(wipe.wave.requested)
+    expect(final.wave).toMatchObject({ cursor: 35, requested: 97 })
+    expect(final.warningTicks).toEqual([570, 610, 650, 690, 730, 770, 810, 850])
+    expect(final.damageTicks).toEqual([600, 640, 680, 720, 760, 800, 840, 880])
+  })
 })
 
 describe('seed-agnostic gameplay policies', () => {
@@ -186,10 +217,32 @@ describe('seed-agnostic gameplay policies', () => {
 
     try {
       expect(() => runDeterminismFixture('47')).not.toThrow()
-      expect(() => runGameplayPolicy('47', 'skilled')).not.toThrow()
+      for (const seed of SEEDS) {
+        for (const policy of POLICIES) expect(() => runGameplayPolicy(seed, policy)).not.toThrow()
+      }
       expect(random).not.toHaveBeenCalled()
     } finally {
       random.mockRestore()
     }
   })
+})
+
+test('completes a safe rescue through deterministic public commands', () => {
+  const first = runRescueAgencyScenario('47')
+  const second = runRescueAgencyScenario('47')
+
+  expect(second).toEqual(first)
+  expect(first.approach.startDistance).toBeGreaterThan(1.5)
+  expect(first.approach.endDistance).toBeLessThanOrEqual(1.5)
+  expect(first.approach.minimumNormalDistance).toBeGreaterThanOrEqual(3)
+  expect(first.commands).toContainEqual(expect.objectContaining({ kind: 'set-rescue', held: true }))
+  expect(first.progress).toHaveLength(29)
+  for (let index = 0; index < first.progress.length; index += 1) {
+    expect(first.progress[index].progress).toBe(index + 1)
+    expect(first.progress[index].rescuerId).toBe(first.progress[0].rescuerId)
+    expect(first.progress[index].casualtyId).toBe(first.progress[0].casualtyId)
+  }
+  expect(first.completedTick).toBe(first.progress.at(-1)!.tick + 1)
+  expect(first.rescues).toBe(1)
+  expect(first.finalDigest).toMatch(/^[0-9a-f]{8}$/)
 })

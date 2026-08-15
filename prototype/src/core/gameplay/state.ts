@@ -5,7 +5,7 @@ import {
   ELITE_MAX_HP,
   FORMATION_JITTER,
   INITIAL_FORMATION_OFFSETS,
-  NORMAL_ENEMY_MAX_HP,
+  NORMAL_ENEMY_ATTACK_DAMAGE,
   ROSTER_SIZE,
   SCARLET_MAX_HP,
   SCARLET_INITIAL_CENTER,
@@ -58,7 +58,7 @@ function createFormationOffsets(seed: string): { offsets: Vec2[]; state: number 
   return { offsets, state: formation.getState() }
 }
 
-export function createInitialGameState(seed: string, _fixture?: GameplayFixture): GameState {
+export function createInitialGameState(seed: string, fixture?: GameplayFixture): GameState {
   const { offsets, state: formationState } = createFormationOffsets(seed)
   const spawn = createPrng(`${seed}:spawn`)
   const cards = createPrng(`${seed}:cards`)
@@ -78,20 +78,32 @@ export function createInitialGameState(seed: string, _fixture?: GameplayFixture)
   }
 
   const normalEnemies: NormalEnemyState[] = []
+  if (fixture === 'rescue-agency') {
+    for (const friendly of friendlies) {
+      friendly.position = friendly.squad === 'teal'
+        ? { x: friendly.id === 1 ? 6 : 2, y: 13 }
+        : { x: 6, y: 13 }
+      friendly.attackCooldown = 2
+    }
+    friendlies[0].hp = NORMAL_ENEMY_ATTACK_DAMAGE
+    normalEnemies.push({ id: 18, hp: 0.4, position: { x: 6, y: 13 }, attackCooldown: 0, targetId: 1 })
+  }
   return {
     schemaVersion: 1,
     rootSeed: seed,
     combatTick: 0,
     mode: 'ready',
     failureReason: null,
-    activeSquad: 'scarlet',
+    activeSquad: fixture === 'rescue-agency' ? 'teal' : 'scarlet',
     switchCooldown: 0,
     prng: { cards: cards.getState(), formation: formationState, spawn: spawn.getState() },
     wave: { cursor: 0, requested: 0, discarded: 0 },
     input: { move: { x: 0, y: 0 }, rescueHeld: false },
     inputCursor: 0,
     pendingEvents: [],
-    squads: { teal: createSquadState(TEAL_INITIAL_CENTER), scarlet: createSquadState(SCARLET_INITIAL_CENTER) },
+    squads: fixture === 'rescue-agency'
+      ? { teal: createSquadState({ x: 2.5, y: 13 }), scarlet: createSquadState({ x: 6, y: 13 }) }
+      : { teal: createSquadState(TEAL_INITIAL_CENTER), scarlet: createSquadState(SCARLET_INITIAL_CENTER) },
     friendlies,
     normalEnemies,
     elite: {

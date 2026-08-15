@@ -10,7 +10,16 @@
 - 명세 복구·tuning 감사: `NORMAL_ENEMY_SPAWN_RADIUS=11`과 active squad center spawn은 이미 승인 명세에 적힌 값이므로 코드 defect만 복구하고 명세 문구는 바꾸지 않았다. 이전 `0.07` 실험은 최종 ruling 전의 불완전 reducer/policy baseline에서 수행돼 무효화되었고 `0.09`로 원복했다. 최종 GREEN 측정에는 balance lever를 쓰지 않았다.
 - 측정 근거: fixture의 정확한 `[0,150,300,360,540,660,780,900]` 두 실행 equality와 24개 seed/policy의 terminal/checkpoint/final digest 두 실행 equality가 통과했다. 최종 승률은 tactical `0/8`, movement `0/8`, skilled `6/8`; seed47 skilled timing은 attack/downed/upgrade `70/595/321`이다. 숙련 정책의 완료 rescue는 8 seed 모두 0이지만 command-level safe approach/eligible hold 계약은 별도 통과했다.
 - 산출물·검증: `gameplay-policies.ts`, 공개 policy suite, radius-11 spawn regression, two-stage rescue lifecycle, elite phase split, controlled-damage fixture isolation, 24-run 결과·산술·self-review task report를 완성했다. affected `68/68`, core `121/121`, full Vitest `162/162`, TypeScript·Vite build가 통과했으며 build에는 기존 large-chunk warning만 남았다.
-- 다음 단계: Task 9 이후 UI/controller는 이 authority 계약과 public command 우선순위를 소비한다. rescue 완료가 필수 coverage가 되면 별도 고정 public-facade scenario를 추가한다.
+- 다음 단계: Task 9 이후 UI/controller는 이 authority 계약과 public command 우선순위를 소비한다. 완료 rescue의 실제 core-loop coverage는 아래 Fix round 1 scenario가 담당한다.
+
+#### Task 8 Fix round 1 — 실제 구조 agency와 wipe 이후 mutation 증거
+
+- 목표: 고정 8-seed 숙련 정책의 완료 rescue가 0인 사실은 유지하면서, 별도 결정론 scenario에서 공개 facade만으로 실제 접근·hold·lock·progress·완료를 증명하고 tick 753 전멸 뒤 tick 900까지의 권위 mutation을 결함 변이에 견디게 고정한다.
+- TDD·조사: `runRescueAgencyScenario` 부재 RED 뒤 일반 seed47 명령 조합을 먼저 시도했다. 안전 casualty가 전멸 전 열리지 않거나 약 `18.3` 거리에서 너무 늦게 열리는 실제 궤적을 확인해, 허용된 명명형 최소 `rescue-agency` fixture로 전환했다. 한 번의 실제 `0.09` 접촉과 ordinary friendly fire로 안전 창을 만들고, scenario runner는 `enqueue/getState/step/getDigest`만 사용하며 반환 state를 수정하지 않는다. Advisor는 호출하지 않았다.
+- 구조 GREEN: public 이동이 `>1.5`에서 구조 범위까지 접근하고 `set-rescue held:true`를 enqueue한 뒤 동일 rescuer/casualty lock의 progress `1..29`와 다음 tick의 `stats.rescues=1`을 관측했다. 두 실행 전체와 final digest가 동일하다. 고정 정책은 여전히 구조 완료 0회지만 band `0/8, 0/8, 6/8`과 seed47 `70/595/321`을 그대로 통과한다.
+- wipe 증거: seed47 zero-standing은 tick `753`이며, 이후 공유 normal 위치 정지, downed timer 감소, spawn PRNG·wave의 `{cursor:35, requested:97}` 진행, warning/damage 각 8회 exact history를 tick 900까지 관측한다. 임시 freeze-all 변이는 timer `111→110` 계약에서 RED, target 없는 normal 이동 변이는 x `+0.07`에서 RED를 확인한 뒤 원복했다.
+- randomness·검증: runtime `Math.random` spy를 fixture와 정확한 8 seed x 3 policy 전체로 확장했다. focused `63/63`, core `123/123`, full Vitest `164/164`, TypeScript·Vite build, `git diff --check`가 통과했으며 기존 large-chunk warning만 남았다.
+- 다음 단계: UI/controller 작업은 기존 정책 결과와 production 값을 그대로 소비한다. 구조 완료 agency 근거는 이 dedicated public-facade scenario가 담당한다.
 
 ### 분대 생존 수직 슬라이스 Task 7 — 정예 예고·범위 피해·승패 우선순위
 
