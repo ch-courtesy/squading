@@ -2,6 +2,15 @@
 
 ## 2026-08-15
 
+### 분대 생존 수직 슬라이스 Task 3 — 위치 기반 전투와 두 접촉 슬롯
+
+- 목표: 권위 상태와 Task 2 simulation facade에 활성 이동·비활성 추종·arena clamp, 결정론적 표적 선택, 일반 적 접촉 피해의 병사당 2-slot 제한을 연결한다.
+- Codex 활용: Codebase Knowledge Graph와 Task 1~2 authority facade·fixture를 확인하고 `superpowers:test-driven-development`로 새 combat suite를 먼저 작성했다. RED는 `movement`/`combat` module import 미해결로 확인했고, self-review 중 발견한 세 번째 적 재표적 유지 결함도 별도 RED로 재현했다. Advisor는 controller 지시에 따라 호출하지 않았다.
+- 주요 산출물: `movement.ts`의 active/follow/normal clamp reducer, `combat.ts`의 ID·거리 표적 선택, cooldown과 two-slot assignment, 그리고 facade phase wiring 및 행동 regression 11건.
+- 검증 근거: initial RED는 missing module resolution, follow-up RED는 third enemy target `1` 대 expected `2`였다. GREEN targeted `22/22`, full Vitest `93/93`, TypeScript·Vite build, `git diff --check`를 직접 실행했다. Vite 기존 large-chunk warning만 출력됐다.
+- 결정: friendly는 매 공격 직전 정예 우선·거리/ID normal target을 다시 계산해 같은 tick overkill을 막는다. 2개 slot을 넘은 normal은 damage 없이 다음 tick용 열린 slot target을 보존하며, movement는 standing target이 유효한 동안 그 재표적을 덮어쓰지 않는다.
+- 다음 단계: 후속 Task 4가 normal damage의 downed/dead transition과 rescue를, Task 5~6이 spawn/elite/fatigue·upgrade 효과를 같은 phase order에 추가한다.
+
 ### 분대 생존 수직 슬라이스 Task 2 — 권위 digest·14단계 simulation facade
 
 - 목표: Task 1의 권위 상태·입력 queue·named PRNG state를 소비하는 결정론 digest, 정렬 render snapshot, 후속 reducer가 연결할 14단계 simulation 경계를 추가한다.

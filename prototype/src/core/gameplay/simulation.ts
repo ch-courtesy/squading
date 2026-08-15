@@ -1,6 +1,8 @@
 import { BATTLE_TICKS, SQUAD_SWITCH_COOLDOWN_TICKS } from './constants'
+import { advanceAttackCooldowns, advanceFriendlyAttacks, advanceNormalAttacks } from './combat'
 import { digestGameState } from './digest'
 import { createGameplayInputQueue } from './input-queue'
+import { advanceMovement } from './movement'
 import { projectRenderSnapshot } from './snapshot'
 import { createInitialGameState } from './state'
 import type { GameInputEvent, GameState, GameplayFixture, GameplaySimulation } from './types'
@@ -116,7 +118,10 @@ export function createGameplaySimulation(options: GameplaySimulationOptions): Ga
   }
 
   const defaults: GameplayStepPhases = {
-    cooldowns: () => { state.switchCooldown = Math.max(0, state.switchCooldown - 1) },
+    cooldowns: () => {
+      state.switchCooldown = Math.max(0, state.switchCooldown - 1)
+      advanceAttackCooldowns(state)
+    },
     input: () => {
       const due = queue.take(state.combatTick)
       state.pendingEvents = state.pendingEvents.filter((event) => event.applyTick > state.combatTick)
@@ -125,10 +130,10 @@ export function createGameplaySimulation(options: GameplaySimulationOptions): Ga
     spawn: () => {},
     commandsUpgrades: () => {},
     fatigue: () => {},
-    movement: () => {},
+    movement: () => { advanceMovement(state) },
     rescueProgress: () => {},
-    friendlyAttacks: () => {},
-    normalAttacks: () => {},
+    friendlyAttacks: () => { advanceFriendlyAttacks(state) },
+    normalAttacks: () => { advanceNormalAttacks(state) },
     eliteTelegraph: () => {},
     rescueDeathXp: () => {},
     tick: () => { state.combatTick += 1 },
