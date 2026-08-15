@@ -1,4 +1,4 @@
-import { SQUAD_SWITCH_COOLDOWN_TICKS } from './constants'
+import { BATTLE_TICKS, SQUAD_SWITCH_COOLDOWN_TICKS } from './constants'
 import { digestGameState } from './digest'
 import { createGameplayInputQueue } from './input-queue'
 import { projectRenderSnapshot } from './snapshot'
@@ -42,6 +42,9 @@ function assertFiniteEvent(event: GameInputEvent): void {
   if (event.kind === 'set-move' && (!Number.isFinite(event.x) || !Number.isFinite(event.y))) {
     throw new TypeError('movement input must be finite')
   }
+  if (event.kind === 'choose-upgrade' && (!Number.isInteger(event.index) || event.index < 0 || event.index > 2)) {
+    throw new TypeError('upgrade index must be 0, 1, or 2')
+  }
 }
 
 export function createGameplaySimulation(options: GameplaySimulationOptions): GameplaySimulation {
@@ -52,6 +55,40 @@ export function createGameplaySimulation(options: GameplaySimulationOptions): Ga
 
   const syncPendingEvents = () => {
     state.pendingEvents = [...state.pendingEvents].sort(byEventOrder)
+  }
+
+  const clearPersistentInput = () => {
+    state.input = { move: { x: 0, y: 0 }, rescueHeld: false }
+  }
+
+  const applyZeroTimeControl = (event: GameInputEvent): boolean => {
+    switch (event.kind) {
+      case 'start-battle':
+        if (event.applyTick !== 0) throw new TypeError('start-battle must apply at tick zero')
+        if (state.mode === 'ready') state.mode = 'running'
+        return true
+      case 'toggle-pause':
+        if (state.mode === 'running') {
+          state.mode = 'paused'
+          clearPersistentInput()
+        } else if (state.mode === 'paused') {
+          state.mode = 'running'
+          clearPersistentInput()
+        }
+        return true
+      case 'choose-upgrade': {
+        if (state.mode === 'awaiting-upgrade') {
+          const choice = state.upgrade.offered[event.index]
+          if (!choice) throw new TypeError('upgrade index is not offered')
+          state.upgrade = { ...state.upgrade, choice, applied: false }
+          state.mode = 'running'
+          clearPersistentInput()
+        }
+        return true
+      }
+      default:
+        return false
+    }
   }
 
   const applyInput = (event: GameInputEvent) => {
@@ -111,17 +148,13 @@ export function createGameplaySimulation(options: GameplaySimulationOptions): Ga
     enqueue(event) {
       assertFiniteEvent(event)
       const copied = copyEvent(event)
-      if (copied.kind === 'start-battle') {
-        if (copied.applyTick !== 0) throw new TypeError('start-battle must apply at tick zero')
-        if (state.mode === 'ready') state.mode = 'running'
-        return
-      }
+      if (applyZeroTimeControl(copied)) return
       queue.enqueue(copied)
       state.pendingEvents.push(copied)
       syncPendingEvents()
     },
     step() {
-      if (state.mode !== 'running') return
+      if (state.mode !== 'running' || state.combatTick >= BATTLE_TICKS) return
       run('cooldowns')
       run('input')
       run('spawn')

@@ -39,7 +39,7 @@ export function canonicalizeAuthorityState(state: Readonly<GameState>): unknown 
     friendlies: [...state.friendlies].sort(byId),
     normalEnemies: [...state.normalEnemies].sort(byId),
     damageEvents: [...state.damageEvents].sort(
-      (left, right) => left.sourceId - right.sourceId || left.targetId - right.targetId || left.kind.localeCompare(right.kind),
+      (left, right) => left.sourceId - right.sourceId || left.targetId - right.targetId || left.kind.localeCompare(right.kind) || left.amount - right.amount,
     ),
   })
 }

@@ -11,6 +11,15 @@
 - 결정: digest는 모든 authority field를 6자리 정규화한 canonical JSON에서 FNV-1a로 생성하며, entity/event collection은 numeric ID 또는 `(applyTick, sequence)`로 정렬한다. ready 상태의 `start-battle`은 enqueue 시점에 tick 0을 소비하지 않고 running으로 전환하며, running step은 명시된 14 phase 순서를 no-op hook으로도 관찰 가능하게 고정한다.
 - 다음 단계: Task 3~8이 `GameplayStepPhases` boundary에 실제 reducer를 연결한다.
 
+#### Task 2 Fix round 1 — zero-time control·tick cap·digest total order
+
+- 목표: review에서 지적된 pause/upgrade zero-time control 누락, 900 tick 상한 누락, malformed upgrade atomicity, damage event digest tie를 수정했다.
+- Codex 활용: `superpowers:systematic-debugging`으로 `enqueue()`가 `start-battle`만 즉시 처리하고 paused/awaiting 상태에서는 queued control이 input phase에 도달하지 못하는 원인을 재현했다. `superpowers:test-driven-development`로 다섯 regression을 RED `5 failures`로 확인한 뒤 최소 authority reducer와 guards를 적용했다. Controller 지시에 따라 Advisor는 호출하지 않았다.
+- 주요 산출물: synchronous `start-battle`/`toggle-pause`/`choose-upgrade` reducer, persistent input clear, runtime upgrade index validation, `BATTLE_TICKS` pre-phase guard, amount까지 비교하는 damage event canonical order, regression tests.
+- 검증 근거: targeted foundation+determinism `2 files / 15 tests`, full Vitest `9 files / 82 tests`, TypeScript·Vite build, `git diff --check` 통과. Vite의 기존 large-chunk warning만 출력됐다.
+- 결정: pause resume와 awaiting-upgrade selection은 enqueue 시 same-tick으로 적용되고 persistent input을 항상 초기화한다. upgrade 선택은 offered ID를 기록하고 후속 Task 6 effect 적용을 위해 `applied: false`로 남긴다.
+- 다음 단계: 후속 reducer task가 zero-time authority boundary를 유지한 채 actual upgrade multiplier를 적용한다.
+
 ### 분대 생존 수직 슬라이스 Task 1 — 권위 상태·named PRNG·입력 queue
 
 - 목표: 이후 gameplay task가 공유할 초기 권위 상태, 세 개의 이름 있는 PRNG stream, 정렬·복사 입력 queue의 최소 계약을 고정한다.
