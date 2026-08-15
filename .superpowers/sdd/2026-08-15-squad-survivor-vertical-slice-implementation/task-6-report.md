@@ -41,7 +41,29 @@ An Advisor script invocation was attempted before the controller clarified the d
 
 ## Commit
 
-`f969418f10514d6f2c2cf1b3f8a31beb92d0b820` (superseded by the amend that records this SHA in the report).
+Task 6 initial implementation: `cc68c9c8d66f3e9fdff21664240f656ac0f3dfa7` (`feat: add waves and one-time upgrades`).
+
+Fix round 1 implementation: `453ff24250cb1ddf6a8405ec395ba9b6dfb71dd8` (`fix: tighten progression bindings`), a direct child of the Task 6 implementation commit. This documentation update follows that implementation commit.
+
+## Fix round 1
+
+### RED evidence
+
+- `cd prototype && npm test -- tests/core/gameplay-progression.test.ts`
+  - The new one-shot offer regression failed as intended: its second direct `enterUpgradeIfEligible` call changed offered order from `['march', 'power', 'vigor']` to `['power', 'vigor', 'march']`.
+
+### GREEN evidence
+
+- Focused progression + determinism + combat: `3` files, `39` tests passed.
+- Full Vitest: `13` files, `128` tests passed.
+- TypeScript + Vite production build and `git diff --check` passed. The unrelated Vite >500 kB chunk warning remains.
+
+### Binding coverage added
+
+- Repeated direct offer entry does not mutate offered cards or the cards PRNG state.
+- Different valid choices apply, then produce identical next-scheduled spawn PRNG state, normal IDs, and positions while their authority digests differ.
+- A partial cap proves spawned IDs/positions retain request order across discarded requests and the next spawn event, with matching spawn PRNG state against an uncapped controlled state.
+- Tests no longer duplicate xorshift internals; controlled states exercise the real PRNG boundary instead.
 
 ## Concerns
 

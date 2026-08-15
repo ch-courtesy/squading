@@ -404,3 +404,12 @@
 - 결정: 일반 적 ID는 요청 순서(`18 + requested - 1`)에 고정해 cap discard 뒤에도 결정론적 order를 유지한다. tick 540의 normal spawn은 existing phase 3에서 소비되므로 이후 phase 10의 Task 7 elite hook보다 앞선다. valid choose-upgrade는 zero-time으로 choice만 기록하고 다음 running tick phase 4에서 한 번 적용한다.
 - Advisor: dispatch 제약과 달리 Advisor 실행을 한 번 시도했으나 usable JSON/result이 반환되지 않았고, controller 지시로 추가 호출하지 않았다. 이를 approval 또는 blocker로 취급하지 않았다.
 - 다음 단계: controller가 Task 7 정예 production을 phase 10에 연결할 때 tick 540 normal-first PRNG order를 보존한다.
+
+#### Task 6 Fix round 1 — progression binding regressions
+
+- 목표: 직접 호출한 upgrade entry의 card re-shuffle, 선택 카드와 다음 scheduled spawn 사이의 PRNG 격리, 부분 cap의 request-order 보장을 계약 테스트로 고정한다.
+- Codex 활용: `superpowers:test-driven-development`로 offer 재진입 RED를 먼저 확인한 뒤 `offered.length > 0` guard만 추가했다. 동일 seed의 controlled state 두 개를 사용해 PRNG 구현을 테스트에서 복제하지 않고 실제 stream 경계를 검증했다.
+- 주요 산출물: one-shot offer, choice-to-next-spawn isolation, partial-cap ID/position/discard regression 3건과 xorshift-mirroring helper 제거.
+- 검증 근거: RED는 두 번째 `enterUpgradeIfEligible`가 offered order를 재shuffle한 failure였다. GREEN focused progression+determinism+combat `39/39`, full Vitest `128/128`, TypeScript·Vite build, `git diff --check`를 직접 실행했다. Vite의 기존 500 kB chunk warning만 출력됐다.
+- 커밋 계보: Task 6 initial `cc68c9c` → fix implementation `453ff24`.
+- 다음 단계: 후속 Task 7은 phase 3 normal request stream order와 이 isolation contract를 그대로 유지한다.
