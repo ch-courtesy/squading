@@ -95,7 +95,8 @@ test('the upgrade and terminal overlays actually render once unhidden, guarding 
       const element = document.querySelector<HTMLElement>(selector)!
       const hiddenDisplay = getComputedStyle(element).display
       element.removeAttribute('hidden')
-      const shown = { display: getComputedStyle(element).display, height: element.getBoundingClientRect().height }
+      const style = getComputedStyle(element)
+      const shown = { display: style.display, visibility: style.visibility, height: element.getBoundingClientRect().height }
       element.setAttribute('hidden', '')
       return { hiddenDisplay, shown }
     }
@@ -105,6 +106,7 @@ test('the upgrade and terminal overlays actually render once unhidden, guarding 
   for (const overlay of [rendering.upgrade, rendering.terminal]) {
     expect(overlay.hiddenDisplay).toBe('none')
     expect(overlay.shown.display).not.toBe('none')
+    expect(overlay.shown.visibility).toBe('visible')
     expect(overlay.shown.height).toBeGreaterThan(0)
   }
 

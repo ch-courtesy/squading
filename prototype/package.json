@@ -8,7 +8,8 @@
   },
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build",
+    "build": "tsc --noEmit && vite build && npm run verify:no-test-bridge",
+    "verify:no-test-bridge": "node scripts/assert-no-test-bridge.mjs",
     "preview:pages": "node scripts/serve-pages.mjs",
     "preview": "vite preview",
     "benchmark": "mkdir -p artifacts && node scripts/benchmark.mjs --local --output artifacts/benchmark-local.json",

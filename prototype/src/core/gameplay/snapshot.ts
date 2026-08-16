@@ -94,15 +94,21 @@ export function projectRenderSnapshot(state: Readonly<GameState>): RenderSnapsho
     if (rescuer.rescueTargetId === null) continue
     const casualty = state.friendlies.find((friendly) => friendly.id === rescuer.rescueTargetId && friendly.life === 'downed')
     if (!casualty) continue
-    effects.push({
-      id: casualty.id,
-      kind: 'rescue-signal',
-      team: casualty.squad,
-      x: casualty.position.x,
-      y: casualty.position.y,
-      startedTick: state.combatTick,
-      durationTicks: Math.max(0, rescueTicks(rescuer.squad) - rescuer.rescueProgress),
-    })
+    // Both ends of the lock get a signal so the player can see who is being carried
+    // *and* which soldier is stuck carrying them. Unit ids are unique, so the two
+    // effects never collide in a renderer's per-id effect map.
+    const remainingTicks = Math.max(0, rescueTicks(rescuer.squad) - rescuer.rescueProgress)
+    for (const unit of [casualty, rescuer]) {
+      effects.push({
+        id: unit.id,
+        kind: 'rescue-signal',
+        team: unit.squad,
+        x: unit.position.x,
+        y: unit.position.y,
+        startedTick: state.combatTick,
+        durationTicks: remainingTicks,
+      })
+    }
   }
 
   return {

@@ -53,8 +53,10 @@ test('renders elite telegraph and downed/rescue states from a gameplay snapshot'
   expect(downed!.downedTiltRadians).not.toHaveLength(0)
   for (const tilt of downed!.downedTiltRadians) expect(tilt).toBeCloseTo(Math.PI / 2, 5)
 
+  // A live lock signals both ends of the carry: the casualty being picked up and the
+  // squadmate who is stuck doing it.
   await expect.poll(async () => (await rendererScene(page))?.rescueSignals, { intervals: [100], timeout: 30_000 })
-    .toBeGreaterThan(0)
+    .toBe(2)
   await page.keyboard.up('Space')
 })
 

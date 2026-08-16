@@ -157,7 +157,12 @@ class ThreeHybridRenderer implements HybridGameRenderer {
     const activeSquadMarkers: Record<Squad, number> = { teal: 0, scarlet: 0 }
     for (const unit of units) {
       if (unit.squad === null || activeSquad === undefined || unit.squad !== activeSquad) continue
-      if (this.units.get(unit.id)?.marker.visible) activeSquadMarkers[unit.squad] += 1
+      const marker = this.units.get(unit.id)?.marker
+      if (!marker?.visible) continue
+      // A marker is only an *active squad* marker when it is actually wearing the
+      // squad tint; the same ring also serves downed and leader units in other colours.
+      if ((marker.material as THREE.MeshBasicMaterial).color.getHex() !== TEAM_TINTS[unit.team]) continue
+      activeSquadMarkers[unit.squad] += 1
     }
     return {
       eliteTelegraph: this.describeTelegraph(),
@@ -240,15 +245,21 @@ class ThreeHybridRenderer implements HybridGameRenderer {
     const visual = this.effects.get(effect.id) ?? this.createEffectVisual(effect)
     visual.root.position.set(effect.x, 0, effect.y)
     // The telegraph marks ground the squad has to leave, so it stays painted flat on
-    // the tabletop; every other effect is a billboarded token like the unit cards.
-    if (visual.kind !== 'elite-telegraph') visual.root.quaternion.copy(this.camera.quaternion)
+    // the tabletop and re-reads its footprint every frame; every other effect is a
+    // billboarded token like the unit cards.
+    if (visual.kind === 'elite-telegraph') {
+      const area = visual.root.children[0]
+      if (area) area.scale.setScalar(effect.radius ?? 1)
+      return
+    }
+    visual.root.quaternion.copy(this.camera.quaternion)
   }
 
   private createEffectVisual(effect: RenderEffect): EffectVisual {
     const root = new THREE.Group(); root.name = `effect:${effect.kind}:${effect.id}`
     if (effect.kind === 'elite-telegraph') {
       const area = new THREE.Mesh(this.telegraphGeometry!, flatMaterial(TELEGRAPH_COLOR, 0.42))
-      area.rotation.x = -Math.PI / 2; area.position.y = 0.02; area.scale.setScalar(effect.radius ?? 1)
+      area.rotation.x = -Math.PI / 2; area.position.y = 0.02
       root.add(area)
     } else {
       const ring = new THREE.Mesh(this.assets!.effectGeometry, flatMaterial(effect.team ? TEAM_TINTS[effect.team] : 0xf5dc79))

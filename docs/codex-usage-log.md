@@ -15,6 +15,16 @@
 - review 판정: 자체 diff 재검토에서 브리지의 미사용 필드(`eliteTelegraph.centerX/centerY`, `eliteCards[].id`)를 제거하고, `describeUnit`의 중복 billboard 계산을 공용 `facesCamera()`로 통합했다. 외부 리뷰는 controller가 별도 reviewer로 진행한다.
 - 다음 단계: 자동 검증은 완료됐지만 `docs/reviews/2026-08-15-squad-survivor-playtest.md`의 사람 3명 플레이테스트(교대/구조/회피 이유)는 응답 0/3으로 **PENDING**이며, 수직 슬라이스 출시 gate도 그 답변이 채워질 때까지 PENDING이다.
 
+#### Task 11 Fix round 1 — 구조 신호 양방향화, production bridge build gate, 브리지 semantics·수명 교정
+
+- 목표: review의 Important 3건(Space 44/45 완주 미단언, production bridge 가드가 기본 suite에서 무력, 구조자 `rescue-signal` 누락)과 Minor 4건(브리지 참조 수명, telegraph radius 1회 적용, `activeSquadMarkers` 의미, overlay `visibility` 누락)을 처리한다.
+- 구조 완료(Important 1) 조사: reviewer가 지목한 두 경로를 실제로 측정했다. (a) 청록 30틱 창, (b) 이탈 후 정지·Space 유지. 브라우저 반응 지연(0~8틱)·구간 간격(0~8틱)·이동 구간 길이(60~150틱)·seed 15종을 격자로 돌려 권위 시뮬레이션에서 사람 대본을 검증했다. 결과: 완료는 **가능하지만 재현이 불안정**하다. 최상 조합(4초 kiting → 인원이 줄어든 분대로 Q 교대 후 정지·Space 유지)에서 seed `11` 128/140(91%), 기본 seed 120틱 구간 53/56(95%), 좁은 대역(지연 0~2·간격 1~3)에서는 36/36이었으나 구간 길이가 HUD 시계 해상도(0.1초=3틱)만큼 흔들리는 117~123틱 범위에서는 70~95%로 떨어졌다. 실패 run의 진행도는 39~44에서 되돌려졌다(원인: 피격 1회당 -15틱, 일반 적 공격 주기 12틱이라 접촉 상태에서는 진행도가 순감). 밸런스 상수는 일절 건드리지 않았다. 따라서 `구조 1` 단언은 5~9% flaky가 되므로 넣지 않고 waiver를 요청했다. 45틱 경계 자체는 `tests/core/gameplay-rescue.test.ts:43`이 청록 29→30·주홍 44→45로 이미 정확히 고정하고 있다.
+- Important 2: `scripts/assert-no-test-bridge.mjs`를 추가하고 `npm run build`에 연결했다(`verify:no-test-bridge`). `dist/` 전체를 스캔해 `__SQUADING_TEST__`가 한 파일이라도 있으면 빌드를 실패시킨다. `index.ts:10`의 `import.meta.env.DEV`를 일시적으로 `true`로 바꿔 빌드하면 `three-hybrid-*.js`를 지목하며 실패하고, 원복하면 `12 built files contain no __SQUADING_TEST__`로 통과함을 확인했다.
+- Important 3: `projectRenderSnapshot`이 lock의 양쪽(구조 대상 + 구조자)에 `rescue-signal`을 낸다. 두 effect의 `id`는 서로 다른 unit id라 렌더러의 id별 effect map에서 공존한다. display 전용 projection만 바꿨고 `GameState`는 건드리지 않았으므로 digest·결정론·8-seed band는 그대로다 — `gameplay-determinism`·`gameplay-policies`·`gameplay-rescue`·`determinism`·`simulation` 5개 파일 60/60과 전체 204/204로 확인했다. 브라우저에서는 lock 중 `rescueSignals === 2`를 단언한다.
+- Minor 대응: (4) `activeRenderer` 할당을 `import.meta.env.DEV` 분기 안으로 옮겨 production에서 `let` 자체가 DCE되게 하고, DEV 분기에서만 `dispose`를 감싸 참조를 비운다. (5) telegraph 반지름 적용을 `createEffectVisual`에서 `renderEffect`로 옮겨 매 프레임 `effect.radius`를 다시 읽는다. (6) `activeSquadMarkers`가 마커 색이 분대 tint일 때만 세도록 바꿔, 전투불능(노란 마커) 멤버를 활성 분대 마커로 오인하지 않는다. (7) overlay 측정에 `visibility`를 추가해 `toBeVisible()`이 보던 축을 모두 복원했다.
+- 검증: `npx tsc --noEmit`, 전체 `npm test` 17 files/204 tests, `npm run build`(+ 신규 bridge gate), `npm run test:e2e -- tests/gameplay-hybrid-renderer.spec.ts tests/gameplay-play.spec.ts tests/gameplay-shell.spec.ts --workers=1` 15/15, 전체 `npm run test:e2e --workers=1` 47/47, Step 6 clean production preview(Pages base `/squading/`) 13/13 모두 통과했다.
+- 다음 단계: 구조 완료 브라우저 단언은 controller의 waiver 판정을 기다린다. 사람 3명 플레이테스트는 여전히 PENDING이다.
+
 ### 분대 생존 수직 슬라이스 Task 10 — 시작·HUD·강화·pause·결과 UI와 기본 route GREEN
 
 - 목표: Task 9의 `GameplayController`/`GameplayInputAdapter` 위에 상태 기반 플레이어 UI shell을 얹고, `main.ts`의 기본 route를 renderer 비교 lab에서 30초 분대 생존 게임으로 교체한다. lab shell·Phaser·Three 3D·benchmark 코드는 삭제하지 않고 `?lab=renderers`로만 이동시킨다.

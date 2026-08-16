@@ -20,7 +20,7 @@
 | 정예 area telegraph 원 | `three-hybrid/hybrid-renderer.ts`에서 `THREE.RingGeometry`로 코드 생성(반지름 1 밴드를 스냅샷의 실제 반경으로 스케일) | 프로젝트 소스와 동일; Three.js MIT 라이선스 | 외부 이미지·셰이더 없음; 색은 소스에 직접 적은 상수 |
 | 전투불능 카드 표현 | 기존 유닛 카드를 눕히고(회전 π/2) 낮춘 뒤 기존 마커 링을 함께 노출 | 프로젝트 소스와 동일 | 새 기하·텍스처 없음 |
 | 활성 분대 마커 | 기존 `markerGeometry` 링을 분대 tint 색으로 재사용 | 프로젝트 소스와 동일 | 새 기하·텍스처 없음 |
-| 구조 신호(`rescue-signal`) | 기존 `effectGeometry` 링을 분대 tint 색으로 재사용 | 프로젝트 소스와 동일 | 새 기하·텍스처 없음 |
+| 구조 신호(`rescue-signal`) | 기존 `effectGeometry` 링을 분대 tint 색으로 재사용; 구조 대상과 구조자 양쪽에 각각 표시 | 프로젝트 소스와 동일 | 새 기하·텍스처 없음 |
 
 gameplay 표현은 전부 기존 코드 생성 자산과 Three primitive만 사용하며, 외부 런타임 의존성·이미지·모델·음원·웹폰트를 추가하지 않았다.
 
