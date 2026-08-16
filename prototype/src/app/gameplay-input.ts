@@ -18,6 +18,7 @@ export type GameplayInputAdapterOptions = {
   readonly getMode: () => BattleMode
   readonly emit: (event: GameInputEvent) => void
   readonly nextSequence?: () => number
+  readonly canSwitch?: () => boolean
   readonly target?: Window
 }
 
@@ -43,10 +44,18 @@ function vecEquals(left: Vec2, right: Vec2): boolean {
   return left.x === right.x && left.y === right.y
 }
 
+// Lowercase single-character keys so Shift/CapsLock ('D' vs 'd') can't desync a
+// keydown from its matching keyup and leave a movement key stuck in `pressedKeys`.
+// Multi-character key names (Arrow*, Tab, Escape, ...) pass through unchanged.
+function normalizeKey(key: string): string {
+  return key.length === 1 ? key.toLowerCase() : key
+}
+
 export function createGameplayInputAdapter(options: GameplayInputAdapterOptions): GameplayInputAdapter {
   const target = options.target ?? window
   let localSequence = 0
   const nextSequence = options.nextSequence ?? (() => localSequence++)
+  const canSwitch = options.canSwitch ?? (() => true)
 
   const pressedKeys = new Set<string>()
   let pointerActive = false
@@ -89,7 +98,7 @@ export function createGameplayInputAdapter(options: GameplayInputAdapterOptions)
   }
 
   const onKeyDown = (event: KeyboardEvent): void => {
-    const key = event.key
+    const key = normalizeKey(event.key)
     if (key === 'Tab') event.preventDefault()
     if (key in MOVE_KEYS) {
       event.preventDefault()
@@ -105,9 +114,10 @@ export function createGameplayInputAdapter(options: GameplayInputAdapterOptions)
       setRescueHeld(true)
       return
     }
-    if (key === 'q' || key === 'Q' || key === 'Tab') {
+    if (key === 'q' || key === 'Tab') {
       if (event.repeat) return
       if (!isRunning()) return
+      if (!canSwitch()) return
       options.emit({ applyTick: options.getTick(), sequence: nextSequence(), kind: 'switch-squad' })
       return
     }
@@ -126,7 +136,7 @@ export function createGameplayInputAdapter(options: GameplayInputAdapterOptions)
   }
 
   const onKeyUp = (event: KeyboardEvent): void => {
-    const key = event.key
+    const key = normalizeKey(event.key)
     if (key in MOVE_KEYS) {
       pressedKeys.delete(key)
       syncMovement()

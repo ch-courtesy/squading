@@ -55,7 +55,16 @@ export function createGameplayController(options: GameplayControllerOptions): Ga
 
   const notify = (): void => {
     const state = simulation.getState()
-    listeners.forEach((listener) => listener(state))
+    // A throwing subscriber (Task 10's UI seam) must never propagate into the render
+    // loop's try/catch or a DOM event handler — that would tear down the renderer or
+    // leak an uncaught exception for a bug that has nothing to do with rendering.
+    listeners.forEach((listener) => {
+      try {
+        listener(state)
+      } catch (error) {
+        options.onError?.(asError(error))
+      }
+    })
   }
 
   const syncModeTransition = (): void => {
@@ -76,6 +85,7 @@ export function createGameplayController(options: GameplayControllerOptions): Ga
     getMode: () => simulation.getState().mode,
     emit: enqueue,
     nextSequence: () => sequence++,
+    canSwitch: () => simulation.getState().switchCooldown === 0,
   })
 
   const forcePauseIfRunning = (): void => {
@@ -101,8 +111,9 @@ export function createGameplayController(options: GameplayControllerOptions): Ga
   const fail = (error: unknown, token: number): void => {
     if (token !== generation) return
     const original = asError(error)
-    stopActive()
+    const cleanupError = stopActive()
     options.onError?.(original)
+    if (cleanupError) options.onError?.(cleanupError)
   }
 
   const stopActive = (): Error | null => {

@@ -64,12 +64,14 @@ describe('gameplay input adapter', () => {
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'd' }))
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'd', repeat: true }))
 
-    const moves = emitted.filter((event): event is Extract<GameInputEvent, { kind: 'set-move' }> => event.kind === 'set-move')
-    expect(moves).toHaveLength(2)
-    expect(moves.at(-1)).toMatchObject({ applyTick: 5, kind: 'set-move' })
-    expect(moves.at(-1)!.x).toBeCloseTo(Math.SQRT1_2, 10)
-    expect(moves.at(-1)!.y).toBeCloseTo(-Math.SQRT1_2, 10)
-    expect(moves[1].sequence).toBeGreaterThan(moves[0].sequence)
+    // Full-array assertion (not a filtered subset) proves no other event kind snuck in.
+    expect(emitted).toHaveLength(2)
+    expect(emitted.every((event) => event.kind === 'set-move')).toBe(true)
+    const last = emitted[1] as Extract<GameInputEvent, { kind: 'set-move' }>
+    expect(last).toMatchObject({ applyTick: 5, kind: 'set-move' })
+    expect(last.x).toBeCloseTo(Math.SQRT1_2, 10)
+    expect(last.y).toBeCloseTo(-Math.SQRT1_2, 10)
+    expect(emitted[1].sequence).toBeGreaterThan(emitted[0].sequence)
   })
 
   test('emits switch-squad once on first Q/Tab keydown and ignores browser repeat', () => {
@@ -86,9 +88,80 @@ describe('gameplay input adapter', () => {
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', repeat: true }))
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'q' }))
 
-    const switches = emitted.filter((event) => event.kind === 'switch-squad')
-    expect(switches).toHaveLength(2)
+    // Full-array assertion proves exactly two switch-squad events and nothing else.
+    expect(emitted).toEqual([
+      { applyTick: 1, sequence: expect.any(Number), kind: 'switch-squad' },
+      { applyTick: 1, sequence: expect.any(Number), kind: 'switch-squad' },
+    ])
     expect(tabEvent.defaultPrevented).toBe(true)
+  })
+
+  test('releases a movement key even when Shift/CapsLock changes its case between keydown and keyup', () => {
+    const adapter = createGameplayInputAdapter({
+      getTick: () => 1,
+      getMode: () => 'running',
+      emit: () => undefined,
+    })
+    cleanups.push(() => adapter.dispose())
+    adapter.attach()
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'd' }))
+    expect(adapter.currentMovement()).toEqual({ x: 1, y: 0 })
+    window.dispatchEvent(new KeyboardEvent('keyup', { key: 'D', shiftKey: true }))
+    expect(adapter.currentMovement()).toEqual({ x: 0, y: 0 })
+  })
+
+  test('does not queue movement input while paused or awaiting-upgrade', () => {
+    const emitted: GameInputEvent[] = []
+    let mode: BattleMode = 'paused'
+    const adapter = createGameplayInputAdapter({
+      getTick: () => 3,
+      getMode: () => mode,
+      emit: (event) => emitted.push(event),
+    })
+    cleanups.push(() => adapter.dispose())
+    adapter.attach()
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'd' }))
+    expect(emitted).toEqual([])
+    expect(adapter.currentMovement()).toEqual({ x: 0, y: 0 })
+    mode = 'awaiting-upgrade'
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'w' }))
+    expect(emitted).toEqual([])
+    expect(adapter.currentMovement()).toEqual({ x: 0, y: 0 })
+  })
+
+  test('does not queue switch-squad while paused or awaiting-upgrade', () => {
+    const emitted: GameInputEvent[] = []
+    let mode: BattleMode = 'paused'
+    const adapter = createGameplayInputAdapter({
+      getTick: () => 3,
+      getMode: () => mode,
+      emit: (event) => emitted.push(event),
+    })
+    cleanups.push(() => adapter.dispose())
+    adapter.attach()
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'q' }))
+    expect(emitted).toEqual([])
+    mode = 'awaiting-upgrade'
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab' }))
+    expect(emitted).toEqual([])
+  })
+
+  test('does not queue switch-squad while the injected cooldown seam reports it is unavailable', () => {
+    const emitted: GameInputEvent[] = []
+    let canSwitch = false
+    const adapter = createGameplayInputAdapter({
+      getTick: () => 9,
+      getMode: () => 'running',
+      emit: (event) => emitted.push(event),
+      canSwitch: () => canSwitch,
+    })
+    cleanups.push(() => adapter.dispose())
+    adapter.attach()
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'q' }))
+    expect(emitted).toEqual([])
+    canSwitch = true
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'q' }))
+    expect(emitted).toEqual([{ applyTick: 9, sequence: expect.any(Number), kind: 'switch-squad' }])
   })
 
   test('only accepts 1/2/3 as choose-upgrade while awaiting-upgrade', () => {
@@ -477,6 +550,117 @@ describe('gameplay controller', () => {
     expect(renderer.calls).toContain('dispose')
   })
 
+  test('routes controller pointerDown/pointerMove/pointerEnd into the authoritative simulation input state', async () => {
+    const host = document.createElement('div')
+    document.body.append(host)
+    const renderer = new StubRenderer()
+    const clock = new RafClock()
+    const controller = createGameplayController({
+      host,
+      seed: 'pointer-seed',
+      loadRenderer: async () => renderer,
+      requestFrame: clock.requestFrame,
+      cancelFrame: clock.cancelFrame,
+    })
+    cleanups.push(() => controller.dispose())
+
+    await controller.start()
+    controller.beginBattle()
+    clock.frame(0)
+    controller.pointerDown({ x: 0.5, y: -0.5 })
+    clock.frame(34)
+    expect(controller.getState().input.move).toEqual({ x: 0.5, y: -0.5 })
+
+    controller.pointerMove({ x: -1, y: 0 })
+    clock.frame(68)
+    expect(controller.getState().input.move).toEqual({ x: -1, y: 0 })
+
+    controller.pointerEnd()
+    clock.frame(102)
+    expect(controller.getState().input.move).toEqual({ x: 0, y: 0 })
+  })
+
+  test('does not enqueue a second switch-squad while the previous switch is still on cooldown', async () => {
+    const host = document.createElement('div')
+    document.body.append(host)
+    const renderer = new StubRenderer()
+    const clock = new RafClock()
+    const controller = createGameplayController({
+      host,
+      seed: 'switch-cooldown-seed',
+      loadRenderer: async () => renderer,
+      requestFrame: clock.requestFrame,
+      cancelFrame: clock.cancelFrame,
+    })
+    cleanups.push(() => controller.dispose())
+
+    await controller.start()
+    controller.beginBattle()
+    clock.frame(0)
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'q' }))
+    clock.frame(1000 / 30)
+    const activeAfterFirstSwitch = controller.getState().activeSquad
+    expect(controller.getState().switchCooldown).toBeGreaterThan(0)
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'q' }))
+
+    expect(controller.getState().pendingEvents).toHaveLength(0)
+    expect(controller.getState().activeSquad).toBe(activeAfterFirstSwitch)
+  })
+
+  test('isolates a throwing subscriber from both the render loop and enqueue-triggered notifications', async () => {
+    const host = document.createElement('div')
+    document.body.append(host)
+    const renderer = new StubRenderer()
+    const clock = new RafClock()
+    const errors: Error[] = []
+    const controller = createGameplayController({
+      host,
+      seed: 'listener-error-seed',
+      loadRenderer: async () => renderer,
+      requestFrame: clock.requestFrame,
+      cancelFrame: clock.cancelFrame,
+      onError: (error) => errors.push(error),
+    })
+    cleanups.push(() => controller.dispose())
+
+    await controller.start()
+    controller.subscribe(() => {
+      throw new Error('listener boom')
+    })
+
+    expect(() => controller.beginBattle()).not.toThrow()
+    expect(() => clock.frame(0)).not.toThrow()
+    expect(() => clock.frame(1000 / 30)).not.toThrow()
+
+    expect(errors.filter((error) => error.message === 'listener boom').length).toBeGreaterThanOrEqual(2)
+    expect(renderer.calls).not.toContain('dispose')
+    expect(controller.getState().combatTick).toBe(1)
+  })
+
+  test('reports both the original render failure and a renderer dispose failure during error-boundary cleanup', async () => {
+    const host = document.createElement('div')
+    document.body.append(host)
+    const renderer = new StubRenderer()
+    renderer.throwOnRender = true
+    renderer.throwOnDispose = true
+    const clock = new RafClock()
+    const errors: Error[] = []
+    const controller = createGameplayController({
+      host,
+      seed: 'cleanup-error-seed',
+      loadRenderer: async () => renderer,
+      requestFrame: clock.requestFrame,
+      cancelFrame: clock.cancelFrame,
+      onError: (error) => errors.push(error),
+    })
+
+    await controller.start()
+
+    expect(() => clock.frame(0)).not.toThrow()
+    expect(errors.map((error) => error.message)).toEqual(['render failed', 'dispose failed'])
+  })
+
   test('loads the Three hybrid renderer through the literal registry loader used as the default', async () => {
     const renderer = await loadGameplayRenderer()
     expect(renderer).toMatchObject({
@@ -529,6 +713,7 @@ class StubRenderer implements GameRenderer {
   readonly calls: string[] = []
   readonly snapshots: Parameters<GameRenderer['render']>[0][] = []
   throwOnRender = false
+  throwOnDispose = false
   mountDeferred: ReturnType<typeof createDeferred<void>> | null = null
   private canvas: HTMLCanvasElement | null = null
   private disposed = false
@@ -566,6 +751,7 @@ class StubRenderer implements GameRenderer {
     this.disposed = true
     this.calls.push('dispose')
     this.canvas?.remove()
+    if (this.throwOnDispose) throw new Error('dispose failed')
   }
 }
 

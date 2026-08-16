@@ -11,6 +11,14 @@
 - 검증 근거: `npm test -- tests/gameplay-controller.test.ts`로 신규 21건(adapter 7 + controller 14)을 GREEN 확인했다(첫 실행에서 float 누적 오차로 만든 자체 테스트 버그 1건을 `1000/30` 대신 `+34`로 교정). `npm test -- tests/gameplay-controller.test.ts tests/renderer-contract.test.ts`로 42건, 전체 `npm test`로 `16 files / 185 tests` 모두 통과했다. `npm run build`는 TypeScript와 Vite 빌드 모두 통과했고 `dist/assets/three-hybrid-*.js`가 단일 청크로 유지됨을 확인했다. 남은 경고는 기존 `phaser-2d` large-chunk 경고뿐이다. `git diff --check`도 통과했다.
 - 다음 단계: Task 10은 이 `GameplayController`/`GameplayInputAdapter` 위에 시작·HUD·강화·pause·결과 UI를 얹는다. `subscribe`가 매 프레임(최대 5 step 배치당 1회)과 모든 enqueue 직후 상태를 통지하므로 UI는 폴링 없이 렌더링할 수 있다.
 
+#### Task 9 Fix round 1 — 고정 키 버그·cooldown queue 누락·listener 격리·cleanup 에러 무시 수정
+
+- 목표: review Needs-fixes의 4개 Important와 이를 함께 다루는 Minor 1개를 수정한다. 고정 lab 파일과 balance 상수는 건드리지 않는다.
+- 수정 근거: (1) `event.key`가 Shift/CapsLock에 따라 대소문자가 바뀌는데 `MOVE_KEYS`는 소문자 고정이라 keydown `'d'`/keyup `'D'` 조합에서 키가 `pressedKeys`에 영구히 끼는 결함을 `normalizeKey`(1글자만 소문자화)로 keydown·keyup 양쪽에 적용해 수정하고, 기존 `q`/`Q` 이중 분기도 하나로 통합했다. (2) brief의 "cooldown … 입력은 queue에 넣지 않는다" 계약을 어기고 `switch-squad`가 cooldown과 무관하게 큐에 들어가던 결함을 adapter에 `canSwitch` seam을 추가하고 controller가 `switchCooldown === 0`을 주입해 수정했다. (3) `notify()`가 render try 블록 안에 있어 Task 10이 붙일 subscriber 예외가 렌더러를 disposal시키던 결함을 listener별 try/catch로 격리했다. (4) `fail()`이 `stopActive()`의 cleanup 에러를 버리던 결함을 `start()`/`dispose()`와 동일하게 `onError`로 보고하도록 고쳤다.
+- 테스트 보강: adapter에 stuck-key 회귀, paused/awaiting-upgrade에서 이동·교대 입력이 큐에 안 들어감(두 게이트 모두), cooldown seam 게이트 4건을 추가했고 기존 WASD·Q/Tab 테스트를 필터링 대신 전체 배열 비교로 강화했다. controller에 실제 pointerDown/Move/End → `state.input.move` 통합, 연속 Q 입력의 cooldown 중 미enqueue(`pendingEvents` 길이·activeSquad 불변), throwing subscriber 격리, render+dispose 이중 실패 보고 4건을 추가했다.
+- 검증 근거: `npm test -- tests/gameplay-controller.test.ts` `29/29`, `+ tests/renderer-contract.test.ts` `50/50`, 전체 `npm test` `16 files / 193 tests`, `npm run build`(TypeScript+Vite, `three-hybrid` 단일 청크 유지, 기존 `phaser-2d` 경고만 잔존), `git diff --check` 모두 통과했다. 신규 pointer 통합 테스트는 첫 실행에서 기존 task 리포트와 동일한 float 누적 오차로 RED였고 `(1000/30)*n`을 whole-millisecond(`0,34,68,102`)로 교정해 GREEN을 재확인했다.
+- 다음 단계: Task 10은 그대로 이 `GameplayController`/`GameplayInputAdapter`를 소비하며, `canSwitch`/listener 격리/cleanup 에러 보고가 이제 UI 쪽 버그로부터 렌더 루프를 보호한다.
+
 ## 2026-08-15
 
 ### 분대 생존 수직 슬라이스 Task 8 — 결정론·8-seed 정책 GREEN
