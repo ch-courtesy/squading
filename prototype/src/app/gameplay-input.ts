@@ -99,7 +99,11 @@ export function createGameplayInputAdapter(options: GameplayInputAdapterOptions)
 
   const onKeyDown = (event: KeyboardEvent): void => {
     const key = normalizeKey(event.key)
-    if (key === 'Tab') event.preventDefault()
+    // Tab doubles as squad-switch only while running, so only swallow the browser's
+    // native focus-cycling then. Every other mode (ready/paused/awaiting-upgrade/
+    // won/lost) must leave Tab alone so a keyboard-only player can reach the
+    // start/resume/upgrade/restart buttons the shell renders.
+    if (key === 'Tab' && isRunning()) event.preventDefault()
     if (key in MOVE_KEYS) {
       event.preventDefault()
       if (!isRunning()) return

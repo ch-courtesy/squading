@@ -96,6 +96,33 @@ describe('gameplay input adapter', () => {
     expect(tabEvent.defaultPrevented).toBe(true)
   })
 
+  test('only swallows Tab while running, so it can move focus in every other mode', () => {
+    const nonRunningModes: BattleMode[] = ['ready', 'paused', 'awaiting-upgrade', 'won', 'lost']
+    for (const mode of nonRunningModes) {
+      const adapter = createGameplayInputAdapter({
+        getTick: () => 0,
+        getMode: () => mode,
+        emit: () => undefined,
+      })
+      adapter.attach()
+      const tabEvent = new KeyboardEvent('keydown', { key: 'Tab', cancelable: true })
+      window.dispatchEvent(tabEvent)
+      expect(tabEvent.defaultPrevented, `Tab must not be swallowed while ${mode}`).toBe(false)
+      adapter.dispose()
+    }
+
+    const runningAdapter = createGameplayInputAdapter({
+      getTick: () => 0,
+      getMode: () => 'running',
+      emit: () => undefined,
+    })
+    cleanups.push(() => runningAdapter.dispose())
+    runningAdapter.attach()
+    const runningTabEvent = new KeyboardEvent('keydown', { key: 'Tab', cancelable: true })
+    window.dispatchEvent(runningTabEvent)
+    expect(runningTabEvent.defaultPrevented).toBe(true)
+  })
+
   test('releases a movement key even when Shift/CapsLock changes its case between keydown and keyup', () => {
     const adapter = createGameplayInputAdapter({
       getTick: () => 1,

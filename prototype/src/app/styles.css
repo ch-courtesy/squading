@@ -191,6 +191,22 @@ select {
   background: #201d16;
 }
 
+.gp-error {
+  position: absolute;
+  top: 1rem;
+  left: 50%;
+  z-index: 20;
+  max-width: min(90%, 32rem);
+  margin: 0;
+  padding: 0.75rem 1.25rem;
+  border: 1px solid #e1725f;
+  border-radius: 0.5rem;
+  background: rgb(60 20 16 / 92%);
+  color: #ffd9d0;
+  text-align: center;
+  transform: translateX(-50%);
+}
+
 .gp-stage canvas {
   display: block;
   width: 100%;
@@ -207,9 +223,14 @@ select {
   display: none;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  /* `safe center`: center when the content fits, but fall back to flex-start
+     instead of clipping the first/last child when it doesn't. Combined with
+     overflow-y so a short viewport scrolls to the primary button instead of
+     losing it outside the box. */
+  justify-content: safe center;
   gap: 1rem;
   padding: clamp(1.5rem, 5vw, 3rem);
+  overflow-y: auto;
   text-align: center;
 }
 
@@ -300,10 +321,12 @@ select {
   display: none;
   gap: 0.35rem;
   max-width: 18rem;
+  max-height: calc(100vh - 2rem);
   padding: 1rem;
   border: 1px solid #4c4638;
   border-radius: 0.75rem;
   background: rgb(23 21 16 / 85%);
+  overflow-y: auto;
 }
 
 .gp-hud:not([hidden]) {

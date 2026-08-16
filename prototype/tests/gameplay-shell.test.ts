@@ -1,7 +1,7 @@
 import { afterEach, expect, test } from 'vitest'
 
 import { mountApp } from '../src/app/gameplay-shell'
-import { createInitialGameState } from '../src/core/gameplay/state'
+import { rescueTicks } from '../src/core/gameplay/rescue'
 import type { GameState } from '../src/core/gameplay/types'
 import { createGameplayControllerStub } from './helpers/gameplay-controller-stub'
 
@@ -62,7 +62,9 @@ test('renders running HUD fields from authority state', () => {
   expect(root.querySelector('[data-squad-status="scarlet"]')?.textContent).toContain('10%')
   expect(root.querySelector('[data-switch-cooldown]')?.textContent).toContain('1.5')
   expect(root.querySelector('[data-xp]')?.textContent).toContain('5 / 16')
-  expect(root.querySelector('[data-rescue]')?.textContent).toContain('12')
+  // Pins both the rescue target id and the squad-specific rescueTicks() denominator,
+  // not just "some digits appear" — this is the spec's exact "구조 대상·진행도" contract.
+  expect(root.querySelector('[data-rescue]')?.textContent).toBe(`#9 구조 중 12/${rescueTicks('scarlet')}`)
   expect(root.querySelector('[data-elite-hp]')?.textContent).toContain('10.0')
 })
 
@@ -151,4 +153,54 @@ test('shows a distinct terminal cause for each loss reason and restarts to the r
   root.querySelector<HTMLButtonElement>('[data-restart]')?.click()
   expect(root.querySelector('[data-ready]')?.hasAttribute('hidden')).toBe(false)
   expect(root.textContent).toContain('30초 안에 정예 지휘관을 쓰러뜨리십시오.')
+})
+
+test('focuses each mode\'s primary button on mount and on every mode transition, so Enter/Space can drive it without a mouse', () => {
+  const { root, controller } = mount()
+
+  // The stub's initial subscribe() publish already put us in 'ready' — mount()
+  // itself must have focused the start button synchronously.
+  expect(document.activeElement).toBe(root.querySelector('[data-begin-battle]'))
+
+  const paused = clone(controller.getState())
+  paused.mode = 'paused'
+  controller.publish(paused)
+  expect(document.activeElement).toBe(root.querySelector('[data-resume]'))
+
+  const upgrade = clone(controller.getState())
+  upgrade.mode = 'awaiting-upgrade'
+  upgrade.upgrade = { offered: ['march', 'vigor', 'power'], choice: null, applied: false }
+  controller.publish(upgrade)
+  expect(document.activeElement).toBe(root.querySelector('[data-upgrade-choice="0"]'))
+
+  const won = clone(controller.getState())
+  won.mode = 'won'
+  controller.publish(won)
+  expect(document.activeElement).toBe(root.querySelector('[data-restart]'))
+
+  const lost = clone(controller.getState())
+  lost.mode = 'lost'
+  lost.failureReason = 'all-units-lost'
+  controller.publish(lost)
+  expect(document.activeElement).toBe(root.querySelector('[data-restart]'))
+})
+
+test('does not steal focus back on repeated renders of the same mode', () => {
+  const { root, controller } = mount()
+  const paused = clone(controller.getState())
+  paused.mode = 'paused'
+  controller.publish(paused)
+  expect(document.activeElement).toBe(root.querySelector('[data-resume]'))
+
+  const elsewhere = document.createElement('button')
+  document.body.append(elsewhere)
+  elsewhere.focus()
+  expect(document.activeElement).toBe(elsewhere)
+
+  // Same mode, only a HUD-relevant field changed — must not re-focus [data-resume].
+  const stillPaused = clone(controller.getState())
+  stillPaused.mode = 'paused'
+  stillPaused.combatTick = 42
+  controller.publish(stillPaused)
+  expect(document.activeElement).toBe(elsewhere)
 })

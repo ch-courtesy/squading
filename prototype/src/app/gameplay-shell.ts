@@ -25,6 +25,18 @@ const FAILURE_CAUSES: Record<'all-units-lost' | 'elite-survived', string> = {
 
 const HUD_VISIBLE_MODES: readonly BattleMode[] = ['running', 'paused', 'awaiting-upgrade']
 
+// The keyboard-only path through each mode's primary action: focusing it whenever
+// the mode changes lets Enter/Space start, resume or restart without a mouse.
+const PRIMARY_BUTTON_SELECTOR: Partial<Record<BattleMode, string>> = {
+  ready: '[data-begin-battle]',
+  paused: '[data-resume]',
+  'awaiting-upgrade': '[data-upgrade-choice="0"]',
+  won: '[data-restart]',
+  lost: '[data-restart]',
+}
+
+const RENDERER_ERROR_MESSAGE = '전투 화면을 불러오지 못했습니다. 새로고침 후 다시 시도해 주세요.'
+
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value))
 }
@@ -53,6 +65,8 @@ function findRescueLock(state: Readonly<GameState>): FriendlyState | null {
 function skeleton(): string {
   return `
     <main class="gameplay-shell">
+      <p class="gp-error" role="alert" data-error hidden></p>
+
       <section class="gp-stage" data-stage aria-label="전투 화면"></section>
 
       <section class="gp-ready" data-ready>
@@ -69,7 +83,7 @@ function skeleton(): string {
       </section>
 
       <section class="gp-hud" data-hud hidden>
-        <div class="gp-hud-row"><span class="gp-hud-label">남은 시간</span><span data-remaining></span></div>
+        <div class="gp-hud-row"><span class="gp-hud-label">남은 시간</span><span data-remaining aria-live="polite"></span></div>
         <div class="gp-hud-row"><span class="gp-hud-label">활성 분대</span><span data-active-squad></span></div>
         <div class="gp-hud-row"><span class="gp-hud-label">청록</span><span data-squad-status="teal"></span></div>
         <div class="gp-hud-row"><span class="gp-hud-label">주홍</span><span data-squad-status="scarlet"></span></div>
@@ -77,16 +91,16 @@ function skeleton(): string {
         <div class="gp-hud-row"><span class="gp-hud-label">XP</span><span data-xp></span></div>
         <div class="gp-hud-row"><span class="gp-hud-label">구조</span><span data-rescue></span></div>
         <div class="gp-hud-row"><span class="gp-hud-label">정예 HP</span><span data-elite-hp></span></div>
-        <p class="gp-switch-warning" data-switch-warning hidden>Q로 분대를 전환하세요</p>
+        <p class="gp-switch-warning" data-switch-warning aria-live="assertive" hidden>Q로 분대를 전환하세요</p>
       </section>
 
-      <section class="gp-pause-overlay" data-pause hidden>
+      <section class="gp-pause-overlay" data-pause role="dialog" aria-modal="true" aria-label="일시정지" hidden>
         <p class="gp-pause-title">일시정지</p>
         <p>Escape를 누르거나 아래 버튼으로 재개하십시오.</p>
         <button type="button" data-resume>계속하기</button>
       </section>
 
-      <section class="gp-upgrade-overlay" data-upgrade hidden>
+      <section class="gp-upgrade-overlay" data-upgrade role="dialog" aria-modal="true" aria-label="강화 선택" hidden>
         <h2>강화를 선택하십시오</h2>
         <div class="gp-upgrade-cards">
           <button type="button" class="gp-upgrade-card" data-upgrade-choice="0">
@@ -101,7 +115,7 @@ function skeleton(): string {
         </div>
       </section>
 
-      <section class="gp-terminal-overlay" data-terminal hidden>
+      <section class="gp-terminal-overlay" data-terminal role="dialog" aria-modal="true" aria-label="전투 결과" hidden>
         <h2 data-terminal-title></h2>
         <p data-terminal-cause></p>
         <dl class="gp-terminal-stats">
@@ -119,6 +133,7 @@ function skeleton(): string {
 export function mountApp(root: HTMLElement, dependencies: GameplayAppDependencies = {}): void {
   root.innerHTML = skeleton()
 
+  const errorBanner = root.querySelector<HTMLElement>('[data-error]')!
   const stage = root.querySelector<HTMLElement>('[data-stage]')!
   const readyScreen = root.querySelector<HTMLElement>('[data-ready]')!
   const hud = root.querySelector<HTMLElement>('[data-hud]')!
@@ -145,11 +160,19 @@ export function mountApp(root: HTMLElement, dependencies: GameplayAppDependencie
     effect: root.querySelector<HTMLElement>(`[data-upgrade-effect="${index}"]`)!,
   }))
 
+  const showRendererError = (message: string): void => {
+    errorBanner.textContent = message
+    errorBanner.hidden = false
+  }
+
   const controller = dependencies.createController?.()
     ?? createGameplayController({
       host: stage,
       seed: DEFAULT_SEED,
-      onError: (error) => console.error('[gameplay-shell] renderer error', error),
+      onError: (error) => {
+        console.error('[gameplay-shell] renderer error', error)
+        showRendererError(RENDERER_ERROR_MESSAGE)
+      },
     })
 
   root.querySelector<HTMLButtonElement>('[data-begin-battle]')?.addEventListener('click', () => controller.beginBattle())
@@ -165,12 +188,22 @@ export function mountApp(root: HTMLElement, dependencies: GameplayAppDependencie
   stage.addEventListener('pointercancel', () => controller.pointerEnd())
   stage.addEventListener('pointerleave', () => controller.pointerEnd())
 
+  let previousMode: BattleMode | null = null
+
   const renderVisibility = (mode: BattleMode): void => {
     readyScreen.hidden = mode !== 'ready'
     hud.hidden = !HUD_VISIBLE_MODES.includes(mode)
     pauseOverlay.hidden = mode !== 'paused'
     upgradeOverlay.hidden = mode !== 'awaiting-upgrade'
     terminalOverlay.hidden = mode !== 'won' && mode !== 'lost'
+
+    // Only move focus on an actual mode transition, never on every render (HUD
+    // fields change ~60x/sec while a mode is showing) — otherwise focus would be
+    // yanked away from whatever the player is doing inside the visible section.
+    if (mode === previousMode) return
+    previousMode = mode
+    const selector = PRIMARY_BUTTON_SELECTOR[mode]
+    if (selector) root.querySelector<HTMLElement>(selector)?.focus()
   }
 
   const renderHud = (state: Readonly<GameState>): void => {
