@@ -70,6 +70,10 @@ function findRescueLock(state: Readonly<GameState>): FriendlyState | null {
   return state.friendlies.find((friendly) => friendly.rescueTargetId !== null) ?? null
 }
 
+// `[data-remaining]` deliberately carries no `aria-live`: it is rewritten on every
+// rendered frame, so a live region there queues ~900 announcements per 30-second battle
+// and buries everything else. `[data-switch-warning]` is the one HUD change that has to
+// interrupt a screen-reader user, and it keeps `aria-live="assertive"`.
 function skeleton(): string {
   return `
     <main class="gameplay-shell">
@@ -91,7 +95,7 @@ function skeleton(): string {
       </section>
 
       <section class="gp-hud" data-hud hidden>
-        <div class="gp-hud-row"><span class="gp-hud-label">남은 시간</span><span data-remaining aria-live="polite"></span></div>
+        <div class="gp-hud-row"><span class="gp-hud-label">남은 시간</span><span data-remaining></span></div>
         <div class="gp-hud-row"><span class="gp-hud-label">활성 분대</span><span data-active-squad></span></div>
         <div class="gp-hud-row"><span class="gp-hud-label">청록</span><span data-squad-status="teal"></span></div>
         <div class="gp-hud-row"><span class="gp-hud-label">주홍</span><span data-squad-status="scarlet"></span></div>
@@ -253,7 +257,10 @@ export function mountApp(root: HTMLElement, dependencies: GameplayAppDependencie
       : FAILURE_CAUSES[state.failureReason ?? 'elite-survived']
     kills.textContent = String(state.stats.kills)
     rescues.textContent = String(state.stats.rescues)
-    survivors.textContent = String(state.friendlies.filter((friendly) => friendly.life !== 'dead').length)
+    // 생존 uses the same standing predicate the HUD uses. Counting `life !== 'dead'`
+    // here made an `all-units-lost` defeat print a nonzero survivor count right under
+    // "두 분대가 모두 쓰러졌습니다.", because that defeat leaves the roster downed, not dead.
+    survivors.textContent = String(standingCount(state, 'teal') + standingCount(state, 'scarlet'))
     choice.textContent = state.upgrade.choice ? UPGRADE_LABELS[state.upgrade.choice].name : '없음'
   }
 

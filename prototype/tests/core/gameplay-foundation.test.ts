@@ -2,6 +2,7 @@ import { expect, test } from 'vitest'
 
 import { createPrng } from '../../src/core/prng'
 import { createGameplayInputQueue } from '../../src/core/gameplay/input-queue'
+import { createGameplaySimulation } from '../../src/core/gameplay/simulation'
 import { createInitialGameState } from '../../src/core/gameplay/state'
 import {
   FORMATION_JITTER,
@@ -42,6 +43,24 @@ test('consumes one formation jitter pair for each of the sixteen units', () => {
   expect(new Set(state.friendlies.map((unit) => unit.formationOffset)).size).toBe(16)
   expect(state.friendlies.map((unit) => unit.formationOffset)).toEqual(expectedOffsets)
   expect(state.prng.formation).toBe(expectedFormation.getState())
+})
+
+test('keeps every fixture entity id out of the runtime spawn range', () => {
+  // The rescue-agency fixture seeds its own normal enemy, and spawnForTick issues ids
+  // from `18 + wave.requested - 1` starting at tick 0 — so a fixture id inside that range
+  // puts two live entities on the same id, and findNormalEnemy() (array-first) then lands
+  // damage aimed at the spawned enemy on the fixture one instead.
+  const game = createGameplaySimulation({ seed: '47', fixture: 'rescue-agency' })
+  game.enqueue({ applyTick: 0, sequence: 0, kind: 'start-battle' })
+  game.step()
+  const state = game.getState()
+
+  const ids = [
+    ...state.friendlies.map((unit) => unit.id),
+    state.elite.id,
+    ...state.normalEnemies.map((enemy) => enemy.id),
+  ]
+  expect(new Set(ids).size).toBe(ids.length)
 })
 
 test('isolates mutable state vectors from sibling units and exported constants', () => {

@@ -86,7 +86,11 @@ export function createInitialGameState(seed: string, fixture?: GameplayFixture):
       friendly.attackCooldown = 2
     }
     friendlies[0].hp = NORMAL_ENEMY_ATTACK_DAMAGE
-    normalEnemies.push({ id: 18, hp: 0.4, position: { x: 6, y: 13 }, attackCooldown: 0, targetId: 1 })
+    // 901 and up: fixture entities must stay clear of the runtime spawn range, which
+    // starts at `18 + wave.requested - 1 = 18` on the very first spawn of tick 0.
+    // A colliding id put two live enemies on one id, and combat's array-first lookup
+    // then applied damage aimed at the spawned enemy to this fixture enemy instead.
+    normalEnemies.push({ id: 901, hp: 0.4, position: { x: 6, y: 13 }, attackCooldown: 0, targetId: 1 })
   }
   return {
     schemaVersion: 1,

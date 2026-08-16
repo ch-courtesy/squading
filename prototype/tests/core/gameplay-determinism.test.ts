@@ -31,6 +31,10 @@ test.each([Number.NaN, Infinity, -Infinity])('rejects %s without state mutation'
   expect(game.getDigest()).toBe(before)
 })
 
+// This pins the number and order of the 14 hooks only. It is NOT evidence that each
+// spec step's work happens inside the hook that carries its number — see the comment
+// block above PhaseName in simulation.ts for the two deliberate exceptions (fatigue is
+// advanced in phase 11; kill/XP is counted in phase 8).
 test('runs the gameplay phases in the fixed order and projects sorted render units', () => {
   const calls: string[] = []
   const names: Array<keyof GameplayStepPhases> = [
@@ -38,7 +42,7 @@ test('runs the gameplay phases in the fixed order and projects sorted render uni
     'input',
     'spawn',
     'commandsUpgrades',
-    'fatigue',
+    'activityReset',
     'movement',
     'rescueProgress',
     'friendlyAttacks',

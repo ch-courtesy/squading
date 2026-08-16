@@ -68,6 +68,16 @@ test('renders running HUD fields from authority state', () => {
   expect(root.querySelector('[data-elite-hp]')?.textContent).toContain('10.0')
 })
 
+test('never turns the countdown into a live region while keeping the switch warning announced', () => {
+  const { root } = mount()
+
+  // [data-remaining] is rewritten on every rendered frame (~30Hz of authority ticks),
+  // so an aria-live region here queues ~900 announcements per battle and buries the one
+  // announcement that actually matters.
+  expect(root.querySelector('[data-remaining]')?.hasAttribute('aria-live')).toBe(false)
+  expect(root.querySelector('[data-switch-warning]')?.getAttribute('aria-live')).toBe('assertive')
+})
+
 test('shows the exact switch warning only while the active squad has zero standing', () => {
   const { root, controller } = mount()
   const state = clone(controller.getState())
@@ -127,13 +137,35 @@ test('shows the exact win terminal cause with kills, rescues, survivors and the 
   state.stats = { kills: 30, xp: 16, rescues: 2 }
   state.upgrade = { offered: ['power', 'march', 'vigor'], choice: 'power', applied: true }
   state.friendlies[0].life = 'dead'
+  // A soldier still bleeding out is not a survivor: the result screen's 생존 must be
+  // the same standing count the HUD shows, so this roster reports 14, not 15.
+  state.friendlies[1].life = 'downed'
   controller.publish(state)
 
   expect(root.querySelector('[data-terminal]')?.hasAttribute('hidden')).toBe(false)
   expect(root.querySelector('[data-kills]')?.textContent).toContain('30')
   expect(root.querySelector('[data-rescues]')?.textContent).toContain('2')
-  expect(root.querySelector('[data-survivors]')?.textContent).toContain('15')
+  expect(root.querySelector('[data-survivors]')?.textContent).toBe('14')
   expect(root.querySelector('[data-choice]')?.textContent).toContain('화력 강화')
+})
+
+test('reports zero survivors on a total wipe instead of counting soldiers who are bleeding out', () => {
+  const { root, controller } = mount()
+  const state = clone(controller.getState())
+  state.mode = 'lost'
+  state.failureReason = 'all-units-lost'
+  // `all-units-lost` fires the moment nothing is standing, which leaves most of the
+  // roster `downed` rather than `dead`. Counting `life !== 'dead'` printed
+  // "두 분대가 모두 쓰러졌습니다. / 생존 16" — a self-contradiction on the judging path.
+  state.friendlies.forEach((friendly, index) => {
+    friendly.life = index % 4 === 0 ? 'dead' : 'downed'
+  })
+  controller.publish(state)
+
+  expect(root.querySelector('[data-terminal-cause]')?.textContent).toBe('두 분대가 모두 쓰러졌습니다.')
+  expect(root.querySelector('[data-survivors]')?.textContent).toBe('0')
+  expect(root.querySelector('[data-squad-status="teal"]')?.textContent).toContain('0명')
+  expect(root.querySelector('[data-squad-status="scarlet"]')?.textContent).toContain('0명')
 })
 
 test('shows a distinct terminal cause for each loss reason and restarts to the ready screen', () => {

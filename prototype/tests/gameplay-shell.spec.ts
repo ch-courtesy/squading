@@ -9,6 +9,29 @@ test('does not expose renderer or performance controls on the default route', as
   await expect(page.getByText('적 수')).toHaveCount(0)
 })
 
+test('never requests a Phaser or Three-3D module on the default route', async ({ page }) => {
+  // The lab renderers are reachable only through the dynamic imports in registry.ts,
+  // which the default route never calls — but that is a static-analysis conclusion.
+  // This turns it into a regression guard at the request level, so a stray static import
+  // (or a re-added eager preload) fails here instead of silently shipping the lab
+  // renderer bytes to every player. Matches the dev server's `/src/renderers/phaser-2d/*.ts`
+  // and `/src/renderers/three-3d/*.ts` modules, the pre-bundled `deps/phaser.js`, and the
+  // built `assets/phaser-*.js` / `assets/three-3d-*.js` chunks alike.
+  const labRequests: string[] = []
+  page.on('request', (request) => {
+    if (/phaser|three-3d/i.test(request.url())) labRequests.push(request.url())
+  })
+
+  await page.goto('')
+  // The gameplay renderer resolves through the same registry module, so waiting for its
+  // canvas proves the dynamic-import path really ran before this assertion is made.
+  await expect(page.locator('.gp-stage canvas')).toBeVisible()
+  await page.getByRole('button', { name: '전투 시작' }).click()
+  await expect(page.locator('[data-hud]')).toBeVisible()
+
+  expect(labRequests).toEqual([])
+})
+
 test('shows the objective, controls and start button on the default route without scrolling', async ({ page }) => {
   await page.goto('')
   await expect(page.getByText('30초 안에 정예 지휘관을 쓰러뜨리십시오.')).toBeVisible()

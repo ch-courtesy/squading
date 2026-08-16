@@ -3,6 +3,7 @@ import { expect, test } from 'vitest'
 import { advanceFriendlyAttacks, advanceNormalAttacks } from '../../src/core/gameplay/combat'
 import { SCARLET_RESCUE_TICKS, TEAL_RESCUE_TICKS } from '../../src/core/gameplay/constants'
 import { advanceMovement } from '../../src/core/gameplay/movement'
+import { applyPendingUpgrade } from '../../src/core/gameplay/progression'
 import { advanceRescueProgress, resolveRescueAndDownedTimers } from '../../src/core/gameplay/rescue'
 import { projectRenderSnapshot } from '../../src/core/gameplay/snapshot'
 import { createStateFixture, makeFriendly, makeNormalEnemy, repeat, startRunningGame } from '../helpers/gameplay-fixtures'
@@ -212,14 +213,22 @@ test('resolves completion before expiry, starts new downed timers next tick, and
   newlyDowned.hp = 0
   state.friendlies = [rescuer, casualty, newlyDowned, expiring]
   state.activeSquad = 'scarlet'
-  state.squads.scarlet.hpMultiplier = 1.2
+  // `vigor` is applied through the shipping upgrade path rather than by poking
+  // `hpMultiplier` by hand: applyPendingUpgrade scales every friendly's own maxHp
+  // *and* records the multiplier on the squad, so a revive that also multiplied by
+  // the squad record would double-count it and return 62.5% instead of the spec's 50%.
+  state.upgrade = { offered: ['power', 'march', 'vigor'], choice: 'vigor', applied: false }
+  applyPendingUpgrade(state)
+  expect(state.squads.scarlet.hpMultiplier).toBeCloseTo(1.25, 6)
+  expect(casualty.maxHp).toBeCloseTo(0.9375, 6)
   rescuer.rescueTargetId = casualty.id
   rescuer.rescueProgress = SCARLET_RESCUE_TICKS
 
   resolveRescueAndDownedTimers(state)
 
   expect(casualty).toMatchObject({ life: 'standing', downedTicks: 0 })
-  expect(casualty.hp).toBeCloseTo(0.45)
+  expect(casualty.hp).toBeCloseTo(casualty.maxHp * 0.5, 6)
+  expect(casualty.hp).toBeCloseTo(0.46875, 6)
   expect(newlyDowned).toMatchObject({ life: 'downed', downedTicks: 240 })
   expect(expiring).toMatchObject({ life: 'dead', downedTicks: 0 })
   expect(state.stats.rescues).toBe(1)

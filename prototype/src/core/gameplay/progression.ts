@@ -105,6 +105,9 @@ export function applyPendingUpgrade(state: GameState): void {
       state.squads.scarlet.movementMultiplier *= 1.15
       break
     case 'vigor':
+      // The two `hpMultiplier` writes only record that vigor was applied; the effect
+      // itself lands on each soldier's own `maxHp`/`hp` below. Nothing reads
+      // `hpMultiplier` back — see the note on SquadState in types.ts.
       state.squads.teal.hpMultiplier *= 1.25
       state.squads.scarlet.hpMultiplier *= 1.25
       for (const friendly of state.friendlies) {

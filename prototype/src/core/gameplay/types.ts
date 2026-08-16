@@ -58,6 +58,13 @@ export type SquadState = {
   lastDirection: Vec2
   damageMultiplier: number
   movementMultiplier: number
+  // Applied-upgrade RECORD ONLY — never an input to any HP computation.
+  // `damageMultiplier` and `movementMultiplier` are live multipliers read every tick
+  // (combat.ts / squads.ts); `hpMultiplier` is not. `vigor` scales each soldier's own
+  // `maxHp`/`hp` in applyPendingUpgrade, so `maxHp` is the sole source of truth for the
+  // HP ceiling and any reader that also multiplied by this field would double-count it.
+  // It stays in `SquadState` because the digest shape is spec'd and it is the durable
+  // record of how many `vigor` stacks the run applied.
   hpMultiplier: number
 }
 

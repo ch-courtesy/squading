@@ -102,7 +102,9 @@ test('loses seed 47 with the exact no-input result and restarts to a tick-zero H
   await expect(page.locator('[data-terminal-cause]')).toHaveText('두 분대가 모두 쓰러졌습니다.')
   await expect(page.locator('[data-kills]')).toHaveText('50')
   await expect(page.locator('[data-rescues]')).toHaveText('0')
-  await expect(page.locator('[data-survivors]')).toHaveText('16')
+  // `all-units-lost` fires exactly when nothing is standing, so 생존 must read 0 — the
+  // rest of the roster is downed, not dead, and downed soldiers are not survivors.
+  await expect(page.locator('[data-survivors]')).toHaveText('0')
   await expect(page.locator('[data-choice]')).toHaveText(POWER_UPGRADE)
 
   await page.getByRole('button', { name: '다시 시작' }).click()

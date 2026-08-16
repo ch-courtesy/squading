@@ -128,7 +128,10 @@ function completeRescue(state: GameState): void {
   if (!lock || lock.rescuer.rescueProgress < rescueTicks(lock.rescuer.squad)) return
   lock.casualty.life = 'standing'
   lock.casualty.downedTicks = 0
-  lock.casualty.hp = lock.casualty.maxHp * state.squads[lock.casualty.squad].hpMultiplier * 0.5
+  // `maxHp` is the single source of truth for a soldier's ceiling: applyPendingUpgrade
+  // already scaled it when `vigor` was taken, so `squads[x].hpMultiplier` must not be
+  // applied a second time here (that returned 62.5%, not the spec's "최대 HP의 50%").
+  lock.casualty.hp = lock.casualty.maxHp * 0.5
   clearRescueLock(lock.rescuer)
   state.stats.rescues += 1
 }

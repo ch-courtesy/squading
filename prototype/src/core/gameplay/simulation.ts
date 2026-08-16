@@ -12,12 +12,29 @@ import { projectRenderSnapshot } from './snapshot'
 import { createInitialGameState } from './state'
 import type { GameInputEvent, GameState, GameplayFixture, GameplaySimulation } from './types'
 
+// The 14 hooks below are the spec's 14 tick steps in the spec's order, but two of them
+// do NOT do the work their spec number names. Both placements are deliberate and the
+// phase-order test (tests/core/gameplay-determinism.test.ts) only proves the hooks fire
+// in this order — it is not evidence that each step's work happens in its own hook:
+//
+//  - Spec step 5 "피로 증감과 exhausted 상태를 판정한다": this hook only *resets* the
+//    per-tick activity accumulator. The actual advanceFatigue() runs at the end of
+//    phase 11, because fatigue is measured from activity that is not resolved until
+//    steps 6-8 (movement, rescue work, attacks) — judging it at step 5 could only ever
+//    read the previous tick's activity.
+//  - Spec step 11 "... kill과 XP를 집계한다": recordNormalKill() fires inside phase 8
+//    (combat.ts), at the moment a normal's hp crosses to 0, because the killing blow is
+//    the only place the transition is observable. Nothing between phases 8 and 11 reads
+//    stats.xp (upgrade entry is phase 14), so the counter is identical either way.
+//
+// Moving either one would change every determinism digest and the recorded 8-seed
+// agency bands, so the placements stay and the names/comments carry the truth.
 type PhaseName =
   | 'cooldowns'
   | 'input'
   | 'spawn'
   | 'commandsUpgrades'
-  | 'fatigue'
+  | 'activityReset'
   | 'movement'
   | 'rescueProgress'
   | 'friendlyAttacks'
@@ -133,7 +150,8 @@ export function createGameplaySimulation(options: GameplaySimulationOptions): Ga
       spawnElite(state, state.combatTick)
     },
     commandsUpgrades: () => { applyPendingUpgrade(state) },
-    fatigue: () => { squadActivity = createSquadActivity() },
+    // Spec step 5's slot. Resets the accumulator only; advanceFatigue() runs in phase 11.
+    activityReset: () => { squadActivity = createSquadActivity() },
     movement: () => {
       prepareRescueLock(state)
       squadActivity.moved = advanceMovement(state)
@@ -145,6 +163,7 @@ export function createGameplaySimulation(options: GameplaySimulationOptions): Ga
     eliteTelegraph: () => { advanceEliteTelegraph(state, state.combatTick) },
     rescueDeathXp: () => {
       resolveRescueAndDownedTimers(state)
+      // Spec step 5's real work: it needs the activity resolved by phases 6-8 above.
       advanceFatigue(state, squadActivity)
     },
     tick: () => { state.combatTick += 1 },
@@ -175,7 +194,7 @@ export function createGameplaySimulation(options: GameplaySimulationOptions): Ga
       run('input')
       run('spawn')
       run('commandsUpgrades')
-      run('fatigue')
+      run('activityReset')
       run('movement')
       run('rescueProgress')
       run('friendlyAttacks')
