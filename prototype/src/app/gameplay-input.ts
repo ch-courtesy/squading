@@ -1,0 +1,178 @@
+import type { BattleMode, GameInputEvent, Vec2 } from '../core/gameplay/types'
+
+const MOVE_KEYS: Record<string, readonly [number, number]> = {
+  w: [0, -1],
+  s: [0, 1],
+  a: [-1, 0],
+  d: [1, 0],
+  ArrowUp: [0, -1],
+  ArrowDown: [0, 1],
+  ArrowLeft: [-1, 0],
+  ArrowRight: [1, 0],
+}
+
+const UPGRADE_KEYS: Record<string, 0 | 1 | 2> = { '1': 0, '2': 1, '3': 2 }
+
+export type GameplayInputAdapterOptions = {
+  readonly getTick: () => number
+  readonly getMode: () => BattleMode
+  readonly emit: (event: GameInputEvent) => void
+  readonly nextSequence?: () => number
+  readonly target?: Window
+}
+
+export interface GameplayInputAdapter {
+  attach(): void
+  clearPersistent(): void
+  pointerDown(target: Vec2): void
+  pointerMove(target: Vec2): void
+  pointerEnd(): void
+  currentMovement(): Vec2
+  dispose(): void
+}
+
+const ZERO: Vec2 = { x: 0, y: 0 }
+
+function normalize(vector: Vec2): Vec2 {
+  const length = Math.hypot(vector.x, vector.y)
+  if (length === 0) return ZERO
+  return { x: vector.x / length, y: vector.y / length }
+}
+
+function vecEquals(left: Vec2, right: Vec2): boolean {
+  return left.x === right.x && left.y === right.y
+}
+
+export function createGameplayInputAdapter(options: GameplayInputAdapterOptions): GameplayInputAdapter {
+  const target = options.target ?? window
+  let localSequence = 0
+  const nextSequence = options.nextSequence ?? (() => localSequence++)
+
+  const pressedKeys = new Set<string>()
+  let pointerActive = false
+  let pointerTarget: Vec2 = ZERO
+  let rescueHeld = false
+  let lastEmittedMovement: Vec2 = ZERO
+  let attached = false
+
+  const isRunning = (): boolean => options.getMode() === 'running'
+
+  const computeMovement = (): Vec2 => {
+    if (pressedKeys.size > 0) {
+      let x = 0
+      let y = 0
+      for (const key of pressedKeys) {
+        const axis = MOVE_KEYS[key]
+        if (!axis) continue
+        x += axis[0]
+        y += axis[1]
+      }
+      return normalize({ x, y })
+    }
+    if (pointerActive) return pointerTarget
+    return ZERO
+  }
+
+  const syncMovement = (): void => {
+    if (!isRunning()) return
+    const movement = computeMovement()
+    if (vecEquals(movement, lastEmittedMovement)) return
+    lastEmittedMovement = movement
+    options.emit({ applyTick: options.getTick(), sequence: nextSequence(), kind: 'set-move', x: movement.x, y: movement.y })
+  }
+
+  const setRescueHeld = (held: boolean): void => {
+    if (rescueHeld === held) return
+    rescueHeld = held
+    if (!isRunning()) return
+    options.emit({ applyTick: options.getTick(), sequence: nextSequence(), kind: 'set-rescue', held })
+  }
+
+  const onKeyDown = (event: KeyboardEvent): void => {
+    const key = event.key
+    if (key === 'Tab') event.preventDefault()
+    if (key in MOVE_KEYS) {
+      event.preventDefault()
+      if (!isRunning()) return
+      pressedKeys.add(key)
+      syncMovement()
+      return
+    }
+    if (key === ' ') {
+      event.preventDefault()
+      if (event.repeat) return
+      if (!isRunning()) return
+      setRescueHeld(true)
+      return
+    }
+    if (key === 'q' || key === 'Q' || key === 'Tab') {
+      if (event.repeat) return
+      if (!isRunning()) return
+      options.emit({ applyTick: options.getTick(), sequence: nextSequence(), kind: 'switch-squad' })
+      return
+    }
+    if (key in UPGRADE_KEYS) {
+      if (event.repeat) return
+      if (options.getMode() !== 'awaiting-upgrade') return
+      options.emit({ applyTick: options.getTick(), sequence: nextSequence(), kind: 'choose-upgrade', index: UPGRADE_KEYS[key] })
+      return
+    }
+    if (key === 'Escape') {
+      if (event.repeat) return
+      const mode = options.getMode()
+      if (mode !== 'running' && mode !== 'paused') return
+      options.emit({ applyTick: options.getTick(), sequence: nextSequence(), kind: 'toggle-pause' })
+    }
+  }
+
+  const onKeyUp = (event: KeyboardEvent): void => {
+    const key = event.key
+    if (key in MOVE_KEYS) {
+      pressedKeys.delete(key)
+      syncMovement()
+      return
+    }
+    if (key === ' ') setRescueHeld(false)
+  }
+
+  return {
+    attach() {
+      if (attached) return
+      attached = true
+      target.addEventListener('keydown', onKeyDown, true)
+      target.addEventListener('keyup', onKeyUp)
+    },
+    clearPersistent() {
+      pressedKeys.clear()
+      pointerActive = false
+      pointerTarget = ZERO
+      rescueHeld = false
+      lastEmittedMovement = ZERO
+    },
+    pointerDown(point) {
+      if (!isRunning()) return
+      pointerActive = true
+      pointerTarget = point
+      syncMovement()
+    },
+    pointerMove(point) {
+      if (!pointerActive || !isRunning()) return
+      pointerTarget = point
+      syncMovement()
+    },
+    pointerEnd() {
+      pointerActive = false
+      pointerTarget = ZERO
+      syncMovement()
+    },
+    currentMovement() {
+      return computeMovement()
+    },
+    dispose() {
+      if (!attached) return
+      attached = false
+      target.removeEventListener('keydown', onKeyDown, true)
+      target.removeEventListener('keyup', onKeyUp)
+    },
+  }
+}

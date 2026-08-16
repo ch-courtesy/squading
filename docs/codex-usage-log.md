@@ -1,5 +1,16 @@
 # Codex 활용 기록
 
+## 2026-08-16
+
+### 분대 생존 수직 슬라이스 Task 9 — Gameplay controller와 실제 DOM 입력 GREEN
+
+- 목표: Task 1~8의 권위 `GameplaySimulation` facade를 실제 DOM/RAF 경계에 연결한다. `gameplay-input.ts`의 키보드·포인터 상태 게이트와 `gameplay-controller.ts`의 고정 30Hz 루프·literal Three hybrid loader·렌더러 lifecycle을 새로 만들고, 기존 lab `game-controller.ts`/`app-shell.ts`/`renderer-benchmark.ts`와 그 테스트는 건드리지 않았다.
+- Codex 활용: `superpowers:test-driven-development`, `superpowers:verification-before-completion`을 적용했다. Codebase 탐색으로 `createGameplaySimulation`의 zero-time-control 계약(`start-battle`·`toggle-pause`·`choose-upgrade`는 큐를 거치지 않고 즉시 적용되며 `set-move`·`set-rescue`·`switch-squad`만 tick/sequence로 정렬된다), `projectRenderSnapshot`이 lab과 동일한 `RenderSnapshot`을 반환해 `GameRenderer`를 그대로 재사용할 수 있다는 점, `enterUpgradeIfEligible`·`resolveOutcome`이 입력을 직접 비우지 않는다는 점을 먼저 확인했다. Controller 지시에 따라 Advisor는 호출하지 않았다.
+- RED: brief의 두 리터럴 테스트(Space hold/paused 게이트, keyboard-over-drag)를 포함한 `tests/gameplay-controller.test.ts`를 먼저 작성하고 `npm test -- tests/gameplay-controller.test.ts`를 실행해 `Failed to resolve import "../src/app/gameplay-controller"` 모듈 미해결로 RED를 확인했다.
+- 주요 결정: `paused`·`awaiting-upgrade`·`won`·`lost` 진입은 controller가 `combatTick`/`simulation.step()` 이후 mode 변화를 감지해 `inputAdapter.clearPersistent()`만 호출하고(권위 `state.input` 초기화는 시뮬레이션의 zero-time-control이 이미 처리), window `blur`와 `document.hidden` 진입은 controller가 `mode==='running'`일 때만 `toggle-pause`를 강제 enqueue해 "hidden에서 돌아와도 자동 재개하지 않고 paused 유지"를 만족시킨다. `isVisible()` 게이트는 lab과 동일하게 렌더링은 하되 tick만 얼린다. `gameplay-input.ts`는 keydown을 mode-gate 후에만 지속 상태에 반영하고 keyup/pointerEnd는 mode와 무관하게 항상 반영해, pause 도중 놓친 keyup으로 키가 "끼는" 결함을 방지했다. sequence는 controller가 소유하고 `nextSequence` 주입으로 adapter와 공유해 같은 tick 이벤트의 정렬 근거를 하나로 통일했다. registry는 기존 `defaultLoaders.hybrid`와 동일한 literal `import('./three-hybrid')`를 재사용하는 `loadGameplayRenderer`를 추가해 청크가 분리되지 않게 했다.
+- 검증 근거: `npm test -- tests/gameplay-controller.test.ts`로 신규 21건(adapter 7 + controller 14)을 GREEN 확인했다(첫 실행에서 float 누적 오차로 만든 자체 테스트 버그 1건을 `1000/30` 대신 `+34`로 교정). `npm test -- tests/gameplay-controller.test.ts tests/renderer-contract.test.ts`로 42건, 전체 `npm test`로 `16 files / 185 tests` 모두 통과했다. `npm run build`는 TypeScript와 Vite 빌드 모두 통과했고 `dist/assets/three-hybrid-*.js`가 단일 청크로 유지됨을 확인했다. 남은 경고는 기존 `phaser-2d` large-chunk 경고뿐이다. `git diff --check`도 통과했다.
+- 다음 단계: Task 10은 이 `GameplayController`/`GameplayInputAdapter` 위에 시작·HUD·강화·pause·결과 UI를 얹는다. `subscribe`가 매 프레임(최대 5 step 배치당 1회)과 모든 enqueue 직후 상태를 통지하므로 UI는 폴링 없이 렌더링할 수 있다.
+
 ## 2026-08-15
 
 ### 분대 생존 수직 슬라이스 Task 8 — 결정론·8-seed 정책 GREEN
