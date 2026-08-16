@@ -44,11 +44,41 @@ function vecEquals(left: Vec2, right: Vec2): boolean {
   return left.x === right.x && left.y === right.y
 }
 
+// `event.key` carries the *typed character*, so a Korean IME reports 'ㅈ' for the W key
+// and 'ㅂ' for Q and every movement and squad-switch input silently stops working — the
+// state the game shipped in. `event.code` is the physical key and is layout- and
+// IME-independent, so it is the primary source; `event.key` remains the fallback for
+// events that carry no code (jsdom-dispatched test events, synthetic input).
+const CODE_ALIASES: Record<string, string> = {
+  KeyW: 'w',
+  KeyA: 'a',
+  KeyS: 's',
+  KeyD: 'd',
+  KeyQ: 'q',
+  Space: ' ',
+  Digit1: '1',
+  Digit2: '2',
+  Digit3: '3',
+  Numpad1: '1',
+  Numpad2: '2',
+  Numpad3: '3',
+  ArrowUp: 'ArrowUp',
+  ArrowDown: 'ArrowDown',
+  ArrowLeft: 'ArrowLeft',
+  ArrowRight: 'ArrowRight',
+  Tab: 'Tab',
+  Escape: 'Escape',
+}
+
 // Lowercase single-character keys so Shift/CapsLock ('D' vs 'd') can't desync a
 // keydown from its matching keyup and leave a movement key stuck in `pressedKeys`.
 // Multi-character key names (Arrow*, Tab, Escape, ...) pass through unchanged.
 function normalizeKey(key: string): string {
   return key.length === 1 ? key.toLowerCase() : key
+}
+
+function resolveKey(event: KeyboardEvent): string {
+  return CODE_ALIASES[event.code] ?? normalizeKey(event.key)
 }
 
 export function createGameplayInputAdapter(options: GameplayInputAdapterOptions): GameplayInputAdapter {
@@ -98,7 +128,7 @@ export function createGameplayInputAdapter(options: GameplayInputAdapterOptions)
   }
 
   const onKeyDown = (event: KeyboardEvent): void => {
-    const key = normalizeKey(event.key)
+    const key = resolveKey(event)
     // Tab doubles as squad-switch only while running, so only swallow the browser's
     // native focus-cycling then. Every other mode (ready/paused/awaiting-upgrade/
     // won/lost) must leave Tab alone so a keyboard-only player can reach the
@@ -140,7 +170,7 @@ export function createGameplayInputAdapter(options: GameplayInputAdapterOptions)
   }
 
   const onKeyUp = (event: KeyboardEvent): void => {
-    const key = normalizeKey(event.key)
+    const key = resolveKey(event)
     if (key in MOVE_KEYS) {
       pressedKeys.delete(key)
       syncMovement()

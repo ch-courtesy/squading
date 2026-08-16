@@ -35,6 +35,33 @@ describe('gameplay input adapter', () => {
     expect(adapter.currentMovement()).toEqual({ x: 0, y: 0 })
   })
 
+  test('reads physical keys so a Hangul IME still moves and switches squads', async () => {
+    // With a Korean IME active the browser reports the composed jamo in `event.key`
+    // ('ㅈ' for W, 'ㅂ' for Q), so a key-name lookup sees nothing pressed and the
+    // whole game becomes unplayable without switching to English first.
+    const emitted: GameInputEvent[] = []
+    const adapter = createGameplayInputAdapter({
+      getTick: () => 12,
+      getMode: () => 'running',
+      emit: (event) => emitted.push(event),
+    })
+    cleanups.push(() => adapter.dispose())
+    adapter.attach()
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ㅈ', code: 'KeyW' }))
+    expect(adapter.currentMovement()).toEqual({ x: 0, y: -1 })
+    expect(emitted.at(-1)).toEqual({ applyTick: 12, sequence: 0, kind: 'set-move', x: 0, y: -1 })
+
+    window.dispatchEvent(new KeyboardEvent('keyup', { key: 'ㅈ', code: 'KeyW' }))
+    expect(adapter.currentMovement()).toEqual({ x: 0, y: 0 })
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ㅂ', code: 'KeyQ' }))
+    expect(emitted.at(-1)).toMatchObject({ kind: 'switch-squad' })
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', code: 'Space' }))
+    expect(emitted.at(-1)).toMatchObject({ kind: 'set-rescue', held: true })
+  })
+
   test('uses keyboard axes over drag and clears drag on pointer end', async () => {
     const adapter = createGameplayInputAdapter({
       getTick: () => 12,
