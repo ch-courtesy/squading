@@ -16,7 +16,7 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 const COSMETIC_SEED = 0x5d10a4a
 
 /** Deterministic cosmetic noise (mulberry32). Never used for gameplay decisions. */
-function cosmeticRandom(seed: number): () => number {
+export function cosmeticRandom(seed: number): () => number {
   let state = seed >>> 0
   return () => {
     state = (state + 0x6d2b79f5) >>> 0

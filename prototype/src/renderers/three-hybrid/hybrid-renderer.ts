@@ -5,6 +5,7 @@ import { qualityProfile } from '../../metrics/quality-ladder'
 import type { GameRenderer, QualityLevel, RendererMetrics } from '../contract'
 import { TEAM_TINTS, cardboardMaterial, createCardboardAssets, disposeObjectMaterials, flatMaterial, type CardboardAssets } from '../three-shared/scene-utils'
 import { createDioramaAssets, type DioramaAssets, type MiniatureArchetype } from './diorama-assets'
+import { createTerrainProps, type TerrainProps } from './terrain-props'
 
 type UnitVisual = { readonly root: THREE.Group; readonly card: THREE.Mesh; readonly shadow: THREE.Mesh; readonly marker: THREE.Mesh }
 type EffectVisual = { readonly root: THREE.Group; readonly kind: RenderEffect['kind'] }
@@ -22,7 +23,15 @@ export type HybridVisualState = {
   readonly downedTiltRadians: readonly number[]
   readonly rescueSignals: number
   readonly activeSquadMarkers: Readonly<Record<Squad, number>>
-  readonly framing: { readonly units: number; readonly unitsInView: number; readonly groundCoversViewCentre: boolean }
+  readonly framing: {
+    readonly units: number
+    readonly unitsInView: number
+    readonly groundCoversViewCentre: boolean
+    /** Camera elevation above the tabletop. The staged diorama view sits low and oblique. */
+    readonly cameraPitchDegrees: number
+    readonly viewHalfWidth: number
+    readonly viewHalfHeight: number
+  }
   /**
    * Which presentation the scene is wearing. The renderer is shared with the
    * `?lab=renderers` comparison, which must keep the flat cardboard cards, so the
@@ -37,6 +46,9 @@ export type HybridVisualState = {
     readonly baseRings: number
     readonly billboardedBodies: number
     readonly mergedBodyGeometries: number
+    /** Terrain surround: merged prop meshes on the board and how many props they carry. */
+    readonly propMeshes: number
+    readonly propItems: number
   }
 }
 
@@ -69,14 +81,34 @@ const TELEGRAPH_SEGMENTS = 48
 // --- Tabletop diorama presentation -----------------------------------------------
 // The gameplay route paints a sculpted diorama: sandy board with grid seams, a raised
 // wooden edge frame, warm key light plus a cool rim, and merged miniature bodies.
-const BOARD_TILES_X = 10
-const BOARD_TILES_Z = 6
-// The play area fills the frustum exactly, which would hide the edge frame behind the
-// screen border. Pulling the camera back a little reveals the rail and the board beyond
-// it while keeping every unit comfortably inside the view.
-const DIORAMA_VIEW_MARGIN = 1.14
+// --- Camera staging --------------------------------------------------------------
+// The concept sheet is shot from a low oblique angle: the miniatures stand up against
+// the board, their bases read as ellipses rather than circles, and the key light rakes
+// long shadows across the sand. A near top-down view flattens all three away.
+//
+// 30 degrees is as low as the staging can go before the front rank starts hiding the
+// rank behind it, and it matches the base-ring ellipse of the concept art.
+const DIORAMA_PITCH_RADIANS = (30 * Math.PI) / 180
+// Orthographic, so the distance only has to clear the near plane and keep the whole
+// board (and the terrain belt behind it) inside the depth range.
+const DIORAMA_CAMERA_DISTANCE = 46
+// How much is framed beyond the play area: the raised rail plus a strip of the terrain
+// the board stands on. Anything more is wasted magnification — the 48-wide arena is
+// what caps the zoom, and every extra unit of margin shrinks the miniatures.
+const DIORAMA_EDGE_MARGIN = 2
+// Vertical allowance for a standing miniature: the elite is the tallest, roughly four
+// world units from its plinth to the tip of its staff. It never binds at a normal
+// viewport aspect, but it is what keeps a very tall window from clipping heads.
+const DIORAMA_FIGURE_HEADROOM = 4.4
+// The ruled board stops just outside its own rail; past that the terrain apron takes
+// over. That edge is what makes the play area read as a board rather than as a fence
+// drawn across an endless map.
+const DIORAMA_BOARD_PAD = 1.35
+const DIORAMA_BOARD_TILE = 5.6
 const FRAME_RAIL_THICKNESS = 1.2
-const FRAME_RAIL_HEIGHT = 0.9
+// Low enough that the near rail never hides the base of a unit standing on the board's
+// near edge at the staged pitch: a sightline over the rail clears it by 1.2 * tan(30).
+const FRAME_RAIL_HEIGHT = 0.6
 const FRAME_RAIL_NAME = 'tabletop-frame-rail'
 const RIM_LIGHT_NAME = 'tabletop-rim-light'
 const BOARD_COLOR = 0xd6c0a0
@@ -106,6 +138,7 @@ class ThreeHybridRenderer implements HybridGameRenderer {
   private camera: THREE.OrthographicCamera | null = null
   private assets: CardboardAssets | null = null
   private diorama: DioramaAssets | null = null
+  private props: TerrainProps | null = null
   private frameRails: THREE.Mesh[] = []
   private telegraphGeometry: THREE.RingGeometry | null = null
   private snapshot: RenderSnapshot | null = null
@@ -145,7 +178,7 @@ class ThreeHybridRenderer implements HybridGameRenderer {
     // The lab comparison drives this same renderer with an origin-centred fixture that
     // has no `activeSquad`; only the gameplay authority publishes one. Reading that
     // signal keeps the lab on its cardboard cards without a second renderer.
-    if (!this.diorama && snapshot.activeSquad !== undefined) this.applyDioramaPresentation()
+    if (!this.diorama && snapshot.activeSquad !== undefined) this.applyDioramaPresentation(snapshot)
     this.updateCameraBounds(snapshot)
     const unitIds = new Set(snapshot.units.map((unit) => unit.id))
     snapshot.units.forEach((unit) => this.renderUnit(unit, snapshot))
@@ -189,6 +222,7 @@ class ThreeHybridRenderer implements HybridGameRenderer {
     this.scene?.traverse((object) => { if (object instanceof THREE.Mesh && object.name.startsWith('tabletop-')) disposeObjectMaterials(object) })
     this.units.clear(); this.effects.clear(); this.particles = []; this.frameRails = []
     this.telegraphGeometry?.dispose(); this.telegraphGeometry = null
+    this.props?.dispose(); this.props = null
     this.diorama?.dispose(); this.diorama = null
     this.assets?.dispose(); this.assets = null; this.scene?.clear(); this.renderer?.dispose(); this.renderer?.forceContextLoss(); this.renderer?.domElement.remove()
     this.renderer = null; this.scene = null; this.camera = null; this.snapshot = null
@@ -257,15 +291,17 @@ class ThreeHybridRenderer implements HybridGameRenderer {
       baseRings: visuals.filter((visual) => visual.marker.visible).length,
       billboardedBodies: visuals.filter((visual) => this.facesCamera(visual.card)).length,
       mergedBodyGeometries: this.diorama ? new Set(visuals.map((visual) => visual.card.geometry.uuid)).size : 0,
+      propMeshes: (this.props?.meshes ?? []).filter((mesh) => mesh.parent !== null).length,
+      propItems: this.props?.placements.length ?? 0,
     }
   }
 
   // Scene-graph assertions cannot tell a framed battle from an off-screen one: a renderer
   // that puts every unit outside the frustum still reports the same cards and markers.
   // This projects what is actually on screen.
-  private describeFraming(): { units: number; unitsInView: number; groundCoversViewCentre: boolean } {
+  private describeFraming(): HybridVisualState['framing'] {
     const units = this.snapshot?.units ?? []
-    if (!this.camera) return { units: units.length, unitsInView: 0, groundCoversViewCentre: false }
+    if (!this.camera) return { units: units.length, unitsInView: 0, groundCoversViewCentre: false, cameraPitchDegrees: 0, viewHalfWidth: 0, viewHalfHeight: 0 }
     const camera = this.camera
     const unitsInView = units.filter((unit) => {
       const visual = this.units.get(unit.id)
@@ -277,7 +313,14 @@ class ThreeHybridRenderer implements HybridGameRenderer {
     const groundCoversViewCentre = ground
       ? new THREE.Raycaster(camera.getWorldPosition(new THREE.Vector3()), camera.getWorldDirection(new THREE.Vector3())).intersectObject(ground, false).length > 0
       : false
-    return { units: units.length, unitsInView, groundCoversViewCentre }
+    return {
+      units: units.length,
+      unitsInView,
+      groundCoversViewCentre,
+      cameraPitchDegrees: THREE.MathUtils.radToDeg(Math.asin(-camera.getWorldDirection(new THREE.Vector3()).y)),
+      viewHalfWidth: (camera.right - camera.left) / 2,
+      viewHalfHeight: (camera.top - camera.bottom) / 2,
+    }
   }
 
   private describeTelegraph(): HybridVisualState['eliteTelegraph'] {
@@ -321,7 +364,7 @@ class ThreeHybridRenderer implements HybridGameRenderer {
    *
    * Runs once, on the first gameplay snapshot. The lab route never reaches it.
    */
-  private applyDioramaPresentation(): void {
+  private applyDioramaPresentation(snapshot: RenderSnapshot): void {
     if (!this.scene || !this.renderer || this.diorama) return
     const assets = createDioramaAssets()
     this.diorama = assets
@@ -329,7 +372,6 @@ class ThreeHybridRenderer implements HybridGameRenderer {
 
     const ground = this.scene.getObjectByName('tabletop-ground')
     if (ground instanceof THREE.Mesh) {
-      assets.boardTexture.repeat.set(BOARD_TILES_X, BOARD_TILES_Z)
       assets.boardTexture.anisotropy = this.renderer.capabilities.getMaxAnisotropy()
       const previous = ground.material as THREE.Material
       ground.material = new THREE.MeshLambertMaterial({ color: BOARD_COLOR, map: assets.boardTexture })
@@ -356,8 +398,10 @@ class ThreeHybridRenderer implements HybridGameRenderer {
     if (key) {
       key.color.setHex(0xffdda2)
       key.intensity = 2.9
-      key.shadow.camera.left = -34; key.shadow.camera.right = 34; key.shadow.camera.top = 26; key.shadow.camera.bottom = -26
-      key.shadow.camera.near = 1; key.shadow.camera.far = 90
+      // Wide enough to keep the terrain belt in the shadow pass, and pushed far enough
+      // out that props on the camera side of the board are still in front of the light.
+      key.shadow.camera.left = -40; key.shadow.camera.right = 40; key.shadow.camera.top = 36; key.shadow.camera.bottom = -36
+      key.shadow.camera.near = 1; key.shadow.camera.far = 130
       key.shadow.bias = -0.0012
       key.shadow.normalBias = 0.03
       key.shadow.camera.updateProjectionMatrix()
@@ -365,6 +409,11 @@ class ThreeHybridRenderer implements HybridGameRenderer {
     const rim = new THREE.DirectionalLight(0x93bcff, 1.4)
     rim.name = RIM_LIGHT_NAME
     this.scene.add(rim, rim.target)
+
+    // The terrain surround. Built once, from cosmetic randomness only, entirely outside
+    // the play area — it decorates the board and never takes part in judgement.
+    this.props = createTerrainProps(snapshot.camera, { sightlineSlope: 1.05 / Math.tan(DIORAMA_PITCH_RADIANS) })
+    this.props.meshes.forEach((mesh) => this.scene!.add(mesh))
 
     // Units created before the first gameplay snapshot would still be cards; there are
     // none in practice, but rebuilding keeps the invariant true either way.
@@ -509,14 +558,46 @@ class ThreeHybridRenderer implements HybridGameRenderer {
     // centre and take only the half-extents from the snapshot. Assigning world
     // coordinates worked while every snapshot was centred on the origin and pushed the
     // whole arena out of view as soon as one was not.
-    // The diorama pulls back a little so the raised edge frame and the board beyond it
-    // are actually on screen; the lab keeps the exact world-bounds framing it asserts.
-    const view = this.diorama ? DIORAMA_VIEW_MARGIN : 1
-    this.camera.left = (-worldWidth / 2) * view
-    this.camera.right = (worldWidth / 2) * view
-    this.camera.top = (worldHeight / 2) * view
-    this.camera.bottom = (-worldHeight / 2) * view
-    this.camera.position.set(centerX, CAMERA_HEIGHT, centerY + CAMERA_DEPTH)
+    // The lab keeps the exact world-bounds framing it asserts.
+    if (!this.diorama) {
+      this.camera.left = -worldWidth / 2
+      this.camera.right = worldWidth / 2
+      this.camera.top = worldHeight / 2
+      this.camera.bottom = -worldHeight / 2
+      this.camera.position.set(centerX, CAMERA_HEIGHT, centerY + CAMERA_DEPTH)
+      this.camera.lookAt(centerX, 0, centerY)
+      this.camera.updateProjectionMatrix()
+      this.updateTabletopBounds(snapshot)
+      return
+    }
+
+    // Diorama staging. The camera is pitched down 30 degrees from the near edge, so the
+    // board's depth is foreshortened by sin(pitch) while a standing miniature keeps
+    // cos(pitch) of its height — that is what turns the tokens back into models.
+    //
+    // The frustum is then sized from what has to be *guaranteed* on screen rather than
+    // from a fixed zoom factor: the full play area plus the raised rail across the
+    // width, the foreshortened play area plus a figure's headroom across the height,
+    // and whichever of the two the viewport aspect makes binding. Enemies spawn on the
+    // arena boundary, so the width requirement is never negotiable — it is also what
+    // caps how large a miniature can be drawn.
+    const pitch = DIORAMA_PITCH_RADIANS
+    const aspect = this.viewportWidth / this.viewportHeight
+    const requiredHalfWidth = worldWidth / 2 + DIORAMA_EDGE_MARGIN
+    const requiredHalfHeight = (worldHeight / 2 + DIORAMA_EDGE_MARGIN) * Math.sin(pitch) + DIORAMA_FIGURE_HEADROOM * Math.cos(pitch)
+    const halfWidth = Math.max(requiredHalfWidth, requiredHalfHeight * aspect)
+    const halfHeight = halfWidth / aspect
+    this.camera.left = -halfWidth
+    this.camera.right = halfWidth
+    this.camera.top = halfHeight
+    this.camera.bottom = -halfHeight
+    this.camera.near = 0.1
+    this.camera.far = DIORAMA_CAMERA_DISTANCE * 3
+    this.camera.position.set(
+      centerX,
+      DIORAMA_CAMERA_DISTANCE * Math.sin(pitch),
+      centerY + DIORAMA_CAMERA_DISTANCE * Math.cos(pitch),
+    )
     this.camera.lookAt(centerX, 0, centerY)
     this.camera.updateProjectionMatrix()
     this.updateTabletopBounds(snapshot)
@@ -527,11 +608,21 @@ class ThreeHybridRenderer implements HybridGameRenderer {
     const ground = this.scene?.getObjectByName('tabletop-ground')
     if (ground) {
       ground.position.set(centerX, 0, centerY)
-      ground.scale.set((worldWidth * GROUND_MARGIN) / GROUND_GEOMETRY_WIDTH, (worldHeight * GROUND_MARGIN) / GROUND_GEOMETRY_DEPTH, 1)
+      // The diorama's ruled board stops just past its own rail — the terrain apron the
+      // props stand on carries the rest of the frame — and re-tiles its texture to that
+      // extent so the grid squares keep their size.
+      const boardWidth = this.diorama ? worldWidth + DIORAMA_BOARD_PAD * 2 : worldWidth * GROUND_MARGIN
+      const boardDepth = this.diorama ? worldHeight + DIORAMA_BOARD_PAD * 2 : worldHeight * GROUND_MARGIN
+      ground.scale.set(boardWidth / GROUND_GEOMETRY_WIDTH, boardDepth / GROUND_GEOMETRY_DEPTH, 1)
+      if (this.diorama) this.diorama.boardTexture.repeat.set(boardWidth / DIORAMA_BOARD_TILE, boardDepth / DIORAMA_BOARD_TILE)
     }
     const light = this.scene?.getObjectByName('tabletop-key-light') as THREE.DirectionalLight | undefined
     if (light) {
-      light.position.set(centerX - 8, CAMERA_HEIGHT - 2, centerY + 10)
+      // A low raking key from the front left. Its 29-degree elevation is what stretches
+      // a miniature's shadow to nearly twice its own height, the way the concept art
+      // reads; it sits far out so every prop stays in front of the shadow camera.
+      if (this.diorama) light.position.set(centerX - 26, 22, centerY + 30)
+      else light.position.set(centerX - 8, CAMERA_HEIGHT - 2, centerY + 10)
       light.target.position.set(centerX, 0, centerY)
       light.target.updateMatrixWorld()
     }

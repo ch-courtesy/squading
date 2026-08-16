@@ -85,4 +85,13 @@ test('frames the gameplay arena so every unit is actually on screen', async ({ p
   const framing = (await rendererScene(page))!.framing
   expect(framing.unitsInView).toBe(framing.units)
   expect(framing.groundCoversViewCentre).toBe(true)
+
+  // The diorama is staged from a low oblique angle rather than looking straight down,
+  // which is what gives the miniatures a silhouette and a long shadow. The framing
+  // above is the constraint that angle has to live inside: the arena is 48 wide and
+  // enemies spawn on its boundary, so the view can never be tightened past it.
+  expect(framing.cameraPitchDegrees).toBeGreaterThan(24)
+  expect(framing.cameraPitchDegrees).toBeLessThan(36)
+  expect(framing.viewHalfWidth).toBeLessThan(27)
+  expect(framing.viewHalfWidth).toBeGreaterThanOrEqual(24)
 })

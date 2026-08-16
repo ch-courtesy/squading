@@ -28,7 +28,11 @@ test('paints the tabletop diorama on the gameplay route', async ({ page }) => {
     meshesPerUnit: 3,
     // Sculpted figures stand on the board; none of them billboard.
     billboardedBodies: 0,
+    // The whole terrain surround costs two meshes: one merged mesh carrying every
+    // crate, conifer, banner, sandbag and plank, plus the dirt apron they stand on.
+    propMeshes: 2,
   })
+  expect(scene.presentation.propItems).toBeGreaterThan(80)
   // Friendly, enemy and elite each merge down to a single shared geometry.
   expect(scene.presentation.mergedBodyGeometries).toBeGreaterThanOrEqual(2)
   expect(scene.presentation.mergedBodyGeometries).toBeLessThanOrEqual(3)
@@ -51,6 +55,9 @@ test('keeps the renderer-comparison lab on its cardboard cards', async ({ page }
     frameRails: 0,
     rimLights: 0,
     mergedBodyGeometries: 0,
+    // No terrain surround either: the comparison lab measures renderers, not scenery.
+    propMeshes: 0,
+    propItems: 0,
   })
   // The lab keeps billboarded cards: every unit body faces the camera.
   expect(scene.presentation.billboardedBodies).toBe(scene.framing.units)
