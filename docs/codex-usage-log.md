@@ -2,6 +2,22 @@
 
 ## 2026-08-16
 
+### 수직 슬라이스 SDD 재개와 최종 whole-branch 리뷰
+
+- 목표: 중단돼 있던 `2026-08-15-squad-survivor-vertical-slice-implementation` 계획을 Task 8 fix round부터 재개해 Task 11까지 끝내고, 최종 whole-branch 리뷰와 그 fix wave까지 닫는다.
+- Codex 활용: Claude Code 세션이 controller로서 `superpowers:subagent-driven-development`를 수행했다. task별로 구현 subagent 1개, task 리뷰 subagent 1개, fix round마다 scoped 재검토 subagent 1개를 dispatch했고 구현은 전부 subagent가 맡았다. controller는 직접 코드를 고치지 않았다.
+- 사용 스킬·도구: `superpowers:subagent-driven-development`, `superpowers:finishing-a-development-branch`, Vitest, Playwright, Vite build.
+- Task 8 마무리: fix round 1의 3건(공개 facade 구조 완결 시나리오, wipe 이후 일반 적 정지와 PRNG·wave·타이머·telegraph 계속, `Math.random` 가드 전 seed·정책 확대)이 모두 ADDRESSED로 확인됐다.
+- Task 9(gameplay controller와 실제 DOM 입력): 리뷰가 Important 4건(수식어/CapsLock에 의한 이동키 고착, cooldown 중 `switch-squad`가 queue에 적재, `notify()`가 render try/catch 안에 있어 UI listener 예외가 renderer를 dispose, `fail()`이 dispose 오류를 삼킴)을 냈고 fix round 1에서 전부 해소했다. 최종 `aa968df`.
+- Task 10(시작·HUD·강화·pause·결과 UI와 기본 route): 리뷰가 Important 2건(짧은 뷰포트에서 overlay가 스크롤 대신 clip돼 시작·재시작 버튼 도달 불가, 키보드만으로 시작·재시작 불가)을 냈고 fix round 1에서 minor 6건과 함께 해소했다. 최종 `bc7348f`.
+- Task 11(Three.js 2.5D 표현과 실제 브라우저 완주): 리뷰가 Important 2건(구조 44/45 경계 미단언, production bridge 부재 가드가 기본 suite에서 무효)을 냈고 controller가 snapshot의 rescuer `rescue-signal` 누락을 추가로 확인했다. bridge 가드는 `scripts/assert-no-test-bridge.mjs`로 build에 묶었고, rescuer 신호는 표시 전용 projection에만 추가했다. 최종 `9719fae`.
+- 최종 whole-branch 리뷰(`04a1456..9719fae`): Critical 0 / Important 5. fix wave에서 4건과 저비용 2건을 처리했다 — `vigor` 구조 복귀 HP가 최대치의 62.5%였던 계산 오류(`hpMultiplier`가 이미 `maxHp`에 반영돼 이중 적용), 전멸 패배 화면이 `생존 16`을 출력하던 모순, 명세 단계 이름과 실제 작업 위치가 어긋난 두 phase의 근거 주석과 `fatigue` -> `activityReset` 개명, 30Hz `aria-live` 카운트다운, 기본 route가 lab 청크를 요청하지 않는지 확인하는 request 단언, `rescue-agency` fixture의 적 ID 18 충돌. 최종 `c13a017`.
+- 검증 근거: 최종 트리에서 Vitest 207/207, Playwright 48/48(2.5분, `--workers=1`), `npm run build` 통과(브리지 검사 포함, 기존 `phaser-2d` large-chunk 경고만 잔존). 8-seed 밴드는 `tactical-no-input 0/8`, `movement-only 0/8`, `skilled 6/8`, seed 47 숙련 타이밍 `70/595/321`로 불변이며 결정론 checkpoint도 그대로다. 유일하게 움직인 digest는 `rescue-agency` fixture의 `finalDigest`로, 적 ID 재번호의 필연적 결과이고 어떤 문서나 테스트도 그 값을 리터럴로 단언하지 않는다.
+- controller 판정: 구조 44/45 경계의 브라우저 단언은 waive했다(실측 완주율 최선 91~95%, 나머지 0~52%; 경계값은 `tests/core/gameplay-rescue.test.ts:43`이 결정론적으로 고정). downed 전이를 phase 9/10에서 즉시 처리하는 건은 모든 결정론 fixture와 8-seed 게이트를 흔들기 때문에 park했다.
+- 사용자 결정 대기: (1) 구조 대상이 활성 분대 병사로 제한된 현재 동작 — 명세는 활성 분대 기립 병사와의 거리만 요구하므로 교차 분대 구조를 허용해야 하는지. (2) 구조 완주가 실전에서 30틱 연속 무피격을 요구해 불안정한 점. 둘 다 계획의 최종 게이트 규칙에 따라 구현하지 않고 사용자에게 올렸다.
+- 남은 출시 차단 요소: 사람 3명 플레이테스트 gate가 `PENDING(0/3)`이고, 원격 저장소와 공개 URL이 아직 없다.
+- 다음 단계: 사용자 결정 두 건과 사람 플레이테스트를 받은 뒤, 승인이 나면 원격 저장소 생성과 GitHub Pages 배포를 진행한다.
+
 ### 분대 생존 수직 슬라이스 Task 11 — Three.js 2.5D gameplay 표현과 실제 브라우저 완주 GREEN
 
 - 목표: `.gp-stage`에 붙는 Three.js 2.5D 표현이 정예·telegraph·전투불능·구조·활성 분대 상태를 실제로 보여주게 하고, 실제 키보드·포인터 입력만으로 seed 47을 브라우저에서 완주(무입력 패배 / 숙련 승리 / 재시작)시킨 뒤 플레이테스트 gate를 기록한다.
