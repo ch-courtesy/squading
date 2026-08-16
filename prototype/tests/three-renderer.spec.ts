@@ -17,7 +17,7 @@ type ThreeDiagnostics = {
 }
 
 async function startThreeGame(page: import('@playwright/test').Page): Promise<void> {
-  await page.goto('?renderer=3d&enemies=100&seed=three-fixture')
+  await page.goto('?lab=renderers&renderer=3d&enemies=100&seed=three-fixture')
   await page.getByRole('button', { name: '게임 시작' }).click()
   await expect(page.locator('.game-stage canvas')).toBeVisible()
   await expect.poll(async () => (await diagnostics(page)).snapshotUnitIds.length).toBe(118)
@@ -86,7 +86,7 @@ test('applies actual particle, 512px shadow-target, and DPR quality reductions',
 })
 
 test('disposes populated Three canvas and resource counters idempotently', async ({ page }) => {
-  await page.goto('')
+  await page.goto('?lab=renderers')
   const result = await page.evaluate(async () => {
     const { createThreeRenderer } = await (0, eval)('import("/src/renderers/three-3d/index.ts")')
     const { createSimulation } = await (0, eval)('import("/src/core/simulation.ts")')
@@ -108,7 +108,7 @@ test('disposes populated Three canvas and resource counters idempotently', async
 })
 
 test('fails cleanly without creating a canvas when WebGL is explicitly unavailable', async ({ page }) => {
-  await page.goto('')
+  await page.goto('?lab=renderers')
   const result = await page.evaluate(async () => {
     const { createThreeRenderer } = await (0, eval)('import("/src/renderers/three-3d/index.ts")')
     const host = document.createElement('div')

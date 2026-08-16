@@ -177,3 +177,218 @@ select {
     grid-template-columns: 1fr;
   }
 }
+
+.gameplay-shell {
+  position: relative;
+  width: 100%;
+  min-height: 100vh;
+  overflow: hidden;
+}
+
+.gp-stage {
+  position: absolute;
+  inset: 0;
+  background: #201d16;
+}
+
+.gp-stage canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: crosshair;
+}
+
+.gp-ready,
+.gp-pause-overlay,
+.gp-upgrade-overlay,
+.gp-terminal-overlay {
+  position: absolute;
+  inset: 0;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: clamp(1.5rem, 5vw, 3rem);
+  text-align: center;
+}
+
+.gp-ready:not([hidden]),
+.gp-pause-overlay:not([hidden]),
+.gp-upgrade-overlay:not([hidden]),
+.gp-terminal-overlay:not([hidden]) {
+  display: flex;
+}
+
+.gp-ready,
+.gp-upgrade-overlay,
+.gp-terminal-overlay {
+  background: rgb(15 14 10 / 92%);
+}
+
+.gp-pause-overlay {
+  background: rgb(15 14 10 / 55%);
+  backdrop-filter: blur(2px);
+}
+
+.gp-eyebrow {
+  margin: 0;
+  color: #e1b55f;
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+}
+
+.gp-ready h1 {
+  margin: 0;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(2rem, 6vw, 3.5rem);
+  line-height: 1;
+}
+
+.gp-objective {
+  max-width: 34rem;
+  font-size: 1.15rem;
+  color: #f8ead2;
+}
+
+.gp-controls {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 1rem 1.5rem;
+  border: 1px solid #4c4638;
+  border-radius: 0.75rem;
+  background: rgb(28 26 21 / 88%);
+}
+
+.gp-controls div {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: space-between;
+}
+
+.gp-controls dt {
+  color: #bdb3a0;
+}
+
+.gp-controls dd {
+  margin: 0;
+  font-weight: 600;
+}
+
+.gp-squad-hint {
+  max-width: 34rem;
+  color: #c9c0ae;
+}
+
+.gp-start {
+  min-height: 3rem;
+  padding: 0.75rem 2rem;
+  border: 1px solid #e1b55f;
+  border-radius: 0.5rem;
+  color: #171510;
+  background: #e1b55f;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.gp-hud {
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
+  display: none;
+  gap: 0.35rem;
+  max-width: 18rem;
+  padding: 1rem;
+  border: 1px solid #4c4638;
+  border-radius: 0.75rem;
+  background: rgb(23 21 16 / 85%);
+}
+
+.gp-hud:not([hidden]) {
+  display: grid;
+}
+
+.gp-hud-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.gp-hud-label {
+  color: #bdb3a0;
+}
+
+.gp-switch-warning {
+  margin: 0.25rem 0 0;
+  color: #e1725f;
+  font-weight: 700;
+}
+
+.gp-pause-title {
+  margin: 0;
+  font-size: 1.75rem;
+}
+
+.gp-upgrade-cards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+  width: min(48rem, 100%);
+}
+
+.gp-upgrade-card {
+  display: grid;
+  gap: 0.45rem;
+  padding: 1.25rem 1rem;
+  border: 1px solid #625b49;
+  border-radius: 0.75rem;
+  color: inherit;
+  background: #242119;
+  text-align: left;
+  cursor: pointer;
+}
+
+.gp-key {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 50%;
+  background: #e1b55f;
+  color: #171510;
+  font-weight: 800;
+}
+
+.gp-terminal-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  width: min(28rem, 100%);
+  margin: 0;
+}
+
+.gp-terminal-stats div {
+  padding: 0.75rem;
+  border: 1px solid #4c4638;
+  border-radius: 0.5rem;
+  background: rgb(28 26 21 / 88%);
+}
+
+.gp-terminal-stats dt {
+  color: #bdb3a0;
+}
+
+.gp-terminal-stats dd {
+  margin: 0;
+  font-weight: 700;
+}
+
+@media (max-width: 42rem) {
+  .gp-upgrade-cards,
+  .gp-terminal-stats {
+    grid-template-columns: 1fr;
+  }
+}

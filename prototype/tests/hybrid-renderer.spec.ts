@@ -21,7 +21,7 @@ type HybridDiagnostics = {
 }
 
 async function startHybridGame(page: import('@playwright/test').Page): Promise<void> {
-  await page.goto('?renderer=hybrid&enemies=100&seed=hybrid-fixture')
+  await page.goto('?lab=renderers&renderer=hybrid&enemies=100&seed=hybrid-fixture')
   await page.getByRole('button', { name: '게임 시작' }).click()
   await expect(page.locator('.game-stage canvas')).toBeVisible()
   await expect.poll(async () => (await diagnostics(page)).snapshotUnitIds.length).toBe(118)
@@ -99,7 +99,7 @@ test('renders an actual rescue-signal effect and returns canvas and resource dia
 })
 
 test('disposes direct Three scene graph resources after a populated fixture render', async ({ page }) => {
-  await page.goto('')
+  await page.goto('?lab=renderers')
   const result = await page.evaluate(async () => {
     const { createHybridRenderer } = await (0, eval)('import("/src/renderers/three-hybrid/index.ts")')
     const { createSimulation } = await (0, eval)('import("/src/core/simulation.ts")')

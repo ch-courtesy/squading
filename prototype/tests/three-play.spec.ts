@@ -11,7 +11,7 @@ type PlayDiagnostics = {
 }
 
 async function start(page: import('@playwright/test').Page, enemies: 100 | 300): Promise<void> {
-  await page.goto(`?renderer=3d&enemies=${enemies}&seed=three-play-check`)
+  await page.goto(`?lab=renderers&renderer=3d&enemies=${enemies}&seed=three-play-check`)
   await page.getByRole('button', { name: '게임 시작' }).click()
   await expect(page.locator('.game-stage canvas')).toBeVisible()
 }
@@ -45,7 +45,7 @@ test('keeps the shared manual input, deterministic tick, report, and restart flo
 
 test('matches Phaser and 2.5D terminal snapshot facts for the identical benchmark input log', async ({ page }) => {
   const collectTerminal = async (renderer: '2d' | 'hybrid' | '3d') => {
-    await page.goto(`?renderer=${renderer}&enemies=300&seed=shared-benchmark-terminal&mode=benchmark`)
+    await page.goto(`?lab=renderers&renderer=${renderer}&enemies=300&seed=shared-benchmark-terminal&mode=benchmark`)
     await page.getByRole('button', { name: '게임 시작' }).click()
     await expect(page.locator('.game-stage canvas')).toBeVisible()
     await page.evaluate(() => (window as unknown as Window & { __TABLETOP_DIAGNOSTICS__: PlayDiagnostics }).__TABLETOP_DIAGNOSTICS__.advance(2_500))

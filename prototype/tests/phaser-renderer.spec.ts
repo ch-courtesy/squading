@@ -22,7 +22,7 @@ type TabletopDiagnostics = {
 }
 
 async function startTwoDimensionalGame(page: import('@playwright/test').Page, search = ''): Promise<void> {
-  await page.goto(`?renderer=2d&enemies=100${search}`)
+  await page.goto(`?lab=renderers&renderer=2d&enemies=100${search}`)
   await page.getByRole('button', { name: '게임 시작' }).click()
   await expect(page.locator('.game-stage canvas')).toBeVisible()
   await expect.poll(() => page.evaluate(() => Boolean((window as Window & { __TABLETOP_DIAGNOSTICS__?: unknown }).__TABLETOP_DIAGNOSTICS__))).toBe(true)
@@ -116,7 +116,7 @@ test('uses forceCanvas as a separate deterministic renderer path', async ({ page
 
 test('clears diagnostics when a renderer startup error returns to selection', async ({ page }) => {
   await page.route('**/src/renderers/three-3d/**', (route) => route.abort())
-  await page.goto('?renderer=3d')
+  await page.goto('?lab=renderers&renderer=3d')
   await page.getByRole('button', { name: '게임 시작' }).click()
 
   await expect(page.getByRole('alert')).toContainText(/Failed to fetch dynamically imported module|error loading dynamically imported module/)
@@ -124,7 +124,7 @@ test('clears diagnostics when a renderer startup error returns to selection', as
 })
 
 test('settles a mount disposed before Phaser scene creation without leaking a late canvas or scene resources', async ({ page }) => {
-  await page.goto('')
+  await page.goto('?lab=renderers')
   const result = await page.evaluate(async () => {
     const { createPhaserRenderer } = await (0, eval)('import("/src/renderers/phaser-2d/index.ts")')
     const host = document.createElement('div')

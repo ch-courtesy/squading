@@ -9,7 +9,7 @@ type PlayDiagnostics = {
 }
 
 async function start(page: import('@playwright/test').Page, enemies: 100 | 200 | 300): Promise<void> {
-  await page.goto(`?renderer=2d&enemies=${enemies}&seed=play-check`)
+  await page.goto(`?lab=renderers&renderer=2d&enemies=${enemies}&seed=play-check`)
   await page.getByRole('button', { name: '게임 시작' }).click()
   await expect(page.locator('.game-stage canvas')).toBeVisible()
 }

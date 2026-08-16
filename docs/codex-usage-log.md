@@ -2,6 +2,24 @@
 
 ## 2026-08-16
 
+### 분대 생존 수직 슬라이스 Task 10 — 시작·HUD·강화·pause·결과 UI와 기본 route GREEN
+
+- 목표: Task 9의 `GameplayController`/`GameplayInputAdapter` 위에 상태 기반 플레이어 UI shell을 얹고, `main.ts`의 기본 route를 renderer 비교 lab에서 30초 분대 생존 게임으로 교체한다. lab shell·Phaser·Three 3D·benchmark 코드는 삭제하지 않고 `?lab=renderers`로만 이동시킨다.
+- Codex 활용: `superpowers:test-driven-development`, `superpowers:verification-before-completion`을 적용했다. 명세 `## UI` 절과 brief의 리터럴 문자열을 먼저 대조해 시작 화면 4개 문구(목표·이동·교대·구조)만 검증 대상 exact string이고 나머지 카피(분대 성향 한 문장, 강화 카드 이름, 결과 원인 문구)는 명세 의도를 따르는 자유 작성임을 확인했다. Controller 지시에 따라 Advisor는 호출하지 않았다.
+- 주요 결정: `gameplay-shell.ts`는 `root.innerHTML`을 한 번만 스켈레톤으로 그리고 이후에는 `controller.subscribe`가 부르는 `render(state)`에서 텍스트/`hidden` 속성만 갱신한다 — Three.js가 `.gp-stage`에 mount한 canvas를 프레임마다 재생성하지 않기 위함이다. `ready|running|paused|awaiting-upgrade|won|lost` 각 구간을 `hidden` 속성으로 토글하되, `[hidden]`은 UA stylesheet 규칙이라 author 레벨 `display` 선언이 origin cascade에서 항상 이기므로 `.gp-hud`·오버레이들은 `:not([hidden])`으로 `display`를 게이트해야 실제로 숨겨짐을 CSS 확인 중 발견해 수정했다. `mountApp(root, { createController? })`의 기본 경로는 `.gp-stage`를 host로 `createGameplayController({ host, seed: 'squad-survivor' })`를 생성하고 즉시 `controller.start()`를 호출해 실제 Three hybrid renderer와 30Hz 루프를 켠다(테스트는 `createGameplayControllerStub()`로 대체해 실제 렌더러를 타지 않는다). HUD 값(남은 시간·분대 생존/피로·교대 cooldown·XP·구조 대상/진행도·정예 HP)은 모두 `combatTick`·`squads`·`friendlies`·`stats`·`elite`에서 직접 읽고 자체 타이머나 파생 밸런스 값을 만들지 않았다. `Q로 분대를 전환하세요` 경고는 `mode==='running' && 활성 분대 standing===0`일 때만 정확한 문자열로 노출한다. `main.ts`는 brief의 dynamic import 스니펫을 그대로 사용해 `?lab=renderers`일 때만 `app-shell`을 로드하고 기본은 `gameplay-shell`을 로드한다.
+- RED 근거: unit RED는 `npm test -- tests/gameplay-shell.test.ts`가 `No test files found`로 실패(모듈·테스트 파일 모두 부재)했다. Browser RED는 `main.ts`를 일시적으로 원래 `app-shell` 전용 상태로 되돌린 뒤 `npm run test:e2e -- tests/gameplay-shell.spec.ts --workers=1`을 실행해 `Phaser 2D` 텍스트가 실제로 노출되고(`getByText('Phaser 2D')` count 1), 시작 화면 문구가 존재하지 않으며, `전투 시작` 버튼이 30초 안에 나타나지 않아 타임아웃되는 3건의 실패를 확인했다. 이후 route 변경을 재적용했다.
+- GREEN 근거: `npm test -- tests/gameplay-shell.test.ts tests/app-shell.test.ts` 13/13, `npm run test:e2e -- tests/gameplay-shell.spec.ts tests/app-shell.spec.ts --workers=1` 8/8(신규 3건 + 기존 lab 5건이 `?lab=renderers` 경로로 모두 통과), 전체 `npm test` 17 files/201 tests, 전체 `npm run test:e2e --workers=1`, `npm run build`(TypeScript+Vite)를 모두 실행했다. build 산출물의 메인 엔트리 청크(`index-*.js`)는 `app-shell`·`gameplay-shell`·`phaser-2d`를 `import()` dynamic map으로만 참조하고 정적 import는 없음을 직접 확인했다. 남은 경고는 기존 `phaser-2d` large-chunk 경고뿐이다.
+- 알려진 제약: `gameplay-input.ts`가 모든 mode에서 Tab keydown에 `preventDefault()`를 걸어(capture 단계) 키보드 전용 사용자가 강화 카드·pause·결과 화면 버튼 사이를 Tab으로 이동할 수 없다. Task 9 review에서 파킹된 Minor이며, 이 task 범위를 넘는 `gameplay-input.ts` 동작 변경 없이 다음 accessibility 작업으로 남긴다.
+- 다음 단계: Task 11은 이 shell의 `.gp-stage`에 붙는 실제 Three.js 2.5D 표현(카메라, 정예 telegraph 시각화 등)과 진짜 브라우저 입력 playtest를 담당한다.
+
+#### Task 10 Fix round 1 — 전체 `npm run test:e2e` 실행에서 발견한 legacy lab spec 26건 회귀
+
+- 목표: brief의 Files 목록은 `tests/app-shell.spec.ts`만 명시했지만, 커밋 전 필수인 전체 `npm run test:e2e` 실행에서 route 교체의 실제 파급을 검증한다.
+- 발견: 전체 `npm run test:e2e --workers=1`을 실행하자 `hybrid-play.spec.ts`·`hybrid-renderer.spec.ts`·`phaser-play.spec.ts`·`phaser-renderer.spec.ts`·`renderer-switching.spec.ts`·`three-play.spec.ts`·`three-renderer.spec.ts`의 26개 테스트가 `ERR_CONNECTION_REFUSED` 또는 `게임 시작` 버튼 타임아웃으로 실패했다. 이 7개 파일은 `page.goto('?renderer=...')`나 `page.goto('')`로 `lab=renderers` 없이 직접 이동하는데, 기본 route가 이제 `gameplay-shell`이라 `게임 시작` 버튼(lab 전용)이 존재하지 않았다.
+- 근거: 전역 제약 "legacy E2E는 `?lab=renderers` 경로로 이동시키는 변경만 허용"과 brief step 6 "legacy E2E는 `?lab=renderers`로 이동시킨다"는 `app-shell.spec.ts`에 한정되지 않은 일반 규칙이며, "Phaser·Three 3D·benchmark 코드는 ... `?lab=renderers` 격리 경로에서 기존 테스트와 함께 보존한다"도 이 7개 파일을 포함한다. 따라서 brief의 Files 목록 누락으로 판단하고, 해당 파일들의 `page.goto` 호출에 `lab=renderers&`(또는 파라미터가 없는 경우 `lab=renderers`) 접두를 추가했다. 각 파일의 assertion·시나리오 로직은 전혀 건드리지 않았다.
+- 검증: `npm run test:e2e --workers=1` 전체 35/35 통과(신규 `app-shell.spec.ts` 5 + `gameplay-shell.spec.ts` 3 + 기존 lab 27), `npm test` 17 files/201 tests, `npm run build` 모두 재확인했다.
+- 다음 단계: 없음(이 task 범위 내에서 완결). Task 11 이후 lab 관련 spec을 추가로 옮길 때도 동일하게 `lab=renderers` query 규칙을 따른다.
+
 ### 분대 생존 수직 슬라이스 Task 9 — Gameplay controller와 실제 DOM 입력 GREEN
 
 - 목표: Task 1~8의 권위 `GameplaySimulation` facade를 실제 DOM/RAF 경계에 연결한다. `gameplay-input.ts`의 키보드·포인터 상태 게이트와 `gameplay-controller.ts`의 고정 30Hz 루프·literal Three hybrid loader·렌더러 lifecycle을 새로 만들고, 기존 lab `game-controller.ts`/`app-shell.ts`/`renderer-benchmark.ts`와 그 테스트는 건드리지 않았다.
