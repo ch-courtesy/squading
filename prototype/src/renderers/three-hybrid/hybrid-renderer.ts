@@ -21,6 +21,7 @@ export type HybridVisualState = {
   readonly downedTiltRadians: readonly number[]
   readonly rescueSignals: number
   readonly activeSquadMarkers: Readonly<Record<Squad, number>>
+  readonly framing: { readonly units: number; readonly unitsInView: number; readonly groundCoversViewCentre: boolean }
 }
 
 export type HybridRendererDiagnostics = {
@@ -31,6 +32,12 @@ export interface HybridGameRenderer extends GameRenderer { getDiagnostics(): Hyb
 const PARTICLE_COUNT = 12
 const WORLD_WIDTH = 40
 const WORLD_HEIGHT = 24
+const CAMERA_HEIGHT = 16
+const CAMERA_DEPTH = 20
+const GROUND_GEOMETRY_WIDTH = 64
+const GROUND_GEOMETRY_DEPTH = 36
+// The tabletop is drawn wider than the play area so its edge never cuts across the arena.
+const GROUND_MARGIN = 1.2
 const LEADER_KINDS: readonly RenderUnit['kind'][] = ['commander', 'enemy-commander', 'elite']
 const STANDING_CARD_HEIGHT = 0.65
 const DOWNED_CARD_HEIGHT = 0.3
@@ -174,7 +181,28 @@ class ThreeHybridRenderer implements HybridGameRenderer {
       downedTiltRadians: downedVisuals.map((visual) => visual.card.rotation.z),
       rescueSignals: this.rescueSignalCount(),
       activeSquadMarkers,
+      framing: this.describeFraming(),
     }
+  }
+
+  // Scene-graph assertions cannot tell a framed battle from an off-screen one: a renderer
+  // that puts every unit outside the frustum still reports the same cards and markers.
+  // This projects what is actually on screen.
+  private describeFraming(): { units: number; unitsInView: number; groundCoversViewCentre: boolean } {
+    const units = this.snapshot?.units ?? []
+    if (!this.camera) return { units: units.length, unitsInView: 0, groundCoversViewCentre: false }
+    const camera = this.camera
+    const unitsInView = units.filter((unit) => {
+      const visual = this.units.get(unit.id)
+      if (!visual) return false
+      const ndc = visual.root.getWorldPosition(new THREE.Vector3()).project(camera)
+      return Math.abs(ndc.x) <= 1 && Math.abs(ndc.y) <= 1
+    }).length
+    const ground = this.scene?.getObjectByName('tabletop-ground')
+    const groundCoversViewCentre = ground
+      ? new THREE.Raycaster(camera.getWorldPosition(new THREE.Vector3()), camera.getWorldDirection(new THREE.Vector3())).intersectObject(ground, false).length > 0
+      : false
+    return { units: units.length, unitsInView, groundCoversViewCentre }
   }
 
   private describeTelegraph(): HybridVisualState['eliteTelegraph'] {
@@ -208,7 +236,7 @@ class ThreeHybridRenderer implements HybridGameRenderer {
     const ambient = new THREE.HemisphereLight(0xf8ead2, 0x35291e, 2.4)
     const light = new THREE.DirectionalLight(0xffefd0, 2.5)
     light.name = 'tabletop-key-light'; light.position.set(-8, 14, 10); light.castShadow = true; light.shadow.mapSize.set(1024, 1024); light.shadow.camera.left = -22; light.shadow.camera.right = 22; light.shadow.camera.top = 15; light.shadow.camera.bottom = -15
-    this.scene.add(ground, ambient, light)
+    this.scene.add(ground, ambient, light, light.target)
   }
 
   private createParticles(): void {
@@ -288,11 +316,35 @@ class ThreeHybridRenderer implements HybridGameRenderer {
   private removeVisual<T extends { readonly root: THREE.Group }>(collection: Map<number, T>, id: number, visual: T): void { visual.root.removeFromParent(); disposeObjectMaterials(visual.root); collection.delete(id) }
   private updateCameraBounds(snapshot: RenderSnapshot): void {
     if (!this.camera) return
-    this.camera.left = snapshot.camera.centerX - snapshot.camera.worldWidth / 2
-    this.camera.right = snapshot.camera.centerX + snapshot.camera.worldWidth / 2
-    this.camera.top = snapshot.camera.centerY + snapshot.camera.worldHeight / 2
-    this.camera.bottom = snapshot.camera.centerY - snapshot.camera.worldHeight / 2
+    const { centerX, centerY, worldWidth, worldHeight } = snapshot.camera
+    // An orthographic frustum is expressed in camera space, so world bounds cannot be
+    // assigned to left/right/top/bottom directly: the camera has to sit over the world
+    // centre and take only the half-extents from the snapshot. Assigning world
+    // coordinates worked while every snapshot was centred on the origin and pushed the
+    // whole arena out of view as soon as one was not.
+    this.camera.left = -worldWidth / 2
+    this.camera.right = worldWidth / 2
+    this.camera.top = worldHeight / 2
+    this.camera.bottom = -worldHeight / 2
+    this.camera.position.set(centerX, CAMERA_HEIGHT, centerY + CAMERA_DEPTH)
+    this.camera.lookAt(centerX, 0, centerY)
     this.camera.updateProjectionMatrix()
+    this.updateTabletopBounds(snapshot)
+  }
+
+  private updateTabletopBounds(snapshot: RenderSnapshot): void {
+    const { centerX, centerY, worldWidth, worldHeight } = snapshot.camera
+    const ground = this.scene?.getObjectByName('tabletop-ground')
+    if (ground) {
+      ground.position.set(centerX, 0, centerY)
+      ground.scale.set((worldWidth * GROUND_MARGIN) / GROUND_GEOMETRY_WIDTH, (worldHeight * GROUND_MARGIN) / GROUND_GEOMETRY_DEPTH, 1)
+    }
+    const light = this.scene?.getObjectByName('tabletop-key-light') as THREE.DirectionalLight | undefined
+    if (light) {
+      light.position.set(centerX - 8, CAMERA_HEIGHT - 2, centerY + 10)
+      light.target.position.set(centerX, 0, centerY)
+      light.target.updateMatrixWorld()
+    }
   }
   private applyResolution(): void { if (!this.renderer) return; this.renderer.setPixelRatio(this.dpr); this.renderer.setSize(this.viewportWidth, this.viewportHeight, false); this.renderer.domElement.style.width = `${this.viewportWidth}px`; this.renderer.domElement.style.height = `${this.viewportHeight}px` }
   private renderScene(): void { if (this.renderer && this.scene && this.camera) this.renderer.render(this.scene, this.camera) }

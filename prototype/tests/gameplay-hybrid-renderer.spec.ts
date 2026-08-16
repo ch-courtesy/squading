@@ -71,3 +71,15 @@ test('marks the active squad on the tabletop and moves the marker with a real Q 
   await expect.poll(async () => (await rendererScene(page))?.activeSquadMarkers, { intervals: [100] })
     .toEqual({ teal: 8, scarlet: 0 })
 })
+
+test('frames the gameplay arena so every unit is actually on screen', async ({ page }) => {
+  // The gameplay arena spans 0..48 x 0..27, not the lab's origin-centred world. A camera
+  // that treats those world bounds as orthographic frustum offsets renders a tabletop
+  // corner and nothing else, which every scene-graph assertion above still passes.
+  await startSeed47Battle(page)
+
+  await expect.poll(async () => (await rendererScene(page))?.framing.units, { intervals: [100] }).toBeGreaterThan(0)
+  const framing = (await rendererScene(page))!.framing
+  expect(framing.unitsInView).toBe(framing.units)
+  expect(framing.groundCoversViewCentre).toBe(true)
+})
