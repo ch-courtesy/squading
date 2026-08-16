@@ -41,7 +41,7 @@ export type DioramaAssets = {
   dispose(): void
 }
 
-function context2d(width: number, height: number): CanvasRenderingContext2D {
+export function context2d(width: number, height: number): CanvasRenderingContext2D {
   const canvas = document.createElement('canvas')
   canvas.width = width
   canvas.height = height
@@ -236,7 +236,7 @@ function part(geometry: THREE.BufferGeometry, placement: Placement): THREE.Buffe
  * then grown by this factor so a miniature reads at least as large as the billboarded
  * card it replaces.
  */
-const FIGURE_SCALE = 1.7
+export const FIGURE_SCALE = 1.7
 
 function merge(parts: readonly THREE.BufferGeometry[], name: string): THREE.BufferGeometry {
   const merged = mergeGeometries(parts as THREE.BufferGeometry[])

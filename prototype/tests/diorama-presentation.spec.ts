@@ -31,7 +31,17 @@ test('paints the tabletop diorama on the gameplay route', async ({ page }) => {
     // The whole terrain surround costs two meshes: one merged mesh carrying every
     // crate, conifer, banner, sandbag and plank, plus the dirt apron they stand on.
     propMeshes: 2,
+    // Scorch, chalk and wear inside the play area are *paint*, not scenery: one flat
+    // quad lying on the board, casting nothing, never reaching past the arena. If this
+    // ever grew a silhouette it would start reading as a prop with a footprint.
+    surfaceDecalMeshes: 1,
+    surfaceDecalFlat: true,
+    surfaceDecalsWithinPlayArea: true,
+    surfaceDecalCastsShadow: false,
   })
+  expect(scene.presentation.surfaceDecals).toBeGreaterThan(30)
+  // And the decals are not props: adding paint must never add a placement.
+  expect(scene.presentation.propItems).toBe(150)
   expect(scene.presentation.propItems).toBeGreaterThan(80)
   // Friendly, enemy and elite each merge down to a single shared geometry.
   expect(scene.presentation.mergedBodyGeometries).toBeGreaterThanOrEqual(2)
@@ -58,6 +68,9 @@ test('keeps the renderer-comparison lab on its cardboard cards', async ({ page }
     // No terrain surround either: the comparison lab measures renderers, not scenery.
     propMeshes: 0,
     propItems: 0,
+    // ...and no board paint.
+    surfaceDecalMeshes: 0,
+    surfaceDecals: 0,
   })
   // The lab keeps billboarded cards: every unit body faces the camera.
   expect(scene.presentation.billboardedBodies).toBe(scene.framing.units)

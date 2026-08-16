@@ -4,11 +4,55 @@ import type { RenderEffect, RenderSnapshot, RenderUnit, Squad } from '../../core
 import { qualityProfile } from '../../metrics/quality-ladder'
 import type { GameRenderer, QualityLevel, RendererMetrics } from '../contract'
 import { TEAM_TINTS, cardboardMaterial, createCardboardAssets, disposeObjectMaterials, flatMaterial, type CardboardAssets } from '../three-shared/scene-utils'
-import { createDioramaAssets, type DioramaAssets, type MiniatureArchetype } from './diorama-assets'
+import { DECAL_HEIGHT, FX_COSMETIC_SEED, createCombatFxAssets, createSurfaceDecals, surfaceDecalExtent, type CombatFxAssets, type SurfaceDecals } from './combat-fx'
+import { FIGURE_SCALE, cosmeticRandom, createDioramaAssets, type DioramaAssets, type MiniatureArchetype } from './diorama-assets'
 import { createTerrainProps, type TerrainProps } from './terrain-props'
 
-type UnitVisual = { readonly root: THREE.Group; readonly card: THREE.Mesh; readonly shadow: THREE.Mesh; readonly marker: THREE.Mesh }
-type EffectVisual = { readonly root: THREE.Group; readonly kind: RenderEffect['kind'] }
+/**
+ * Per-unit action-feedback state. It is *display-only*: nothing in here is ever read
+ * back into a snapshot, an input or a digest, and every field is written from something
+ * the authority already published (hp, life state, position, active squad).
+ */
+type UnitAnim = {
+  /** Renderer-derived facing: movement heading, overridden by the last shot taken. */
+  yaw: number
+  aimUntil: number
+  lungeStart: number
+  lungeX: number
+  lungeZ: number
+  lungeOffset: number
+  hitStart: number
+  hitX: number
+  hitZ: number
+  flash: number
+  flashScale: number
+  deathStart: number
+  deathFromTopple: number
+  dead: boolean
+  buried: boolean
+  /** Last snapshot values, so the next snapshot can be diffed into hit / death events. */
+  hp01: number
+  x: number
+  y: number
+}
+type UnitVisual = {
+  readonly root: THREE.Group
+  readonly card: THREE.Mesh
+  readonly shadow: THREE.Mesh
+  readonly marker: THREE.Mesh
+  readonly anim: UnitAnim
+}
+type EffectVisual = {
+  readonly root: THREE.Group
+  readonly kind: RenderEffect['kind']
+  /** Diorama-only dressing: the elite sigil and countdown, or the gold rescue token. */
+  readonly sigil?: THREE.Mesh
+  readonly countdown?: THREE.Mesh
+  readonly ring?: THREE.Mesh
+  readonly pillar?: THREE.Mesh
+  readonly halo?: THREE.Mesh
+}
+type TelegraphTrack = { remaining: number; longest: number; x: number; z: number; radius: number }
 
 /**
  * Gameplay-facing view of the live scene graph, read straight off the Three objects.
@@ -49,6 +93,44 @@ export type HybridVisualState = {
     /** Terrain surround: merged prop meshes on the board and how many props they carry. */
     readonly propMeshes: number
     readonly propItems: number
+    /**
+     * Flat paint on the play area — scorch, chalk, wear. Exposed separately from
+     * `propMeshes` because the whole point is that it is *not* scenery: it lies on the
+     * board, casts nothing, and never leaves the play area.
+     */
+    readonly surfaceDecalMeshes: number
+    readonly surfaceDecals: number
+    readonly surfaceDecalFlat: boolean
+    readonly surfaceDecalsWithinPlayArea: boolean
+    readonly surfaceDecalCastsShadow: boolean
+  }
+  /**
+   * Live action feedback. Every counter here is derived from snapshot deltas, and the
+   * cumulative ones let a browser test prove the animations actually *run* rather than
+   * merely existing in the scene graph.
+   */
+  readonly action: {
+    /** The renderer's animation clock, in simulation ticks (`tick + alpha`). */
+    readonly clockTicks: number
+    readonly lungingUnits: number
+    readonly maxLungeOffset: number
+    readonly flashingUnits: number
+    readonly maxFlash: number
+    readonly topplingUnits: number
+    readonly buriedUnits: number
+    readonly attacksObserved: number
+    readonly hitsObserved: number
+    readonly deathsObserved: number
+    readonly livePuffs: number
+    readonly liveScraps: number
+    readonly particleCapacity: number
+    readonly rescuePillars: number
+    readonly rescueRingSpinRadians: number
+    readonly cameraShakes: number
+    readonly cameraShakeOffset: number
+    readonly telegraphSigils: number
+    readonly telegraphPulse: number
+    readonly telegraphCountdown01: number
   }
 }
 
@@ -130,6 +212,73 @@ const RING_PULSE_TICKS = 34
 const LEADER_RING_SCALE = 1.6
 // A toppled miniature lies on its side, lifted just clear of the board.
 const DOWNED_FIGURE_HEIGHT = 0.16
+
+// --- Action feedback ---------------------------------------------------------------
+// The authority publishes positions, hit points and life states — not events. Every
+// animation below is therefore derived by diffing consecutive snapshots inside the
+// renderer, and every duration is expressed in simulation ticks so the whole system
+// runs off the snapshot clock (`tick + alpha`) the renderer is already handed. A wall
+// clock would drift against the fixed 30 Hz authority and would keep animating — and
+// keep queueing bursts — while the tab is hidden and the battle is paused.
+const SURFACE_DECAL_NAME = 'tabletop-surface-decals'
+/** A frame may legally cover up to `MAX_STEPS_PER_FRAME` ticks; anything beyond that is
+ * a resume from pause / a hidden tab / a restart, and is resynced without firing a
+ * backlog of effects. */
+const EVENT_CATCHUP_TICKS = 6
+const LUNGE_TICKS = 7
+const LUNGE_DISTANCE = 0.36
+const LUNGE_PITCH = 0.22
+const HIT_TICKS = 5
+const HIT_RECOIL = 0.2
+const FLASH_COLOR = 0xfff0cf
+/**
+ * How hard a hit flashes, scaled by how much of the target's health it took. Without
+ * that scaling the elite — which is chipped by every friendly, every few ticks, for 24
+ * hit points — would sit permanently white and lose its silhouette entirely.
+ */
+const FLASH_PEAK = 0.55
+const FLASH_FLOOR = 0.35
+/** How far a damaged unit will look for the hostile that plausibly shot it. The longest
+ * authority attack range is well inside this, and it is only ever used to aim a lunge. */
+const ATTRIBUTION_RANGE = 7.5
+const AIM_HOLD_TICKS = 26
+const DEATH_TICKS = 18
+/** The figure topples over the first stretch, bursts into scraps, then is swept away. */
+const DEATH_TOPPLE_FRACTION = 0.55
+const DEATH_BURST_FRACTION = 0.5
+const DEATH_SWEEP_FRACTION = 0.72
+const SHAKE_TICKS = 10
+const SHAKE_AMPLITUDE = 0.26
+/** Local weapon muzzles, in pre-scale miniature space (the figure faces +Z). */
+const MUZZLE_OFFSETS: Readonly<Record<MiniatureArchetype, readonly [number, number, number]>> = {
+  friendly: [0.23, 0.64, 0.42],
+  enemy: [0.31, 0.9, 0.3],
+  elite: [0.32, 1.72, 0.1],
+}
+// Pooled particle tints, allocated once. `ParticlePool.spawn` copies out of them, so no
+// colour object is ever created per event.
+const SCRAP_TINTS: Readonly<Record<MiniatureArchetype, THREE.Color>> = {
+  friendly: new THREE.Color(0xf0e2c6),
+  enemy: new THREE.Color(0xc9aef0),
+  elite: new THREE.Color(0xe6cdff),
+}
+const TEAM_TRACERS: Readonly<Record<'teal' | 'scarlet' | 'enemy', THREE.Color>> = {
+  teal: new THREE.Color(0x9ff2ea),
+  scarlet: new THREE.Color(0xffc39a),
+  enemy: new THREE.Color(0xd7b0ff),
+}
+const MUZZLE_SMOKE = new THREE.Color(0xfff2d8)
+const MUZZLE_FLASH = new THREE.Color(0xffe08a)
+const DEATH_DUST = new THREE.Color(0xd8c39a)
+const IMPACT_EMBER = new THREE.Color(0xff8a52)
+const IMPACT_SCRAP = new THREE.Color(0xf3d8b6)
+const TELEGRAPH_SIGIL_COLOR = 0xff6a48
+const RESCUE_GOLD = 0xffb52e
+// A narrow beam rather than a column: the token has to point at the two miniatures in
+// the carry, not stand in front of them.
+const RESCUE_PILLAR_RADIUS = 0.34
+const RESCUE_PILLAR_HEIGHT = 2.8
+
 export function createHybridRenderer(): HybridGameRenderer { return new ThreeHybridRenderer() }
 
 class ThreeHybridRenderer implements HybridGameRenderer {
@@ -139,7 +288,27 @@ class ThreeHybridRenderer implements HybridGameRenderer {
   private assets: CardboardAssets | null = null
   private diorama: DioramaAssets | null = null
   private props: TerrainProps | null = null
+  private fx: CombatFxAssets | null = null
+  private surfaceDecals: SurfaceDecals | null = null
   private frameRails: THREE.Mesh[] = []
+  /** Animation clock in ticks. Monotonic within a battle, frozen while the sim is. */
+  private clock = 0
+  private lastEventTick = Number.NEGATIVE_INFINITY
+  private shakeStart = Number.NEGATIVE_INFINITY
+  private shakeOffsetX = 0
+  private shakeOffsetZ = 0
+  private shakeMagnitude = 0
+  private shakeCount = 0
+  private attacksObserved = 0
+  private hitsObserved = 0
+  private deathsObserved = 0
+  private readonly telegraphs = new Map<number, TelegraphTrack>()
+  /**
+   * Cosmetic-only jitter for burst directions and sizes. Its own renderer-side seed —
+   * never an authority PRNG, never the state digest — so nothing it produces can move
+   * the simulation, and the whole system stays inside the display layer.
+   */
+  private readonly fxRandom = cosmeticRandom(FX_COSMETIC_SEED ^ 0x632be5ab)
   private telegraphGeometry: THREE.RingGeometry | null = null
   private snapshot: RenderSnapshot | null = null
   private readonly units = new Map<number, UnitVisual>()
@@ -172,20 +341,42 @@ class ThreeHybridRenderer implements HybridGameRenderer {
     this.createTabletop(); this.createParticles(); host.append(renderer.domElement); this.applyResolution(); this.renderScene()
   }
 
-  render(snapshot: RenderSnapshot, _alpha: number): void {
+  render(snapshot: RenderSnapshot, alpha: number): void {
     if (this.disposed || !this.scene || !this.camera || !this.assets) return
     this.snapshot = snapshot
     // The lab comparison drives this same renderer with an origin-centred fixture that
     // has no `activeSquad`; only the gameplay authority publishes one. Reading that
     // signal keeps the lab on its cardboard cards without a second renderer.
     if (!this.diorama && snapshot.activeSquad !== undefined) this.applyDioramaPresentation(snapshot)
+    // The animation clock *is* the snapshot clock: whole ticks from the authority plus
+    // the controller's interpolation fraction. It never runs faster than the
+    // simulation, it stops dead when the battle is paused, and it cannot accumulate a
+    // backlog while the tab is hidden.
+    this.clock = snapshot.tick + clamp01(alpha)
+    const elapsedTicks = snapshot.tick - this.lastEventTick
+    // A resume, a restart or a long stall lands many ticks at once. Those frames resync
+    // the diff state silently instead of detonating every event that was skipped.
+    const spawnEvents = this.diorama !== null && elapsedTicks > 0 && elapsedTicks <= EVENT_CATCHUP_TICKS
+    // A restart rewinds the authority clock. Everything the renderer scheduled against
+    // the old clock — bursts, the shake, the telegraph countdown — has to go with it,
+    // or a burst born at tick 500 reappears when the new battle reaches tick 500.
+    if (snapshot.tick < this.lastEventTick) this.resetActionState()
     this.updateCameraBounds(snapshot)
     const unitIds = new Set(snapshot.units.map((unit) => unit.id))
-    snapshot.units.forEach((unit) => this.renderUnit(unit, snapshot))
+    snapshot.units.forEach((unit) => this.renderUnit(unit, snapshot, spawnEvents))
     this.units.forEach((visual, id) => { if (!unitIds.has(id)) this.removeVisual(this.units, id, visual) })
     const effectIds = new Set(snapshot.effects.map((effect) => effect.id))
     snapshot.effects.forEach((effect) => this.renderEffect(effect))
-    this.effects.forEach((visual, id) => { if (!effectIds.has(id)) this.removeVisual(this.effects, id, visual) })
+    this.effects.forEach((visual, id) => {
+      if (effectIds.has(id)) return
+      if (visual.kind === 'elite-telegraph') this.resolveTelegraphImpact(id, spawnEvents)
+      this.removeVisual(this.effects, id, visual)
+    })
+    if (this.fx && this.camera) {
+      this.fx.puffs.update(this.clock, this.camera.quaternion)
+      this.fx.scraps.update(this.clock, this.camera.quaternion)
+    }
+    if (snapshot.tick !== this.lastEventTick) this.lastEventTick = snapshot.tick
     this.renderScene()
   }
 
@@ -207,6 +398,10 @@ class ThreeHybridRenderer implements HybridGameRenderer {
       light.shadow.map = null
     }
     this.particles.forEach((particle, index) => { particle.visible = index < Math.ceil(PARTICLE_COUNT * profile.particleScale) })
+    // The action-feedback pools ride the same ladder: a reduced budget claims fewer
+    // slots per burst instead of dropping bursts entirely.
+    this.fx?.puffs.setBudget(profile.particleScale)
+    this.fx?.scraps.setBudget(profile.particleScale)
     this.applyResolution(); this.renderScene()
   }
 
@@ -222,7 +417,10 @@ class ThreeHybridRenderer implements HybridGameRenderer {
     this.scene?.traverse((object) => { if (object instanceof THREE.Mesh && object.name.startsWith('tabletop-')) disposeObjectMaterials(object) })
     this.units.clear(); this.effects.clear(); this.particles = []; this.frameRails = []
     this.telegraphGeometry?.dispose(); this.telegraphGeometry = null
+    this.telegraphs.clear()
+    this.surfaceDecals?.dispose(); this.surfaceDecals = null
     this.props?.dispose(); this.props = null
+    this.fx?.dispose(); this.fx = null
     this.diorama?.dispose(); this.diorama = null
     this.assets?.dispose(); this.assets = null; this.scene?.clear(); this.renderer?.dispose(); this.renderer?.forceContextLoss(); this.renderer?.domElement.remove()
     this.renderer = null; this.scene = null; this.camera = null; this.snapshot = null
@@ -273,6 +471,46 @@ class ThreeHybridRenderer implements HybridGameRenderer {
       activeSquadMarkers,
       framing: this.describeFraming(),
       presentation: this.describePresentation(),
+      action: this.describeAction(),
+    }
+  }
+
+  /**
+   * A screenshot proves an effect exists; these counters prove it *runs*. The cumulative
+   * three (`attacksObserved` / `hitsObserved` / `deathsObserved`) only ever move when a
+   * snapshot delta fires an animation, and the instantaneous ones sample the frame that
+   * is on screen right now.
+   */
+  private describeAction(): HybridVisualState['action'] {
+    const visuals = [...this.units.values()]
+    const lunging = visuals.filter((visual) => visual.anim.lungeOffset > 1e-4)
+    const flashing = visuals.filter((visual) => visual.anim.flash > 1e-4)
+    const effects = [...this.effects.values()]
+    const rescue = effects.filter((visual) => visual.kind === 'rescue-signal' && visual.pillar !== undefined)
+    const telegraphs = effects.filter((visual) => visual.kind === 'elite-telegraph')
+    const sigil = telegraphs.find((visual) => visual.sigil)?.sigil
+    const track = [...this.telegraphs.values()][0]
+    return {
+      clockTicks: this.clock,
+      lungingUnits: lunging.length,
+      maxLungeOffset: lunging.reduce((max, visual) => Math.max(max, visual.anim.lungeOffset), 0),
+      flashingUnits: flashing.length,
+      maxFlash: flashing.reduce((max, visual) => Math.max(max, visual.anim.flash), 0),
+      topplingUnits: visuals.filter((visual) => visual.anim.dead && !visual.anim.buried).length,
+      buriedUnits: visuals.filter((visual) => visual.anim.buried).length,
+      attacksObserved: this.attacksObserved,
+      hitsObserved: this.hitsObserved,
+      deathsObserved: this.deathsObserved,
+      livePuffs: this.fx?.puffs.live ?? 0,
+      liveScraps: this.fx?.scraps.live ?? 0,
+      particleCapacity: (this.fx?.puffs.capacity ?? 0) + (this.fx?.scraps.capacity ?? 0),
+      rescuePillars: rescue.length,
+      rescueRingSpinRadians: rescue[0]?.ring?.rotation.z ?? 0,
+      cameraShakes: this.shakeCount,
+      cameraShakeOffset: this.shakeMagnitude,
+      telegraphSigils: telegraphs.filter((visual) => visual.sigil !== undefined).length,
+      telegraphPulse: sigil ? (sigil.material as THREE.MeshBasicMaterial).opacity : 0,
+      telegraphCountdown01: track && track.longest > 0 ? clamp01(1 - track.remaining / track.longest) : 0,
     }
   }
 
@@ -293,7 +531,45 @@ class ThreeHybridRenderer implements HybridGameRenderer {
       mergedBodyGeometries: this.diorama ? new Set(visuals.map((visual) => visual.card.geometry.uuid)).size : 0,
       propMeshes: (this.props?.meshes ?? []).filter((mesh) => mesh.parent !== null).length,
       propItems: this.props?.placements.length ?? 0,
+      surfaceDecalMeshes: this.surfaceDecals?.mesh.parent ? 1 : 0,
+      surfaceDecals: this.surfaceDecals?.placements.length ?? 0,
+      surfaceDecalFlat: this.decalsLieOnTheBoard(),
+      surfaceDecalsWithinPlayArea: this.decalsWithinPlayArea(),
+      surfaceDecalCastsShadow: this.surfaceDecals?.mesh.castShadow ?? false,
     }
+  }
+
+  /**
+   * Every decal vertex has to face straight up and sit on the board's paint layer. A
+   * mark that stood up off the surface would start reading as a prop with a silhouette,
+   * which is exactly what board paint must never do.
+   */
+  private decalsLieOnTheBoard(): boolean {
+    const geometry = this.surfaceDecals?.mesh.geometry
+    if (!geometry) return false
+    const position = geometry.attributes.position as THREE.BufferAttribute
+    const normal = geometry.attributes.normal as THREE.BufferAttribute | undefined
+    if (!normal) return false
+    for (let index = 0; index < position.count; index += 1) {
+      if (Math.abs(position.getY(index) - DECAL_HEIGHT) > 1e-5) return false
+      if (Math.abs(normal.getY(index) - 1) > 1e-4) return false
+    }
+    return true
+  }
+
+  /** The decals are paint, not scenery: no mark may reach past the play area. */
+  private decalsWithinPlayArea(): boolean {
+    const decals = this.surfaceDecals
+    const camera = this.snapshot?.camera
+    if (!decals || !camera) return false
+    const halfWidth = camera.worldWidth / 2
+    const halfDepth = camera.worldHeight / 2
+    return decals.placements.every((placement) => {
+      // The rotated footprint, not the unrotated one: a turned mark covers more board.
+      const extent = surfaceDecalExtent(placement)
+      return Math.abs(placement.x - camera.centerX) + extent.halfX <= halfWidth + 1e-6
+        && Math.abs(placement.z - camera.centerY) + extent.halfZ <= halfDepth + 1e-6
+    })
   }
 
   // Scene-graph assertions cannot tell a framed battle from an off-screen one: a renderer
@@ -415,6 +691,23 @@ class ThreeHybridRenderer implements HybridGameRenderer {
     this.props = createTerrainProps(snapshot.camera, { sightlineSlope: 1.05 / Math.tan(DIORAMA_PITCH_RADIANS) })
     this.props.meshes.forEach((mesh) => this.scene!.add(mesh))
 
+    // Action feedback: the two pooled particle systems and the textures the sigil, the
+    // rescue token and the board decals are painted with. Built once, never per event.
+    const fx = createCombatFxAssets()
+    this.fx = fx
+    this.scene.add(fx.puffs.mesh, fx.scraps.mesh)
+
+    // Flat paint *inside* the play area: scorch craters, chalk deployment boxes and
+    // rules, boot wear and drag streaks. Every mark lies on the board, throws no shadow
+    // and catches none, and none of it is ever seen by the prop placer that owns the
+    // collision-free scenery outside the rail — so it cannot be read as a prop.
+    //
+    // All of it merges into a single vertex-coloured mesh: one draw call for the whole
+    // set, and it is built once from the play-area bounds the snapshot publishes.
+    this.surfaceDecals = createSurfaceDecals(snapshot.camera)
+    this.surfaceDecals.mesh.name = SURFACE_DECAL_NAME
+    this.scene.add(this.surfaceDecals.mesh)
+
     // Units created before the first gameplay snapshot would still be cards; there are
     // none in practice, but rebuilding keeps the invariant true either way.
     this.units.forEach((visual, id) => this.removeVisual(this.units, id, visual))
@@ -428,7 +721,7 @@ class ThreeHybridRenderer implements HybridGameRenderer {
     })
   }
 
-  private renderUnit(unit: RenderUnit, snapshot: RenderSnapshot): void {
+  private renderUnit(unit: RenderUnit, snapshot: RenderSnapshot, spawnEvents: boolean): void {
     if (!this.scene || !this.camera || !this.assets) return
     const activeSquad = snapshot.activeSquad
     let visual = this.units.get(unit.id)
@@ -438,27 +731,272 @@ class ThreeHybridRenderer implements HybridGameRenderer {
     visual.root.position.set(unit.x, 0, unit.y); visual.root.scale.setScalar(cardScale(unit))
     visual.shadow.visible = !downed
     if (this.diorama) {
-      // A sculpted figure stands on the board; it never turns to face the camera, it
-      // turns to face where the authority says the unit is looking.
-      visual.card.rotation.set(0, Math.PI / 2 - unit.facingRadians, 0)
-      // Every unit wears a base ring in the diorama; the colour is what carries the read.
-      visual.marker.visible = true
-      ;(visual.marker.material as THREE.MeshBasicMaterial).color.setHex(dioramaRingColor(unit, marksActiveSquad))
-      ;(visual.marker.material as THREE.MeshBasicMaterial).opacity = marksActiveSquad && !downed
-        ? RING_BASE_OPACITY + RING_PULSE_AMPLITUDE * Math.sin((snapshot.tick / RING_PULSE_TICKS) * Math.PI * 2)
-        : RING_BASE_OPACITY - RING_PULSE_AMPLITUDE
-    } else {
-      visual.card.quaternion.copy(this.camera.quaternion)
-      visual.marker.visible = isLeader(unit) || downed || marksActiveSquad
-      ;(visual.marker.material as THREE.MeshBasicMaterial).color.setHex(markerColor(unit, marksActiveSquad))
+      // Diff this unit against the last snapshot *before* drawing it, so the hit it just
+      // took and the lunge of whoever landed it both play on the same frame.
+      this.trackUnit(unit, visual, snapshot, spawnEvents)
+      this.applyActionFeedback(unit, visual, snapshot, downed, marksActiveSquad)
+      return
     }
+    visual.card.quaternion.copy(this.camera.quaternion)
+    visual.marker.visible = isLeader(unit) || downed || marksActiveSquad
+    ;(visual.marker.material as THREE.MeshBasicMaterial).color.setHex(markerColor(unit, marksActiveSquad))
     // A downed card is laid across the tabletop and dropped towards it, so it reads
-    // as a fallen counter rather than a standing one that happens to be rotated. The
-    // same tilt topples a miniature off its feet.
+    // as a fallen counter rather than a standing one that happens to be rotated.
     visual.card.rotation.z = downed ? Math.PI / 2 : 0
-    visual.card.position.y = this.diorama
-      ? (downed ? DOWNED_FIGURE_HEIGHT : 0)
-      : (downed ? DOWNED_CARD_HEIGHT : STANDING_CARD_HEIGHT)
+    visual.card.position.y = downed ? DOWNED_CARD_HEIGHT : STANDING_CARD_HEIGHT
+  }
+
+  /**
+   * Turns two consecutive snapshots into the action events the diorama animates. The
+   * authority publishes no events at all, so a *drop in hit points* is the hit, the
+   * nearest hostile that is currently attacking is the attacker, and a unit reaching
+   * zero (an enemy) or being marked `dead` (a friendly, after its downed timer) is the
+   * death. Nothing written here is ever read back by the simulation.
+   */
+  private trackUnit(unit: RenderUnit, visual: UnitVisual, snapshot: RenderSnapshot, spawnEvents: boolean): void {
+    const anim = visual.anim
+    const dead = isUnitDead(unit)
+    if (spawnEvents) {
+      if (dead && !anim.dead) this.beginDeath(unit, visual)
+      else if (!dead && !anim.dead && unit.hp01 < anim.hp01 - 1e-6) this.registerDamage(unit, visual, snapshot, anim.hp01 - unit.hp01)
+    }
+    if (dead && !anim.dead) {
+      // Resync frames (a resume, a long stall) adopt the death silently, already swept away.
+      anim.dead = true
+      anim.deathStart = Number.NEGATIVE_INFINITY
+    } else if (!dead && anim.dead) {
+      // `restart()` rebuilds the roster under the same ids without rebuilding the
+      // renderer, so a swept-away figure has to be able to come back standing.
+      anim.dead = false
+      anim.buried = false
+      anim.deathStart = Number.NEGATIVE_INFINITY
+      anim.deathFromTopple = 0
+    }
+    // Facing is renderer-derived: the authority reports `facingRadians` as 0 for every
+    // unit, so a figure that never turned would slide sideways into its own fight. It
+    // heads where it is walking, unless it is still holding aim on its last target.
+    if (!anim.dead && this.clock >= anim.aimUntil) {
+      const dx = unit.x - anim.x
+      const dz = unit.y - anim.y
+      if (dx * dx + dz * dz > 4e-4) anim.yaw = approachAngle(anim.yaw, Math.atan2(dx, dz), 0.32)
+    }
+    anim.hp01 = unit.hp01
+    anim.x = unit.x
+    anim.y = unit.y
+  }
+
+  /** Draws one miniature with its lunge, recoil, paint flash and topple applied. */
+  private applyActionFeedback(unit: RenderUnit, visual: UnitVisual, snapshot: RenderSnapshot, downed: boolean, marksActiveSquad: boolean): void {
+    const anim = visual.anim
+    const death = anim.dead ? (anim.deathStart === Number.NEGATIVE_INFINITY ? 1 : clamp01((this.clock - anim.deathStart) / DEATH_TICKS)) : 0
+    anim.buried = anim.dead && death >= 1
+
+    const lungeAge = this.clock - anim.lungeStart
+    const lunge = !anim.dead && lungeAge >= 0 && lungeAge < LUNGE_TICKS ? lungeCurve(lungeAge / LUNGE_TICKS) : 0
+    anim.lungeOffset = lunge * LUNGE_DISTANCE
+
+    const hitAge = this.clock - anim.hitStart
+    const hit = hitAge >= 0 && hitAge < HIT_TICKS ? (1 - hitAge / HIT_TICKS) ** 2.2 : 0
+    anim.flash = hit
+
+    // The lunge and the recoil move the *figure inside its base*, never the unit root:
+    // the root stays exactly where the authority put it, which is what keeps the
+    // diagnostics, the framing guarantee and the ring footprint honest.
+    visual.card.position.set(
+      anim.lungeX * anim.lungeOffset + anim.hitX * hit * HIT_RECOIL,
+      0,
+      anim.lungeZ * anim.lungeOffset + anim.hitZ * hit * HIT_RECOIL,
+    )
+    visual.card.rotation.set(-lunge * LUNGE_PITCH, anim.yaw, 0)
+    const topple = downed ? 1 : anim.dead
+      ? anim.deathFromTopple + (1 - anim.deathFromTopple) * easeTopple(Math.min(1, death / DEATH_TOPPLE_FRACTION))
+      : 0
+    visual.card.rotation.z = topple * (Math.PI / 2)
+    visual.card.position.y = topple * DOWNED_FIGURE_HEIGHT
+    const sweep = anim.dead ? 1 - smoothstep(DEATH_SWEEP_FRACTION, 1, death) : 1
+    visual.card.scale.setScalar(sweep)
+    visual.card.visible = !anim.buried
+    visual.shadow.visible = !downed && !anim.buried
+    ;(visual.shadow.material as THREE.MeshBasicMaterial).opacity = 0.5 * sweep
+
+    // A struck figure flashes bright rather than changing paint, so the faction read
+    // never wobbles: the tint stays exactly what `miniaturePaint` chose.
+    const material = visual.card.material as THREE.MeshLambertMaterial
+    material.emissiveIntensity = hit * FLASH_PEAK * anim.flashScale
+
+    // Every unit wears a base ring in the diorama; the colour is what carries the read.
+    visual.marker.visible = true
+    const markerMaterial = visual.marker.material as THREE.MeshBasicMaterial
+    markerMaterial.color.setHex(dioramaRingColor(unit, marksActiveSquad))
+    const ringOpacity = marksActiveSquad && !downed
+      ? RING_BASE_OPACITY + RING_PULSE_AMPLITUDE * Math.sin((snapshot.tick / RING_PULSE_TICKS) * Math.PI * 2)
+      : RING_BASE_OPACITY - RING_PULSE_AMPLITUDE
+    markerMaterial.opacity = ringOpacity * sweep
+  }
+
+  private beginDeath(unit: RenderUnit, visual: UnitVisual): void {
+    const anim = visual.anim
+    anim.dead = true
+    anim.deathStart = this.clock
+    // A friendly that bleeds out is already lying on its side; an enemy shot on its feet
+    // starts upright. Reading the tilt back off the figure covers both without a flag.
+    anim.deathFromTopple = clamp01(visual.card.rotation.z / (Math.PI / 2))
+    anim.lungeStart = Number.NEGATIVE_INFINITY
+    this.deathsObserved += 1
+    this.spawnDeathBurst(unit, DEATH_TICKS * DEATH_BURST_FRACTION)
+  }
+
+  /**
+   * A unit lost hit points this tick. The renderer cannot see the authority's damage
+   * event, so it attributes the shot to the nearest hostile that is currently in the
+   * `attacking` state — which is enough to aim the lunge, the muzzle and the recoil.
+   */
+  private registerDamage(unit: RenderUnit, visual: UnitVisual, snapshot: RenderSnapshot, damage01: number): void {
+    this.hitsObserved += 1
+    const anim = visual.anim
+    anim.flashScale = FLASH_FLOOR + (1 - FLASH_FLOOR) * clamp01(damage01 * 5)
+    const attacker = nearestAttacker(unit, snapshot.units)
+    let awayX = 0
+    let awayZ = 1
+    if (attacker) {
+      const dx = unit.x - attacker.x
+      const dz = unit.y - attacker.y
+      const length = Math.hypot(dx, dz) || 1
+      awayX = dx / length
+      awayZ = dz / length
+      this.beginAttack(attacker, unit, -awayX, -awayZ)
+    }
+    anim.hitStart = this.clock
+    anim.hitX = awayX
+    anim.hitZ = awayZ
+  }
+
+  private beginAttack(attacker: RenderUnit, target: RenderUnit, dirX: number, dirZ: number): void {
+    const visual = this.units.get(attacker.id)
+    if (!visual || visual.anim.dead) return
+    const anim = visual.anim
+    this.attacksObserved += 1
+    anim.lungeStart = this.clock
+    anim.lungeX = dirX
+    anim.lungeZ = dirZ
+    anim.yaw = Math.atan2(dirX, dirZ)
+    anim.aimUntil = this.clock + AIM_HOLD_TICKS
+    this.spawnMuzzleBurst(attacker, target, dirX, dirZ)
+  }
+
+  /** A cotton puff at the weapon, plus three beads walking down the line of fire. */
+  private spawnMuzzleBurst(attacker: RenderUnit, target: RenderUnit, dirX: number, dirZ: number): void {
+    const fx = this.fx
+    if (!fx) return
+    const [localX, localY, localZ] = MUZZLE_OFFSETS[miniatureArchetype(attacker)]
+    const scale = cardScale(attacker) * FIGURE_SCALE
+    const sin = dirX
+    const cos = dirZ
+    const muzzleX = attacker.x + (localX * cos + localZ * sin) * scale
+    const muzzleZ = attacker.y + (-localX * sin + localZ * cos) * scale
+    const muzzleY = localY * scale
+    const now = this.clock
+    fx.puffs.spawn(now, { x: muzzleX, y: muzzleY, z: muzzleZ, vx: dirX * 0.03, vy: 0.014, vz: dirZ * 0.03, life: 8, startSize: 0.5, endSize: 1.3, color: MUZZLE_SMOKE })
+    fx.puffs.spawn(now, { x: muzzleX + dirX * 0.2, y: muzzleY + 0.04, z: muzzleZ + dirZ * 0.2, vx: dirX * 0.05, vy: 0.02, vz: dirZ * 0.05, life: 4, startSize: 0.9, endSize: 0.24, color: MUZZLE_FLASH })
+    const dx = target.x - muzzleX
+    const dz = target.y - muzzleZ
+    if (Math.hypot(dx, dz) < 1.4) return
+    const tracer = TEAM_TRACERS[attacker.team]
+    for (let index = 1; index <= 4; index += 1) {
+      const t = index / 5
+      fx.puffs.spawn(now + index * 0.55, {
+        x: muzzleX + dx * t, y: muzzleY * (1 - t) + 0.85 * t, z: muzzleZ + dz * t,
+        vx: 0, vy: 0, vz: 0, life: 3, startSize: 0.4, endSize: 0.1, color: tracer,
+      })
+    }
+  }
+
+  /** Paper scraps, delayed so the figure gets to topple before it comes apart. */
+  private spawnDeathBurst(unit: RenderUnit, delayTicks: number): void {
+    const fx = this.fx
+    if (!fx) return
+    const archetype = miniatureArchetype(unit)
+    const tint = SCRAP_TINTS[archetype]
+    const burstAt = this.clock + delayTicks
+    const count = unit.kind === 'elite' ? 22 : 14
+    for (let index = 0; index < count; index += 1) {
+      const angle = (index / count) * Math.PI * 2 + this.fxRandom() * 0.7
+      const speed = 0.045 + this.fxRandom() * 0.09
+      const size = 0.22 + this.fxRandom() * 0.19
+      fx.scraps.spawn(burstAt, {
+        x: unit.x, y: 0.3 + this.fxRandom() * 0.75, z: unit.y,
+        vx: Math.cos(angle) * speed, vy: 0.095 + this.fxRandom() * 0.13, vz: Math.sin(angle) * speed,
+        life: 22 + this.fxRandom() * 15, startSize: size, endSize: size,
+        gravity: 0.011, drag: 0.32, spin: 0.13 + this.fxRandom() * 0.22, color: tint,
+      })
+    }
+    for (let index = 0; index < 4; index += 1) {
+      const angle = this.fxRandom() * Math.PI * 2
+      fx.puffs.spawn(burstAt, {
+        x: unit.x + Math.cos(angle) * 0.2, y: 0.12, z: unit.y + Math.sin(angle) * 0.2,
+        vx: Math.cos(angle) * 0.03, vy: 0.006, vz: Math.sin(angle) * 0.03,
+        life: 9, startSize: 0.4, endSize: 1.2, color: DEATH_DUST,
+      })
+    }
+  }
+
+  /**
+   * The telegraph vanishing from the snapshot *is* the impact: the authority clears its
+   * centre on the damage tick. A telegraph that still had time on the clock was
+   * cancelled instead (the elite died mid-warning) and must not shake the camera.
+   */
+  private resolveTelegraphImpact(id: number, spawnEvents: boolean): void {
+    const track = this.telegraphs.get(id)
+    this.telegraphs.delete(id)
+    if (!track || !spawnEvents || !this.fx || track.remaining > 2) return
+    this.shakeStart = this.clock
+    this.shakeCount += 1
+    for (let index = 0; index < 16; index += 1) {
+      const angle = (index / 16) * Math.PI * 2
+      const radius = track.radius * (0.55 + this.fxRandom() * 0.5)
+      this.fx.puffs.spawn(this.clock, {
+        x: track.x + Math.cos(angle) * radius, y: 0.16, z: track.z + Math.sin(angle) * radius,
+        vx: Math.cos(angle) * 0.05, vy: 0.02, vz: Math.sin(angle) * 0.05,
+        life: 11, startSize: 0.4, endSize: 1.5, color: IMPACT_EMBER,
+      })
+    }
+    for (let index = 0; index < 8; index += 1) {
+      const angle = this.fxRandom() * Math.PI * 2
+      const speed = 0.06 + this.fxRandom() * 0.1
+      this.fx.scraps.spawn(this.clock, {
+        x: track.x, y: 0.25, z: track.z,
+        vx: Math.cos(angle) * speed, vy: 0.13 + this.fxRandom() * 0.1, vz: Math.sin(angle) * speed,
+        life: 24 + this.fxRandom() * 12, startSize: 0.22, endSize: 0.22,
+        gravity: 0.011, drag: 0.3, spin: 0.2, color: IMPACT_SCRAP,
+      })
+    }
+  }
+
+  private resetActionState(): void {
+    this.fx?.puffs.clear()
+    this.fx?.scraps.clear()
+    this.telegraphs.clear()
+    this.shakeStart = Number.NEGATIVE_INFINITY
+    this.shakeOffsetX = 0; this.shakeOffsetZ = 0; this.shakeMagnitude = 0
+    this.units.forEach((visual) => {
+      visual.anim.lungeStart = Number.NEGATIVE_INFINITY
+      visual.anim.hitStart = Number.NEGATIVE_INFINITY
+      visual.anim.aimUntil = Number.NEGATIVE_INFINITY
+    })
+  }
+
+  private updateShake(): void {
+    const age = this.clock - this.shakeStart
+    if (!(age >= 0 && age < SHAKE_TICKS)) {
+      this.shakeOffsetX = 0; this.shakeOffsetZ = 0; this.shakeMagnitude = 0
+      return
+    }
+    // A short, hard, decaying pan. It is bounded well inside the framing margin, so a
+    // shake can never push a unit standing on the arena boundary out of frame.
+    const decay = (1 - age / SHAKE_TICKS) ** 2
+    this.shakeOffsetX = Math.sin(age * 2.9 + 0.7) * SHAKE_AMPLITUDE * decay
+    this.shakeOffsetZ = Math.cos(age * 4.1) * SHAKE_AMPLITUDE * decay * 0.6
+    this.shakeMagnitude = Math.hypot(this.shakeOffsetX, this.shakeOffsetZ)
   }
 
   private createCard(unit: RenderUnit): UnitVisual {
@@ -468,7 +1006,7 @@ class ThreeHybridRenderer implements HybridGameRenderer {
     const card = new THREE.Mesh(assets.unitGeometry, cardboardMaterial(unit.team, assets.unitTexture)); card.position.y = STANDING_CARD_HEIGHT; card.castShadow = true
     const marker = new THREE.Mesh(assets.markerGeometry, flatMaterial(LEADER_MARKER_COLOR)); marker.rotation.x = -Math.PI / 2; marker.position.y = 0.025
     root.add(shadow, card, marker); this.scene!.add(root)
-    const visual: UnitVisual = { root, card, shadow, marker }
+    const visual: UnitVisual = { root, card, shadow, marker, anim: createUnitAnim(unit) }
     this.units.set(unit.id, visual)
     return visual
   }
@@ -490,7 +1028,9 @@ class ThreeHybridRenderer implements HybridGameRenderer {
     shadow.rotation.x = -Math.PI / 2; shadow.position.set(0, 0.012, 0)
     if (leader) shadow.scale.setScalar(1.5)
 
-    const card = new THREE.Mesh(assets.miniatures[archetype], new THREE.MeshLambertMaterial({ color: miniaturePaint(unit), vertexColors: true }))
+    // `emissive` is what a hit flash rides on: raising `emissiveIntensity` for a few
+    // ticks brightens the figure without touching the faction paint underneath it.
+    const card = new THREE.Mesh(assets.miniatures[archetype], new THREE.MeshLambertMaterial({ color: miniaturePaint(unit), vertexColors: true, emissive: FLASH_COLOR, emissiveIntensity: 0 }))
     card.name = `miniature:${archetype}`
     card.castShadow = true
 
@@ -499,7 +1039,11 @@ class ThreeHybridRenderer implements HybridGameRenderer {
     if (leader) marker.scale.setScalar(LEADER_RING_SCALE)
 
     root.add(shadow, card, marker); this.scene!.add(root)
-    const visual: UnitVisual = { root, card, shadow, marker }
+    const anim = createUnitAnim(unit)
+    // A unit that is already gone when its visual is built (a renderer remounted mid
+    // battle) is adopted as buried rather than replayed as a fresh death.
+    if (isUnitDead(unit)) { anim.dead = true; anim.deathStart = Number.NEGATIVE_INFINITY; anim.deathFromTopple = 1 }
+    const visual: UnitVisual = { root, card, shadow, marker, anim }
     this.units.set(unit.id, visual)
     return visual
   }
@@ -512,26 +1056,105 @@ class ThreeHybridRenderer implements HybridGameRenderer {
     // the tabletop and re-reads its footprint every frame; every other effect is a
     // billboarded token like the unit cards.
     if (visual.kind === 'elite-telegraph') {
+      const radius = effect.radius ?? 1
       const area = visual.root.children[0]
-      if (area) area.scale.setScalar(effect.radius ?? 1)
+      // The ring is the assertion surface for the authoritative footprint: it is scaled
+      // to exactly `effect.radius` and never breathes, so the warning can never lie
+      // about how much ground the strike covers. The pulse rides on colour and on the
+      // sigil disc above it instead.
+      if (area) area.scale.setScalar(radius)
+      this.animateTelegraph(visual, effect, radius)
+      return
+    }
+    if (visual.kind === 'rescue-signal' && visual.pillar) {
+      this.animateRescueToken(visual)
       return
     }
     visual.root.quaternion.copy(this.camera.quaternion)
   }
 
+  /**
+   * The elite warning: a hard red hazard ring at the authoritative radius, a rotating
+   * sigil painted on the board inside it, and a filling disc that runs the authority's
+   * own countdown (`durationTicks` ticking down towards the strike).
+   */
+  private animateTelegraph(visual: EffectVisual, effect: RenderEffect, radius: number): void {
+    const track = this.telegraphs.get(effect.id) ?? { remaining: effect.durationTicks, longest: effect.durationTicks, x: effect.x, z: effect.y, radius }
+    track.remaining = effect.durationTicks
+    track.longest = Math.max(track.longest, effect.durationTicks)
+    track.x = effect.x; track.z = effect.y; track.radius = radius
+    this.telegraphs.set(effect.id, track)
+
+    const countdown01 = track.longest > 0 ? clamp01(1 - effect.durationTicks / track.longest) : 0
+    // Faster as the strike nears, so the warning reads as urgent rather than decorative.
+    const pulse = 0.5 + 0.5 * Math.sin(this.clock * (0.35 + countdown01 * 0.55))
+    const area = visual.root.children[0] as THREE.Mesh | undefined
+    if (area) (area.material as THREE.MeshBasicMaterial).opacity = 0.4 + pulse * 0.45
+    if (visual.sigil) {
+      visual.sigil.scale.setScalar(radius)
+      visual.sigil.rotation.z = -this.clock * 0.035
+      ;(visual.sigil.material as THREE.MeshBasicMaterial).opacity = 0.42 + pulse * 0.45
+    }
+    if (visual.countdown) {
+      visual.countdown.scale.setScalar(Math.max(0.001, radius * countdown01))
+      ;(visual.countdown.material as THREE.MeshBasicMaterial).opacity = 0.18 + countdown01 * 0.3
+    }
+  }
+
+  /** The gold token: a dashed ring on the board, a light pillar, and a rising halo. */
+  private animateRescueToken(visual: EffectVisual): void {
+    if (visual.ring) visual.ring.rotation.z = this.clock * 0.055
+    if (visual.pillar) {
+      // Restrained on purpose: additively blended gold over a dark board saturates fast,
+      // and a hot column swallows the two miniatures the token is meant to point at.
+      const breathe = 0.85 + 0.15 * Math.sin(this.clock * 0.28)
+      visual.pillar.scale.set(RESCUE_PILLAR_RADIUS * breathe, RESCUE_PILLAR_HEIGHT, RESCUE_PILLAR_RADIUS * breathe)
+      visual.pillar.rotation.y = -this.clock * 0.04
+      ;(visual.pillar.material as THREE.MeshBasicMaterial).opacity = 0.16 + 0.1 * breathe
+    }
+    if (visual.halo) {
+      const rise = ((this.clock * 0.05) % 1 + 1) % 1
+      visual.halo.position.y = 0.08 + rise * (RESCUE_PILLAR_HEIGHT * 0.9)
+      visual.halo.scale.setScalar(1.5 + rise * 1.2)
+      visual.halo.rotation.z = -this.clock * 0.08
+      ;(visual.halo.material as THREE.MeshBasicMaterial).opacity = 0.4 * (1 - rise) ** 1.4
+    }
+  }
+
   private createEffectVisual(effect: RenderEffect): EffectVisual {
     const root = new THREE.Group(); root.name = `effect:${effect.kind}:${effect.id}`
+    const fx = this.fx
+    let visual: EffectVisual
     if (effect.kind === 'elite-telegraph') {
-      const area = new THREE.Mesh(this.telegraphGeometry!, flatMaterial(TELEGRAPH_COLOR, 0.42))
+      const area = new THREE.Mesh(this.telegraphGeometry!, flatMaterial(this.diorama ? TELEGRAPH_SIGIL_COLOR : TELEGRAPH_COLOR, 0.42))
       area.rotation.x = -Math.PI / 2; area.position.y = 0.02
       root.add(area)
+      if (fx) {
+        const countdown = new THREE.Mesh(fx.discGeometry, new THREE.MeshBasicMaterial({ color: 0xb01f16, transparent: true, opacity: 0.2, depthWrite: false }))
+        countdown.rotation.x = -Math.PI / 2; countdown.position.y = 0.014; countdown.renderOrder = 1
+        const sigil = new THREE.Mesh(fx.discGeometry, new THREE.MeshBasicMaterial({ map: fx.sigilTexture, color: TELEGRAPH_SIGIL_COLOR, transparent: true, opacity: 0.6, depthWrite: false, blending: THREE.AdditiveBlending }))
+        sigil.rotation.x = -Math.PI / 2; sigil.position.y = 0.024; sigil.renderOrder = 2
+        root.add(countdown, sigil)
+        visual = { root, kind: effect.kind, sigil, countdown }
+      } else {
+        visual = { root, kind: effect.kind }
+      }
+    } else if (effect.kind === 'rescue-signal' && fx) {
+      const ring = new THREE.Mesh(fx.quadGeometry, new THREE.MeshBasicMaterial({ map: fx.rescueRingTexture, color: RESCUE_GOLD, transparent: true, opacity: 0.95, depthWrite: false, blending: THREE.AdditiveBlending }))
+      ring.rotation.x = -Math.PI / 2; ring.position.y = 0.05; ring.scale.setScalar(2.6); ring.renderOrder = 2
+      const pillar = new THREE.Mesh(fx.pillarGeometry, new THREE.MeshBasicMaterial({ map: fx.pillarTexture, color: RESCUE_GOLD, transparent: true, opacity: 0.3, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending }))
+      pillar.position.y = RESCUE_PILLAR_HEIGHT / 2; pillar.scale.set(RESCUE_PILLAR_RADIUS, RESCUE_PILLAR_HEIGHT, RESCUE_PILLAR_RADIUS); pillar.renderOrder = 3
+      const halo = new THREE.Mesh(fx.quadGeometry, new THREE.MeshBasicMaterial({ map: fx.rescueRingTexture, color: 0xffe6ae, transparent: true, opacity: 0.4, depthWrite: false, blending: THREE.AdditiveBlending }))
+      halo.rotation.x = -Math.PI / 2; halo.position.y = 0.08; halo.scale.setScalar(1.5); halo.renderOrder = 3
+      root.add(ring, pillar, halo)
+      visual = { root, kind: effect.kind, ring, pillar, halo }
     } else {
       const ring = new THREE.Mesh(this.assets!.effectGeometry, flatMaterial(effect.team ? TEAM_TINTS[effect.team] : 0xf5dc79))
       ring.position.y = effect.kind === 'rescue-signal' ? 1.4 : 0.08
       root.add(ring)
+      visual = { root, kind: effect.kind }
     }
     this.scene!.add(root)
-    const visual: EffectVisual = { root, kind: effect.kind }
     this.effects.set(effect.id, visual)
     return visual
   }
@@ -593,12 +1216,15 @@ class ThreeHybridRenderer implements HybridGameRenderer {
     this.camera.bottom = -halfHeight
     this.camera.near = 0.1
     this.camera.far = DIORAMA_CAMERA_DISTANCE * 3
+    // The elite's area strike shakes the table. It is a pure pan — position and target
+    // move together — so the staged pitch and the framing guarantee are untouched.
+    this.updateShake()
     this.camera.position.set(
-      centerX,
+      centerX + this.shakeOffsetX,
       DIORAMA_CAMERA_DISTANCE * Math.sin(pitch),
-      centerY + DIORAMA_CAMERA_DISTANCE * Math.cos(pitch),
+      centerY + this.shakeOffsetZ + DIORAMA_CAMERA_DISTANCE * Math.cos(pitch),
     )
-    this.camera.lookAt(centerX, 0, centerY)
+    this.camera.lookAt(centerX + this.shakeOffsetX, 0, centerY + this.shakeOffsetZ)
     this.camera.updateProjectionMatrix()
     this.updateTabletopBounds(snapshot)
   }
@@ -665,6 +1291,95 @@ class ThreeHybridRenderer implements HybridGameRenderer {
 
 function isLeader(unit: RenderUnit): boolean {
   return LEADER_KINDS.includes(unit.kind)
+}
+
+function clamp01(value: number): number {
+  return Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : 0
+}
+
+function smoothstep(edge0: number, edge1: number, value: number): number {
+  const t = clamp01((value - edge0) / (edge1 - edge0))
+  return t * t * (3 - 2 * t)
+}
+
+/** Out hard, back soft: the punch reads on the way in, the settle on the way out. */
+function lungeCurve(t: number): number {
+  return Math.sin(Math.PI * t ** 0.55)
+}
+
+/** A topple that falls fast and stops dead against the board. */
+function easeTopple(t: number): number {
+  return 1 - (1 - t) ** 2.4
+}
+
+/** Shortest-arc approach, so a figure never spins the long way round to face a target. */
+function approachAngle(from: number, to: number, rate: number): number {
+  let delta = (to - from) % (Math.PI * 2)
+  if (delta > Math.PI) delta -= Math.PI * 2
+  if (delta < -Math.PI) delta += Math.PI * 2
+  return from + delta * rate
+}
+
+/**
+ * A unit the authority has finished with. Fallen enemies are never removed from the
+ * roster — they keep being published at zero hit points — while a friendly is only
+ * `dead` once its downed timer has run out (it reads zero hit points the whole time it
+ * is down, and may still be rescued).
+ */
+function isUnitDead(unit: RenderUnit): boolean {
+  return unit.team === 'enemy' ? unit.hp01 <= 0 : unit.state === 'dead'
+}
+
+function createUnitAnim(unit: RenderUnit): UnitAnim {
+  return {
+    yaw: Math.PI / 2 - unit.facingRadians,
+    aimUntil: Number.NEGATIVE_INFINITY,
+    lungeStart: Number.NEGATIVE_INFINITY,
+    lungeX: 0,
+    lungeZ: 1,
+    lungeOffset: 0,
+    hitStart: Number.NEGATIVE_INFINITY,
+    hitX: 0,
+    hitZ: 1,
+    flash: 0,
+    flashScale: 1,
+    deathStart: Number.NEGATIVE_INFINITY,
+    deathFromTopple: 0,
+    dead: false,
+    buried: false,
+    hp01: unit.hp01,
+    x: unit.x,
+    y: unit.y,
+  }
+}
+
+function isHostile(left: RenderUnit, right: RenderUnit): boolean {
+  return (left.team === 'enemy') !== (right.team === 'enemy')
+}
+
+function isStanding(unit: RenderUnit): boolean {
+  return unit.team === 'enemy' ? unit.hp01 > 0 : unit.state !== 'dead' && unit.state !== 'downed'
+}
+
+/**
+ * Who plausibly landed the hit. The authority's damage events never reach the renderer,
+ * so the nearest standing hostile that is currently in the `attacking` state is the best
+ * available attribution — and it is only ever used to point a lunge, a muzzle puff and a
+ * recoil, never to decide anything.
+ */
+function nearestAttacker(target: RenderUnit, units: readonly RenderUnit[]): RenderUnit | null {
+  let best: RenderUnit | null = null
+  let bestDistance = ATTRIBUTION_RANGE * ATTRIBUTION_RANGE
+  for (const unit of units) {
+    if (unit.state !== 'attacking' || !isHostile(unit, target) || !isStanding(unit)) continue
+    const dx = unit.x - target.x
+    const dz = unit.y - target.y
+    const distance = dx * dx + dz * dz
+    if (distance >= bestDistance) continue
+    bestDistance = distance
+    best = unit
+  }
+  return best
 }
 
 function cardScale(unit: RenderUnit): number {
