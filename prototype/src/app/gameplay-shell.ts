@@ -10,6 +10,14 @@ export type GameplayAppDependencies = {
 
 const DEFAULT_SEED = 'squad-survivor'
 
+// Normal play always runs the fixed seed above and never shows it — the design spec
+// keeps seed information off every player-facing screen. The query parameter exists
+// only so a browser playthrough can pin the same scenario the deterministic policy
+// evidence is recorded against.
+function resolveSeed(): string {
+  return new URLSearchParams(window.location.search).get('seed') || DEFAULT_SEED
+}
+
 const SQUAD_LABELS: Record<Squad, string> = { teal: '청록', scarlet: '주홍' }
 
 const UPGRADE_LABELS: Record<UpgradeId, { readonly name: string; readonly effect: string }> = {
@@ -168,7 +176,7 @@ export function mountApp(root: HTMLElement, dependencies: GameplayAppDependencie
   const controller = dependencies.createController?.()
     ?? createGameplayController({
       host: stage,
-      seed: DEFAULT_SEED,
+      seed: resolveSeed(),
       onError: (error) => {
         console.error('[gameplay-shell] renderer error', error)
         showRendererError(RENDERER_ERROR_MESSAGE)

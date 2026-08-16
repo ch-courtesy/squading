@@ -55,6 +55,12 @@ export type RenderEffect = {
   readonly team: Team | null
   readonly x: number
   readonly y: number
+  /**
+   * World-space footprint radius for effects that cover ground rather than mark a
+   * point. Renderers must draw the area at this size instead of mirroring a balance
+   * constant of their own.
+   */
+  readonly radius?: number
   readonly startedTick: number
   readonly durationTicks: number
 }

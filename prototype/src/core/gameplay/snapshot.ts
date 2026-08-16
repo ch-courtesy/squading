@@ -1,5 +1,5 @@
 import type { RenderEffect, RenderSnapshot, RenderUnit } from '../types'
-import { ARENA_HEIGHT, ARENA_WIDTH, ELITE_MAX_HP, TICKS_PER_SECOND } from './constants'
+import { ARENA_HEIGHT, ARENA_WIDTH, ELITE_AREA_RADIUS, ELITE_MAX_HP, TICKS_PER_SECOND } from './constants'
 import { rescueTicks } from './rescue'
 import type { FriendlyState, GameState, NormalEnemyState } from './types'
 
@@ -85,6 +85,7 @@ export function projectRenderSnapshot(state: Readonly<GameState>): RenderSnapsho
       team: 'enemy',
       x: state.elite.telegraphCenter.x,
       y: state.elite.telegraphCenter.y,
+      radius: ELITE_AREA_RADIUS,
       startedTick: state.combatTick,
       durationTicks: state.elite.telegraphRemaining,
     })

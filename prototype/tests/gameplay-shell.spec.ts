@@ -80,25 +80,43 @@ test('the upgrade and terminal overlays actually render once unhidden, guarding 
   // author-level `display` rule silently beating the UA `[hidden]` rule — by
   // toggling the real attribute under real Chromium layout, independent of
   // game-state plumbing.
+  // The shell re-asserts `hidden` from game state on every rendered frame, so the
+  // with/without comparison has to happen inside one synchronous task rather than
+  // across separate Playwright round trips that the render loop can interleave with.
   await page.goto('')
 
   const upgrade = page.locator('[data-upgrade]')
-  await expect(upgrade).toBeHidden()
-  await page.evaluate(() => document.querySelector('[data-upgrade]')?.removeAttribute('hidden'))
-  await expect(upgrade).toBeVisible()
-  await page.evaluate(() => document.querySelector('[data-upgrade]')?.setAttribute('hidden', ''))
-  await expect(upgrade).toBeHidden()
-
   const terminal = page.locator('[data-terminal]')
+  await expect(upgrade).toBeHidden()
   await expect(terminal).toBeHidden()
-  await page.evaluate(() => document.querySelector('[data-terminal]')?.removeAttribute('hidden'))
-  await expect(terminal).toBeVisible()
-  await page.evaluate(() => document.querySelector('[data-terminal]')?.setAttribute('hidden', ''))
+
+  const rendering = await page.evaluate(() => {
+    const measure = (selector: string) => {
+      const element = document.querySelector<HTMLElement>(selector)!
+      const hiddenDisplay = getComputedStyle(element).display
+      element.removeAttribute('hidden')
+      const shown = { display: getComputedStyle(element).display, height: element.getBoundingClientRect().height }
+      element.setAttribute('hidden', '')
+      return { hiddenDisplay, shown }
+    }
+    return { upgrade: measure('[data-upgrade]'), terminal: measure('[data-terminal]') }
+  })
+
+  for (const overlay of [rendering.upgrade, rendering.terminal]) {
+    expect(overlay.hiddenDisplay).toBe('none')
+    expect(overlay.shown.display).not.toBe('none')
+    expect(overlay.shown.height).toBeGreaterThan(0)
+  }
+
+  await expect(upgrade).toBeHidden()
   await expect(terminal).toBeHidden()
 })
 
 test('shows a player-visible alert when the renderer fails to load', async ({ page }) => {
-  await page.route('**/src/renderers/three-hybrid/**', (route) => route.abort())
+  // Matched as a regular expression so this covers the dev server's
+  // `/src/renderers/three-hybrid/*.ts` modules and the built `assets/three-hybrid-*.js`
+  // chunk alike — the production Pages artifact has to fail visibly too.
+  await page.route(/three-hybrid/, (route) => route.abort())
   await page.goto('')
   await expect(page.getByRole('alert')).toBeVisible()
 })
