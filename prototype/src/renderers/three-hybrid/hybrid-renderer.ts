@@ -4,6 +4,7 @@ import type { RenderEffect, RenderSnapshot, RenderUnit, Squad } from '../../core
 import { qualityProfile } from '../../metrics/quality-ladder'
 import type { GameRenderer, QualityLevel, RendererMetrics } from '../contract'
 import { TEAM_TINTS, cardboardMaterial, createCardboardAssets, disposeObjectMaterials, flatMaterial, type CardboardAssets } from '../three-shared/scene-utils'
+import { createDioramaAssets, type DioramaAssets, type MiniatureArchetype } from './diorama-assets'
 
 type UnitVisual = { readonly root: THREE.Group; readonly card: THREE.Mesh; readonly shadow: THREE.Mesh; readonly marker: THREE.Mesh }
 type EffectVisual = { readonly root: THREE.Group; readonly kind: RenderEffect['kind'] }
@@ -22,6 +23,21 @@ export type HybridVisualState = {
   readonly rescueSignals: number
   readonly activeSquadMarkers: Readonly<Record<Squad, number>>
   readonly framing: { readonly units: number; readonly unitsInView: number; readonly groundCoversViewCentre: boolean }
+  /**
+   * Which presentation the scene is wearing. The renderer is shared with the
+   * `?lab=renderers` comparison, which must keep the flat cardboard cards, so the
+   * sculpted diorama is gated on the gameplay-only `activeSquad` snapshot signal.
+   */
+  readonly presentation: {
+    readonly mode: 'diorama' | 'cardboard'
+    readonly boardTextured: boolean
+    readonly frameRails: number
+    readonly rimLights: number
+    readonly meshesPerUnit: number
+    readonly baseRings: number
+    readonly billboardedBodies: number
+    readonly mergedBodyGeometries: number
+  }
 }
 
 export type HybridRendererDiagnostics = {
@@ -49,6 +65,39 @@ const TELEGRAPH_COLOR = 0xe1725f
 // painted circle always matches the area the simulation will actually damage.
 const TELEGRAPH_INNER_RADIUS = 0.78
 const TELEGRAPH_SEGMENTS = 48
+
+// --- Tabletop diorama presentation -----------------------------------------------
+// The gameplay route paints a sculpted diorama: sandy board with grid seams, a raised
+// wooden edge frame, warm key light plus a cool rim, and merged miniature bodies.
+const BOARD_TILES_X = 10
+const BOARD_TILES_Z = 6
+// The play area fills the frustum exactly, which would hide the edge frame behind the
+// screen border. Pulling the camera back a little reveals the rail and the board beyond
+// it while keeping every unit comfortably inside the view.
+const DIORAMA_VIEW_MARGIN = 1.14
+const FRAME_RAIL_THICKNESS = 1.2
+const FRAME_RAIL_HEIGHT = 0.9
+const FRAME_RAIL_NAME = 'tabletop-frame-rail'
+const RIM_LIGHT_NAME = 'tabletop-rim-light'
+const BOARD_COLOR = 0xd6c0a0
+const CONTACT_SHADOW_COLOR = 0x1d1408
+// Faction paint. The concept sheet fields teal and scarlet painted friendlies against a
+// purple horde, so the enemy miniature leaves the shared cardboard tint behind.
+const ENEMY_PAINT = 0x8158c4
+const ENEMY_COMMANDER_PAINT = 0x6d3fb5
+const ELITE_PAINT = 0xa274e6
+const ENEMY_RING_COLOR = 0x8a5fd0
+const HOSTILE_LEADER_RING_COLOR = 0xba8ef5
+// An idle friendly still wears a ring, just a muted one, so the active squad's full
+// team tint reads as the brighter of the two at a glance.
+const IDLE_RING_MIX = 0.42
+const IDLE_RING_FLOOR = 0x1d1710
+const RING_BASE_OPACITY = 0.82
+const RING_PULSE_AMPLITUDE = 0.18
+const RING_PULSE_TICKS = 34
+const LEADER_RING_SCALE = 1.6
+// A toppled miniature lies on its side, lifted just clear of the board.
+const DOWNED_FIGURE_HEIGHT = 0.16
 export function createHybridRenderer(): HybridGameRenderer { return new ThreeHybridRenderer() }
 
 class ThreeHybridRenderer implements HybridGameRenderer {
@@ -56,6 +105,8 @@ class ThreeHybridRenderer implements HybridGameRenderer {
   private scene: THREE.Scene | null = null
   private camera: THREE.OrthographicCamera | null = null
   private assets: CardboardAssets | null = null
+  private diorama: DioramaAssets | null = null
+  private frameRails: THREE.Mesh[] = []
   private telegraphGeometry: THREE.RingGeometry | null = null
   private snapshot: RenderSnapshot | null = null
   private readonly units = new Map<number, UnitVisual>()
@@ -91,9 +142,13 @@ class ThreeHybridRenderer implements HybridGameRenderer {
   render(snapshot: RenderSnapshot, _alpha: number): void {
     if (this.disposed || !this.scene || !this.camera || !this.assets) return
     this.snapshot = snapshot
+    // The lab comparison drives this same renderer with an origin-centred fixture that
+    // has no `activeSquad`; only the gameplay authority publishes one. Reading that
+    // signal keeps the lab on its cardboard cards without a second renderer.
+    if (!this.diorama && snapshot.activeSquad !== undefined) this.applyDioramaPresentation()
     this.updateCameraBounds(snapshot)
     const unitIds = new Set(snapshot.units.map((unit) => unit.id))
-    snapshot.units.forEach((unit) => this.renderUnit(unit, snapshot.activeSquad))
+    snapshot.units.forEach((unit) => this.renderUnit(unit, snapshot))
     this.units.forEach((visual, id) => { if (!unitIds.has(id)) this.removeVisual(this.units, id, visual) })
     const effectIds = new Set(snapshot.effects.map((effect) => effect.id))
     snapshot.effects.forEach((effect) => this.renderEffect(effect))
@@ -131,9 +186,10 @@ class ThreeHybridRenderer implements HybridGameRenderer {
     if (this.disposed) return
     this.disposed = true
     this.units.forEach((visual) => disposeObjectMaterials(visual.root)); this.effects.forEach((visual) => disposeObjectMaterials(visual.root)); this.particles.forEach((particle) => disposeObjectMaterials(particle))
-    this.scene?.traverse((object) => { if (object instanceof THREE.Mesh && object.name === 'tabletop-ground') disposeObjectMaterials(object) })
-    this.units.clear(); this.effects.clear(); this.particles = []
+    this.scene?.traverse((object) => { if (object instanceof THREE.Mesh && object.name.startsWith('tabletop-')) disposeObjectMaterials(object) })
+    this.units.clear(); this.effects.clear(); this.particles = []; this.frameRails = []
     this.telegraphGeometry?.dispose(); this.telegraphGeometry = null
+    this.diorama?.dispose(); this.diorama = null
     this.assets?.dispose(); this.assets = null; this.scene?.clear(); this.renderer?.dispose(); this.renderer?.forceContextLoss(); this.renderer?.domElement.remove()
     this.renderer = null; this.scene = null; this.camera = null; this.snapshot = null
   }
@@ -182,6 +238,25 @@ class ThreeHybridRenderer implements HybridGameRenderer {
       rescueSignals: this.rescueSignalCount(),
       activeSquadMarkers,
       framing: this.describeFraming(),
+      presentation: this.describePresentation(),
+    }
+  }
+
+  private describePresentation(): HybridVisualState['presentation'] {
+    const visuals = [...this.units.values()]
+    const ground = this.scene?.getObjectByName('tabletop-ground')
+    const boardTextured = ground instanceof THREE.Mesh
+      && (ground.material as THREE.MeshLambertMaterial).map === (this.diorama?.boardTexture ?? null)
+      && this.diorama !== null
+    return {
+      mode: this.diorama ? 'diorama' : 'cardboard',
+      boardTextured,
+      frameRails: this.frameRails.filter((rail) => rail.parent !== null).length,
+      rimLights: this.scene?.getObjectByName(RIM_LIGHT_NAME) ? 1 : 0,
+      meshesPerUnit: visuals.length === 0 ? 0 : Math.max(...visuals.map((visual) => visual.root.children.filter((child) => child instanceof THREE.Mesh).length)),
+      baseRings: visuals.filter((visual) => visual.marker.visible).length,
+      billboardedBodies: visuals.filter((visual) => this.facesCamera(visual.card)).length,
+      mergedBodyGeometries: this.diorama ? new Set(visuals.map((visual) => visual.card.geometry.uuid)).size : 0,
     }
   }
 
@@ -239,6 +314,63 @@ class ThreeHybridRenderer implements HybridGameRenderer {
     this.scene.add(ground, ambient, light, light.target)
   }
 
+  /**
+   * Upgrades the shared cardboard scene into the tabletop diorama: a painted sandy
+   * board with grid seams, a raised wooden edge frame, and a warm key / cool rim pair
+   * that gives the sculpted miniatures form instead of the flat card readout.
+   *
+   * Runs once, on the first gameplay snapshot. The lab route never reaches it.
+   */
+  private applyDioramaPresentation(): void {
+    if (!this.scene || !this.renderer || this.diorama) return
+    const assets = createDioramaAssets()
+    this.diorama = assets
+    this.renderer.setClearColor(0x171208)
+
+    const ground = this.scene.getObjectByName('tabletop-ground')
+    if (ground instanceof THREE.Mesh) {
+      assets.boardTexture.repeat.set(BOARD_TILES_X, BOARD_TILES_Z)
+      assets.boardTexture.anisotropy = this.renderer.capabilities.getMaxAnisotropy()
+      const previous = ground.material as THREE.Material
+      ground.material = new THREE.MeshLambertMaterial({ color: BOARD_COLOR, map: assets.boardTexture })
+      previous.dispose()
+    }
+
+    assets.frameTexture.repeat.set(6, 1)
+    const railMaterial = new THREE.MeshLambertMaterial({ color: 0xe6cda9, map: assets.frameTexture })
+    this.frameRails = Array.from({ length: 4 }, () => {
+      const rail = new THREE.Mesh(assets.frameRailGeometry, railMaterial)
+      rail.name = FRAME_RAIL_NAME
+      rail.castShadow = true
+      rail.receiveShadow = true
+      this.scene!.add(rail)
+      return rail
+    })
+
+    // Warm key from the front-left already exists for shadows; a cool rim from behind
+    // separates the miniatures from the sandy board, and the hemisphere fill drops so
+    // the sculpted forms keep their shading instead of washing flat.
+    const ambient = this.scene.children.find((child): child is THREE.HemisphereLight => child instanceof THREE.HemisphereLight)
+    if (ambient) { ambient.intensity = 0.85; ambient.color.setHex(0xf7e2bf); ambient.groundColor.setHex(0x2f2114) }
+    const key = this.scene.getObjectByName('tabletop-key-light') as THREE.DirectionalLight | undefined
+    if (key) {
+      key.color.setHex(0xffdda2)
+      key.intensity = 2.9
+      key.shadow.camera.left = -34; key.shadow.camera.right = 34; key.shadow.camera.top = 26; key.shadow.camera.bottom = -26
+      key.shadow.camera.near = 1; key.shadow.camera.far = 90
+      key.shadow.bias = -0.0012
+      key.shadow.normalBias = 0.03
+      key.shadow.camera.updateProjectionMatrix()
+    }
+    const rim = new THREE.DirectionalLight(0x93bcff, 1.4)
+    rim.name = RIM_LIGHT_NAME
+    this.scene.add(rim, rim.target)
+
+    // Units created before the first gameplay snapshot would still be cards; there are
+    // none in practice, but rebuilding keeps the invariant true either way.
+    this.units.forEach((visual, id) => this.removeVisual(this.units, id, visual))
+  }
+
   private createParticles(): void {
     if (!this.scene || !this.assets) return
     this.particles = Array.from({ length: PARTICLE_COUNT }, (_, index) => {
@@ -247,25 +379,80 @@ class ThreeHybridRenderer implements HybridGameRenderer {
     })
   }
 
-  private renderUnit(unit: RenderUnit, activeSquad: Squad | undefined): void {
+  private renderUnit(unit: RenderUnit, snapshot: RenderSnapshot): void {
     if (!this.scene || !this.camera || !this.assets) return
+    const activeSquad = snapshot.activeSquad
     let visual = this.units.get(unit.id)
-    if (!visual) {
-      const root = new THREE.Group(); root.name = `unit:${unit.id}`
-      const shadow = new THREE.Mesh(this.assets.shadowGeometry, flatMaterial(0x000000, 0.28)); shadow.rotation.x = -Math.PI / 2; shadow.position.set(0, 0.012, 0); shadow.receiveShadow = true
-      const card = new THREE.Mesh(this.assets.unitGeometry, cardboardMaterial(unit.team, this.assets.unitTexture)); card.position.y = STANDING_CARD_HEIGHT; card.castShadow = true
-      const marker = new THREE.Mesh(this.assets.markerGeometry, flatMaterial(LEADER_MARKER_COLOR)); marker.rotation.x = -Math.PI / 2; marker.position.y = 0.025
-      root.add(shadow, card, marker); this.scene.add(root); visual = { root, card, shadow, marker }; this.units.set(unit.id, visual)
-    }
+    if (!visual) visual = this.diorama ? this.createMiniature(unit) : this.createCard(unit)
     const downed = unit.state === 'downed'
     const marksActiveSquad = activeSquad !== undefined && unit.squad === activeSquad
-    visual.root.position.set(unit.x, 0, unit.y); visual.root.scale.setScalar(cardScale(unit)); visual.card.quaternion.copy(this.camera.quaternion)
-    visual.shadow.visible = !downed; visual.marker.visible = isLeader(unit) || downed || marksActiveSquad
-    ;(visual.marker.material as THREE.MeshBasicMaterial).color.setHex(markerColor(unit, marksActiveSquad))
+    visual.root.position.set(unit.x, 0, unit.y); visual.root.scale.setScalar(cardScale(unit))
+    visual.shadow.visible = !downed
+    if (this.diorama) {
+      // A sculpted figure stands on the board; it never turns to face the camera, it
+      // turns to face where the authority says the unit is looking.
+      visual.card.rotation.set(0, Math.PI / 2 - unit.facingRadians, 0)
+      // Every unit wears a base ring in the diorama; the colour is what carries the read.
+      visual.marker.visible = true
+      ;(visual.marker.material as THREE.MeshBasicMaterial).color.setHex(dioramaRingColor(unit, marksActiveSquad))
+      ;(visual.marker.material as THREE.MeshBasicMaterial).opacity = marksActiveSquad && !downed
+        ? RING_BASE_OPACITY + RING_PULSE_AMPLITUDE * Math.sin((snapshot.tick / RING_PULSE_TICKS) * Math.PI * 2)
+        : RING_BASE_OPACITY - RING_PULSE_AMPLITUDE
+    } else {
+      visual.card.quaternion.copy(this.camera.quaternion)
+      visual.marker.visible = isLeader(unit) || downed || marksActiveSquad
+      ;(visual.marker.material as THREE.MeshBasicMaterial).color.setHex(markerColor(unit, marksActiveSquad))
+    }
     // A downed card is laid across the tabletop and dropped towards it, so it reads
-    // as a fallen counter rather than a standing one that happens to be rotated.
+    // as a fallen counter rather than a standing one that happens to be rotated. The
+    // same tilt topples a miniature off its feet.
     visual.card.rotation.z = downed ? Math.PI / 2 : 0
-    visual.card.position.y = downed ? DOWNED_CARD_HEIGHT : STANDING_CARD_HEIGHT
+    visual.card.position.y = this.diorama
+      ? (downed ? DOWNED_FIGURE_HEIGHT : 0)
+      : (downed ? DOWNED_CARD_HEIGHT : STANDING_CARD_HEIGHT)
+  }
+
+  private createCard(unit: RenderUnit): UnitVisual {
+    const assets = this.assets!
+    const root = new THREE.Group(); root.name = `unit:${unit.id}`
+    const shadow = new THREE.Mesh(assets.shadowGeometry, flatMaterial(0x000000, 0.28)); shadow.rotation.x = -Math.PI / 2; shadow.position.set(0, 0.012, 0); shadow.receiveShadow = true
+    const card = new THREE.Mesh(assets.unitGeometry, cardboardMaterial(unit.team, assets.unitTexture)); card.position.y = STANDING_CARD_HEIGHT; card.castShadow = true
+    const marker = new THREE.Mesh(assets.markerGeometry, flatMaterial(LEADER_MARKER_COLOR)); marker.rotation.x = -Math.PI / 2; marker.position.y = 0.025
+    root.add(shadow, card, marker); this.scene!.add(root)
+    const visual: UnitVisual = { root, card, shadow, marker }
+    this.units.set(unit.id, visual)
+    return visual
+  }
+
+  /**
+   * One unit costs one merged body mesh, one base ring and one contact shadow — the
+   * same three meshes the cardboard card already cost. The body's primitives (base
+   * disc, legs, torso, pauldrons, head, weapon) are merged per archetype at mount time
+   * and the paint variation is baked into vertex colours, so a whole figure still
+   * renders in a single draw call with a single material.
+   */
+  private createMiniature(unit: RenderUnit): UnitVisual {
+    const assets = this.diorama!
+    const archetype = miniatureArchetype(unit)
+    const leader = isLeader(unit)
+    const root = new THREE.Group(); root.name = `unit:${unit.id}`
+
+    const shadow = new THREE.Mesh(assets.contactShadowGeometry, new THREE.MeshBasicMaterial({ map: assets.contactShadowTexture, color: CONTACT_SHADOW_COLOR, transparent: true, opacity: 0.5, depthWrite: false }))
+    shadow.rotation.x = -Math.PI / 2; shadow.position.set(0, 0.012, 0)
+    if (leader) shadow.scale.setScalar(1.5)
+
+    const card = new THREE.Mesh(assets.miniatures[archetype], new THREE.MeshLambertMaterial({ color: miniaturePaint(unit), vertexColors: true }))
+    card.name = `miniature:${archetype}`
+    card.castShadow = true
+
+    const marker = new THREE.Mesh(assets.baseRingGeometry, flatMaterial(LEADER_MARKER_COLOR, RING_BASE_OPACITY))
+    marker.rotation.x = -Math.PI / 2; marker.position.y = 0.03
+    if (leader) marker.scale.setScalar(LEADER_RING_SCALE)
+
+    root.add(shadow, card, marker); this.scene!.add(root)
+    const visual: UnitVisual = { root, card, shadow, marker }
+    this.units.set(unit.id, visual)
+    return visual
   }
 
   private renderEffect(effect: RenderEffect): void {
@@ -310,7 +497,7 @@ class ThreeHybridRenderer implements HybridGameRenderer {
     const shadowFootprint = visual.shadow.getWorldPosition(new THREE.Vector3())
     const shadowNormal = new THREE.Vector3(0, 0, 1).applyQuaternion(visual.shadow.getWorldQuaternion(new THREE.Quaternion()))
     const markerNormal = new THREE.Vector3(0, 0, 1).applyQuaternion(visual.marker.getWorldQuaternion(new THREE.Quaternion()))
-    return { id: unit.id, x: visual.root.position.x, y: visual.root.position.z, tint: (visual.card.material as THREE.MeshLambertMaterial).color.getHex(), billboard: true, facesCamera: this.facesCamera(visual.card), screenY: (1 - center.y) * canvasHeight / 2, screenHeight: Math.abs(top.y - bottom.y) * canvasHeight / 2, kind: unit.kind, state: unit.state, cardCenter, shadowNormalY: shadowNormal.y, markerNormalY: markerNormal.y, shadowFootprint: { x: shadowFootprint.x, z: shadowFootprint.z } }
+    return { id: unit.id, x: visual.root.position.x, y: visual.root.position.z, tint: (visual.card.material as THREE.MeshLambertMaterial).color.getHex(), billboard: !this.diorama, facesCamera: this.facesCamera(visual.card), screenY: (1 - center.y) * canvasHeight / 2, screenHeight: Math.abs(top.y - bottom.y) * canvasHeight / 2, kind: unit.kind, state: unit.state, cardCenter, shadowNormalY: shadowNormal.y, markerNormalY: markerNormal.y, shadowFootprint: { x: shadowFootprint.x, z: shadowFootprint.z } }
   }
 
   private removeVisual<T extends { readonly root: THREE.Group }>(collection: Map<number, T>, id: number, visual: T): void { visual.root.removeFromParent(); disposeObjectMaterials(visual.root); collection.delete(id) }
@@ -322,10 +509,13 @@ class ThreeHybridRenderer implements HybridGameRenderer {
     // centre and take only the half-extents from the snapshot. Assigning world
     // coordinates worked while every snapshot was centred on the origin and pushed the
     // whole arena out of view as soon as one was not.
-    this.camera.left = -worldWidth / 2
-    this.camera.right = worldWidth / 2
-    this.camera.top = worldHeight / 2
-    this.camera.bottom = -worldHeight / 2
+    // The diorama pulls back a little so the raised edge frame and the board beyond it
+    // are actually on screen; the lab keeps the exact world-bounds framing it asserts.
+    const view = this.diorama ? DIORAMA_VIEW_MARGIN : 1
+    this.camera.left = (-worldWidth / 2) * view
+    this.camera.right = (worldWidth / 2) * view
+    this.camera.top = (worldHeight / 2) * view
+    this.camera.bottom = (-worldHeight / 2) * view
     this.camera.position.set(centerX, CAMERA_HEIGHT, centerY + CAMERA_DEPTH)
     this.camera.lookAt(centerX, 0, centerY)
     this.camera.updateProjectionMatrix()
@@ -345,6 +535,38 @@ class ThreeHybridRenderer implements HybridGameRenderer {
       light.target.position.set(centerX, 0, centerY)
       light.target.updateMatrixWorld()
     }
+    this.updateFrameRails(centerX, centerY, worldWidth, worldHeight)
+    const rim = this.scene?.getObjectByName(RIM_LIGHT_NAME) as THREE.DirectionalLight | undefined
+    if (rim) {
+      rim.position.set(centerX + 12, 9, centerY - 14)
+      rim.target.position.set(centerX, 0, centerY)
+      rim.target.updateMatrixWorld()
+    }
+  }
+
+  /**
+   * Four rails laid on the play-area boundary form the raised edge of the board. They
+   * share one box geometry and one material and are scaled — never stretched as a
+   * single ring — so the rail keeps a constant thickness on all four sides.
+   */
+  private updateFrameRails(centerX: number, centerY: number, worldWidth: number, worldHeight: number): void {
+    if (this.frameRails.length !== 4) return
+    const halfW = worldWidth / 2
+    const halfH = worldHeight / 2
+    const t = FRAME_RAIL_THICKNESS
+    const h = FRAME_RAIL_HEIGHT
+    const y = h / 2 - 0.12
+    const layout = [
+      { position: [centerX, y, centerY - halfH - t / 2], scale: [halfW * 2 + t * 2, h, t] },
+      { position: [centerX, y, centerY + halfH + t / 2], scale: [halfW * 2 + t * 2, h, t] },
+      { position: [centerX - halfW - t / 2, y, centerY], scale: [t, h, halfH * 2] },
+      { position: [centerX + halfW + t / 2, y, centerY], scale: [t, h, halfH * 2] },
+    ] as const
+    this.frameRails.forEach((rail, index) => {
+      const { position, scale } = layout[index]!
+      rail.position.set(position[0], position[1], position[2])
+      rail.scale.set(scale[0], scale[1], scale[2])
+    })
   }
   private applyResolution(): void { if (!this.renderer) return; this.renderer.setPixelRatio(this.dpr); this.renderer.setSize(this.viewportWidth, this.viewportHeight, false); this.renderer.domElement.style.width = `${this.viewportWidth}px`; this.renderer.domElement.style.height = `${this.viewportHeight}px` }
   private renderScene(): void { if (this.renderer && this.scene && this.camera) this.renderer.render(this.scene, this.camera) }
@@ -363,6 +585,41 @@ function markerColor(unit: RenderUnit, marksActiveSquad: boolean): number {
   if (unit.state === 'downed') return DOWNED_MARKER_COLOR
   if (unit.kind === 'enemy-commander' || unit.kind === 'elite') return HOSTILE_LEADER_MARKER_COLOR
   return marksActiveSquad ? TEAM_TINTS[unit.team] : LEADER_MARKER_COLOR
+}
+
+function miniatureArchetype(unit: RenderUnit): MiniatureArchetype {
+  if (unit.kind === 'elite') return 'elite'
+  return unit.team === 'enemy' ? 'enemy' : 'friendly'
+}
+
+/**
+ * The archetype geometry bakes paint *values* as vertex colours, so this single tint
+ * is what turns the same merged body into a teal trooper, a scarlet trooper or a
+ * purple raider.
+ */
+function miniaturePaint(unit: RenderUnit): number {
+  if (unit.kind === 'elite') return ELITE_PAINT
+  if (unit.kind === 'enemy-commander') return ENEMY_COMMANDER_PAINT
+  if (unit.team === 'enemy') return ENEMY_PAINT
+  return TEAM_TINTS[unit.team]
+}
+
+/**
+ * The base ring is the unit's read at a glance. An active-squad friendly keeps the
+ * *exact* team tint (and pulses) while an idle one is muted towards the board, so the
+ * squad the player is steering is the brighter of the two without inventing a colour.
+ */
+function dioramaRingColor(unit: RenderUnit, marksActiveSquad: boolean): number {
+  if (unit.state === 'downed') return DOWNED_MARKER_COLOR
+  if (unit.kind === 'elite' || unit.kind === 'enemy-commander') return HOSTILE_LEADER_RING_COLOR
+  if (unit.team === 'enemy') return ENEMY_RING_COLOR
+  if (marksActiveSquad) return TEAM_TINTS[unit.team]
+  return mixHex(TEAM_TINTS[unit.team], IDLE_RING_FLOOR, IDLE_RING_MIX)
+}
+
+function mixHex(from: number, to: number, amount: number): number {
+  const channel = (shift: number) => Math.round((((from >> shift) & 0xff) * (1 - amount)) + (((to >> shift) & 0xff) * amount))
+  return (channel(16) << 16) | (channel(8) << 8) | channel(0)
 }
 
 function shadowTargetSize(light: THREE.DirectionalLight | undefined): { width: number; height: number } | null {

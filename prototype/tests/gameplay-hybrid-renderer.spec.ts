@@ -33,7 +33,10 @@ test('renders elite telegraph and downed/rescue states from a gameplay snapshot'
   await expect(page.locator('[data-elite-hp]')).not.toHaveText('정예 대기 중', { timeout: 60_000 })
   const withElite = (await rendererScene(page))!
   expect(withElite.eliteCards).toHaveLength(1)
-  expect(withElite.eliteCards[0]).toMatchObject({ scale: 1.25, facesCamera: true })
+  // The gameplay route wears the tabletop diorama, so the elite is a sculpted
+  // miniature standing on its plinth: still oversized, but it no longer turns to face
+  // the camera the way the lab's cardboard card does.
+  expect(withElite.eliteCards[0]).toMatchObject({ scale: 1.25, facesCamera: false })
 
   let telegraph: RendererScene['eliteTelegraph'] | undefined
   await expect.poll(async () => {
