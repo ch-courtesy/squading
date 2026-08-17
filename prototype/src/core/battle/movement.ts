@@ -17,7 +17,7 @@
 //                      command unit stands still.
 //
 // Enemy movement (§1.9) is NOT here — it belongs to `enemy.ts`. It stays an explicit
-// argument of `advanceStep5Movement` so that a tick loop which forgets it is a type
+// argument of `advanceMovement` so that a tick loop which forgets it is a type
 // error rather than a battle where nothing attacks.
 
 import { ARENA_HEIGHT, ARENA_WIDTH, ARRIVE_EPSILON, COMMANDER_MOVE_SPEED, FOLLOW_MAX_SPEED, SOLDIER_MOVE_SPEED } from './constants'
@@ -161,7 +161,7 @@ export const NO_ENEMY_MOVEMENT: EnemyMovementRule = () => {}
  * composer stays, because the ORDER inside step 5 is still a rule — followers, then
  * enemies — and because it is the seam batch C and F plug their movers into.
  */
-export function advanceStep5Movement(state: BattleState, moveEnemies: EnemyMovementRule): void {
+export function advanceMovement(state: BattleState, moveEnemies: EnemyMovementRule): void {
   advanceFormationFollow(state)
   moveEnemies(state)
 }

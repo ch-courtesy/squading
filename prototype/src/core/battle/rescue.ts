@@ -1,4 +1,4 @@
-// §1.11 rescue — the lock (§1.16 step 3) and the progress (step 12).
+// §1.11 rescue — the lock and the progress (§1.16 steps 3 and 12; see the table in `index.ts`).
 //
 // Three things in here are decisions, and each is argued where it is made.
 //
@@ -16,20 +16,22 @@
 // 2. THE HIT FREEZE IS SAME-TICK, AND THE STEP ORDER IS WHAT MAKES IT SO. §1.11 says progress
 //    neither advances nor rolls back on a tick in which the PERFORMER — "지휘 유닛(구조
 //    수행자)" — took damage. That is only answerable if progress is decided after damage, so
-//    §1.16 places 피해 적용 at step 11 and 구조 진행 at step 12 and states the reason in the
-//    table. `resolveStep12Rescue` therefore takes step 11's `Step11Outcome` as an argument and
+//    §1.16 places 피해 적용 immediately before 구조 진행 and states that reason in its table.
+//    `advanceRescueProgress` therefore takes `applyDamage`'s `DamageOutcome` as an argument and
 //    reads the hit out of it; there is no flag on `BattleState` and no one-tick lag. An
-//    earlier draft of this batch had both, because the table then put 구조 진행 at step 8, and
-//    the rule was unimplementable as written from there.
+//    earlier draft of this batch had both, because the table then put 구조 진행 before the
+//    attacks, and the rule was unimplementable as written from there.
 //
 //    The argument is required rather than defaulted: a tick loop that forgets to thread the
 //    damage through would silently make the rescue immune to fire, which is precisely the
-//    tension §1.11 exists to create. `NO_DAMAGE_THIS_TICK` is the explicit way to say "nothing
-//    was fired".
+//    tension §1.11 exists to create. And there is no exported empty outcome to hand it —
+//    `applyDamage(state, [])` is the only way to make one, so the type also forbids skipping
+//    the damage step, which is where the invulnerability window burns down.
 //
 // 3. RANGE IS TESTED ONLY AT ESTABLISHMENT. §1.11's cancel list does not include "the
 //    target went out of range", and it does not need to: the performer is frozen for the
-//    whole lock (step 4 refuses to move while `rescue.active`) and a downed body does not
+//    whole lock (`advanceCommandUnit` refuses to move while `rescue.active`) and a downed body
+//    does not
 //    move at all, so the distance that was inside `RESCUE_RANGE` at establishment is the
 //    same distance every tick after it. Adding a range cancel would be inventing a rule.
 
@@ -39,7 +41,7 @@ import {
   RESCUE_REVIVE_FRACTION,
   RESCUE_TICKS,
 } from './constants'
-import { dealtToUnit, type Step11Outcome } from './damage'
+import { dealtToUnit, type DamageOutcome } from './damage'
 import { commandUnitOf } from './movement'
 import { findFriendly, friendliesById } from './state'
 import type { BattleState, FriendlyUnit } from './types'
@@ -54,7 +56,14 @@ export type RescueInputEvents = {
   movementKeydown: boolean
 }
 
-/** A tick with no fresh input events. Named so a caller that forgets is explicit. */
+/**
+ * A tick with no fresh input events — the explicit way to say "nothing was pressed".
+ *
+ * It is a value a caller has to NAME, never a default on the parameter. A default would let a
+ * tick loop that never wires the input queue's keydown through still compile, and the only
+ * symptom would be that §1.11's movement cancel quietly stops existing: the player moves and
+ * the rescue keeps going. Same argument as `advanceRescueProgress`'s required damage argument.
+ */
 export const NO_RESCUE_INPUT_EVENTS: RescueInputEvents = { movementKeydown: false }
 
 /**
@@ -113,9 +122,9 @@ export function cancelRescue(state: BattleState): void {
  * the performer is no longer a standing command unit, or the target is no longer a body
  * that can be picked up.
  *
- * Step 3 tests them (they can become true between two ticks) and step 13 tests them again
- * at the moment it makes them true, so that no tick ever ENDS holding a lock that has
- * already lost its subject or its object.
+ * `resolveRescueLock` tests them, because they can become true between two ticks, and
+ * `resolveTransitions` tests them again at the moment it makes them true — so that no tick ever
+ * ENDS holding a lock that has already lost its subject or its object.
  */
 export function rescueLockIsBroken(state: BattleState): boolean {
   if (!state.rescue.active) return false
@@ -126,23 +135,20 @@ export function rescueLockIsBroken(state: BattleState): boolean {
   return !target || target.life !== 'downed'
 }
 
-/** Step 13 uses this to keep the invariant above without duplicating the conditions. */
+/** `resolveTransitions` uses this to keep the invariant above without duplicating conditions. */
 export function cancelRescueIfBroken(state: BattleState): void {
   if (rescueLockIsBroken(state)) cancelRescue(state)
 }
 
 /**
- * §1.16 step 3 — establish, hold or cancel the rescue lock.
+ * §1.16 구조 lock 판정 — establish, hold or cancel the rescue lock.
  *
- * Before movement (step 4), which is what makes "lock이 성립한 tick부터 지휘 유닛은
+ * Before `advanceCommandUnit`, which is what makes "lock이 성립한 tick부터 지휘 유닛은
  * 이동하지 않는다" true without a special case: `advanceCommandUnit` reads `rescue.active`
- * and the flag is already set when it runs. (An earlier draft of §1.11 said "4단계" here and
- * called movement "5단계", contradicting §1.16's table; the spec now says 3 and 4.)
+ * and the flag is already set when it runs. (An earlier draft of §1.11 said the lock is judged
+ * in "4단계" and called movement "5단계", contradicting §1.16's table; the spec now says 3 and 4.)
  */
-export function resolveStep3RescueLock(
-  state: BattleState,
-  events: RescueInputEvents = NO_RESCUE_INPUT_EVENTS,
-): void {
+export function resolveRescueLock(state: BattleState, events: RescueInputEvents): void {
   if (state.rescue.active) {
     // §1.11's cancel list, in order: Space released, movement keydown, target gone,
     // performer down. A merely HELD movement vector is not on it — see note 1 above.
@@ -165,16 +171,16 @@ export function resolveStep3RescueLock(
   state.rescue.progress = 0
 }
 
-/** What step 12 hands back when a rescue finishes; §1.14's record is on the unit itself. */
+/** What the progress step hands back when a rescue finishes; §1.14's record is on the unit itself. */
 export type RescueCompletion = {
   targetId: number
   rescuerId: number
 }
 
 /**
- * §1.16 step 12 — one tick of rescue progress, and the revival when it completes.
+ * §1.16 구조 진행 — one tick of rescue progress, and the revival when it completes.
  *
- * Takes step 11's result, because §1.11's freeze is a question about THIS tick's damage:
+ * Takes `applyDamage`'s result, because §1.11's freeze is a question about THIS tick's damage:
  * "그 tick에 지휘 유닛(구조 수행자)이 피해를 입었으면 진행도가 증가하지 않으며 감소하지도
  * 않는다." Frozen means frozen in place — the progress already earned is kept, so a rescue
  * under intermittent fire is slow rather than impossible.
@@ -184,19 +190,19 @@ export type RescueCompletion = {
  * `vigor`-boosted rescue reviving at 62.5% because the fraction had been taken against a
  * stored base instead of the live maximum.
  */
-export function resolveStep12Rescue(
+export function advanceRescueProgress(
   state: BattleState,
-  damage: Readonly<Step11Outcome>,
+  damage: Readonly<DamageOutcome>,
 ): RescueCompletion | null {
   if (!state.rescue.active) return null
 
   const command = commandUnitOf(state)
   const target = state.rescue.targetId === null ? null : findFriendly(state, state.rescue.targetId)
-  // Step 3 and step 13 both cancel a broken lock, so this is unreachable in a real tick
+  // `resolveRescueLock` and `resolveTransitions` both cancel a broken lock, so this is unreachable in a real tick
   // order; it must not advance progress against a missing subject in a hand-authored one.
   if (!command || !target) return null
 
-  // A lethal hit needs no special case: it froze progress here, and step 13 downs the body and
+  // A lethal hit needs no special case: it froze progress here, and `resolveTransitions` downs the body and
   // cancels the lock a moment later.
   if (dealtToUnit(damage, command.id) > 0) return null
 

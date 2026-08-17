@@ -16,7 +16,7 @@
 // pulls slots out of movement blockers using `gameplay/geometry.ts`. Importing it would
 // drag both archived modules back into the live game, which is exactly what §2's 폐기
 // 기록 forbids. So the 15 offsets — pure data, unchanged since §1.4 was written — live
-// here, and `tests/battle/battle-boundaries.test.ts` pins them equal to the archived
+// here, and `tests/battle/battle-no-cover.test.ts` pins them equal to the archived
 // table so the duplication cannot drift.
 //
 // The pull and its latch are GONE, not moved. Both existed only for slots that landed

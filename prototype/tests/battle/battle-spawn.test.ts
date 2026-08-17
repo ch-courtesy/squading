@@ -1,4 +1,4 @@
-// Batch C fixtures, part 1: §1.10 spawning (§1.16 step 2).
+// Batch C fixtures, part 1: §1.10 spawning — the 스폰 step.
 //
 // Every tick, count and coordinate below is hand-computed from `constants.ts`, never read
 // back off the implementation. The placeholder numbers this batch was written against:
@@ -29,7 +29,7 @@ import {
   liveEnemyCount,
   pressurePhaseAt,
   pressurePhaseIndexAt,
-  resolveStep2Spawn,
+  resolveSpawnRequests,
   spawnKindForPhaseIndex,
 } from '../../src/core/battle/spawn'
 import { COMMANDER_ID, createEnemy, createInitialBattleState, findFriendly } from '../../src/core/battle/state'
@@ -98,18 +98,18 @@ describe('§1.10 the request schedule and the phase-local split', () => {
     const state = battle()
     const interval = PRESSURE_PHASES[0].requestInterval
 
-    resolveStep2Spawn(state)
+    resolveSpawnRequests(state)
     expect(state.enemies).toHaveLength(1)
     expect(state.spawn.lastRequestTick).toBe(0)
 
     for (let tick = 1; tick < interval; tick += 1) {
       state.combatTick = tick
-      resolveStep2Spawn(state)
+      resolveSpawnRequests(state)
       expect(state.enemies).toHaveLength(1)
     }
 
     state.combatTick = interval
-    resolveStep2Spawn(state)
+    resolveSpawnRequests(state)
     expect(state.enemies).toHaveLength(2)
     expect(state.spawn.lastRequestTick).toBe(interval)
   })
@@ -117,7 +117,7 @@ describe('§1.10 the request schedule and the phase-local split', () => {
   it('spawns on the circle of SPAWN_RADIUS around the command unit at request time', () => {
     const state = battle()
     const center = { ...commanderPosition(state) }
-    resolveStep2Spawn(state)
+    resolveSpawnRequests(state)
     // (28,16) +- 13 stays inside 0..56 x 0..32, so the arena clamp cannot fire here.
     expect(distance(center, state.enemies[0].position)).toBeCloseTo(SPAWN_RADIUS, 9)
     expect(state.enemies[0].id).toBe(101)
@@ -130,12 +130,12 @@ describe('§1.10 the request schedule and the phase-local split', () => {
 
     // The last request of phase 0, 12 ticks before the boundary.
     state.combatTick = boundary - 12
-    resolveStep2Spawn(state)
+    resolveSpawnRequests(state)
     state.spawn.requestsInPhase = 5 // index 5 in phase 0 would be a shooter next
     state.enemies = []
 
     state.combatTick = boundary
-    resolveStep2Spawn(state)
+    resolveSpawnRequests(state)
     // First request of phase 1 -> phase-local index 0 -> melee, and the counter restarts.
     expect(state.enemies).toHaveLength(1)
     expect(state.enemies[0].kind).toBe('melee')
@@ -152,7 +152,7 @@ describe('§1.10 the engagement-radius cap', () => {
     expect(engagedEnemyCount(state)).toBe(0)
     expect(liveEnemyCount(state)).toBe(cap + 6)
 
-    resolveStep2Spawn(state)
+    resolveSpawnRequests(state)
     expect(state.enemies).toHaveLength(cap + 7)
     expect(state.spawn.backlog).toHaveLength(0)
   })
@@ -163,12 +163,46 @@ describe('§1.10 the engagement-radius cap', () => {
     placeEnemies(state, cap, ENGAGE_RADIUS - 1)
     expect(engagedEnemyCount(state)).toBe(cap)
 
-    resolveStep2Spawn(state)
+    resolveSpawnRequests(state)
     expect(state.enemies).toHaveLength(cap)
     expect(state.spawn.backlog).toHaveLength(1)
     expect(state.spawn.backlog[0].requestedTick).toBe(0)
     expect(state.spawn.discardedByAbsoluteCap).toBe(0)
     expect(state.spawn.discardedByBacklogOverflow).toBe(0)
+  })
+
+  it('counts the elite towards the engaged cap like any other enemy', () => {
+    // §1.10: "정예도 두 상한에 함께 센다." The implementation filters on `life` and never looks
+    // at `kind`, which is right — and which is exactly why this needs a fixture. Without one, a
+    // plausible-looking `if (enemy.kind === 'elite') continue` in batch F passes the whole suite.
+    const cap = PRESSURE_PHASES[0].engagedCap
+    const state = battle()
+    placeEnemies(state, cap - 1, ENGAGE_RADIUS - 1)
+    const center = commanderPosition(state)
+    state.enemies.push(createEnemy(1000, 'elite', { x: center.x + 1, y: center.y }))
+
+    expect(engagedEnemyCount(state)).toBe(cap)
+
+    resolveSpawnRequests(state)
+
+    // The elite is the body that filled the last place, so the request has to wait.
+    expect(state.spawn.backlog).toHaveLength(1)
+    expect(state.enemies).toHaveLength(cap)
+  })
+
+  it('counts the elite towards the absolute cap like any other enemy', () => {
+    const state = battle()
+    placeEnemies(state, ABSOLUTE_ENEMY_CAP - 1, ENGAGE_RADIUS + 1)
+    const center = commanderPosition(state)
+    state.enemies.push(createEnemy(1000, 'elite', { x: center.x + ENGAGE_RADIUS + 1, y: center.y }))
+
+    expect(liveEnemyCount(state)).toBe(ABSOLUTE_ENEMY_CAP)
+
+    resolveSpawnRequests(state)
+
+    expect(state.spawn.discardedByAbsoluteCap).toBe(1)
+    expect(state.enemies).toHaveLength(ABSOLUTE_ENEMY_CAP)
+    expect(state.spawn.backlog).toHaveLength(0)
   })
 
   it('does not count dead bodies towards either cap', () => {
@@ -180,7 +214,7 @@ describe('§1.10 the engagement-radius cap', () => {
       enemy.hp = 0
     }
     expect(engagedEnemyCount(state)).toBe(0)
-    resolveStep2Spawn(state)
+    resolveSpawnRequests(state)
     expect(state.spawn.backlog).toHaveLength(0)
   })
 })
@@ -192,7 +226,7 @@ describe('§1.10 the absolute cap', () => {
     placeEnemies(state, ABSOLUTE_ENEMY_CAP, ENGAGE_RADIUS + 1)
     const streamBefore = state.prng.spawn
 
-    resolveStep2Spawn(state)
+    resolveSpawnRequests(state)
 
     expect(state.enemies).toHaveLength(ABSOLUTE_ENEMY_CAP)
     expect(state.spawn.backlog).toHaveLength(0)
@@ -213,7 +247,7 @@ describe('§1.10 the absolute cap', () => {
     state.spawn.lastRequestTick = 0
     state.combatTick = 1
 
-    resolveStep2Spawn(state)
+    resolveSpawnRequests(state)
 
     expect(state.enemies).toHaveLength(ABSOLUTE_ENEMY_CAP)
     expect(state.spawn.backlog.map((entry) => entry.sequence)).toEqual([0, 1])
@@ -228,7 +262,7 @@ describe('§1.10 the backlog', () => {
     const requestCenter = { ...commanderPosition(state) }
     placeEnemies(state, cap, ENGAGE_RADIUS - 1)
 
-    resolveStep2Spawn(state)
+    resolveSpawnRequests(state)
     expect(state.spawn.backlog).toHaveLength(1)
     const fixed = { ...state.spawn.backlog[0].position }
     expect(distance(requestCenter, fixed)).toBeCloseTo(SPAWN_RADIUS, 9)
@@ -242,7 +276,7 @@ describe('§1.10 the backlog', () => {
     commander.position = { x: 10, y: 10 }
     state.combatTick = 5 // not a request tick: interval 12, last request tick 0
 
-    resolveStep2Spawn(state)
+    resolveSpawnRequests(state)
 
     const spawned = state.enemies[state.enemies.length - 1]
     expect(spawned.position).toEqual(fixed)
@@ -259,7 +293,7 @@ describe('§1.10 the backlog', () => {
     state.spawn.lastRequestTick = 0
     state.combatTick = 5 // not a request tick
 
-    resolveStep2Spawn(state)
+    resolveSpawnRequests(state)
 
     expect(state.enemies).toHaveLength(BACKLOG_DRAIN_PER_TICK)
     expect(state.enemies.map((enemy) => enemy.id)).toEqual(
@@ -276,7 +310,7 @@ describe('§1.10 the backlog', () => {
     state.spawn.backlog = Array.from({ length: BACKLOG_SIZE }, (_, index) => request(index))
     state.spawn.nextRequestSequence = BACKLOG_SIZE
 
-    resolveStep2Spawn(state)
+    resolveSpawnRequests(state)
 
     expect(state.spawn.backlog).toHaveLength(BACKLOG_SIZE)
     // Oldest (sequence 0) gone, the new request (sequence BACKLOG_SIZE) at the back.
@@ -297,7 +331,7 @@ describe('§1.10 the backlog', () => {
     state.spawn.backlog[0].position = { ...commanderPosition(state) }
     state.spawn.backlog[1].position = { ...commanderPosition(state) }
 
-    resolveStep2Spawn(state)
+    resolveSpawnRequests(state)
 
     expect(state.enemies).toHaveLength(cap)
     expect(state.enemies[state.enemies.length - 1].id).toBe(request(0).id)

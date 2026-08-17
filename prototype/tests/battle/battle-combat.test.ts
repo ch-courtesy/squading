@@ -29,11 +29,11 @@ import {
 } from '../../src/core/battle/constants'
 import { advanceCommandUnit } from '../../src/core/battle/movement'
 import {
-  advanceStep6Cooldowns,
-  resolveStep9EnemyAttacks,
-  resolveStep8FriendlyAttacks,
+  advanceCooldowns,
+  resolveEnemyAttacks,
+  resolveFriendlyAttacks,
 } from '../../src/core/battle/attacks'
-import { advanceStep7Targeting, selectFriendlyTargetId } from '../../src/core/battle/targeting'
+import { advanceTargeting, selectFriendlyTargetId } from '../../src/core/battle/targeting'
 import { advanceEnemyMovement, isEnemyEngaged } from '../../src/core/battle/enemy'
 import { COMMANDER_ID, createEnemy, createInitialBattleState, findEnemy, findFriendly } from '../../src/core/battle/state'
 import type { BattleState, EnemyUnit, FriendlyUnit } from '../../src/core/battle/types'
@@ -83,18 +83,18 @@ describe('§1.3 move/fire exclusivity', () => {
 
     // Exactly at the threshold counts as movement (§1.3: "MOVE_EPSILON 이상").
     commander.lastDisplacement = MOVE_EPSILON
-    advanceStep6Cooldowns(state)
+    advanceCooldowns(state)
     expect(commander.attackCooldown).toBe(4)
 
-    advanceStep7Targeting(state)
+    advanceTargeting(state)
     // Step 7 has no displacement gate: the target is chosen, the shot is not taken.
     expect(commander.targetId).toBe(101)
-    expect(resolveStep8FriendlyAttacks(state)).toEqual([])
+    expect(resolveFriendlyAttacks(state)).toEqual([])
 
     // A ready cooldown does not buy a shot while moving either, and is not spent.
     commander.attackCooldown = 0
     commander.lastDisplacement = COMMANDER_MOVE_SPEED
-    expect(resolveStep8FriendlyAttacks(state)).toEqual([])
+    expect(resolveFriendlyAttacks(state)).toEqual([])
     expect(commander.attackCooldown).toBe(0)
   })
 
@@ -105,10 +105,10 @@ describe('§1.3 move/fire exclusivity', () => {
     commander.attackCooldown = 1
     commander.lastDisplacement = 0
 
-    advanceStep6Cooldowns(state)
+    advanceCooldowns(state)
     expect(commander.attackCooldown).toBe(0)
-    advanceStep7Targeting(state)
-    expect(resolveStep8FriendlyAttacks(state)).toEqual([
+    advanceTargeting(state)
+    expect(resolveFriendlyAttacks(state)).toEqual([
       {
         side: 'friendly',
         attackerId: COMMANDER_ID,
@@ -133,10 +133,10 @@ describe('§1.3 move/fire exclusivity', () => {
     expect(commander.position).toEqual({ x: ARENA_WIDTH, y: 12 })
     expect(commander.lastDisplacement).toBe(0)
 
-    advanceStep6Cooldowns(state)
+    advanceCooldowns(state)
     expect(commander.attackCooldown).toBe(0)
-    advanceStep7Targeting(state)
-    expect(resolveStep8FriendlyAttacks(state)).toHaveLength(1)
+    advanceTargeting(state)
+    expect(resolveFriendlyAttacks(state)).toHaveLength(1)
   })
 
   it('does not apply to enemies: their cooldown runs while they close', () => {
@@ -146,7 +146,7 @@ describe('§1.3 move/fire exclusivity', () => {
     melee.attackCooldown = 5
     melee.lastDisplacement = MELEE_MOVE_SPEED
 
-    advanceStep6Cooldowns(state)
+    advanceCooldowns(state)
     expect(melee.attackCooldown).toBe(4)
   })
 
@@ -193,9 +193,9 @@ describe('§1.3 move/fire exclusivity', () => {
         // §1.3, so it is set directly and the two rules that read it are run in
         // §1.16's order: step 6, then step 7, then step 8.
         commander.lastDisplacement = stopped ? 0 : COMMANDER_MOVE_SPEED
-        advanceStep6Cooldowns(state)
-        advanceStep7Targeting(state)
-        shots += resolveStep8FriendlyAttacks(state).length
+        advanceCooldowns(state)
+        advanceTargeting(state)
+        shots += resolveFriendlyAttacks(state).length
       }
 
       expect(stoppedTicks).toBe(row.stopped)
@@ -259,9 +259,9 @@ describe('§1.8 target selection', () => {
     commander.attackCooldown = 0
     commander.lastDisplacement = 0
 
-    advanceStep7Targeting(state)
+    advanceTargeting(state)
     expect(commander.targetId).toBeNull()
-    expect(resolveStep8FriendlyAttacks(state)).toEqual([])
+    expect(resolveFriendlyAttacks(state)).toEqual([])
     expect(commander.attackCooldown).toBe(0)
   })
 })
@@ -280,14 +280,14 @@ describe('§1.9 melee', () => {
     expect(melee.position.y).toBeCloseTo(16, 12)
     expect(melee.lastDisplacement).toBeCloseTo(MELEE_MOVE_SPEED, 12)
     // Out of contact range it does not attack, even with a ready cooldown.
-    expect(resolveStep9EnemyAttacks(state)).toEqual([])
+    expect(resolveEnemyAttacks(state)).toEqual([])
 
     // Inside contact range: displacement is exactly 0 and the attack lands.
     melee.position = { x: 28.5, y: 16 }
     advanceEnemyMovement(state)
     expect(melee.position).toEqual({ x: 28.5, y: 16 })
     expect(melee.lastDisplacement).toBe(0)
-    expect(resolveStep9EnemyAttacks(state)).toEqual([
+    expect(resolveEnemyAttacks(state)).toEqual([
       {
         side: 'enemy',
         attackerId: 101,
@@ -311,7 +311,7 @@ describe('§1.9 melee', () => {
       createEnemy(103, 'melee', { x: 28, y: 20 }),
     ]
 
-    advanceStep7Targeting(state)
+    advanceTargeting(state)
 
     // 101 wins the nearer friendly because it is the lower id.
     expect(enemyOf(state, 101).targetId).toBe(1)
@@ -334,7 +334,7 @@ describe('§1.9 melee', () => {
       createEnemy(102, 'melee', { x: 28, y: 20 }),
     ]
 
-    for (let tick = 1; tick <= 5; tick += 1) advanceStep7Targeting(state)
+    for (let tick = 1; tick <= 5; tick += 1) advanceTargeting(state)
     // A claim is stable: §1.9 makes retargeting a consequence of NOT holding a slot,
     // so an enemy does not re-optimise every tick and the assignment cannot thrash.
     expect(enemyOf(state, 101).contactSlotOwnerId).toBe(1)
@@ -343,7 +343,7 @@ describe('§1.9 melee', () => {
     // 102's target goes down; friendly 1's only contact slot is taken, so 102 falls
     // through to the nearest friendly with no slot at all.
     findFriendly(state, 2)!.life = 'downed'
-    advanceStep7Targeting(state)
+    advanceTargeting(state)
     expect(enemyOf(state, 102).targetId).toBe(1)
     expect(enemyOf(state, 102).contactSlotOwnerId).toBeNull()
     expect(enemyOf(state, 101).contactSlotOwnerId).toBe(1)
@@ -373,7 +373,7 @@ describe('§1.9 shooter', () => {
     expect(approach.shooter.position.x).toBeCloseTo(33.94, 12)
     expect(approach.shooter.position.y).toBeCloseTo(16, 12)
     // §1.9: it fires from the band only, so closing costs it the shot.
-    expect(resolveStep9EnemyAttacks(approach.state)).toEqual([])
+    expect(resolveEnemyAttacks(approach.state)).toEqual([])
 
     // 3.5 is inside the band: exactly zero displacement, and it fires.
     const hold = shooterAt(31.5, 16)
@@ -381,7 +381,7 @@ describe('§1.9 shooter', () => {
     expect(hold.shooter.position).toEqual({ x: 31.5, y: 16 })
     expect(hold.shooter.lastDisplacement).toBe(0)
     expect(isEnemyEngaged(hold.state, hold.shooter)).toBe(true)
-    expect(resolveStep9EnemyAttacks(hold.state)).toEqual([
+    expect(resolveEnemyAttacks(hold.state)).toEqual([
       {
         side: 'enemy',
         attackerId: 201,
@@ -398,7 +398,7 @@ describe('§1.9 shooter', () => {
     expect(retreat.shooter.position.x).toBeCloseTo(30.06, 12)
     expect(retreat.shooter.position.y).toBeCloseTo(16, 12)
     expect(retreat.shooter.lastDisplacement).toBeCloseTo(SHOOTER_MOVE_SPEED, 12)
-    expect(resolveStep9EnemyAttacks(retreat.state)).toEqual([])
+    expect(resolveEnemyAttacks(retreat.state)).toEqual([])
   })
 
   it('uses two target slots per friendly', () => {
@@ -413,7 +413,7 @@ describe('§1.9 shooter', () => {
       createEnemy(205, 'shooter', { x: 28, y: 20 }),
     ]
 
-    advanceStep7Targeting(state)
+    advanceTargeting(state)
     expect(state.enemies.map((enemy) => enemy.contactSlotOwnerId)).toEqual([1, 1, 2, 2, null])
     expect(enemyOf(state, 205).targetId).toBe(1)
   })
@@ -427,7 +427,7 @@ describe('§1.9 shooter', () => {
       createEnemy(201, 'shooter', { x: 28, y: 20 }),
       createEnemy(202, 'shooter', { x: 28, y: 20 }),
     ]
-    advanceStep7Targeting(state)
+    advanceTargeting(state)
     expect(state.enemies.map((enemy) => enemy.contactSlotOwnerId)).toEqual([1, 1, 1])
   })
 })
@@ -451,11 +451,11 @@ describe('§1.6 range advantage — the mechanism that replaced cover', () => {
     const shooter = enemyOf(state, 201)
     soldier.lastDisplacement = 0
 
-    advanceStep7Targeting(state)
+    advanceTargeting(state)
     expect(soldier.targetId).toBe(201)
 
     // Both sides get their attack step on the same tick, from the same positions.
-    expect(resolveStep8FriendlyAttacks(state)).toEqual([
+    expect(resolveFriendlyAttacks(state)).toEqual([
       {
         side: 'friendly',
         attackerId: 2,
@@ -464,7 +464,7 @@ describe('§1.6 range advantage — the mechanism that replaced cover', () => {
         cause: 'friendly-attack',
       },
     ])
-    expect(resolveStep9EnemyAttacks(state)).toEqual([])
+    expect(resolveEnemyAttacks(state)).toEqual([])
     expect(isEnemyEngaged(state, shooter)).toBe(false)
   })
 
@@ -475,9 +475,9 @@ describe('§1.6 range advantage — the mechanism that replaced cover', () => {
     const soldier = findFriendly(state, 2)!
     soldier.lastDisplacement = 0
 
-    advanceStep7Targeting(state)
-    expect(resolveStep8FriendlyAttacks(state)).toHaveLength(1)
-    expect(resolveStep9EnemyAttacks(state)).toEqual([
+    advanceTargeting(state)
+    expect(resolveFriendlyAttacks(state)).toHaveLength(1)
+    expect(resolveEnemyAttacks(state)).toEqual([
       {
         side: 'enemy',
         attackerId: 201,
@@ -507,10 +507,10 @@ describe('§1.6 range advantage — the mechanism that replaced cover', () => {
     for (let tick = 1; tick <= 60 && enemySwings === 0; tick += 1) {
       soldier.lastDisplacement = 0
       advanceEnemyMovement(state)
-      advanceStep6Cooldowns(state)
-      advanceStep7Targeting(state)
-      friendlyShots += resolveStep8FriendlyAttacks(state).length
-      const swings = resolveStep9EnemyAttacks(state).length
+      advanceCooldowns(state)
+      advanceTargeting(state)
+      friendlyShots += resolveFriendlyAttacks(state).length
+      const swings = resolveEnemyAttacks(state).length
       if (swings > 0) {
         enemySwings += swings
         contactTick = tick
@@ -540,9 +540,9 @@ describe('batch B ordering and shape', () => {
     ]
     for (const unit of state.friendlies) unit.lastDisplacement = 0
 
-    advanceStep7Targeting(state)
-    const friendly = resolveStep8FriendlyAttacks(state)
-    const enemy = resolveStep9EnemyAttacks(state)
+    advanceTargeting(state)
+    const friendly = resolveFriendlyAttacks(state)
+    const enemy = resolveEnemyAttacks(state)
     expect(friendly.map((event) => event.attackerId)).toEqual([1, 2])
     expect(enemy.map((event) => event.attackerId)).toEqual([101, 102])
     expect([...friendly, ...enemy].every((event) => event.amount > 0)).toBe(true)
@@ -555,7 +555,7 @@ describe('batch B ordering and shape', () => {
     commanderOf(state).life = 'downed'
     state.enemies = [createEnemy(101, 'melee', { x: 28, y: 17 })]
 
-    advanceStep7Targeting(state)
+    advanceTargeting(state)
     expect(enemyOf(state, 101).targetId).toBe(2)
   })
 
@@ -565,10 +565,10 @@ describe('batch B ordering and shape', () => {
     state.elite.enemyId = 1000
     const elite = enemyOf(state, 1000)
 
-    advanceStep7Targeting(state)
+    advanceTargeting(state)
     advanceEnemyMovement(state)
     expect(elite.targetId).toBeNull()
     expect(elite.position).toEqual({ x: 30, y: 16 })
-    expect(resolveStep9EnemyAttacks(state)).toEqual([])
+    expect(resolveEnemyAttacks(state)).toEqual([])
   })
 })

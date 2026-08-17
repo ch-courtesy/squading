@@ -125,7 +125,7 @@ export function advanceFriendlyTargeting(state: BattleState): void {
  * §1.9 slots — but they are one step, and running them together is what keeps them
  * from drifting apart in the tick loop.
  */
-export function advanceStep7Targeting(state: BattleState): void {
+export function advanceTargeting(state: BattleState): void {
   advanceFriendlyTargeting(state)
   advanceEnemyTargeting(state)
 }

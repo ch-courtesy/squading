@@ -1,4 +1,4 @@
-// §1.10 spawning — §1.16 step 2.
+// §1.10 spawning — the 스폰 step (see the step table in `index.ts`).
 //
 // One request per phase interval, one enemy per request, and three separate gates that a
 // request can die or wait on. The order the gates run in is the rule, so it is written out
@@ -129,8 +129,10 @@ export function drawSpawnPosition(state: BattleState, center: Vec2): Vec2 {
 }
 
 function spawnFromRequest(state: BattleState, request: SpawnRequest): void {
-  // Requests are created and drained in ascending id order, so appending keeps
-  // `state.enemies` sorted; `enemiesById` is still what every rule reads.
+  // Appended, not inserted in id order. Requests climb from `FIRST_ENEMY_ID`, but §1.12's elite
+  // takes `ELITE_ID = 1000` and no spawn id gets near it, so from tick 1800 on the array is NOT
+  // sorted by id. Every rule that needs the ascending-id tie-break reads `enemiesById`, which is
+  // where that guarantee lives.
   state.enemies.push(createEnemy(request.id, request.kind, request.position))
 }
 
@@ -200,7 +202,7 @@ function pushToBacklog(state: BattleState, request: SpawnRequest): void {
 }
 
 /**
- * §1.16 step 2 — the whole of §1.10.
+ * The whole of §1.10.
  *
  * Returns nothing on purpose: every observable outcome (the new rows, the backlog, both
  * discard counters) is in the state and therefore in the digest, which is where §1.10 asks
@@ -210,10 +212,13 @@ function pushToBacklog(state: BattleState, request: SpawnRequest): void {
  * and batch F composes it after this call so that the draw order inside tick 1800 is
  * something a reader can see written down.
  */
-export function resolveStep2Spawn(state: BattleState): void {
+export function resolveSpawnRequests(state: BattleState): void {
   const command = commandUnitOf(state)
-  // No command unit means the roster is gone and step 16 is about to end the run. Taking a
-  // draw here would move the stream on a tick whose state is already terminal.
+  // No command unit means the roster is gone and the 승패 판정 is about to end the run. This
+  // returns before the backlog drain as well as before the request: every spawn coordinate in
+  // §1.10 is measured from the command unit, and the drain's two caps are measured from it too,
+  // so with no body to measure from there is nothing this step can honestly do. It also keeps
+  // the `spawn` stream still on a tick whose state is already terminal.
   if (!command) return
 
   drainBacklog(state)

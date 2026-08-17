@@ -3,6 +3,9 @@ import { join } from 'node:path'
 
 import { describe, expect, it } from 'vitest'
 
+import { FORMATION_SLOTS as BATTLE_FORMATION_SLOTS } from '../../src/core/battle/formation'
+import { FORMATION_SLOTS as ARCHIVED_FORMATION_SLOTS } from '../../src/core/gameplay/formation'
+
 // §1.6 removed cover entirely. The terrain generator, the geometry primitives and the
 // stage-1 I9 harness stay in the repository as the evidence for why — five review rounds
 // and a 504-cell sweep that found no feasible point — but the game must never import
@@ -18,6 +21,13 @@ const ARCHIVED = [
 // Scoped to the v2 battle core. `src/app` and `src/renderers` still belong to the
 // shipped v1 game, which legitimately imports `core/gameplay/*`; batch G must add the new
 // v2 shell and controller paths here when it wires them.
+//
+// BEFORE ADDING A PATH, read `moduleSpecifiers` below. The first version of this guard used
+// `/^\s*(?:import|export)[^\n]*?from\s+'([^']+)'/gm`, and `[^\n]*?` cannot cross a newline —
+// so it never saw a MULTI-LINE import, which is the style this codebase actually uses. It read
+// 57 of the 62 specifiers under `src/core/battle`, and two of the five it missed were added by
+// batch C. Reviving cover in the house style would have passed the one test that exists to
+// prevent it. Widening the scope while the reader is blind widens the blind spot.
 const GAME_PATH_ROOTS = ['src/core/battle']
 
 function sourceFiles(root: string): string[] {
@@ -30,25 +40,96 @@ function sourceFiles(root: string): string[] {
   return found
 }
 
+/**
+ * Every module specifier in a source file: bare `from '...'`, no line anchor, no
+ * single-line constraint.
+ *
+ * Matching bare `from '...'` also matches the phrase inside a comment or a string. That is
+ * deliberate — the only false positive it can produce is text that names an archived module
+ * the way an import does, and making that fail is exactly the point. Comments in this project
+ * reference the archive by prose path (`gameplay/terrain.ts`), never as `from '...'`.
+ *
+ * Extracted as a named function so the test below can check the READER, not just the result:
+ * a guard whose extraction is silently incomplete reports "no offenders" forever.
+ */
+export function moduleSpecifiers(source: string): string[] {
+  return [...source.matchAll(/from\s+'([^']+)'/g)].map((match) => match[1])
+}
+
+function namesArchivedModule(specifier: string): boolean {
+  return ARCHIVED.some((archived) => specifier.includes(archived.split('/').pop()!))
+}
+
 describe('§1.6 cover stays removed', () => {
+  it('reads multi-line imports, which is how the first version of this guard went blind', () => {
+    const multiLine = [
+      'import {',
+      '  ARENA_WIDTH,',
+      '  isInsideBlocker,',
+      "} from '../gameplay/terrain'",
+      '',
+      "import { clampToArena } from './movement'",
+      'export {',
+      '  segmentHitsRect,',
+      "} from '../gameplay/geometry'",
+    ].join('\n')
+
+    expect(moduleSpecifiers(multiLine)).toEqual([
+      '../gameplay/terrain',
+      './movement',
+      '../gameplay/geometry',
+    ])
+    expect(moduleSpecifiers(multiLine).filter(namesArchivedModule)).toEqual([
+      '../gameplay/terrain',
+      '../gameplay/geometry',
+    ])
+  })
+
+  it('sees strictly more of the real tree than the line-anchored reader did', () => {
+    // The regression test for the defect itself, measured against the actual battle core rather
+    // than a fixture: this codebase writes multi-line imports, so a line-anchored reader finds
+    // strictly fewer specifiers here than a newline-agnostic one. If `moduleSpecifiers` is ever
+    // reverted to the anchored form, the two counts become equal and this fails.
+    let total = 0
+    let lineAnchored = 0
+
+    for (const root of GAME_PATH_ROOTS) {
+      const files = sourceFiles(root)
+      expect(files.length).toBeGreaterThan(0)
+      for (const file of files) {
+        const source = readFileSync(file, 'utf8')
+        total += moduleSpecifiers(source).length
+        lineAnchored += [
+          ...source.matchAll(/^\s*(?:import|export)[^\n]*?from\s+'([^']+)'/gm),
+        ].length
+      }
+    }
+
+    expect(lineAnchored).toBeGreaterThan(0)
+    expect(total).toBeGreaterThan(lineAnchored)
+  })
+
   it('keeps the archived cover modules out of every game-path import', () => {
     const offenders: string[] = []
 
     for (const root of GAME_PATH_ROOTS) {
       for (const file of sourceFiles(root)) {
-        const source = readFileSync(file, 'utf8')
-        // Only real import/export statements count — the archive is named in comments on
-        // purpose, so that a reader looking for the evidence can find it.
-        for (const match of source.matchAll(/^\s*(?:import|export)[^\n]*?from\s+'([^']+)'/gm)) {
-          const specifier = match[1]
-          if (ARCHIVED.some((archived) => specifier.includes(archived.split('/').pop()!))) {
-            offenders.push(`${file} -> ${specifier}`)
-          }
+        for (const specifier of moduleSpecifiers(readFileSync(file, 'utf8'))) {
+          if (namesArchivedModule(specifier)) offenders.push(`${file} -> ${specifier}`)
         }
       }
     }
 
     expect(offenders).toEqual([])
+  })
+
+  it('keeps the copied slot table equal to the archived one', () => {
+    // `core/battle/formation.ts` copies §1.4's 15 offsets instead of importing them, because
+    // the archived module pulls slots out of terrain using `gameplay/geometry.ts` and importing
+    // it would drag both archived modules back into the live game. The copy is the price of the
+    // boundary; this is the pin that stops the two drifting apart, and `formation.ts`'s header
+    // points at it by name.
+    expect(BATTLE_FORMATION_SLOTS).toEqual(ARCHIVED_FORMATION_SLOTS)
   })
 
   it('leaves no terrain in the authoritative state or its streams', () => {

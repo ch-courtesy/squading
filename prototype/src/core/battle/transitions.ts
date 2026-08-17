@@ -1,24 +1,24 @@
-// §1.16 step 13 — downed/death transitions, then §1.5's reversion and succession.
+// §1.16 downed·사망 전이, 복귀·승계 — the transition step (see the step table in `index.ts`).
 //
 // The ORDER inside the step is as much a rule as the transitions are:
 //
 //   1. friendlies at 0 hp go DOWNED. Not dead: §1.11 exists because a fallen body is a
 //      decision, and a friendly only dies from its downed timer running out.
-//   2. enemies at 0 hp die, and their ids and kinds are what step 14 counts (§1.13 excludes
-//      the elite from the kill count, so the kind has to travel with the id).
+//   2. enemies at 0 hp die, and their ids and kinds are what the kill accounting counts
+//      (§1.13 excludes the elite, so the kind has to travel with the id).
 //   3. downed timers advance, and a timer that reaches DOWNED_TICKS kills. A body that fell
 //      in THIS tick is not charged a tick for it.
 //   4. a rescue whose subject or object just vanished is cancelled, so no tick ever ends
 //      holding a lock that cannot progress.
 //   5. §1.5: the unconditional reversion, then the promotion loop.
 //
-// Steps 1 and 3 in that order are the whole reason §1.5's promotion cannot hand command to a
-// body that fell in the same tick — the fall is already recorded when the search runs. Step 4
-// before step 5 is what lets the cancel test read "the command unit is not standing" against
-// the body that was actually performing the rescue.
+// (1) before (5) is the whole reason §1.5's promotion cannot hand command to a body that fell in
+// the same tick — the fall is already recorded when the search runs. (4) before (5) is what lets
+// the cancel test read "the command unit is not standing" against the body that was actually
+// performing the rescue.
 //
-// This step does NOT decide the run. `all-units-lost` is REPORTED here and adjudicated in
-// step 16, where §1.16 puts the verdict and its priority against `elite-survived`; §1.5 is
+// This step does NOT decide the run. `all-units-lost` is REPORTED here and adjudicated by the
+// 승패 판정 step, where §1.16 puts the verdict and its priority against `elite-survived`; §1.5 is
 // explicit that the commander's death alone is not a defeat.
 
 import { DOWNED_TICKS } from './constants'
@@ -26,22 +26,22 @@ import { cancelRescue, cancelRescueIfBroken } from './rescue'
 import { enemiesById, findFriendly, friendliesById } from './state'
 import type { BattleState, EnemyKind, FriendlyUnit, Vec2 } from './types'
 
-/** §1.13 counts kills but not the elite's, so step 14 needs the kind, not just the id. */
+/** §1.13 counts kills but not the elite's, so the counter needs the kind, not just the id. */
 export type EnemyDeath = {
   id: number
   kind: EnemyKind
 }
 
 /**
- * What step 13 hands to step 14 (kill accounting and the upgrade thresholds) and to step 16.
+ * What this step hands to the kill accounting (§1.13 thresholds) and to the 승패 판정.
  *
  * A return value rather than fields on `BattleState`: every entry is consumed inside the
- * same tick, and `types.ts` reserves the state for what a later tick reads. `stats.kills` is
- * step 14's to write — this step deliberately does not touch it, so that "which deaths
+ * same tick, and `types.ts` reserves the state for what a later tick reads. `stats.kills` is the
+ * accounting step's to write — this step deliberately does not touch it, so that "which deaths
  * counted" stays one rule in one place.
  */
-export type Step13Outcome = {
-  /** Enemies that died this tick, ascending id. Step 14 counts the non-elite ones. */
+export type TransitionOutcome = {
+  /** Enemies that died this tick, ascending id. The accounting counts the non-elite ones. */
   enemyDeaths: EnemyDeath[]
   /** Friendlies that went downed this tick, ascending id. */
   friendlyDowns: number[]
@@ -50,7 +50,7 @@ export type Step13Outcome = {
   previousCommandUnitId: number
   commandUnitId: number
   commandUnitChanged: boolean
-  /** §1.5: no standing soldier is left. Step 16 turns this into `all-units-lost`. */
+  /** §1.5: no standing soldier is left. The 승패 판정 turns this into `all-units-lost`. */
   allUnitsLost: boolean
 }
 
@@ -88,7 +88,9 @@ function resolveSuccession(state: BattleState): boolean {
   // because the candidate filter and the loop condition agree on what "기립" means; a change
   // that lets a non-standing body be picked turns the loop into a spin — which is exactly how
   // a mutation check on this function hung the test run instead of failing it. One pass per
-  // body is more than the rule can ever need.
+  // body is more than the rule can ever need, and exhausting it THROWS: reporting
+  // `all-units-lost` instead would turn a rule bug into a quietly lost run, which is the
+  // failure mode this whole project keeps being bitten by.
   for (let attempt = 0; attempt <= state.friendlies.length; attempt += 1) {
     const command = findFriendly(state, state.commandUnitId)
     if (command && command.life === 'standing') return false
@@ -118,11 +120,14 @@ function resolveSuccession(state: BattleState): boolean {
     state.commandUnitId = best.id
   }
 
-  return true
+  throw new Error(
+    'battle/transitions: §1.5 succession could not settle on a standing command unit — the ' +
+      'candidate filter and the standing test have gone out of sync',
+  )
 }
 
-/** §1.16 step 13, whole. */
-export function resolveStep13Transitions(state: BattleState): Step13Outcome {
+/** The whole step. */
+export function resolveTransitions(state: BattleState): TransitionOutcome {
   const previousCommandUnitId = state.commandUnitId
   const friendlyDowns: number[] = []
   const friendlyDeaths: number[] = []
@@ -142,7 +147,8 @@ export function resolveStep13Transitions(state: BattleState): Step13Outcome {
     friendlyDowns.push(unit.id)
   }
 
-  // 2. Enemies at 0 hp die. Slot released here, so step 7 of the next tick redistributes it.
+  // 2. Enemies at 0 hp die. The slot is released here, so the next tick's targeting pass
+  //    redistributes it.
   for (const enemy of enemiesById(state)) {
     if (enemy.life !== 'standing') continue
     if (enemy.hp > 0) continue
@@ -187,7 +193,7 @@ export function resolveStep13Transitions(state: BattleState): Step13Outcome {
     state.input.move = { x: 0, y: 0 }
     // The performer of a lock is "지휘 유닛 자신"; if the body changed, the performer is gone.
     // Unreachable in tick order (the only reversion path is a rescue that already completed,
-    // and a promotion is preceded by the cancel in step 4), and cheap insurance against a
+    // and a promotion is preceded by the cancel in (4) above), and cheap insurance against a
     // stale lock freezing a body that never asked for one.
     if (state.rescue.active) cancelRescue(state)
   }

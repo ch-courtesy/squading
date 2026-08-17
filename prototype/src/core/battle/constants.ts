@@ -25,7 +25,7 @@
  * terrain from the game entirely. That module — and `gameplay/geometry.ts`,
  * `harness/i9.ts`, `artifacts/i9-sweep.md` — stay in the repository as the evidence
  * that cover was measured and rejected, and `core/battle/` must not import any of
- * them; `tests/battle/battle-boundaries.test.ts` pins that.
+ * them; `tests/battle/battle-no-cover.test.ts` pins that.
  */
 export const ARENA_WIDTH = 56
 export const ARENA_HEIGHT = 32
@@ -40,11 +40,12 @@ export const DIGEST_DECIMALS = 6
  * The hp below which a body is at zero — a consequence of §1.1, not a tuning knob.
  *
  * Binary floating point does not divide the anchors evenly: five commander shots of `0.20`
- * against a `1.0`-HP melee leave `5.55e-17` of hp behind, and `hp > 0` at step 13 reads that
- * as a survivor. The body then needs a sixth shot to die, the kill lands one attack interval
- * late, and §1.13's kill thresholds drift for the whole run — while the digest, which §1.1
+ * against a `1.0`-HP melee leave `5.55e-17` of hp behind, and the transition step's `hp > 0`
+ * reads that as a survivor. The body then needs a sixth shot to die, the kill lands one attack
+ * interval late, and §1.13's kill thresholds drift for the whole run — while the digest, which §1.1
  * normalizes to 6 decimals, records the thing as having 0 hp. Any residue smaller than the
- * digest's own resolution is not a state this game distinguishes, so step 12 snaps it away.
+ * digest's own resolution is not a state this game distinguishes, so `applyDamage` snaps it
+ * away before `resolveTransitions` reads the body's hp.
  */
 export const HP_EPSILON = 1e-9
 /** §1.4: 1 commander + 15 soldiers. */

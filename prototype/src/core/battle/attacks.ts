@@ -38,7 +38,7 @@ export type { DamageCause, DamageEvent, DamageSide } from './types'
  * a melee that could not warm up while closing would need `MELEE_ATTACK_INTERVAL` extra
  * ticks in contact before its first swing.
  */
-export function advanceStep6Cooldowns(state: BattleState): void {
+export function advanceCooldowns(state: BattleState): void {
   for (const unit of state.friendlies) {
     if (unit.life !== 'standing') continue
     if (!isStopped(unit)) continue
@@ -58,7 +58,7 @@ export function advanceStep6Cooldowns(state: BattleState): void {
  * cooldown도 소비하지 않는다" is the `targetId === null` branch — the cooldown is only
  * written when a shot actually happens.
  */
-export function resolveStep8FriendlyAttacks(state: BattleState): DamageEvent[] {
+export function resolveFriendlyAttacks(state: BattleState): DamageEvent[] {
   const events: DamageEvent[] = []
 
   // Ascending id: the event order is part of what the damage step and the kill
@@ -104,7 +104,7 @@ export function resolveStep8FriendlyAttacks(state: BattleState): DamageEvent[] {
  * step 10 and a later batch, and §1.12 states it deals no contact damage at all. §1.12 no
  * longer re-checks sight per target on impact either — there is no sight to re-check.
  */
-export function resolveStep9EnemyAttacks(state: BattleState): DamageEvent[] {
+export function resolveEnemyAttacks(state: BattleState): DamageEvent[] {
   const events: DamageEvent[] = []
   const [standoffLow, standoffHigh] = SHOOTER_STANDOFF
 

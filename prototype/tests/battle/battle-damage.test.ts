@@ -1,6 +1,6 @@
-// Batch C fixtures, part 3: §1.16 step 11 — damage application.
+// Batch C fixtures, part 3: §1.16 피해 적용 — the damage step.
 //
-// Step 12 is the only place hp moves, and the only place that can see an overkill. I2's
+// The damage step is the only place hp moves, and the only place that can see an overkill. I2's
 // accounting excludes overkill and rescue revivals from its numerator, so "how much of what
 // was fired actually landed" has to be a number this step returns, not something a later
 // pass tries to reconstruct from hp.
@@ -14,10 +14,10 @@ import {
   SOLDIER_DAMAGE,
   SOLDIER_HP,
 } from '../../src/core/battle/constants'
-import { applyStep11Damage, damageTakenMultiplierOf } from '../../src/core/battle/damage'
+import { applyDamage, damageTakenMultiplierOf } from '../../src/core/battle/damage'
 import { COMMANDER_ID, createEnemy, createInitialBattleState, findEnemy, findFriendly } from '../../src/core/battle/state'
 import { digestBattleState } from '../../src/core/battle/digest'
-import { resolveStep13Transitions } from '../../src/core/battle/transitions'
+import { resolveTransitions } from '../../src/core/battle/transitions'
 import type { BattleState, DamageEvent } from '../../src/core/battle/types'
 
 function battle(): BattleState {
@@ -35,10 +35,10 @@ function enemyShot(attackerId: number, targetId: number, amount: number): Damage
   return { side: 'enemy', attackerId, targetId, amount, cause: 'melee-contact' }
 }
 
-describe("§1.16 step 11 damage application", () => {
+describe("§1.16 피해 적용 (damage application)", () => {
   it('applies the attacker-side amount to the other side, unchanged', () => {
     const state = battle()
-    const outcome = applyStep11Damage(state, [
+    const outcome = applyDamage(state, [
       friendlyShot(COMMANDER_ID, 101, COMMANDER_DAMAGE),
       enemyShot(101, COMMANDER_ID, 0.045),
     ])
@@ -55,12 +55,12 @@ describe("§1.16 step 11 damage application", () => {
   it('lets every simultaneous event land and reports the overkill', () => {
     const state = battle()
     // Five shots of 0.2 exactly finish a 1.0-HP melee; the sixth is pure overkill, and
-    // §1.16 keeps the body standing until step 13 so all six are resolvable.
+    // §1.16 keeps the body standing until the transition step, so all six are resolvable.
     const events = Array.from({ length: 6 }, (_, index) =>
       friendlyShot(COMMANDER_ID + index, 101, COMMANDER_DAMAGE),
     )
 
-    const outcome = applyStep11Damage(state, events)
+    const outcome = applyDamage(state, events)
 
     expect(findEnemy(state, 101)?.hp).toBe(0)
     expect(findEnemy(state, 101)?.life).toBe('standing')
@@ -71,25 +71,25 @@ describe("§1.16 step 11 damage application", () => {
     expect(outcome.applied[5].overkill).toBeCloseTo(COMMANDER_DAMAGE, 12)
   })
 
-  it('leaves no floating-point residue that would let a finished body survive step 13', () => {
+  it("leaves no floating-point residue that would let a finished body survive the transition step", () => {
     // 1.0 / 0.20 is exactly five shots on paper. In binary floating point the fifth leaves
-    // 5.55e-17 behind, `hp > 0` at step 13 reads that as a survivor, the kill lands an attack
+    // 5.55e-17 behind, the transition step's `hp > 0` reads that as a survivor, the kill lands
     // interval late and §1.13's thresholds drift — while the digest, normalized to 6 decimals
     // (§1.1), records the body at 0 hp the whole time.
     expect(MELEE_HP / COMMANDER_DAMAGE).toBe(5)
     const state = battle()
 
     for (let shot = 0; shot < 5; shot += 1) {
-      applyStep11Damage(state, [friendlyShot(COMMANDER_ID, 101, COMMANDER_DAMAGE)])
+      applyDamage(state, [friendlyShot(COMMANDER_ID, 101, COMMANDER_DAMAGE)])
     }
 
     expect(findEnemy(state, 101)?.hp).toBe(0)
-    expect(resolveStep13Transitions(state).enemyDeaths).toEqual([{ id: 101, kind: 'melee' }])
+    expect(resolveTransitions(state).enemyDeaths).toEqual([{ id: 101, kind: 'melee' }])
   })
 
   it('floors hp at zero rather than letting it go negative', () => {
     const state = battle()
-    applyStep11Damage(state, [friendlyShot(COMMANDER_ID, 101, MELEE_HP * 10)])
+    applyDamage(state, [friendlyShot(COMMANDER_ID, 101, MELEE_HP * 10)])
     expect(findEnemy(state, 101)?.hp).toBe(0)
   })
 
@@ -100,7 +100,7 @@ describe("§1.16 step 11 damage application", () => {
     soldier.hp = 0
     findEnemy(state, 101)!.life = 'dead'
 
-    const outcome = applyStep11Damage(state, [
+    const outcome = applyDamage(state, [
       friendlyShot(COMMANDER_ID, 101, COMMANDER_DAMAGE),
       enemyShot(101, soldier.id, SOLDIER_DAMAGE),
       enemyShot(101, 999, SOLDIER_DAMAGE),
@@ -115,8 +115,8 @@ describe("§1.16 step 11 damage application", () => {
     const right = battle()
     const events = [friendlyShot(COMMANDER_ID, 101, COMMANDER_DAMAGE), enemyShot(101, 2, SOLDIER_HP)]
 
-    applyStep11Damage(left, events)
-    applyStep11Damage(right, events)
+    applyDamage(left, events)
+    applyDamage(right, events)
 
     expect(digestBattleState(right)).toBe(digestBattleState(left))
     expect(left.prng).toEqual(createInitialBattleState('seed-a').prng)

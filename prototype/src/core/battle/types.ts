@@ -26,9 +26,12 @@
 // (`movementBlockers`, `friendliesById`, the displacement returned by
 // `advanceCommandUnit`). A field belongs here only if a later tick reads it.
 //
-// This is enforced, not merely asserted: `tests/battle/battle-state.test.ts` pins
-// the exact top-level key set of `BattleState`, so adding one is a deliberate act
-// that has to be argued for in a diff.
+// This is enforced, not merely asserted: `tests/battle/battle-state.test.ts` pins the
+// exact key set of `BattleState` AND of every nested object in it — `spawn`, `elite`,
+// `upgrades`, `rescue`, `stats`, `input`, and both unit rows — so adding a field anywhere
+// in the tree is a deliberate act that has to be argued for in a diff. The nested pins
+// exist because the top-level one alone was not enough: batch C added
+// `spawn.requestsInPhase` and nothing failed.
 
 import type { CardId } from './constants'
 import type { BattlePrngStates } from './streams'
@@ -95,12 +98,12 @@ export type EnemyUnit = {
 }
 
 /**
- * What steps 8, 9 and 10 hand to the damage-application step, which is step 11 (§1.16).
+ * What the two attack passes and the elite impact hand to `applyDamage` (§1.16).
  *
  * It is a RETURN VALUE, never a field on `BattleState` — see the no-scratch rule at the
- * top of this file. The damage step receives the concatenation of the three producers in
- * §1.16's order (8 friendly attacks, 9 enemy attacks, 10 elite impact) and applies them in
- * that order; within one producer the list is in ascending attacker id.
+ * top of this file. `applyDamage` receives the concatenation of the three producers in §1.16's
+ * order (friendly attacks, enemy attacks, elite impact) and applies them in that order; within
+ * one producer the list is in ascending attacker id.
  *
  * `amount` is the ATTACKER-side number, already carrying anything that scales with the
  * attacker (§1.13's `firepower`). Defender-side modifiers — §1.11's `invulnerableTicks`,
@@ -212,10 +215,10 @@ export type UpgradeState = {
 /**
  * §1.11: at most one rescue at a time.
  *
- * There is no "was the rescuer hit" field. §1.16 puts 피해 적용 at step 11 and 구조 진행 at
- * step 12, so step 12 reads the hit out of step 11's return value in the same tick; the
- * question never has to survive a tick boundary, and this object stays exactly what §1.17
- * asks the digest to carry ("구조 lock의 대상·진행도").
+ * There is no "was the rescuer hit" field. §1.16 puts 피해 적용 immediately before 구조 진행, so
+ * `advanceRescueProgress` reads the hit out of `applyDamage`'s return value in the same tick; the
+ * question never has to survive a tick boundary, and this object stays exactly what §1.17 asks
+ * the digest to carry ("구조 lock의 대상·진행도").
  */
 export type RescueLock = {
   active: boolean
@@ -243,11 +246,16 @@ export type BattleState = {
   originalCommanderId: number
   slotAssignments: SlotAssignment[]
   input: BattleInput
-  /** Kept sorted by ascending id — §1.5 (nearest, ties by id), §1.8 and §1.9 all
-   * resolve ties by id, and `friendliesById` / `enemiesById` are the accessors that
-   * guarantee it for readers that must not depend on insertion order. */
+  /**
+   * §1.5 (nearest, ties by id), §1.8 and §1.9 all resolve ties by ascending id, and
+   * `friendliesById` / `enemiesById` are the ONLY guarantee of that order. Insertion order is
+   * not a contract: it happens to be ascending for the fixed 16-body roster, and it is NOT
+   * ascending for `enemies` — §1.12 gives the elite `ELITE_ID = 1000` while spawn ids climb from
+   * `101` and never reach it, so every enemy spawned after tick 1800 lands behind a larger id.
+   * A reader that walks the array directly is a tie-break bug waiting for the elite to arrive.
+   */
   friendlies: FriendlyUnit[]
-  /** Kept sorted by ascending id; see `friendlies`. */
+  /** See `friendlies`: read it through `enemiesById`, never in array order. */
   enemies: EnemyUnit[]
   spawn: SpawnState
   elite: EliteState

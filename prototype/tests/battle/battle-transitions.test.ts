@@ -1,4 +1,4 @@
-// Batch C fixtures, part 4: §1.16 step 13 — downed/death transitions and §1.5 succession.
+// Batch C fixtures, part 4: §1.16 downed·사망 전이, 복귀·승계 — the transition step.
 //
 // The order inside the step is the rule under test as much as any single transition is:
 // this tick's downs land BEFORE succession looks for a body, which is the only reason
@@ -21,8 +21,8 @@ import {
   findEnemy,
   findFriendly,
 } from '../../src/core/battle/state'
-import { resolveStep3RescueLock } from '../../src/core/battle/rescue'
-import { resolveStep13Transitions } from '../../src/core/battle/transitions'
+import { resolveRescueLock } from '../../src/core/battle/rescue'
+import { resolveTransitions } from '../../src/core/battle/transitions'
 import type { BattleState, FriendlyUnit } from '../../src/core/battle/types'
 
 function unit(state: BattleState, id: number): FriendlyUnit {
@@ -50,7 +50,7 @@ function fixture(standing: Record<number, { x: number; y: number }>, tick = 100)
   return state
 }
 
-describe('§1.16 step 13 downed and death transitions', () => {
+describe("§1.16 downed and death transitions", () => {
   it('sends a friendly at zero hp to downed, not to dead', () => {
     const state = fixture({ [COMMANDER_ID]: { x: 28, y: 16 }, 2: { x: 29, y: 16 } })
     const soldier = unit(state, 2)
@@ -58,7 +58,7 @@ describe('§1.16 step 13 downed and death transitions', () => {
     soldier.targetId = 101
     soldier.lastDisplacement = 0.4
 
-    const outcome = resolveStep13Transitions(state)
+    const outcome = resolveTransitions(state)
 
     expect(soldier.life).toBe('downed')
     expect(soldier.deathTick).toBeNull()
@@ -76,11 +76,11 @@ describe('§1.16 step 13 downed and death transitions', () => {
     soldier.hp = 0
     soldier.downedTicks = DOWNED_TICKS - 2
 
-    expect(resolveStep13Transitions(state).friendlyDeaths).toEqual([])
+    expect(resolveTransitions(state).friendlyDeaths).toEqual([])
     expect(soldier.downedTicks).toBe(DOWNED_TICKS - 1)
     expect(soldier.life).toBe('downed')
 
-    const outcome = resolveStep13Transitions(state)
+    const outcome = resolveTransitions(state)
     expect(outcome.friendlyDeaths).toEqual([2])
     expect(soldier.life).toBe('dead')
     expect(soldier.deathTick).toBe(state.combatTick)
@@ -91,14 +91,14 @@ describe('§1.16 step 13 downed and death transitions', () => {
     const soldier = unit(state, 2)
     soldier.hp = 0
 
-    resolveStep13Transitions(state)
+    resolveTransitions(state)
     expect(soldier.downedTicks).toBe(0)
 
-    resolveStep13Transitions(state)
+    resolveTransitions(state)
     expect(soldier.downedTicks).toBe(1)
   })
 
-  it('kills an enemy at zero hp and hands step 14 its id and its kind', () => {
+  it("kills an enemy at zero hp and hands the accounting its id and its kind", () => {
     const state = fixture({ [COMMANDER_ID]: { x: 28, y: 16 } })
     state.enemies = [
       createEnemy(101, 'melee', { x: 29, y: 16 }),
@@ -109,7 +109,7 @@ describe('§1.16 step 13 downed and death transitions', () => {
     findEnemy(state, 101)!.contactSlotOwnerId = COMMANDER_ID
     findEnemy(state, 1000)!.hp = 0
 
-    const outcome = resolveStep13Transitions(state)
+    const outcome = resolveTransitions(state)
 
     expect(outcome.enemyDeaths).toEqual([
       { id: 101, kind: 'melee' },
@@ -119,7 +119,7 @@ describe('§1.16 step 13 downed and death transitions', () => {
     expect(findEnemy(state, 101)?.deathTick).toBe(state.combatTick)
     expect(findEnemy(state, 101)?.contactSlotOwnerId).toBeNull()
     expect(findEnemy(state, 102)?.life).toBe('standing')
-    // §1.13 excludes the elite from the kill count, so step 14 needs the kind — step 13
+    // §1.13 excludes the elite from the kill count, so the accounting needs the kind — this step
     // does not touch `stats.kills` at all.
     expect(state.stats.kills).toBe(0)
   })
@@ -135,7 +135,7 @@ describe('§1.5 succession', () => {
     })
     unit(state, COMMANDER_ID).hp = 0
 
-    const outcome = resolveStep13Transitions(state)
+    const outcome = resolveTransitions(state)
 
     expect(state.commandUnitId).toBe(3)
     expect(outcome.commandUnitChanged).toBe(true)
@@ -154,7 +154,7 @@ describe('§1.5 succession', () => {
     })
     unit(state, COMMANDER_ID).hp = 0
 
-    resolveStep13Transitions(state)
+    resolveTransitions(state)
     expect(state.commandUnitId).toBe(5)
   })
 
@@ -167,7 +167,7 @@ describe('§1.5 succession', () => {
     unit(state, COMMANDER_ID).hp = 0
     unit(state, 3).hp = 0
 
-    const outcome = resolveStep13Transitions(state)
+    const outcome = resolveTransitions(state)
 
     expect(outcome.friendlyDowns).toEqual([COMMANDER_ID, 3])
     expect(state.commandUnitId).toBe(4)
@@ -187,7 +187,7 @@ describe('§1.5 succession', () => {
     original.life = 'standing'
     original.hp = original.maxHp / 2
 
-    const outcome = resolveStep13Transitions(state)
+    const outcome = resolveTransitions(state)
 
     expect(state.commandUnitId).toBe(COMMANDER_ID)
     expect(outcome.commandUnitChanged).toBe(true)
@@ -207,7 +207,7 @@ describe('§1.5 succession', () => {
     unit(state, COMMANDER_ID).hp = unit(state, COMMANDER_ID).maxHp / 2
     unit(state, 2).hp = 0
 
-    resolveStep13Transitions(state)
+    resolveTransitions(state)
 
     expect(state.commandUnitId).toBe(COMMANDER_ID)
   })
@@ -217,7 +217,7 @@ describe('§1.5 succession', () => {
     unit(state, COMMANDER_ID).hp = 0
     state.input = { move: { x: 0.6, y: -0.8 }, spaceHeld: true }
 
-    resolveStep13Transitions(state)
+    resolveTransitions(state)
 
     // §1.5's stated reason: an inherited move vector puts the new body in a moving state,
     // and §1.11's lock cannot establish while the move vector is non-zero — so the one
@@ -227,39 +227,39 @@ describe('§1.5 succession', () => {
   })
 
   it('reflects succession from the NEXT tick, and drives the new body at its own speed', () => {
-    // §1.5: "승계 결과는 다음 tick의 1단계(입력 적용)부터 반영된다." Succession is step 13 and
-    // command-unit movement is step 4, so the promoted body cannot have moved in the tick it
-    // was promoted in — there is no step 4 left to run.
+    // §1.5: "승계 결과는 다음 tick의 1단계(입력 적용)부터 반영된다." Succession runs after
+    // command-unit movement, so the promoted body cannot have moved in the tick it
+    // was promoted in — there is no movement step left to run.
     const state = fixture({ [COMMANDER_ID]: { x: 28, y: 16 }, 3: { x: 29, y: 16 } })
     state.input = { move: { x: 1, y: 0 }, spaceHeld: false }
     const commander = unit(state, COMMANDER_ID)
     const promoted = unit(state, 3)
 
-    // Tick T, step 4: the player is still driving the commander.
+    // Tick T, the movement step: the player is still driving the commander.
     expect(advanceCommandUnit(state)).toBeCloseTo(COMMANDER_MOVE_SPEED, 12)
     const promotedBefore = { ...promoted.position }
 
-    // Tick T, steps 11 and 13: the commander is finished and command passes.
+    // Tick T, damage and transitions: the commander is finished and command passes.
     commander.hp = 0
-    resolveStep13Transitions(state)
+    resolveTransitions(state)
     expect(state.commandUnitId).toBe(3)
     expect(promoted.position).toEqual(promotedBefore)
 
-    // Tick T+1, step 1 supplies input again (step 13 zeroed the held vector), and step 4
+    // Tick T+1, the input step supplies a vector again (succession zeroed the held one), and
     // moves the promoted body at SOLDIER speed — succession moves command, never the role.
     state.input.move = { x: 0, y: -1 }
     expect(advanceCommandUnit(state)).toBeCloseTo(SOLDIER_MOVE_SPEED, 12)
     expect(promoted.position.y).toBeCloseTo(promotedBefore.y - SOLDIER_MOVE_SPEED, 12)
   })
 
-  it('reports all-units-lost when no standing soldier is left, and leaves the verdict to step 16', () => {
+  it("reports all-units-lost when no standing soldier is left, and leaves the verdict to the 승패 판정", () => {
     const state = fixture({ [COMMANDER_ID]: { x: 28, y: 16 } })
     unit(state, COMMANDER_ID).hp = 0
 
-    const outcome = resolveStep13Transitions(state)
+    const outcome = resolveTransitions(state)
 
     expect(outcome.allUnitsLost).toBe(true)
-    // §1.16 puts the verdict in step 16, with `all-units-lost` outranking `elite-survived`.
+    // §1.16 puts the verdict in the 승패 판정, with `all-units-lost` outranking `elite-survived`.
     expect(state.mode).toBe('running')
     expect(state.result).toBeNull()
     expect(state.failureReason).toBeNull()
@@ -272,12 +272,12 @@ describe('§1.5 succession', () => {
     target.hp = 0
     target.position = { x: 28.5, y: 16 }
     state.input = { move: { x: 0, y: 0 }, spaceHeld: true }
-    resolveStep3RescueLock(state, { movementKeydown: false })
+    resolveRescueLock(state, { movementKeydown: false })
     state.rescue.progress = 20
     expect(state.rescue.targetId).toBe(4)
 
     unit(state, COMMANDER_ID).hp = 0
-    resolveStep13Transitions(state)
+    resolveTransitions(state)
 
     expect(state.rescue).toMatchObject({ active: false, targetId: null, progress: 0 })
     expect(state.commandUnitId).toBe(3)
@@ -291,10 +291,10 @@ describe('§1.5 succession', () => {
     target.downedTicks = DOWNED_TICKS - 1
     target.position = { x: 28.5, y: 16 }
     state.input = { move: { x: 0, y: 0 }, spaceHeld: true }
-    resolveStep3RescueLock(state, { movementKeydown: false })
+    resolveRescueLock(state, { movementKeydown: false })
     state.rescue.progress = 35
 
-    const outcome = resolveStep13Transitions(state)
+    const outcome = resolveTransitions(state)
 
     expect(outcome.friendlyDeaths).toEqual([4])
     expect(state.rescue).toMatchObject({ active: false, targetId: null, progress: 0 })
@@ -306,7 +306,7 @@ describe('§1.5 succession', () => {
     unit(state, 2).hp = SOLDIER_HP
     state.input = { move: { x: 1, y: 0 }, spaceHeld: false }
 
-    const outcome = resolveStep13Transitions(state)
+    const outcome = resolveTransitions(state)
 
     expect(outcome).toMatchObject({
       enemyDeaths: [],

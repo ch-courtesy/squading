@@ -254,9 +254,9 @@ describe('initial authoritative state', () => {
     expect(state.elite.attackPhase).toBe('idle')
     expect(state.upgrades.rounds).toEqual([])
     expect(state.upgrades.remainingPool).toHaveLength(8)
-    // Exactly §1.17's "구조 lock의 대상·진행도" and nothing else. §1.16 puts 구조 진행 (step
-    // 12) after 피해 적용 (step 11), so "was the rescuer hit this tick" is read out of step
-    // 11's return value and never has to be remembered here.
+    // Exactly §1.17's "구조 lock의 대상·진행도" and nothing else. §1.16 puts 구조 진행 after
+    // 피해 적용, so "was the rescuer hit this tick" is read out of the damage step's return
+    // value and never has to be remembered here.
     expect(state.rescue).toEqual({ active: false, targetId: null, progress: 0 })
     expect(state.spawn.requestsInPhase).toBe(0)
     expect(state.spawn.lastRequestTick).toBe(-1)
@@ -294,6 +294,78 @@ describe('initial authoritative state', () => {
         'spawn',
         'stats',
         'upgrades',
+      ].sort(),
+    )
+  })
+
+  it('pins the exact field set of every nested state object too', () => {
+    // The top-level pin above is not enough, and batch C proved it: `spawn.requestsInPhase` was
+    // added to a NESTED object and sailed through. The digest walks the whole tree, so a field
+    // added anywhere in it changes every digest and invalidates every recorded 8-seed band —
+    // and batches E and F are going to add fields to `upgrades` and `elite` next. Each of these
+    // has to be argued in a diff, exactly like the top-level set.
+    const state = createInitialBattleState('seed-a')
+
+    expect(Object.keys(state.spawn).sort()).toEqual(
+      [
+        'backlog',
+        'nextEnemyId',
+        'nextRequestSequence',
+        'lastRequestTick',
+        'requestsInPhase',
+        'discardedByBacklogOverflow',
+        'discardedByAbsoluteCap',
+      ].sort(),
+    )
+    expect(Object.keys(state.elite).sort()).toEqual(
+      [
+        'enemyId',
+        'spawnTick',
+        'attackPhase',
+        'telegraphCenter',
+        'telegraphRemaining',
+        'cooldownRemaining',
+      ].sort(),
+    )
+    expect(Object.keys(state.upgrades).sort()).toEqual(
+      ['remainingPool', 'rounds', 'nextThresholdIndex'].sort(),
+    )
+    expect(Object.keys(state.rescue).sort()).toEqual(['active', 'targetId', 'progress'].sort())
+    expect(Object.keys(state.stats).sort()).toEqual(['kills', 'rescues'].sort())
+    expect(Object.keys(state.input).sort()).toEqual(['move', 'spaceHeld'].sort())
+
+    // The two row types, which grow the digest once per unit rather than once per state.
+    expect(Object.keys(state.friendlies[0]).sort()).toEqual(
+      [
+        'id',
+        'role',
+        'nameIndex',
+        'hp',
+        'maxHp',
+        'life',
+        'position',
+        'attackCooldown',
+        'targetId',
+        'deathTick',
+        'downedTicks',
+        'invulnerableTicks',
+        'rescuedByIds',
+        'lastDisplacement',
+      ].sort(),
+    )
+    expect(Object.keys(createEnemy(101, 'melee', { x: 0, y: 0 })).sort()).toEqual(
+      [
+        'id',
+        'kind',
+        'hp',
+        'maxHp',
+        'life',
+        'position',
+        'attackCooldown',
+        'targetId',
+        'deathTick',
+        'lastDisplacement',
+        'contactSlotOwnerId',
       ].sort(),
     )
   })
@@ -365,6 +437,11 @@ describe('§1.17 determinism and digest', () => {
       ['friendly.nameIndex', (state) => void (state.friendlies[2].nameIndex = 23)],
       ['friendly.deathTick', (state) => void (state.friendlies[2].deathTick = 12)],
       ['friendly.rescuedByIds', (state) => void state.friendlies[2].rescuedByIds.push(4)],
+      // §1.11's two per-unit counters. Both are read by a later tick (the downed timer expires
+      // into death, the window absorbs), so a digest that ignored them would call two different
+      // battles identical.
+      ['friendly.downedTicks', (state) => void (state.friendlies[2].downedTicks = 5)],
+      ['friendly.invulnerableTicks', (state) => void (state.friendlies[2].invulnerableTicks = 5)],
       ['friendly.lastDisplacement', (state) => void (state.friendlies[2].lastDisplacement = 0.1)],
       ['slotAssignments.slotIndex', (state) => void (state.slotAssignments[0].slotIndex = 14)],
       ['enemies (melee)', (state) => void state.enemies.push(createEnemy(900, 'melee', { x: 1, y: 1 }))],
@@ -376,6 +453,9 @@ describe('§1.17 determinism and digest', () => {
       ],
       ['spawn.backlog', (state) => void state.spawn.backlog.push({ id: 900, kind: 'melee', position: { x: 3, y: 4 }, requestedTick: 7, sequence: 0 })],
       ['spawn.nextEnemyId', (state) => void (state.spawn.nextEnemyId = 500)],
+      ['spawn.nextRequestSequence', (state) => void (state.spawn.nextRequestSequence = 7)],
+      ['spawn.lastRequestTick', (state) => void (state.spawn.lastRequestTick = 12)],
+      ['spawn.requestsInPhase', (state) => void (state.spawn.requestsInPhase = 3)],
       ['spawn.discardedByAbsoluteCap', (state) => void (state.spawn.discardedByAbsoluteCap = 1)],
       ['spawn.discardedByBacklogOverflow', (state) => void (state.spawn.discardedByBacklogOverflow = 1)],
       ['elite.enemyId', (state) => void (state.elite.enemyId = 1000)],

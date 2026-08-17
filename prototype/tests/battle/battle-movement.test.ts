@@ -25,7 +25,7 @@ import {
   NO_ENEMY_MOVEMENT,
   advanceCommandUnit,
   advanceFormationFollow,
-  advanceStep5Movement,
+  advanceMovement,
   clampToArena,
   moveEnemyTowards,
   stepMove,
@@ -259,7 +259,7 @@ describe('§1.16 step 5 composition', () => {
     state.enemies = [createEnemy(101, 'melee', { x: 40, y: 16 })]
 
     const order: string[] = []
-    advanceStep5Movement(state, (battle) => {
+    advanceMovement(state, (battle) => {
       // The follower has already moved by the time the enemy rule runs.
       order.push(battle.friendlies[1].lastDisplacement > 0 ? 'after-follow' : 'before-follow')
       moveEnemyTowards(battle.enemies[0], { x: 0, y: 16 }, MELEE_MOVE_SPEED)
@@ -273,7 +273,7 @@ describe('§1.16 step 5 composition', () => {
   it('NO_ENEMY_MOVEMENT is an explicit choice, not a default', () => {
     const state = createInitialBattleState('seed-a')
     state.enemies = [createEnemy(101, 'melee', { x: 40, y: 16 })]
-    advanceStep5Movement(state, NO_ENEMY_MOVEMENT)
+    advanceMovement(state, NO_ENEMY_MOVEMENT)
     expect(state.enemies[0].position).toEqual({ x: 40, y: 16 })
     expect(state.enemies[0].lastDisplacement).toBe(0)
   })

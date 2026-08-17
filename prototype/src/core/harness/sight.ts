@@ -7,7 +7,7 @@
 // cannot be re-run is not evidence.
 //
 // This file used to be `core/battle/sight.ts`. It moved rather than being deleted so the
-// sweep still reproduces, and so the boundary test in `tests/battle/battle-boundaries.test.ts`
+// sweep still reproduces, and so the boundary test in `tests/battle/battle-no-cover.test.ts`
 // can pin that the game path does not reach it.
 //
 //   `hasBattleSight`  — the rule §1.6 had grown by the time it was removed: a rectangle
