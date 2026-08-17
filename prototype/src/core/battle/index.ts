@@ -122,14 +122,47 @@
 //         events of this tick, and it runs after the tick increment.
 //
 // ---------------------------------------------------------------------------
+// Implemented — batch E (the sixteen rules become one tick, and something can drive it)
+// ---------------------------------------------------------------------------
+//   §1.15 input ................................................ input
+//         `BattleInputQueue` turns `event.code` and pointer offsets into `BattleCommand`s;
+//         `applyBattleCommands` is the 입력 적용 row and returns the one-tick
+//         `RescueInputEvents` that §1.11's cancel needs — the cancel is a keydown EVENT and
+//         cannot be read off the held axis. Movement is HELD state (the axis survives ticks
+//         with no input, which is what makes the lock's zero-vector test meaningful), and
+//         §1.15's 금지 상황 is enforced at ENQUEUE, so a paused battle banks nothing.
+//         The queue is NOT in `BattleState` and so not in the digest; it is empty at every
+//         tick boundary, and its held-key set is a function of the input log's prefix.
+//   §1.16 the tick order ....................................... tick
+//         `advanceBattleTick(state, commands)` — the whole table below, in one place, with
+//         §1.1's clock gate in front of it. Input is applied BEFORE the gate, which is what
+//         lets an `Escape` lift a pause and a card resume the run on the tick it unblocked.
+//         Everything derived is RETURNED (`TickResult`), never stored: batch A's no-scratch
+//         rule, and I2/I6/I13 all read their measurements off it.
+//   §6    the facade ........................................... battle
+//         `createBattle(seed)`: start, enqueue input, step, read state, read digest, restart.
+//         Display-agnostic and driverless — no camera, no snapshot, no timer. §4.3 compares a
+//         headless replay against a browser one, which is only a comparison if both drive this.
+//
+// ---------------------------------------------------------------------------
 // Seams — rules a later batch owns, and where each one plugs in
 // ---------------------------------------------------------------------------
-//   §1.15 input queue ................. writes `state.input` only, PLUS the one-tick
-//                                      `RescueInputEvents` it hands `resolveRescueLock` —
-//                                      §1.11's cancel is a keydown EVENT and cannot be read
-//                                      off held state. §1.15's own "포인터 드래그로 목표까지
-//                                      거리가 ARRIVE_EPSILON 미만이면 0으로 클램프" is what
-//                                      makes the lock's zero-vector test meaningful.
+// (The last entry is not a seam. §1.16's table lives here permanently, and it is listed with
+// the seams because it is the thing every future batch has to read before it plugs anything
+// in.)
+//   §4.1 policies (batch F) ........... a policy is a function from `state()` to commands,
+//                                      driven through the facade. `TickResult` already carries
+//                                      what the invariants measure: `damage.damageToFriendlies`
+//                                      (I2), `accounting` (I6), `rescue` (I13), `transitions`.
+//   §1.1 hidden (batch G) ............. the clock gate in `tick.ts` covers `paused` and
+//                                      `awaiting-upgrade`, which are modes. HIDDEN IS NOT A
+//                                      MODE — it is a fact about a document, and nothing under
+//                                      `src/core` can observe it. The shell must not step a
+//                                      hidden tab; no test here can catch it for them.
+//   §1.15 real events (batch G) ....... `keyDown`/`keyUp` take `event.code` strings, and
+//                                      §4.4 wants real `KeyboardEvent`s asserted against them.
+//                                      `MOVE_KEY_VECTORS` fixes `-y` as up; the camera has to
+//                                      agree with that, and only batch G can make it.
 //   §1.16 the tick order .............. THE STEP NUMBERS LIVE HERE AND IN THE REDUCER, AND
 //                                      NOWHERE ELSE — not in function names, not in the
 //                                      comments beside them, not in test names.
@@ -146,7 +179,10 @@
 //                                      batch's, plus a page of prose. Code says what a
 //                                      function DOES; this table says WHEN it runs.
 //
-//                                        1  input application ................. open
+//                                      THE REDUCER IS `advanceBattleTick` (`tick.ts`), and it
+//                                      is the only caller that runs all sixteen in order.
+//
+//                                        1  `applyBattleCommands(state, commands)`
 //                                        2  `resolveEnemyArrivals(state)`
 //                                        3  `resolveRescueLock(state, events)`
 //                                        4  `advanceCommandUnit(state)` -> displacement
@@ -162,7 +198,7 @@
 //                                        12 `advanceRescueProgress(state, outcome)`
 //                                        13 `resolveTransitions(state)` -> outcome
 //                                        14 `resolveKillAccounting(state, outcome)`
-//                                        15 tick increment ..................... open
+//                                        15 `state.combatTick += 1`
 //                                        16 `resolveBattleOutcome(state, outcome)`
 //
 //                                      Step 12 MUST receive step 11's outcome: that is
@@ -172,10 +208,19 @@
 //                                      Steps 14 and 16 both take step 13's outcome: the kill
 //                                      count and the verdict are both facts about the deaths
 //                                      of THIS tick.
-//                                      §1.1: the loop must not run steps at all while `mode`
-//                                      is `paused` or `awaiting-upgrade`; step 16 is what
-//                                      enters the latter and `chooseUpgradeCard` is what
-//                                      leaves it.
+//                                      §1.1: the reducer runs no step at all while `mode` is
+//                                      `paused` or `awaiting-upgrade`; step 16 is what enters
+//                                      the latter and `chooseUpgradeCard` is what leaves it.
+//                                      Step 1 runs AHEAD of that gate — it is how the mode
+//                                      changes — and nothing else does.
+//                                      FOUR OF THESE ROWS ARE NOT TYPE-ENFORCED, and each has
+//                                      a wrong spelling that compiles: `resolveSpawnRequests`
+//                                      for row 2, `advanceEnemyMovement` for row 5, any
+//                                      permutation of row 11's list, and a second
+//                                      `resolveTransitions()` for row 16. All four are caught
+//                                      by the whole-battle fixture in
+//                                      `tests/battle/battle-tick.test.ts`; the batch E report
+//                                      records the mutation run that proves each one bites.
 //   I1 measurement .................... `isEnemyEngaged` (enemy.ts).
 //   I2 measurement .................... `DamageOutcome.damageToFriendlies` already
 //                                      excludes overkill and absorbed hits, which is
@@ -186,12 +231,14 @@
 // See the header of `types.ts` — the digest walks the whole object.
 
 export * from './attacks'
+export * from './battle'
 export * from './constants'
 export * from './damage'
 export * from './digest'
 export * from './elite'
 export * from './enemy'
 export * from './formation'
+export * from './input'
 export * from './movement'
 export * from './names'
 export * from './outcome'
@@ -200,6 +247,7 @@ export * from './spawn'
 export * from './state'
 export * from './streams'
 export * from './targeting'
+export * from './tick'
 export * from './transitions'
 export * from './types'
 export * from './upgrades'
