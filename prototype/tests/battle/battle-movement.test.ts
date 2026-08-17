@@ -406,7 +406,13 @@ describe('§1.7 the arena clamp comes before the terrain test', () => {
   })
 
   it('does not let the clamp walk a trapped unit deeper along the wall', () => {
-    // A unit inside the flush rectangle, pushing -x past the arena edge.
+    // A unit inside the flush rectangle, pushing -x past the arena edge. This START
+    // POSITION is unreachable from seed-generated terrain — the generator insets every
+    // rectangle by TERRAIN_MARGIN = 2.0, so nothing is ever flush against the arena
+    // edge — and can only be built by §4.2's hand-authored fixture terrain. It is also
+    // the only kind of position from which the clamp order is observable at all: a
+    // flush rectangle owns the whole strip between its inner face and the boundary, so
+    // there is no legal position from which a clamp can trigger.
     //   clamp first (the rule): x -> 0.0, which is inside `[0, 4)`, so x is CANCELLED
     //                           and the position does not change at all. Displacement
     //                           0, and §1.6's ejection at the end of step 5 frees it.
@@ -470,33 +476,66 @@ describe('§1.16 step 5: the ejection barrier runs last', () => {
     expect(enemy.position).toEqual({ x: 10 - EJECT_EPSILON, y: 12 })
   })
 
-  it('takes a second pass when the first one lands inside a neighbour', () => {
-    // §4.2 fixtures may author rectangles that touch, and one pass can push a unit
-    // straight into the neighbour. Here the push out of A's -x face lands inside the
-    // thin B, whose own nearest face is -y, so pass 2 frees the point. A single pass
-    // would have returned a still-trapped position while reporting success.
-    const thin: TerrainRect = { kind: 'high', x: 6, y: 11.999, width: 4, height: 0.002 }
-    const blockers: TerrainRect[] = [WALL, thin]
+  it('leaves two touching rectangles in a single push', () => {
+    // A = [10,14) x [10,14) and B = [6,10) x [10,14) share the face x = 10, so the
+    // union spans [6,14) x [10,14). Per-rectangle nearest-face ejection bounces here
+    // forever: out of A through -x lands EJECT_EPSILON inside B, whose nearest face is
+    // now that same seam, and back it goes. Measuring against the union instead:
+    //   -x: boundary 6  -> 5
+    //   +x: boundary 14 -> 3
+    //   -y: boundary 10 -> 2      <- tie with +y, -y wins the order
+    //   +y: boundary 14 -> 2
+    const seam: TerrainRect[] = [WALL, { kind: 'high', x: 6, y: 10, width: 4, height: 4 }]
 
-    const oneShot = ejectFromRects(blockers, 11, 12, EJECT_EPSILON)!
-    expect(containsAny(blockers, oneShot.x, oneShot.y)).toBe(true)
+    // The per-rectangle rule really does fail here: two passes return to the start.
+    const first = ejectFromRects(seam, 11, 12, EJECT_EPSILON)!
+    const second = ejectFromRects(seam, first.x, first.y, EJECT_EPSILON)!
+    expect(containsAny(seam, first.x, first.y)).toBe(true)
+    expect(containsAny(seam, second.x, second.y)).toBe(true)
 
-    const ejected = ejectPoint({ x: 11, y: 12 }, blockers)!
-    expect(containsAny(blockers, ejected.x, ejected.y)).toBe(false)
+    const ejected = ejectPoint({ x: 11, y: 12 }, seam)!
+    expect(ejected.axis).toBe('-y')
+    expect(ejected).toEqual({ x: 11, y: 10 - EJECT_EPSILON, axis: '-y' })
+    expect(containsAny(seam, ejected.x, ejected.y)).toBe(false)
   })
 
-  it('fails loudly when a hand-authored seam cannot be escaped at all', () => {
-    // Two full-size rectangles sharing a face. Nearest-face ejection cannot escape
-    // this: whichever one the point is pushed into, the face it just crossed is now
-    // EJECT_EPSILON away and therefore the nearest, so it bounces straight back. The
-    // loop cannot fix that, and the only honest outcomes are "throw" or "return a
-    // position that is still inside a wall while claiming success". §4.2 terrain is
-    // hand-authored, so this is an authoring bug and it says so.
-    const seam: TerrainRect[] = [WALL, { kind: 'high', x: 6, y: 10, width: 4, height: 4 }]
-    expect(() => ejectPoint({ x: 11, y: 12 }, seam)).toThrow(/could not eject/)
-    // Seed-generated high cover keeps a 5.0 gap from its own class, so it is
-    // unreachable from any seed.
-    expect(HIGH_COVER_MIN_GAP).toBeGreaterThan(0)
+  it('leaves an L of three overlapping rectangles in a single push', () => {
+    // A vertical arm [20,22) x [10,20) and a horizontal arm [20,28) x [10,12),
+    // overlapping in the corner block [20,22) x [10,12). From (21, 11) — inside all
+    // three — the union is the L, and every direction has to clear the whole of it:
+    //   -x: boundary 20 -> 1      <- the winner
+    //   +x: boundary 28 -> 7      (the horizontal arm reaches out to 28)
+    //   -y: boundary 10 -> 1      tie, but -x is earlier in the order
+    //   +y: boundary 20 -> 9      (the vertical arm reaches up to 20)
+    const ell: TerrainRect[] = [
+      { kind: 'high', x: 20, y: 10, width: 2, height: 10 },
+      { kind: 'high', x: 20, y: 10, width: 8, height: 2 },
+      { kind: 'high', x: 20, y: 10, width: 2, height: 2 },
+    ]
+
+    const ejected = ejectPoint({ x: 21, y: 11 }, ell)!
+    expect(ejected).toEqual({ x: 20 - EJECT_EPSILON, y: 11, axis: '-x' })
+    expect(containsAny(ell, ejected.x, ejected.y)).toBe(false)
+  })
+
+  it('breaks a four-way tie at the centre of a square with -x', () => {
+    // Every direction clears the union at exactly 2.0. The distances are compared
+    // before the epsilon is applied, so all four are bit-equal and the tie-break —
+    // not floating-point rounding — decides.
+    const ejected = ejectPoint({ x: 12, y: 12 }, [WALL])!
+    expect(ejected).toEqual({ x: 10 - EJECT_EPSILON, y: 12, axis: '-x' })
+  })
+
+  it('throws when the union cannot be escaped inside the arena', () => {
+    // Hand-authored terrain covering the whole arena: no direction reaches free space
+    // without leaving `[0, 56] x [0, 32]`. §1.6 calls this a terrain-authoring error,
+    // and the alternative — returning a position that is still inside a wall — would
+    // present as a frozen unit ten batches later instead of as a bad fixture now.
+    const sealed: TerrainRect[] = [{ kind: 'high', x: 0, y: 0, width: 56, height: 32 }]
+    expect(() => ejectPoint({ x: 28, y: 16 }, sealed)).toThrow(/cannot leave/)
+    // Unreachable from a seed: high cover keeps a 5.0 gap from its own class and is
+    // inset from the arena edge.
+    expect(HIGH_COVER_MIN_GAP).toBe(5)
   })
 })
 

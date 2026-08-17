@@ -11,7 +11,10 @@
 //                      that sits flush against the arena edge.
 //   ejection (§1.6)  — rectangles are half-open, so a unit found inside one cannot
 //                      be freed by moving it onto a face; it has to be pushed past
-//                      the face by EJECT_EPSILON. §1.16 puts this at the END of step
+//                      the face by EJECT_EPSILON. The direction is measured against
+//                      the UNION of everything containing it, so touching rectangles
+//                      are escaped in one push instead of bouncing. §1.16 puts this
+//                      at the END of step
 //                      5, after everything has moved, and that placement is
 //                      observable: a trapped unit has displacement 0 for that tick,
 //                      so §1.3 lets it fire, and it is freed before step 6 reads
@@ -26,7 +29,7 @@
 // `advanceStep5Movement` as an explicit argument, so it is inside the ejection
 // barrier without having to remember to be.
 
-import { containsAny, ejectFromRects, type Ejection, type Rect } from '../gameplay/geometry'
+import { containsAny, containsPoint, type Axis, type Ejection, type Rect } from '../gameplay/geometry'
 import {
   ARENA_HEIGHT,
   ARENA_WIDTH,
@@ -71,40 +74,138 @@ export function slideMove(from: Vec2, dx: number, dy: number, blockers: readonly
   return { x, y }
 }
 
-/** How many times ejection may bounce between touching rectangles before it gives up. */
-export const EJECT_MAX_PASSES = 4
+/** The four ejection directions, in §1.6's tie-break order. */
+const EJECT_AXES: readonly Axis[] = ['-x', '+x', '-y', '+y']
+
+type UnionExit = {
+  /** Distance to the union boundary, WITHOUT the epsilon (see below). */
+  distance: number
+  /** The boundary coordinate on the travelled axis, without the epsilon. */
+  boundary: number
+}
 
 /**
- * §1.6: nearest-face ejection with the `-x, +x, -y, +y` tie-break.
+ * How far, along one axis, until the point leaves the UNION of every rectangle in
+ * its way — `Infinity` if it cannot be done inside the arena.
  *
- * Looped, not single-pass. Seed-generated high cover keeps a 5.0 gap from its own
- * class so one pass always suffices, but §4.2 REQUIRES hand-authored fixture terrain,
- * where two rectangles may touch and the push out of one can land inside the other.
- * A single pass would return a point that is still trapped while reporting success.
- * Four passes, then a loud failure: a fixture that cannot be escaped is an authoring
- * bug, and silently leaving a unit inside a wall is how it would otherwise present —
- * as a balance anomaly, ten batches later.
+ * The walk is what makes it a union rather than a rectangle: leave the rectangles
+ * that contain the point (taking the furthest face among them, since overlapping
+ * rectangles must all be escaped), then check whether the new coordinate is inside
+ * some *other* rectangle and keep going. Each iteration passes at least one face in
+ * the travel direction, so `blockers.length + 1` iterations is a hard bound.
+ *
+ * `distance` is measured to the boundary and NOT to the final position, so that four
+ * equal distances stay bit-equal. Adding `epsilon` before comparing turns 2.0 into
+ * `2.0020000000000007` on one axis and `2.0019999999999989` on another, and §1.6's
+ * `-x, +x, -y, +y` tie-break — which only exists for exact ties — would be decided by
+ * rounding instead.
+ */
+function unionExit(
+  px: number,
+  py: number,
+  blockers: readonly Rect[],
+  epsilon: number,
+  axis: Axis,
+): UnionExit {
+  const horizontal = axis === '-x' || axis === '+x'
+  const negative = axis === '-x' || axis === '-y'
+  const origin = horizontal ? px : py
+  const limit = horizontal ? ARENA_WIDTH : ARENA_HEIGHT
+
+  let probe = origin
+  // The last real face crossed. `probe` carries the epsilon offset, so it must not be
+  // reported as the boundary — that would apply the epsilon twice, and once per hop
+  // when the walk crosses several rectangles.
+  let lastBoundary = origin
+  for (let step = 0; step <= blockers.length; step += 1) {
+    let boundary: number | null = null
+    for (const rect of blockers) {
+      const x = horizontal ? probe : px
+      const y = horizontal ? py : probe
+      if (!containsPoint(rect, x, y)) continue
+      const face = negative
+        ? horizontal
+          ? rect.x
+          : rect.y
+        : horizontal
+          ? rect.x + rect.width
+          : rect.y + rect.height
+      if (boundary === null) boundary = face
+      else boundary = negative ? Math.min(boundary, face) : Math.max(boundary, face)
+    }
+
+    // Nothing contains the probe: it is out of the union.
+    if (boundary === null) {
+      return { distance: Math.abs(lastBoundary - origin), boundary: lastBoundary }
+    }
+
+    lastBoundary = boundary
+    probe = negative ? boundary - epsilon : boundary + epsilon
+    if (negative ? probe < 0 : probe > limit) return { distance: Infinity, boundary }
+  }
+
+  return { distance: Infinity, boundary: lastBoundary }
+}
+
+/**
+ * §1.6: push a unit out of movement-blocking terrain.
+ *
+ * The direction is chosen against the UNION of every rectangle containing the point,
+ * not against one rectangle's nearest face. Per-rectangle nearest-face ejection
+ * oscillates forever between two rectangles that share a face — the face just crossed
+ * is `EJECT_EPSILON` away and therefore always the nearest one — and no loop count
+ * fixes that, because every pass reverses the previous one. Measuring the escape
+ * distance across the union removes the oscillation by construction: the winning
+ * direction leaves ALL of the terrain in a single push.
+ *
+ * Seed-generated high cover keeps a 5.0 gap from its own class, so a seed can never
+ * produce a touching pair; §4.2's hand-authored fixture terrain can, which is exactly
+ * why the rule cannot rely on the gap.
+ *
+ * Ties break `-x, +x, -y, +y`. A point that cannot leave the union in any direction
+ * without leaving the arena is a terrain-authoring error and throws.
  */
 export function ejectPoint(
   position: Vec2,
   blockers: readonly Rect[],
   epsilon: number = EJECT_EPSILON,
 ): Ejection | null {
-  let current = ejectFromRects(blockers, position.x, position.y, epsilon)
-  if (!current) return null
+  if (!containsAny(blockers, position.x, position.y)) return null
 
-  for (let pass = 1; pass < EJECT_MAX_PASSES; pass += 1) {
-    const again = ejectFromRects(blockers, current.x, current.y, epsilon)
-    if (!again) return current
-    current = again
+  let best: { axis: Axis; distance: number; boundary: number } | null = null
+  for (const axis of EJECT_AXES) {
+    const exit = unionExit(position.x, position.y, blockers, epsilon, axis)
+    if (exit.distance === Infinity) continue
+    // Strict `<` walked in tie-break order: the first axis to own a distance keeps it.
+    if (best === null || exit.distance < best.distance) best = { axis, ...exit }
   }
 
-  if (containsAny(blockers, current.x, current.y)) {
+  if (best === null) {
     throw new Error(
-      `battle/movement: could not eject (${position.x}, ${position.y}) from movement-blocking terrain in ${EJECT_MAX_PASSES} passes (§1.6)`,
+      `battle/movement: (${position.x}, ${position.y}) cannot leave movement-blocking terrain in any direction without leaving the arena — terrain authoring error (§1.6)`,
     )
   }
-  return current
+
+  const ejected: Ejection =
+    best.axis === '-x'
+      ? { x: best.boundary - epsilon, y: position.y, axis: '-x' }
+      : best.axis === '+x'
+        ? { x: best.boundary + epsilon, y: position.y, axis: '+x' }
+        : best.axis === '-y'
+          ? { x: position.x, y: best.boundary - epsilon, axis: '-y' }
+          : { x: position.x, y: best.boundary + epsilon, axis: '+y' }
+
+  // Defensive: the union walk is supposed to make this unreachable. If it ever fires,
+  // the alternative would be handing back a position that is still inside a wall while
+  // reporting success — which presents as a frozen unit and a balance anomaly, not as
+  // a bug in this function.
+  if (containsAny(blockers, ejected.x, ejected.y)) {
+    throw new Error(
+      `battle/movement: ejection of (${position.x}, ${position.y}) via ${best.axis} is still inside movement-blocking terrain (§1.6)`,
+    )
+  }
+
+  return ejected
 }
 
 function ejectUnit(unit: { position: Vec2 }, blockers: readonly Rect[]): boolean {
