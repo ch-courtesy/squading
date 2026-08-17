@@ -171,7 +171,11 @@ export function createInitialBattleState(seed: string): BattleState {
       backlog: [],
       nextEnemyId: FIRST_ENEMY_ID,
       nextRequestSequence: 0,
+      // -1 is "no request has ever been made", which is why `pressurePhaseIndexAt` has to
+      // answer -1 for a negative tick: it is what makes the first request of the run reset
+      // the phase-local melee:shooter index instead of continuing a phase that never ran.
       lastRequestTick: -1,
+      requestsInPhase: 0,
       discardedByBacklogOverflow: 0,
       discardedByAbsoluteCap: 0,
     },
@@ -192,7 +196,7 @@ export function createInitialBattleState(seed: string): BattleState {
       rounds: [],
       nextThresholdIndex: 0,
     },
-    rescue: { active: false, targetId: null, progress: 0 },
+    rescue: { active: false, targetId: null, progress: 0, hitPending: false },
     stats: { kills: 0, rescues: 0 },
   }
 }

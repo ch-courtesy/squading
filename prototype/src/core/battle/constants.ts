@@ -35,6 +35,18 @@ export const COMMANDER_START: Readonly<{ x: number; y: number }> = { x: 28, y: 1
 export const COMBAT_TICK_LIMIT = 2700
 /** §1.1: digest floats are normalized to 6 decimal places. */
 export const DIGEST_DECIMALS = 6
+
+/**
+ * The hp below which a body is at zero — a consequence of §1.1, not a tuning knob.
+ *
+ * Binary floating point does not divide the anchors evenly: five commander shots of `0.20`
+ * against a `1.0`-HP melee leave `5.55e-17` of hp behind, and `hp > 0` at step 13 reads that
+ * as a survivor. The body then needs a sixth shot to die, the kill lands one attack interval
+ * late, and §1.13's kill thresholds drift for the whole run — while the digest, which §1.1
+ * normalizes to 6 decimals, records the thing as having 0 hp. Any residue smaller than the
+ * digest's own resolution is not a state this game distinguishes, so step 12 snaps it away.
+ */
+export const HP_EPSILON = 1e-9
 /** §1.4: 1 commander + 15 soldiers. */
 export const ROSTER_SIZE = 16
 
@@ -278,6 +290,38 @@ assertRule(RANGE_ADVANTAGE > 0, 'the range advantage must be positive (§1.6)')
 assertRule(ELITE_APPROACH_RANGE < SOLDIER_RANGE, 'ELITE_APPROACH_RANGE must be < SOLDIER_RANGE (§1.12)')
 // §1.10: overlapping radii fill the cap with enemies still in transit.
 assertRule(SPAWN_RADIUS >= ENGAGE_RADIUS + 2.0, 'SPAWN_RADIUS must be >= ENGAGE_RADIUS + 2.0 (§1.10)')
+// §1.10: the pressure table is walked by tick and its ratio by a phase-local index, so a
+// gap at tick 0, an out-of-order phase, a zero interval or a 0:0 ratio would each turn a
+// rule into a divide-by-nothing or a silently skipped request rather than a loud failure.
+assertRule(PRESSURE_PHASES.length > 0, 'the pressure curve needs at least one phase (§1.10)')
+assertRule(PRESSURE_PHASES[0].fromTick === 0, 'the first pressure phase must start at tick 0 (§1.10)')
+for (let index = 0; index < PRESSURE_PHASES.length; index += 1) {
+  const phase = PRESSURE_PHASES[index]
+  assertRule(
+    index === 0 || phase.fromTick > PRESSURE_PHASES[index - 1].fromTick,
+    'pressure phases must start on strictly ascending ticks (§1.10)',
+  )
+  assertRule(phase.requestInterval >= 1, 'every pressure phase needs requestInterval >= 1 (§1.10)')
+  assertRule(phase.engagedCap >= 1, 'every pressure phase needs engagedCap >= 1 (§1.10)')
+  assertRule(
+    phase.meleeToShooter[0] >= 0 &&
+      phase.meleeToShooter[1] >= 0 &&
+      phase.meleeToShooter[0] + phase.meleeToShooter[1] >= 1,
+    'every melee:shooter ratio needs a positive total weight (§1.10)',
+  )
+}
+assertRule(BACKLOG_SIZE >= 1, 'BACKLOG_SIZE must be >= 1 (§1.10)')
+assertRule(BACKLOG_DRAIN_PER_TICK >= 1, 'BACKLOG_DRAIN_PER_TICK must be >= 1 (§1.10)')
+// §1.11: a rescue that completes in 0 ticks is not a judgement, and a revive fraction
+// outside (0, 1] is not "최대 HP의 50%".
+assertRule(RESCUE_TICKS >= 1, 'RESCUE_TICKS must be >= 1 (§1.11)')
+assertRule(RESCUE_RANGE > 0, 'RESCUE_RANGE must be positive (§1.11)')
+assertRule(
+  RESCUE_REVIVE_FRACTION > 0 && RESCUE_REVIVE_FRACTION <= 1,
+  'RESCUE_REVIVE_FRACTION must be in (0, 1] (§1.11)',
+)
+assertRule(RESCUE_INVULNERABLE_TICKS >= 0, 'RESCUE_INVULNERABLE_TICKS must be >= 0 (§1.11)')
+assertRule(DOWNED_TICKS >= 1, 'DOWNED_TICKS must be >= 1 (§1.11)')
 // §2: the band is declared as a ratio of SHOOTER_RANGE, so the ratio is what gets
 // checked. Comparing the derived metres against SHOOTER_RANGE alone would accept
 // anything up to 4.5 and miss exactly the kind of drift it exists to catch.
@@ -286,6 +330,12 @@ assertRule(
     SHOOTER_STANDOFF_RATIO[0] < SHOOTER_STANDOFF_RATIO[1] &&
     SHOOTER_STANDOFF_RATIO[1] <= 0.95,
   'SHOOTER_STANDOFF_RATIO must be an increasing band inside [0.60, 0.95] (§2)',
+)
+// §1.1: an hp snap coarser than the digest's own resolution would erase hp the recorded
+// state can see; one finer than accumulated float error would not do its job.
+assertRule(
+  HP_EPSILON > 0 && HP_EPSILON < 10 ** -DIGEST_DECIMALS,
+  'HP_EPSILON must be positive and finer than the digest resolution (§1.1)',
 )
 assertRule(CARD_POOL.length === 8, 'the card pool is exactly 8 cards (§1.13)')
 assertRule(UPGRADE_KILL_THRESHOLDS.length === MAX_UPGRADES, 'there are exactly 4 upgrade thresholds (§1.13)')

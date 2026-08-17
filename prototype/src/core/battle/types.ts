@@ -154,6 +154,16 @@ export type SpawnState = {
   nextEnemyId: number
   nextRequestSequence: number
   lastRequestTick: number
+  /**
+   * §1.10: how many requests this pressure phase has made, which is the index the
+   * melee:shooter ratio walks.
+   *
+   * It has to be remembered rather than derived: the tick a phase makes its first request
+   * on depends on when the previous phase made its last one, so the count is not a function
+   * of `combatTick`. It resets when the phase of `lastRequestTick` differs from the phase of
+   * the current tick.
+   */
+  requestsInPhase: number
   /** §1.10: discarded because the backlog was already full. */
   discardedByBacklogOverflow: number
   /** §1.10: discarded because the absolute live cap was reached. */
@@ -204,6 +214,17 @@ export type RescueLock = {
   active: boolean
   targetId: number | null
   progress: number
+  /**
+   * §1.11: "피격 tick에는 진행도가 증가하지 않으며 감소하지도 않는다", carried across one
+   * tick because §1.16 leaves no other way to say it.
+   *
+   * Rescue progress is step 8 and damage application is step 12, so at the moment progress
+   * is decided this tick's shots have not been fired yet — "was the rescuer hit this tick"
+   * is not a question step 8 can ask. Step 12 raises this flag when the rescuer loses hp
+   * and the next step 8 spends it, which is a genuine later-tick read and therefore
+   * legitimately state rather than a return value. See the header of `rescue.ts`.
+   */
+  hitPending: boolean
 }
 
 /** §1.15: the held movement vector and Space state, both part of the digest. */

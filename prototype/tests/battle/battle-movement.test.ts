@@ -216,7 +216,7 @@ describe('§1.16 step 4: command unit movement', () => {
     const state = createInitialBattleState('seed-a')
     const command = findFriendly(state, 1)!
     state.input.move = { x: 1, y: 0 }
-    state.rescue = { active: true, targetId: 3, progress: 4 }
+    state.rescue = { active: true, targetId: 3, progress: 4, hitPending: false }
 
     expect(advanceCommandUnit(state)).toBe(0)
     expect(command.position).toEqual({ x: COMMANDER_START.x, y: COMMANDER_START.y })
