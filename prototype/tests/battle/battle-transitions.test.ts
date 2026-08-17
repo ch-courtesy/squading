@@ -7,7 +7,13 @@
 
 import { describe, expect, it } from 'vitest'
 
-import { DOWNED_TICKS, SOLDIER_HP } from '../../src/core/battle/constants'
+import {
+  COMMANDER_MOVE_SPEED,
+  DOWNED_TICKS,
+  SOLDIER_HP,
+  SOLDIER_MOVE_SPEED,
+} from '../../src/core/battle/constants'
+import { advanceCommandUnit } from '../../src/core/battle/movement'
 import {
   COMMANDER_ID,
   createEnemy,
@@ -218,6 +224,32 @@ describe('§1.5 succession', () => {
     // rescue succession exists for would be impossible.
     expect(state.input.move).toEqual({ x: 0, y: 0 })
     expect(state.input.spaceHeld).toBe(true)
+  })
+
+  it('reflects succession from the NEXT tick, and drives the new body at its own speed', () => {
+    // §1.5: "승계 결과는 다음 tick의 1단계(입력 적용)부터 반영된다." Succession is step 13 and
+    // command-unit movement is step 4, so the promoted body cannot have moved in the tick it
+    // was promoted in — there is no step 4 left to run.
+    const state = fixture({ [COMMANDER_ID]: { x: 28, y: 16 }, 3: { x: 29, y: 16 } })
+    state.input = { move: { x: 1, y: 0 }, spaceHeld: false }
+    const commander = unit(state, COMMANDER_ID)
+    const promoted = unit(state, 3)
+
+    // Tick T, step 4: the player is still driving the commander.
+    expect(advanceCommandUnit(state)).toBeCloseTo(COMMANDER_MOVE_SPEED, 12)
+    const promotedBefore = { ...promoted.position }
+
+    // Tick T, steps 11 and 13: the commander is finished and command passes.
+    commander.hp = 0
+    resolveStep13Transitions(state)
+    expect(state.commandUnitId).toBe(3)
+    expect(promoted.position).toEqual(promotedBefore)
+
+    // Tick T+1, step 1 supplies input again (step 13 zeroed the held vector), and step 4
+    // moves the promoted body at SOLDIER speed — succession moves command, never the role.
+    state.input.move = { x: 0, y: -1 }
+    expect(advanceCommandUnit(state)).toBeCloseTo(SOLDIER_MOVE_SPEED, 12)
+    expect(promoted.position.y).toBeCloseTo(promotedBefore.y - SOLDIER_MOVE_SPEED, 12)
   })
 
   it('reports all-units-lost when no standing soldier is left, and leaves the verdict to step 16', () => {

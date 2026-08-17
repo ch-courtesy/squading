@@ -1,11 +1,11 @@
-// §1.16 steps 6, 9 and 10: the cooldown pass, friendly attacks, enemy attacks.
+// §1.16 steps 6, 8 and 9: the cooldown pass, friendly attacks, enemy attacks.
 //
-// Nothing here applies damage. §1.16 keeps damage application in its own step (step 12
-// in the spec's table) and this batch does not own it, so steps 9 and 10 RETURN what
-// they resolved and mutate only the attacker's cooldown. That split is not tidiness:
+// Nothing here applies damage. §1.16 keeps damage application in its own step (step 11 in
+// the spec's table), so steps 8 and 9 RETURN what they resolved and mutate only the
+// attacker's cooldown. That split is not tidiness:
 //
 //   * simultaneity — 16 friendlies can fire at one 1.0-HP melee in the same tick. If
-//     step 9 applied damage as it went, the 3rd shot would find the target already
+//     step 8 applied damage as it went, the 3rd shot would find the target already
 //     dead and the other 13 shots would silently vanish, so overkill (which I2 has to
 //     exclude from its accounting) would be unmeasurable.
 //   * `invulnerableTicks` (§1.11) and the `cover` card (§1.13) are DEFENDER-side
@@ -51,14 +51,14 @@ export function advanceStep6Cooldowns(state: BattleState): void {
 }
 
 /**
- * §1.16 step 9 — friendly attacks, "변위 < MOVE_EPSILON인 유닛만".
+ * §1.16 step 8 — friendly attacks, "변위 < MOVE_EPSILON인 유닛만".
  *
  * The target is whatever step 7 chose this tick, so the range test is not repeated:
  * nothing has moved in between. §1.8's "후보가 없으면 그 tick에 공격하지 않고
  * cooldown도 소비하지 않는다" is the `targetId === null` branch — the cooldown is only
  * written when a shot actually happens.
  */
-export function resolveStep9FriendlyAttacks(state: BattleState): DamageEvent[] {
+export function resolveStep8FriendlyAttacks(state: BattleState): DamageEvent[] {
   const events: DamageEvent[] = []
 
   // Ascending id: the event order is part of what the damage step and the kill
@@ -85,7 +85,7 @@ export function resolveStep9FriendlyAttacks(state: BattleState): DamageEvent[] {
 }
 
 /**
- * §1.16 step 10 — enemy attacks.
+ * §1.16 step 9 — enemy attacks.
  *
  * §1.3 does not apply, so an enemy's displacement is never consulted here. What gates
  * each class is §1.9's own description of when it attacks:
@@ -101,10 +101,10 @@ export function resolveStep9FriendlyAttacks(state: BattleState): DamageEvent[] {
  * spend ticks closing. That gap is the whole defensive mechanism now.
  *
  * The elite is skipped: its damage is the telegraph/impact cycle (§1.12), which is
- * step 11 and a later batch, and §1.12 states it deals no contact damage at all. §1.12 no
+ * step 10 and a later batch, and §1.12 states it deals no contact damage at all. §1.12 no
  * longer re-checks sight per target on impact either — there is no sight to re-check.
  */
-export function resolveStep10EnemyAttacks(state: BattleState): DamageEvent[] {
+export function resolveStep9EnemyAttacks(state: BattleState): DamageEvent[] {
   const events: DamageEvent[] = []
   const [standoffLow, standoffHigh] = SHOOTER_STANDOFF
 

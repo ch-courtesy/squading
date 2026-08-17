@@ -1,6 +1,6 @@
-// §1.16 step 12 — damage application.
+// §1.16 step 11 — damage application.
 //
-// Steps 9, 10 and 11 resolve who shot whom and for how much; this is the only step that
+// Steps 8, 9 and 10 resolve who shot whom and for how much; this is the only step that
 // moves hp. Everything defender-side lives here and nowhere else:
 //
 //   * §1.11's invulnerability window, which absorbs a hit whole rather than reducing it;
@@ -17,6 +17,12 @@
 //
 // The returned totals are derived values, not state (the no-scratch rule in `types.ts`): the
 // harness that measures I2 consumes them for the tick it asked for and keeps its own sums.
+//
+// The return value is also how §1.11's hit freeze works. §1.16 puts 구조 진행 at step 12,
+// immediately after this step, precisely so that "그 tick에 지휘 유닛이 피해를 입었는가" can be
+// answered from `Step11Outcome` in the same tick instead of from a flag carried across one.
+// `dealtToUnit` is that read, and it lives here rather than in `rescue.ts` because it is a
+// question about this step's output.
 
 import { HP_EPSILON } from './constants'
 import { findEnemy, findFriendly } from './state'
@@ -35,7 +41,7 @@ export type AppliedDamage = {
   absorbed: boolean
 }
 
-export type Step12Outcome = {
+export type Step11Outcome = {
   applied: AppliedDamage[]
   /** I2's numerator: hp actually removed from friendlies, overkill and absorbs excluded. */
   damageToFriendlies: number
@@ -63,14 +69,41 @@ function targetOf(state: BattleState, event: DamageEvent): FriendlyUnit | EnemyU
     : findFriendly(state, event.targetId)
 }
 
+/** An empty result, for a tick in which nothing was fired. Named so a caller is explicit. */
+export const NO_DAMAGE_THIS_TICK: Readonly<Step11Outcome> = {
+  applied: [],
+  damageToFriendlies: 0,
+  damageToEnemies: 0,
+  overkill: 0,
+  absorbedByInvulnerability: 0,
+}
+
 /**
- * §1.16 step 12, whole. The event list is the concatenation of steps 9, 10 and 11 in that
+ * How much hp this damage step actually took off one unit — §1.11's "피격" test.
+ *
+ * Only real hp loss counts: an event the invulnerability window absorbed is not a 피격 in any
+ * sense the player can see, and `dealt` is already 0 for it. Overkill is excluded for the same
+ * reason it is excluded from I2 — it was never taken.
+ */
+export function dealtToUnit(outcome: Readonly<Step11Outcome>, unitId: number): number {
+  let total = 0
+  for (const entry of outcome.applied) {
+    if (entry.event.targetId !== unitId) continue
+    // `side` is the attacker's side, so an enemy-side event is one aimed AT a friendly.
+    if (entry.event.side !== 'enemy') continue
+    total += entry.dealt
+  }
+  return total
+}
+
+/**
+ * §1.16 step 11, whole. The event list is the concatenation of steps 8, 9 and 10 in that
  * order, and it is applied in that order.
  */
-export function applyStep12Damage(
+export function applyStep11Damage(
   state: BattleState,
   events: readonly DamageEvent[],
-): Step12Outcome {
+): Step11Outcome {
   const applied: AppliedDamage[] = []
   let damageToFriendlies = 0
   let damageToEnemies = 0
@@ -111,20 +144,13 @@ export function applyStep12Damage(
     else damageToFriendlies += dealt
     overkill += wasted
 
-    // §1.11's hit freeze. The rescuer is the command unit, and only real hp loss counts:
-    // an event the invulnerability window absorbed is not a 피격 in any sense the player
-    // can see. Consumed by the NEXT step 8 — see note 2 in `rescue.ts`.
-    if (event.side === 'enemy' && dealt > 0 && state.rescue.active && target.id === state.commandUnitId) {
-      state.rescue.hitPending = true
-    }
-
     applied.push({ event, scaled, dealt, overkill: wasted, absorbed })
   }
 
-  // §1.11: the window burns down once per damage step, including the step of the tick the
-  // rescue completed in — step 8 runs before step 12, so a rescue finished this tick is
-  // already protected here, and the window is exactly RESCUE_INVULNERABLE_TICKS damage
-  // steps long counting that one.
+  // §1.11: the window burns down once per damage step. A rescue that completes THIS tick does
+  // so at step 12, after this loop, so the window it grants covers the next
+  // RESCUE_INVULNERABLE_TICKS damage steps and none of this one — which costs the revived body
+  // nothing, because it was still downed while this step ran and a downed body takes nothing.
   for (const unit of state.friendlies) {
     if (unit.invulnerableTicks > 0) unit.invulnerableTicks -= 1
   }

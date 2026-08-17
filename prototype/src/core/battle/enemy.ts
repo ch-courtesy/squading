@@ -226,7 +226,7 @@ export function advanceEnemyMovement(state: BattleState): void {
       moveEnemyTowards(enemy, retreatWaypoint(enemy, target.position, distance, speed), speed)
       continue
     }
-    // Inside the band: hold and shoot (step 10). This is the whole of the third state.
+    // Inside the band: hold and shoot (step 9). This is the whole of the third state.
     holdStill(enemy)
   }
 }

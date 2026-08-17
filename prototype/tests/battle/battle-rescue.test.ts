@@ -1,4 +1,4 @@
-// Batch C fixtures, part 2: §1.11 rescue — the lock (step 3) and the progress (step 8).
+// Batch C fixtures, part 2: §1.11 rescue — the lock (step 3) and the progress (step 12).
 //
 // Placeholders this file was hand-computed against: RESCUE_RANGE 1.5, RESCUE_TICKS 36,
 // RESCUE_INVULNERABLE_TICKS 45, RESCUE_REVIVE_FRACTION 0.5, SOLDIER_HP 1.4,
@@ -15,13 +15,17 @@ import {
   RESCUE_TICKS,
   SOLDIER_HP,
 } from '../../src/core/battle/constants'
-import { applyStep12Damage } from '../../src/core/battle/damage'
+import {
+  NO_DAMAGE_THIS_TICK,
+  applyStep11Damage,
+  dealtToUnit,
+} from '../../src/core/battle/damage'
 import { advanceCommandUnit } from '../../src/core/battle/movement'
 import {
   cancelRescue,
   rescueCandidateId,
   resolveStep3RescueLock,
-  resolveStep8Rescue,
+  resolveStep12Rescue,
 } from '../../src/core/battle/rescue'
 import { COMMANDER_ID, createInitialBattleState, findFriendly } from '../../src/core/battle/state'
 import type { BattleState, DamageEvent, FriendlyUnit } from '../../src/core/battle/types'
@@ -204,19 +208,22 @@ describe('§1.11 cancellation (step 3)', () => {
   })
 })
 
-describe('§1.11 progress and completion (step 8)', () => {
+describe('§1.11 progress and completion (step 12)', () => {
   it('advances one tick at a time and completes on exactly RESCUE_TICKS', () => {
     const state = fixture({ 2: { dx: 0.5, dy: 0 } })
     resolveStep3RescueLock(state, NO_EVENTS)
     const target = unit(state, 2)
 
     for (let tick = 0; tick < RESCUE_TICKS - 1; tick += 1) {
-      expect(resolveStep8Rescue(state)).toBeNull()
+      expect(resolveStep12Rescue(state, NO_DAMAGE_THIS_TICK)).toBeNull()
     }
     expect(state.rescue.progress).toBe(RESCUE_TICKS - 1)
     expect(target.life).toBe('downed')
 
-    expect(resolveStep8Rescue(state)).toEqual({ targetId: 2, rescuerId: COMMANDER_ID })
+    expect(resolveStep12Rescue(state, NO_DAMAGE_THIS_TICK)).toEqual({
+      targetId: 2,
+      rescuerId: COMMANDER_ID,
+    })
     expect(target.life).toBe('standing')
     expect(state.rescue).toMatchObject({ active: false, targetId: null, progress: 0 })
   })
@@ -230,7 +237,7 @@ describe('§1.11 progress and completion (step 8)', () => {
     target.maxHp = 2.0
     state.rescue.progress = RESCUE_TICKS - 1
 
-    resolveStep8Rescue(state)
+    resolveStep12Rescue(state, NO_DAMAGE_THIS_TICK)
 
     expect(target.hp).toBeCloseTo(2.0 * RESCUE_REVIVE_FRACTION, 12)
     expect(target.hp).toBeCloseTo(target.maxHp / 2, 12)
@@ -241,27 +248,24 @@ describe('§1.11 progress and completion (step 8)', () => {
     expect(state.stats.rescues).toBe(1)
   })
 
-  it('neither advances nor rolls back progress on a hit tick', () => {
+  it('neither advances nor rolls back progress on a hit tick, in the same tick as the hit', () => {
     const state = fixture({ 2: { dx: 0.5, dy: 0 } })
     resolveStep3RescueLock(state, NO_EVENTS)
-    resolveStep8Rescue(state)
-    resolveStep8Rescue(state)
+    resolveStep12Rescue(state, NO_DAMAGE_THIS_TICK)
+    resolveStep12Rescue(state, NO_DAMAGE_THIS_TICK)
     expect(state.rescue.progress).toBe(2)
 
-    // Tick T: the rescuer is shot. Step 12 runs after step 8, so the freeze it causes lands
-    // on the next progress step — the one-tick lag §1.16's ordering forces.
-    applyStep12Damage(state, [shotAt(COMMANDER_ID, 0.3)])
-    expect(state.rescue.progress).toBe(2)
-    expect(state.rescue.hitPending).toBe(true)
-
-    // Tick T+1: no advance, and no rollback either (§1.11: "증가하지 않으며 감소하지도").
-    resolveStep8Rescue(state)
+    // One tick, in §1.16's order: step 11 applies the damage, step 12 reads it. No advance,
+    // and no rollback either (§1.11: "증가하지 않으며 감소하지도 않는다").
+    const damage = applyStep11Damage(state, [shotAt(COMMANDER_ID, 0.3)])
+    expect(dealtToUnit(damage, COMMANDER_ID)).toBeCloseTo(0.3, 12)
+    expect(resolveStep12Rescue(state, damage)).toBeNull()
     expect(state.rescue.progress).toBe(2)
     expect(state.rescue.active).toBe(true)
-    expect(state.rescue.hitPending).toBe(false)
 
-    // Tick T+2, unhit: progress resumes from where it stopped.
-    resolveStep8Rescue(state)
+    // The next quiet tick resumes from where it stopped — the earned progress is kept, so
+    // intermittent fire makes a rescue slow rather than impossible.
+    resolveStep12Rescue(state, NO_DAMAGE_THIS_TICK)
     expect(state.rescue.progress).toBe(3)
   })
 
@@ -272,10 +276,26 @@ describe('§1.11 progress and completion (step 8)', () => {
     bystander.hp = SOLDIER_HP
     resolveStep3RescueLock(state, NO_EVENTS)
 
-    applyStep12Damage(state, [shotAt(bystander.id, 0.3)])
-    expect(state.rescue.hitPending).toBe(false)
+    const damage = applyStep11Damage(state, [shotAt(bystander.id, 0.3)])
+    expect(dealtToUnit(damage, COMMANDER_ID)).toBe(0)
 
-    resolveStep8Rescue(state)
+    resolveStep12Rescue(state, damage)
+    expect(state.rescue.progress).toBe(1)
+  })
+
+  it('does not count a hit the invulnerability window absorbed as a 피격', () => {
+    // The rescuer was itself rescued a moment ago, so it is inside its own window. Nothing
+    // came off its hp, so §1.11's freeze has nothing to freeze.
+    const state = fixture({ 2: { dx: 0.5, dy: 0 } })
+    resolveStep3RescueLock(state, NO_EVENTS)
+    const commander = unit(state, COMMANDER_ID)
+    commander.invulnerableTicks = 5
+
+    const damage = applyStep11Damage(state, [shotAt(COMMANDER_ID, 0.3)])
+    expect(damage.applied[0]).toMatchObject({ absorbed: true, dealt: 0 })
+    expect(dealtToUnit(damage, COMMANDER_ID)).toBe(0)
+
+    resolveStep12Rescue(state, damage)
     expect(state.rescue.progress).toBe(1)
   })
 
@@ -284,26 +304,28 @@ describe('§1.11 progress and completion (step 8)', () => {
     resolveStep3RescueLock(state, NO_EVENTS)
     const target = unit(state, 2)
     state.rescue.progress = RESCUE_TICKS - 1
-    resolveStep8Rescue(state)
+    resolveStep12Rescue(state, NO_DAMAGE_THIS_TICK)
 
     const revived = SOLDIER_HP * RESCUE_REVIVE_FRACTION
     expect(target.hp).toBeCloseTo(revived, 12)
+    expect(target.invulnerableTicks).toBe(RESCUE_INVULNERABLE_TICKS)
 
-    // The completion tick's own damage step is inside the window.
-    const first = applyStep12Damage(state, [shotAt(target.id, 0.5)])
+    // §1.16 puts the revival (step 12) after this tick's damage (step 11), so the window
+    // covers the NEXT RESCUE_INVULNERABLE_TICKS damage steps — which costs the revived body
+    // nothing, because it was still downed while this tick's damage step ran.
+    const first = applyStep11Damage(state, [shotAt(target.id, 0.5)])
     expect(target.hp).toBeCloseTo(revived, 12)
     expect(first.applied[0]).toMatchObject({ absorbed: true, dealt: 0 })
     expect(first.absorbedByInvulnerability).toBeCloseTo(0.5, 12)
     expect(target.invulnerableTicks).toBe(RESCUE_INVULNERABLE_TICKS - 1)
 
-    // The window is exactly RESCUE_INVULNERABLE_TICKS damage steps long, completion tick
-    // included: 1 spent above, so RESCUE_INVULNERABLE_TICKS - 1 quiet ones exhaust it.
+    // 1 window tick spent above, so RESCUE_INVULNERABLE_TICKS - 1 quiet ones exhaust it.
     for (let tick = 0; tick < RESCUE_INVULNERABLE_TICKS - 1; tick += 1) {
-      applyStep12Damage(state, [])
+      applyStep11Damage(state, [])
     }
     expect(target.invulnerableTicks).toBe(0)
 
-    const after = applyStep12Damage(state, [shotAt(target.id, 0.5)])
+    const after = applyStep11Damage(state, [shotAt(target.id, 0.5)])
     expect(target.hp).toBeCloseTo(revived - 0.5, 12)
     expect(after.applied[0]).toMatchObject({ absorbed: false })
   })

@@ -1,4 +1,4 @@
-// §1.11 rescue — the lock (§1.16 step 3) and the progress (step 8).
+// §1.11 rescue — the lock (§1.16 step 3) and the progress (step 12).
 //
 // Three things in here are decisions, and each is argued where it is made.
 //
@@ -13,17 +13,19 @@
 //    and which nothing later in the tick reads. That is also why it is not a field: the
 //    no-scratch rule in `types.ts` reserves `BattleState` for what a LATER tick needs.
 //
-// 2. THE HIT FREEZE LAGS ONE TICK, AND IT HAS TO. §1.11 says progress neither advances nor
-//    rolls back on a hit tick, but §1.16 fixes 구조 진행 at step 8 and damage application at
-//    step 12: at step 8 of tick T, nothing has been fired yet, so "was I hit this tick" is
-//    unknowable. Reading it from the previous damage step is the only reading that keeps
-//    both steps where §1.16 puts them, so step 12 raises `rescue.hitPending` and the NEXT
-//    step 8 spends it. Sustained fire still freezes progress completely, and one isolated
-//    hit still costs exactly one tick — only the phase differs. §1.16 already blesses a
-//    one-tick lag of exactly this shape for enemy movement, and the alternative (moving the
-//    progress commit into step 12) would hide a §1.11 rule inside the damage step and put
-//    revival — hp, invulnerability, the rescue record — in the middle of damage resolution.
-//    Reported as a §1.11/§1.16 contradiction.
+// 2. THE HIT FREEZE IS SAME-TICK, AND THE STEP ORDER IS WHAT MAKES IT SO. §1.11 says progress
+//    neither advances nor rolls back on a tick in which the PERFORMER — "지휘 유닛(구조
+//    수행자)" — took damage. That is only answerable if progress is decided after damage, so
+//    §1.16 places 피해 적용 at step 11 and 구조 진행 at step 12 and states the reason in the
+//    table. `resolveStep12Rescue` therefore takes step 11's `Step11Outcome` as an argument and
+//    reads the hit out of it; there is no flag on `BattleState` and no one-tick lag. An
+//    earlier draft of this batch had both, because the table then put 구조 진행 at step 8, and
+//    the rule was unimplementable as written from there.
+//
+//    The argument is required rather than defaulted: a tick loop that forgets to thread the
+//    damage through would silently make the rescue immune to fire, which is precisely the
+//    tension §1.11 exists to create. `NO_DAMAGE_THIS_TICK` is the explicit way to say "nothing
+//    was fired".
 //
 // 3. RANGE IS TESTED ONLY AT ESTABLISHMENT. §1.11's cancel list does not include "the
 //    target went out of range", and it does not need to: the performer is frozen for the
@@ -37,6 +39,7 @@ import {
   RESCUE_REVIVE_FRACTION,
   RESCUE_TICKS,
 } from './constants'
+import { dealtToUnit, type Step11Outcome } from './damage'
 import { commandUnitOf } from './movement'
 import { findFriendly, friendliesById } from './state'
 import type { BattleState, FriendlyUnit } from './types'
@@ -103,7 +106,6 @@ export function cancelRescue(state: BattleState): void {
   state.rescue.active = false
   state.rescue.targetId = null
   state.rescue.progress = 0
-  state.rescue.hitPending = false
 }
 
 /**
@@ -134,9 +136,8 @@ export function cancelRescueIfBroken(state: BattleState): void {
  *
  * Before movement (step 4), which is what makes "lock이 성립한 tick부터 지휘 유닛은
  * 이동하지 않는다" true without a special case: `advanceCommandUnit` reads `rescue.active`
- * and the flag is already set when it runs. (§1.11's own text says the test happens in
- * "4단계" and calls movement "5단계"; §1.16's numbered table puts the lock at 3 and command
- * movement at 4, and the table is the authority. Reported.)
+ * and the flag is already set when it runs. (An earlier draft of §1.11 said "4단계" here and
+ * called movement "5단계", contradicting §1.16's table; the spec now says 3 and 4.)
  */
 export function resolveStep3RescueLock(
   state: BattleState,
@@ -162,24 +163,31 @@ export function resolveStep3RescueLock(
   state.rescue.active = true
   state.rescue.targetId = candidateId
   state.rescue.progress = 0
-  state.rescue.hitPending = false
 }
 
-/** What step 8 hands back when a rescue finishes; §1.14's record is on the unit itself. */
+/** What step 12 hands back when a rescue finishes; §1.14's record is on the unit itself. */
 export type RescueCompletion = {
   targetId: number
   rescuerId: number
 }
 
 /**
- * §1.16 step 8 — one tick of rescue progress, and the revival when it completes.
+ * §1.16 step 12 — one tick of rescue progress, and the revival when it completes.
+ *
+ * Takes step 11's result, because §1.11's freeze is a question about THIS tick's damage:
+ * "그 tick에 지휘 유닛(구조 수행자)이 피해를 입었으면 진행도가 증가하지 않으며 감소하지도
+ * 않는다." Frozen means frozen in place — the progress already earned is kept, so a rescue
+ * under intermittent fire is slow rather than impossible.
  *
  * §1.11: "완료 시 대상은 최대 HP의 50%로 복귀하고 일정 tick 동안 피해를 받지 않는다." The
  * revival is `maxHp x RESCUE_REVIVE_FRACTION` and nothing else: the v1 review found a
  * `vigor`-boosted rescue reviving at 62.5% because the fraction had been taken against a
  * stored base instead of the live maximum.
  */
-export function resolveStep8Rescue(state: BattleState): RescueCompletion | null {
+export function resolveStep12Rescue(
+  state: BattleState,
+  damage: Readonly<Step11Outcome>,
+): RescueCompletion | null {
   if (!state.rescue.active) return null
 
   const command = commandUnitOf(state)
@@ -188,11 +196,9 @@ export function resolveStep8Rescue(state: BattleState): RescueCompletion | null 
   // order; it must not advance progress against a missing subject in a hand-authored one.
   if (!command || !target) return null
 
-  // The hit from the previous damage step is spent whether or not it froze anything, so a
-  // single hit costs exactly one tick of progress (see note 2 in the header).
-  const frozen = state.rescue.hitPending
-  state.rescue.hitPending = false
-  if (frozen) return null
+  // A lethal hit needs no special case: it froze progress here, and step 13 downs the body and
+  // cancels the lock a moment later.
+  if (dealtToUnit(damage, command.id) > 0) return null
 
   state.rescue.progress += 1
   if (state.rescue.progress < rescueTicksOf(state)) return null

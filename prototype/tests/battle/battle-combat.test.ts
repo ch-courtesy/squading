@@ -30,8 +30,8 @@ import {
 import { advanceCommandUnit } from '../../src/core/battle/movement'
 import {
   advanceStep6Cooldowns,
-  resolveStep10EnemyAttacks,
-  resolveStep9FriendlyAttacks,
+  resolveStep9EnemyAttacks,
+  resolveStep8FriendlyAttacks,
 } from '../../src/core/battle/attacks'
 import { advanceStep7Targeting, selectFriendlyTargetId } from '../../src/core/battle/targeting'
 import { advanceEnemyMovement, isEnemyEngaged } from '../../src/core/battle/enemy'
@@ -89,12 +89,12 @@ describe('§1.3 move/fire exclusivity', () => {
     advanceStep7Targeting(state)
     // Step 7 has no displacement gate: the target is chosen, the shot is not taken.
     expect(commander.targetId).toBe(101)
-    expect(resolveStep9FriendlyAttacks(state)).toEqual([])
+    expect(resolveStep8FriendlyAttacks(state)).toEqual([])
 
     // A ready cooldown does not buy a shot while moving either, and is not spent.
     commander.attackCooldown = 0
     commander.lastDisplacement = COMMANDER_MOVE_SPEED
-    expect(resolveStep9FriendlyAttacks(state)).toEqual([])
+    expect(resolveStep8FriendlyAttacks(state)).toEqual([])
     expect(commander.attackCooldown).toBe(0)
   })
 
@@ -108,7 +108,7 @@ describe('§1.3 move/fire exclusivity', () => {
     advanceStep6Cooldowns(state)
     expect(commander.attackCooldown).toBe(0)
     advanceStep7Targeting(state)
-    expect(resolveStep9FriendlyAttacks(state)).toEqual([
+    expect(resolveStep8FriendlyAttacks(state)).toEqual([
       {
         side: 'friendly',
         attackerId: COMMANDER_ID,
@@ -136,7 +136,7 @@ describe('§1.3 move/fire exclusivity', () => {
     advanceStep6Cooldowns(state)
     expect(commander.attackCooldown).toBe(0)
     advanceStep7Targeting(state)
-    expect(resolveStep9FriendlyAttacks(state)).toHaveLength(1)
+    expect(resolveStep8FriendlyAttacks(state)).toHaveLength(1)
   })
 
   it('does not apply to enemies: their cooldown runs while they close', () => {
@@ -191,11 +191,11 @@ describe('§1.3 move/fire exclusivity', () => {
         if (stopped) stoppedTicks += 1
         // The movement passes are batch A's; here the displacement is the input to
         // §1.3, so it is set directly and the two rules that read it are run in
-        // §1.16's order: step 6, then step 7, then step 9.
+        // §1.16's order: step 6, then step 7, then step 8.
         commander.lastDisplacement = stopped ? 0 : COMMANDER_MOVE_SPEED
         advanceStep6Cooldowns(state)
         advanceStep7Targeting(state)
-        shots += resolveStep9FriendlyAttacks(state).length
+        shots += resolveStep8FriendlyAttacks(state).length
       }
 
       expect(stoppedTicks).toBe(row.stopped)
@@ -261,7 +261,7 @@ describe('§1.8 target selection', () => {
 
     advanceStep7Targeting(state)
     expect(commander.targetId).toBeNull()
-    expect(resolveStep9FriendlyAttacks(state)).toEqual([])
+    expect(resolveStep8FriendlyAttacks(state)).toEqual([])
     expect(commander.attackCooldown).toBe(0)
   })
 })
@@ -280,14 +280,14 @@ describe('§1.9 melee', () => {
     expect(melee.position.y).toBeCloseTo(16, 12)
     expect(melee.lastDisplacement).toBeCloseTo(MELEE_MOVE_SPEED, 12)
     // Out of contact range it does not attack, even with a ready cooldown.
-    expect(resolveStep10EnemyAttacks(state)).toEqual([])
+    expect(resolveStep9EnemyAttacks(state)).toEqual([])
 
     // Inside contact range: displacement is exactly 0 and the attack lands.
     melee.position = { x: 28.5, y: 16 }
     advanceEnemyMovement(state)
     expect(melee.position).toEqual({ x: 28.5, y: 16 })
     expect(melee.lastDisplacement).toBe(0)
-    expect(resolveStep10EnemyAttacks(state)).toEqual([
+    expect(resolveStep9EnemyAttacks(state)).toEqual([
       {
         side: 'enemy',
         attackerId: 101,
@@ -373,7 +373,7 @@ describe('§1.9 shooter', () => {
     expect(approach.shooter.position.x).toBeCloseTo(33.94, 12)
     expect(approach.shooter.position.y).toBeCloseTo(16, 12)
     // §1.9: it fires from the band only, so closing costs it the shot.
-    expect(resolveStep10EnemyAttacks(approach.state)).toEqual([])
+    expect(resolveStep9EnemyAttacks(approach.state)).toEqual([])
 
     // 3.5 is inside the band: exactly zero displacement, and it fires.
     const hold = shooterAt(31.5, 16)
@@ -381,7 +381,7 @@ describe('§1.9 shooter', () => {
     expect(hold.shooter.position).toEqual({ x: 31.5, y: 16 })
     expect(hold.shooter.lastDisplacement).toBe(0)
     expect(isEnemyEngaged(hold.state, hold.shooter)).toBe(true)
-    expect(resolveStep10EnemyAttacks(hold.state)).toEqual([
+    expect(resolveStep9EnemyAttacks(hold.state)).toEqual([
       {
         side: 'enemy',
         attackerId: 201,
@@ -398,7 +398,7 @@ describe('§1.9 shooter', () => {
     expect(retreat.shooter.position.x).toBeCloseTo(30.06, 12)
     expect(retreat.shooter.position.y).toBeCloseTo(16, 12)
     expect(retreat.shooter.lastDisplacement).toBeCloseTo(SHOOTER_MOVE_SPEED, 12)
-    expect(resolveStep10EnemyAttacks(retreat.state)).toEqual([])
+    expect(resolveStep9EnemyAttacks(retreat.state)).toEqual([])
   })
 
   it('uses two target slots per friendly', () => {
@@ -455,7 +455,7 @@ describe('§1.6 range advantage — the mechanism that replaced cover', () => {
     expect(soldier.targetId).toBe(201)
 
     // Both sides get their attack step on the same tick, from the same positions.
-    expect(resolveStep9FriendlyAttacks(state)).toEqual([
+    expect(resolveStep8FriendlyAttacks(state)).toEqual([
       {
         side: 'friendly',
         attackerId: 2,
@@ -464,7 +464,7 @@ describe('§1.6 range advantage — the mechanism that replaced cover', () => {
         cause: 'friendly-attack',
       },
     ])
-    expect(resolveStep10EnemyAttacks(state)).toEqual([])
+    expect(resolveStep9EnemyAttacks(state)).toEqual([])
     expect(isEnemyEngaged(state, shooter)).toBe(false)
   })
 
@@ -476,8 +476,8 @@ describe('§1.6 range advantage — the mechanism that replaced cover', () => {
     soldier.lastDisplacement = 0
 
     advanceStep7Targeting(state)
-    expect(resolveStep9FriendlyAttacks(state)).toHaveLength(1)
-    expect(resolveStep10EnemyAttacks(state)).toEqual([
+    expect(resolveStep8FriendlyAttacks(state)).toHaveLength(1)
+    expect(resolveStep9EnemyAttacks(state)).toEqual([
       {
         side: 'enemy',
         attackerId: 201,
@@ -509,8 +509,8 @@ describe('§1.6 range advantage — the mechanism that replaced cover', () => {
       advanceEnemyMovement(state)
       advanceStep6Cooldowns(state)
       advanceStep7Targeting(state)
-      friendlyShots += resolveStep9FriendlyAttacks(state).length
-      const swings = resolveStep10EnemyAttacks(state).length
+      friendlyShots += resolveStep8FriendlyAttacks(state).length
+      const swings = resolveStep9EnemyAttacks(state).length
       if (swings > 0) {
         enemySwings += swings
         contactTick = tick
@@ -541,8 +541,8 @@ describe('batch B ordering and shape', () => {
     for (const unit of state.friendlies) unit.lastDisplacement = 0
 
     advanceStep7Targeting(state)
-    const friendly = resolveStep9FriendlyAttacks(state)
-    const enemy = resolveStep10EnemyAttacks(state)
+    const friendly = resolveStep8FriendlyAttacks(state)
+    const enemy = resolveStep9EnemyAttacks(state)
     expect(friendly.map((event) => event.attackerId)).toEqual([1, 2])
     expect(enemy.map((event) => event.attackerId)).toEqual([101, 102])
     expect([...friendly, ...enemy].every((event) => event.amount > 0)).toBe(true)
@@ -569,6 +569,6 @@ describe('batch B ordering and shape', () => {
     advanceEnemyMovement(state)
     expect(elite.targetId).toBeNull()
     expect(elite.position).toEqual({ x: 30, y: 16 })
-    expect(resolveStep10EnemyAttacks(state)).toEqual([])
+    expect(resolveStep9EnemyAttacks(state)).toEqual([])
   })
 })

@@ -15,7 +15,7 @@
 //
 // Selection is NOT gated on the stop test. §1.16 step 7 has no displacement clause, and
 // `targetId` is in the digest (§1.17): a moving unit still tracks what it would shoot, it
-// just does not get to shoot it (step 9).
+// just does not get to shoot it (step 8).
 
 import {
   COMMANDER_ATTACK_INTERVAL,
@@ -33,7 +33,7 @@ import type { BattleState, EnemyUnit, FriendlyUnit } from './types'
 /**
  * §1.3: "at or above MOVE_EPSILON" is movement, so stopped is strictly below it.
  *
- * Takes the displacement holder rather than the unit so that step 6 and step 9 cannot
+ * Takes the displacement holder rather than the unit so that step 6 and step 8 cannot
  * disagree about what "stopped" means, and so the test is impossible to write against
  * the input by accident.
  */

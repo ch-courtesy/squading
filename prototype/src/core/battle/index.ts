@@ -36,7 +36,7 @@
 //   §1.3  move/fire exclusivity ................................ targeting, attacks
 //         `isStopped` is the single stop test; step 6
 //         (`advanceStep6Cooldowns`) freezes the cooldown of anything that moved and
-//         step 9 (`resolveStep9FriendlyAttacks`) refuses it the shot. Enemy cooldowns
+//         step 8 (`resolveStep8FriendlyAttacks`) refuses it the shot. Enemy cooldowns
 //         decrement unconditionally, per §1.3's last line. THIS IS THE DESIGN'S ONE
 //         REMAINING CENTRAL BET: the fixture that pins firepower proportional to the
 //         stopped-tick fraction (30/15/10/3 against v5's 30/30/25/30) is the guard.
@@ -59,18 +59,19 @@
 //         discard and count; phase `engagedCap`, measured only inside `ENGAGE_RADIUS` ->
 //         backlog; else spawn. The backlog drains first, up to `BACKLOG_DRAIN_PER_TICK`,
 //         at the coordinates fixed when each entry was requested.
-//   §1.11 rescue (steps 3 and 8) ............................... rescue
+//   §1.11 rescue (steps 3 and 12) .............................. rescue
 //         The lock is HELD state, the cancel is an EVENT: `resolveStep3RescueLock` takes
 //         `RescueInputEvents` because a held movement vector must NOT cancel (the v5
-//         defect §1.11 records). Completion revives at `maxHp x 50%` with the
-//         invulnerability window. `rescue.hitPending` carries §1.11's hit freeze across
-//         one tick, which §1.16's step order leaves no way to avoid — see `rescue.ts`.
-//   §1.16 step 12 damage application ........................... damage
+//         defect §1.11 records). Progress is step 12, AFTER damage, and
+//         `resolveStep12Rescue(state, step11Outcome)` reads §1.11's "피격 tick" out of that
+//         outcome in the same tick — there is no flag on the state and no lag. Completion
+//         revives at `maxHp x 50%` with the invulnerability window.
+//   §1.16 step 11 damage application ........................... damage
 //         The ONLY place hp moves. Defender-side modifiers live here (§1.11's window,
 //         §1.13's `cover` seam), overkill is measured here for I2, and `HP_EPSILON`
 //         snaps away the float residue that would otherwise let a finished body survive.
 //         THE TICK LOOP MUST CALL THIS EVERY TICK, empty list included: it is also where
-//         the invulnerability window burns down.
+//         the invulnerability window burns down, and step 12 needs its return value.
 //   §1.5 / §1.16 step 13 transitions ........................... transitions
 //         Downs, enemy deaths, downed timers, then §1.5 — the unconditional reversion
 //         first, then the promotion loop. Returns `Step13Outcome`, which is what step 14
@@ -90,11 +91,12 @@
 //                                      Arrival: reuse `drawSpawnPosition` (spawn.ts) so
 //                                      there is one draw, and compose it AFTER
 //                                      `resolveStep2Spawn` so tick 1800's draw order is
-//                                      written down somewhere. Blast events go into the
-//                                      step-12 list as `cause: 'elite-blast'`; step 12
-//                                      drops events aimed at a non-standing body, so
-//                                      "does the blast damage a downed friendly" is a
-//                                      §1.12 decision that has to be made explicitly.
+//                                      written down somewhere. The telegraph/impact cycle
+//                                      is step 10; its blast events join the step-11 list
+//                                      as `cause: 'elite-blast'`. Step 11 drops events
+//                                      aimed at a non-standing body, so "does the blast
+//                                      damage a downed friendly" is a §1.12 decision that
+//                                      has to be made explicitly.
 //                                      The elite counts towards BOTH §1.10 caps.
 //   §1.13 upgrades .................... `state.upgrades`; `cards` stream, exactly 3
 //                                      draws per round. `CARD_EFFECTS` gives you the
@@ -122,22 +124,27 @@
 //                                      held state. §1.15's own "포인터 드래그가
 //                                      MOVE_EPSILON 미만이면 0으로 클램프" is what makes
 //                                      the lock's zero-vector test meaningful.
-//   §1.16 the 16-step tick ............ step 2 is `resolveStep2Spawn`; step 3 is
-//                                      `resolveStep3RescueLock(state, events)`; step 4 is
-//                                      `advanceCommandUnit`, which RETURNS the
-//                                      displacement; step 5 is
-//                                      `advanceStep5Movement(state, rule)`. Steps 6, 7,
-//                                      8, 9 and 10 are `advanceStep6Cooldowns`,
-//                                      `advanceStep7Targeting`, `resolveStep8Rescue`,
-//                                      `resolveStep9FriendlyAttacks` and
-//                                      `resolveStep10EnemyAttacks`; the last two RETURN
-//                                      `DamageEvent[]` for `applyStep12Damage`, which is
-//                                      the one place hp, `invulnerableTicks` and overkill
-//                                      are decided. Step 13 is
-//                                      `resolveStep13Transitions`. Steps 11, 14, 15 and
-//                                      16 are still open.
+//   §1.16 the 16-step tick ............ every step this project has, in order. The step
+//                                      NUMBER is part of each name, so a spec renumber
+//                                      renames the functions — the 2026-08-17 move of
+//                                      구조 진행 from 8 to 12 renumbered 9/10/12 down to
+//                                      8/9/11 as a consequence.
+//                                        2  `resolveStep2Spawn(state)`
+//                                        3  `resolveStep3RescueLock(state, events)`
+//                                        4  `advanceCommandUnit(state)` -> displacement
+//                                        5  `advanceStep5Movement(state, enemyRule)`
+//                                        6  `advanceStep6Cooldowns(state)`
+//                                        7  `advanceStep7Targeting(state)`
+//                                        8  `resolveStep8FriendlyAttacks(state)` -> events
+//                                        9  `resolveStep9EnemyAttacks(state)` -> events
+//                                        11 `applyStep11Damage(state, events)` -> outcome
+//                                        12 `resolveStep12Rescue(state, outcome)`
+//                                        13 `resolveStep13Transitions(state)` -> outcome
+//                                      Steps 1, 10, 14, 15 and 16 are still open. Step 12
+//                                      MUST receive step 11's outcome: that is where
+//                                      §1.11's hit freeze is read.
 //   I1 measurement .................... `isEnemyEngaged` (enemy.ts).
-//   I2 measurement .................... `Step12Outcome.damageToFriendlies` already
+//   I2 measurement .................... `Step11Outcome.damageToFriendlies` already
 //                                      excludes overkill and absorbed hits, which is
 //                                      exactly I2's "구조 복귀분과 오버킬 제외".
 //   I13 measurement ................... `stats.rescues` and `rescuedByIds`.

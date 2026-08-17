@@ -196,7 +196,7 @@ export function createInitialBattleState(seed: string): BattleState {
       rounds: [],
       nextThresholdIndex: 0,
     },
-    rescue: { active: false, targetId: null, progress: 0, hitPending: false },
+    rescue: { active: false, targetId: null, progress: 0 },
     stats: { kills: 0, rescues: 0 },
   }
 }

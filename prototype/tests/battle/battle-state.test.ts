@@ -254,15 +254,10 @@ describe('initial authoritative state', () => {
     expect(state.elite.attackPhase).toBe('idle')
     expect(state.upgrades.rounds).toEqual([])
     expect(state.upgrades.remainingPool).toHaveLength(8)
-    // `hitPending` is batch C's one addition to this object: §1.11's hit freeze has to
-    // cross a tick boundary, because step 8 decides progress before step 12 knows who was
-    // hit (see the header of `rescue.ts`).
-    expect(state.rescue).toEqual({
-      active: false,
-      targetId: null,
-      progress: 0,
-      hitPending: false,
-    })
+    // Exactly §1.17's "구조 lock의 대상·진행도" and nothing else. §1.16 puts 구조 진행 (step
+    // 12) after 피해 적용 (step 11), so "was the rescuer hit this tick" is read out of step
+    // 11's return value and never has to be remembered here.
+    expect(state.rescue).toEqual({ active: false, targetId: null, progress: 0 })
     expect(state.spawn.requestsInPhase).toBe(0)
     expect(state.spawn.lastRequestTick).toBe(-1)
     expect(state.combatTick).toBe(0)
