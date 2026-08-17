@@ -29,7 +29,20 @@ import {
 import { advanceEnemyTargeting } from './enemy'
 import { hasBattleSight } from './sight'
 import { enemiesById, sightBlockers } from './state'
-import type { BattleState, EnemyUnit, FriendlyUnit } from './types'
+import type { BattleState, EnemyUnit, FriendlyUnit, Vec2 } from './types'
+
+/**
+ * §1.6 sight between two points of a running battle.
+ *
+ * Lives here rather than in `sight.ts` so that `sight.ts` stays pure geometry — the I9
+ * harness imports it, and §4.3 requires the harness to measure the game's sight, not a
+ * copy of it. The hot paths (steps 7, 9, 10, enemy movement) hoist
+ * `sightBlockers(state)` out of their loops instead of calling this per pair; it
+ * concatenates the two terrain classes on every call.
+ */
+export function hasSightBetween(state: BattleState, from: Vec2, to: Vec2): boolean {
+  return hasBattleSight(from.x, from.y, to.x, to.y, sightBlockers(state))
+}
 
 /**
  * §1.3: "at or above MOVE_EPSILON" is movement, so stopped is strictly below it.

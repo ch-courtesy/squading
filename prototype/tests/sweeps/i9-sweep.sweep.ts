@@ -13,6 +13,7 @@ import { dirname } from 'node:path'
 
 import { describe, it } from 'vitest'
 
+import type { SideRange } from '../../src/core/gameplay/terrain'
 import {
   DEFAULT_HIGH_SIDE,
   LOW_SIDE_RANGES,
@@ -23,7 +24,12 @@ import {
   type SweepCell,
   type SweepCellResult,
 } from '../../src/core/harness/i9-sweep'
-import { I9_BEST_THRESHOLD, I9_MEAN_THRESHOLD } from '../../src/core/harness/i9'
+import {
+  I9_BEST_THRESHOLD,
+  I9_DEFAULT_SIGHT_MODE,
+  I9_MEAN_THRESHOLD,
+  type I9SightMode,
+} from '../../src/core/harness/i9'
 
 const SHOOTER_RANGES = [2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 4.9]
 const LOW_COUNTS = [10, 20, 30, 40]
@@ -38,10 +44,47 @@ const refineShooterSamples = Number(process.env.I9_REFINE_SAMPLES ?? 8192)
 const grid = process.env.I9_GRID ?? 'full'
 const mainHighCount = Number(process.env.I9_HIGH_COUNT ?? 7)
 
+// `I9_SIGHT=legacy` reproduces the pre-exemption measurement so a new run can be
+// compared against the stage-1 report recorded before §1.6 grew the endpoint rule. The
+// default is the sight the game actually plays; gates are read from that one only.
+const requestedSight = process.env.I9_SIGHT ?? I9_DEFAULT_SIGHT_MODE
+if (requestedSight !== 'battle' && requestedSight !== 'legacy') {
+  throw new Error(`I9_SIGHT must be 'battle' or 'legacy', got '${requestedSight}'`)
+}
+const sightMode: I9SightMode = requestedSight
+
 const pilot = grid === 'pilot'
-const ranges = pilot ? PILOT_RANGES : SHOOTER_RANGES
-const sides = pilot ? PILOT_LOW_SIDES : LOW_SIDE_RANGES
-const counts = pilot ? PILOT_LOW_COUNTS : LOW_COUNTS
+
+// Axis overrides. The defaults are the §2 search box and are unchanged; these exist
+// because the measured optimum sits ON the edge of that box in every axis at once
+// (`SHOOTER_RANGE` 4.9, the thinnest low-cover draw, the largest count, the largest high
+// count), which is the classic sign that the optimum is outside it. Probing outside a
+// search box has to be possible from the command line, or the answer to "is there any
+// geometry at all" gets guessed instead of measured.
+//
+//   I9_RANGES=4.9 I9_LOW_SIDES=1.5-2.0,1.5-3.0 I9_LOW_COUNTS=40,120 I9_HIGH_COUNTS=7,20
+function numbers(value: string | undefined, fallback: number[]): number[] {
+  if (!value) return fallback
+  return value.split(',').map((entry) => {
+    const parsed = Number(entry.trim())
+    if (!Number.isFinite(parsed)) throw new Error(`not a number: '${entry}'`)
+    return parsed
+  })
+}
+
+function sideRanges(value: string | undefined, fallback: SideRange[]): SideRange[] {
+  if (!value) return fallback
+  return value.split(',').map((entry) => {
+    const [min, max] = entry.trim().split('-').map(Number)
+    if (!Number.isFinite(min) || !Number.isFinite(max)) throw new Error(`not a side range: '${entry}'`)
+    return { min, max }
+  })
+}
+
+const ranges = numbers(process.env.I9_RANGES, pilot ? PILOT_RANGES : SHOOTER_RANGES)
+const sides = sideRanges(process.env.I9_LOW_SIDES, pilot ? PILOT_LOW_SIDES : LOW_SIDE_RANGES)
+const counts = numbers(process.env.I9_LOW_COUNTS, pilot ? PILOT_LOW_COUNTS : LOW_COUNTS)
+const highCounts = numbers(process.env.I9_HIGH_COUNTS, HIGH_COUNTS)
 
 function buildCells(highCount: number): SweepCell[] {
   const cells: SweepCell[] = []
@@ -145,22 +188,28 @@ describe('I9 geometry sweep', () => {
     const started = performance.now()
     const options = {
       seeds: buildSeeds(seedCount),
-      measurement: { shooterSamples, refineShooterSamples, refineTop: 3 },
+      measurement: { shooterSamples, refineShooterSamples, refineTop: 3, sightMode },
     }
 
     const main = runSweep(buildCells(mainHighCount), options)
-    const secondary = HIGH_COUNTS.filter((count) => count !== mainHighCount).flatMap((count) =>
-      runSweep(buildCells(count), options),
-    )
+    const secondary = highCounts
+      .filter((count) => count !== mainHighCount)
+      .flatMap((count) => runSweep(buildCells(count), options))
     const all = [...main, ...secondary]
     const elapsed = (performance.now() - started) / 1000
 
     const report = [
       `## I9 geometry sweep`,
       ``,
-      `Main grid: high cover = ${mainHighCount}. Secondary grids: high cover = ${HIGH_COUNTS.filter((count) => count !== mainHighCount).join(', ')}.`,
+      `Main grid: high cover = ${mainHighCount}. Secondary grids: high cover = ${highCounts.filter((count) => count !== mainHighCount).join(', ') || 'none'}.`,
+      `axes: SHOOTER_RANGE ${ranges.join(', ')} | low side draws ${sides.map((side) => `${side.min}-${side.max}`).join(', ')} | low counts ${counts.join(', ')}.`,
+      `sight: \`${sightMode}\`${sightMode === 'battle' ? ' — `hasBattleSight`, the same function the game plays (§1.6 endpoint exemption included)' : ' — `hasLineOfSight`, the pre-exemption rule; for comparison against the first stage-1 run only'}.`,
       `\`side*\` is the realised mean side of the rectangles actually placed; \`ratio\` = SHOOTER_RANGE / side*.`,
       `\`strict\` columns drop shooter positions standing inside low cover; \`in-low%\` is the share of blocked positions that were.`,
+      ``,
+      `> Read gates from \`sight: battle\` runs only. Numbers recorded before §1.6 grew its endpoint`,
+      `> exemption were measured with \`sight: legacy\` and are superseded — including the choice of`,
+      `> first sweep axis. See \`.superpowers/sdd/2026-08-15-squad-survivor-vertical-slice-implementation/battle-b-report.md\`.`,
       ``,
       `### Main grid (high cover = ${mainHighCount})`,
       ``,

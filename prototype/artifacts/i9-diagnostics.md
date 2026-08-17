@@ -1,8 +1,12 @@
-## I9 diagnostics — the passable-low-cover artefact
+## I9 diagnostics — units standing inside passable low cover
 
-A unit standing strictly inside a low-cover rectangle is blind and invisible in
-every direction (§1.6: low cover blocks sight, low cover is passable, and any ray
-out of the interior crosses that interior). These are the consequences.
+Low cover blocks sight and is passable (§1.6), so bodies end up standing inside it.
+§1.6's endpoint exemption means such a body is NOT blind: the rectangle it stands in
+does not block its own segments, so it shoots over its sandbags and is visible in
+return. This table counts how often that happens — i.e. how much of the roster gets
+the exemption. (Before the exemption was added to the spec, these same positions
+were blind and untargetable, which is the artefact the stage-1 report measured at
+65% of blocked samples.)
 
 | config | low placed | low area | free-space share inside low | bodies of 16 inside low | any body inside low |
 |---|---:|---:|---:|---:|---:|

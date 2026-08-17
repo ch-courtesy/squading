@@ -19,9 +19,14 @@
 // lives here and every battle rule that asks about sight asks this function:
 // §1.8 target selection, §1.9's shooter, and (later) §1.12's per-target re-check.
 
+// This module deliberately imports NOTHING but the geometry primitives: it is the one
+// sight rule shared by the battle core and the I9 harness (`core/harness/i9.ts`), and
+// §4.3's replay contract needs the harness to measure the sight the game plays. Pulling
+// `BattleState` in here would make the geometry sweep load the whole battle module graph
+// for a function that only wants four numbers and a rectangle list. The state-aware
+// convenience lives in `targeting.ts` instead.
+
 import { containsPoint, segmentIntersectsRect, type Rect } from '../gameplay/geometry'
-import { sightBlockers } from './state'
-import type { BattleState, Vec2 } from './types'
 
 export function hasBattleSight(
   ax: number,
@@ -38,14 +43,4 @@ export function hasBattleSight(
     if (segmentIntersectsRect(ax, ay, bx, by, rect)) return false
   }
   return true
-}
-
-/**
- * Convenience for callers that have the state at hand and are not in a per-unit loop.
- *
- * The hot paths (steps 7, 9, 10 and enemy movement) hoist `sightBlockers(state)` out
- * of their loop instead — it concatenates the two terrain classes on every call.
- */
-export function hasSightBetween(state: BattleState, from: Vec2, to: Vec2): boolean {
-  return hasBattleSight(from.x, from.y, to.x, to.y, sightBlockers(state))
 }

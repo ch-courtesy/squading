@@ -23,12 +23,26 @@
 //   range and in line of sight — exactly I7's "denied opportunity", minus the
 //   cooldown clause.
 //
-// The strict variant additionally throws away shooter positions standing *inside*
-// low cover. Low cover is passable (§1.6), so a shooter can stand in the middle of
-// a sandbag line, where the half-open interior rule blocks its sight in every
-// direction. Those positions are real under the rules as written, but they make
-// I9 rise mechanically with low-cover *area* rather than with cover *geometry*,
-// so both numbers are reported and the gap between them is a finding, not noise.
+// SIGHT — this harness uses the same function the game uses: `hasBattleSight`
+// (§1.6's endpoint exemption included). That was not true when stage 1 first ran:
+// §1.6's "선분의 끝점이 어떤 사각형 내부에 있으면 그 사각형은 그 선분을 막지 않는다" was
+// added to the spec AFTER the sweep, and the sweep was measuring `hasLineOfSight`,
+// which blocks a segment whose endpoint sits inside a rectangle. §4.3's replay contract
+// only means something if the harness and the game agree about sight, so `'battle'` is
+// the default and the only mode any gate should be read from.
+//
+//   `sightMode: 'legacy'` reproduces the pre-exemption measurement, and exists for
+//   exactly one purpose: comparing a new run against the numbers in the stage-1 report
+//   that was recorded before the rule existed. Do not gate on it.
+//
+// The strict variant throws away shooter positions standing *inside* low cover. Under
+// the legacy rule that was a correction: such a shooter was blind in every direction, so
+// I9 rose with low-cover *area* rather than cover *geometry*, and the stage-1 report
+// named the strict column as its prediction of what the exemption would produce. Under
+// the battle rule it is no longer a correction — such a shooter can see out through its
+// own rectangle — so it is now a plain diagnostic: "restricted to shooters not standing
+// in cover". It is still reported, because the two together say whether blocking comes
+// from geometry between the bodies or from bodies buried in terrain.
 //
 // Nothing here consumes the `terrain` stream: sampling uses its own named stream
 // so that changing the sample budget cannot change the layout under test.
@@ -36,17 +50,40 @@
 import { createPrng, type Prng } from '../prng'
 import { resolveFormation } from '../gameplay/formation'
 import { containsAny, hasLineOfSight, type Rect } from '../gameplay/geometry'
+import { hasBattleSight } from '../battle/sight'
 import { ARENA_HEIGHT, ARENA_WIDTH, type TerrainLayout } from '../gameplay/terrain'
 
 export const I9_COMMANDER_SAMPLES = 40
 export const I9_MEAN_THRESHOLD = 0.15
 export const I9_BEST_THRESHOLD = 0.35
 
+/**
+ * `battle` — `hasBattleSight`, what the game plays (§1.6, endpoint exemption included).
+ * `legacy` — `hasLineOfSight`, the pre-exemption rule stage 1 was measured with.
+ */
+export type I9SightMode = 'battle' | 'legacy'
+
+export const I9_DEFAULT_SIGHT_MODE: I9SightMode = 'battle'
+
+type SightTest = (
+  ax: number,
+  ay: number,
+  bx: number,
+  by: number,
+  blockers: readonly Rect[],
+) => boolean
+
+export function sightTestFor(mode: I9SightMode): SightTest {
+  return mode === 'legacy' ? hasLineOfSight : hasBattleSight
+}
+
 export type I9Options = {
   shooterRange: number
   /** §3 fixes this at 40; exposed only so tests can run cheap. */
   commanderSamples?: number
   shooterSamples?: number
+  /** Defaults to `battle`. Only `battle` may be used to judge a gate. */
+  sightMode?: I9SightMode
   /**
    * The max over 40 noisy estimates is biased upward. The top `refineTop` samples
    * are re-measured with `refineShooterSamples` shots and the max of those is
@@ -68,6 +105,7 @@ export type I9CenterResult = {
 
 export type I9Result = {
   shooterRange: number
+  sightMode: I9SightMode
   commanderSamples: number
   shooterSamples: number
   meanBlocked: number
@@ -115,7 +153,9 @@ export function measureCenter(
   shooterRange: number,
   shooterSamples: number,
   prng: Prng,
+  sightMode: I9SightMode = I9_DEFAULT_SIGHT_MODE,
 ): I9CenterResult {
+  const hasSight = sightTestFor(sightMode)
   const members = resolveFormation(centerX, centerY, layout.movementBlockers)
 
   let minX = Infinity
@@ -163,7 +203,7 @@ export function measureCenter(
       const dy = member.y - py
       if (dx * dx + dy * dy > rangeSquared) continue
       inRange = true
-      if (hasLineOfSight(px, py, member.x, member.y, sight)) {
+      if (hasSight(px, py, member.x, member.y, sight)) {
         visible = true
         break
       }
@@ -195,11 +235,14 @@ export function measureI9(layout: TerrainLayout, options: I9Options, prng: Prng)
   const shooterSamples = options.shooterSamples ?? 256
   const refineTop = options.refineTop ?? 3
   const refineShooterSamples = options.refineShooterSamples ?? shooterSamples * 8
+  const sightMode = options.sightMode ?? I9_DEFAULT_SIGHT_MODE
 
   const perCenter: I9CenterResult[] = []
   for (let sample = 0; sample < commanderSamples; sample += 1) {
     const center = sampleFreePoint(prng, layout.movementBlockers)
-    perCenter.push(measureCenter(layout, center.x, center.y, options.shooterRange, shooterSamples, prng))
+    perCenter.push(
+      measureCenter(layout, center.x, center.y, options.shooterRange, shooterSamples, prng, sightMode),
+    )
   }
 
   let ratioSum = 0
@@ -229,6 +272,7 @@ export function measureI9(layout: TerrainLayout, options: I9Options, prng: Prng)
       options.shooterRange,
       refineShooterSamples,
       prng,
+      sightMode,
     )
     if (refined.ratio > bestBlocked) bestBlocked = refined.ratio
     if (refined.strictRatio > bestBlockedStrict) bestBlockedStrict = refined.strictRatio
@@ -240,6 +284,7 @@ export function measureI9(layout: TerrainLayout, options: I9Options, prng: Prng)
 
   return {
     shooterRange: options.shooterRange,
+    sightMode,
     commanderSamples,
     shooterSamples,
     meanBlocked,

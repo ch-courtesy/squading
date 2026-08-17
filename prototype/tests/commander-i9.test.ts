@@ -67,15 +67,42 @@ describe('I9 measurement (§3)', () => {
     expect(measureCenter(layoutOf([]), 24, 16, 4.0, 4000, createPrng('wall')).ratio).toBe(0)
   })
 
-  it('separates the strict variant, where a shooter standing inside low cover does not count', () => {
-    // A shooter strictly inside a low rectangle is blind in every direction, because
-    // any ray out of it crosses the rectangle's own interior. Those positions are
-    // legal under §1.6 (low cover is passable) but they inflate I9 with terrain
-    // *area* rather than terrain *geometry*, so they are reported separately.
+  it('measures the sight the game plays, endpoint exemption included', () => {
+    // §1.6: a rectangle containing an endpoint does not block that segment. A shooter
+    // standing inside a low slab therefore sees out of it, so it is NOT blocked — the
+    // opposite of the legacy rule, where any ray out of the interior crossed that
+    // interior and the position was blind in every direction.
     const slab: TerrainRect = { kind: 'low', x: 22, y: 12, width: 4, height: 4 }
-    const result = measureCenter(layoutOf([slab]), 28, 16, 4.0, 6000, createPrng('slab'))
-    expect(result.ratio).toBeGreaterThan(result.strictRatio)
-    expect(result.strictOpportunities).toBeLessThan(result.opportunities)
+    const layout = layoutOf([slab])
+
+    const battle = measureCenter(layout, 28, 16, 4.0, 6000, createPrng('slab'))
+    const legacy = measureCenter(layout, 28, 16, 4.0, 6000, createPrng('slab'), 'legacy')
+
+    // Same samples (the sampling stream does not depend on the sight rule), so the
+    // opportunity counts match exactly and only the blocked counts move.
+    expect(battle.opportunities).toBe(legacy.opportunities)
+    expect(battle.strictOpportunities).toBe(legacy.strictOpportunities)
+    expect(battle.blocked).toBeLessThan(legacy.blocked)
+
+    // Under the legacy rule the in-cover positions inflated the literal ratio above the
+    // strict one; under the game's rule they no longer count as blocked, so the literal
+    // ratio now sits BELOW the strict one (same numerator, larger denominator).
+    expect(legacy.ratio).toBeGreaterThan(legacy.strictRatio)
+    expect(battle.ratio).toBeLessThan(battle.strictRatio)
+    expect(battle.strictOpportunities).toBeLessThan(battle.opportunities)
+  })
+
+  it('defaults to the battle sight mode and records which one it used', () => {
+    const layout = generateTerrain('seed-47', OPTIONS)
+    const options = { shooterRange: 4.0, commanderSamples: 6, shooterSamples: 64 }
+    const battle = measureI9ForSeed(layout, 'seed-47', options)
+    const legacy = measureI9ForSeed(layout, 'seed-47', { ...options, sightMode: 'legacy' as const })
+
+    expect(battle.sightMode).toBe('battle')
+    expect(legacy.sightMode).toBe('legacy')
+    // The legacy rule counts strictly more positions as blocked, never fewer.
+    expect(legacy.meanBlocked).toBeGreaterThanOrEqual(battle.meanBlocked)
+    expect(battle.totalOpportunities).toBe(legacy.totalOpportunities)
   })
 
   it('never lets a shooter stand inside high cover', () => {

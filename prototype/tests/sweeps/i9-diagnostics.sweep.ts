@@ -1,6 +1,13 @@
-// Side measurements that the main sweep table cannot carry: how much of I9 is the
-// half-open-interior artefact of passable low cover, and what it does to the
-// formation itself. Same runner as the sweep (`npm run sweep:i9`).
+// Side measurements that the main sweep table cannot carry: how often a body ends up
+// standing inside passable low cover, and what that does to the formation. Same runner
+// as the sweep (`npm run sweep:i9`).
+//
+// What the numbers MEAN changed after §1.6 grew its endpoint exemption ("선분의 끝점이
+// 어떤 사각형 내부에 있으면 그 사각형은 그 선분을 막지 않는다"). The measurement is
+// unchanged — it counts containment, never sight — but a body inside low cover is no
+// longer blind and invisible; it is a body that shoots over its own sandbags and can be
+// shot back. So this table now reads as "how much of the roster gets the exemption",
+// which is what turns the exemption from a footnote into a balance input.
 
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { dirname } from 'node:path'
@@ -26,11 +33,15 @@ describe('I9 diagnostics', () => {
   it('measures the passable-cover artefact', () => {
     const seeds = buildSeeds(48)
     const lines = [
-      '## I9 diagnostics — the passable-low-cover artefact',
+      '## I9 diagnostics — units standing inside passable low cover',
       '',
-      'A unit standing strictly inside a low-cover rectangle is blind and invisible in',
-      'every direction (§1.6: low cover blocks sight, low cover is passable, and any ray',
-      'out of the interior crosses that interior). These are the consequences.',
+      'Low cover blocks sight and is passable (§1.6), so bodies end up standing inside it.',
+      "§1.6's endpoint exemption means such a body is NOT blind: the rectangle it stands in",
+      'does not block its own segments, so it shoots over its sandbags and is visible in',
+      'return. This table counts how often that happens — i.e. how much of the roster gets',
+      'the exemption. (Before the exemption was added to the spec, these same positions',
+      'were blind and untargetable, which is the artefact the stage-1 report measured at',
+      '65% of blocked samples.)',
       '',
       '| config | low placed | low area | free-space share inside low | bodies of 16 inside low | any body inside low |',
       '|---|---:|---:|---:|---:|---:|',
