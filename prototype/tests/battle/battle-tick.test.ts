@@ -26,7 +26,7 @@ import {
   RESCUE_RANGE,
 } from '../../src/core/battle/constants'
 import { digestBattleState } from '../../src/core/battle/digest'
-import { BattleInputQueue } from '../../src/core/battle/input'
+import { BattleInputQueue, commandBatch } from '../../src/core/battle/input'
 import type { BattleCommand } from '../../src/core/battle/input'
 import { COMMANDER_ID, createInitialBattleState, findFriendly } from '../../src/core/battle/state'
 import { advanceBattleTick } from '../../src/core/battle/tick'
@@ -73,7 +73,7 @@ describe('§1.1 the clock does not advance outside `running`', () => {
   it('refuses to run before the battle is started', () => {
     const state = createInitialBattleState('seed-a')
 
-    const result = advanceBattleTick(state, NO_COMMANDS)
+    const result = advanceBattleTick(state, commandBatch(NO_COMMANDS))
 
     expect(result.ran).toBe(false)
     expect(state.combatTick).toBe(0)
@@ -82,7 +82,7 @@ describe('§1.1 the clock does not advance outside `running`', () => {
   it('runs exactly one tick while running', () => {
     const state = running()
 
-    const result = advanceBattleTick(state, NO_COMMANDS)
+    const result = advanceBattleTick(state, commandBatch(NO_COMMANDS))
 
     expect(result.ran).toBe(true)
     expect(resolved(result).tick).toBe(0)
@@ -95,7 +95,7 @@ describe('§1.1 the clock does not advance outside `running`', () => {
     const before = digestBattleState(state)
 
     for (let attempt = 0; attempt < 20; attempt += 1) {
-      expect(advanceBattleTick(state, NO_COMMANDS).ran).toBe(false)
+      expect(advanceBattleTick(state, commandBatch(NO_COMMANDS)).ran).toBe(false)
     }
 
     expect(state.combatTick).toBe(0)
@@ -109,21 +109,21 @@ describe('§1.1 the clock does not advance outside `running`', () => {
     // tick it belonged to. Both need a LOOP to show up.
     const state = running()
     while (state.mode === 'running' && state.combatTick < COMBAT_TICK_LIMIT) {
-      advanceBattleTick(state, NO_COMMANDS)
+      advanceBattleTick(state, commandBatch(NO_COMMANDS))
     }
     expect(state.mode).toBe('awaiting-upgrade')
 
     const stalled = digestBattleState(state)
     const stalledTick = state.combatTick
     for (let attempt = 0; attempt < 60; attempt += 1) {
-      expect(advanceBattleTick(state, NO_COMMANDS).ran).toBe(false)
+      expect(advanceBattleTick(state, commandBatch(NO_COMMANDS)).ran).toBe(false)
     }
     expect(state.combatTick).toBe(stalledTick)
     expect(digestBattleState(state)).toBe(stalled)
 
     // The choice arrives on the same call that runs the tick it unblocked — the input
     // application is inside the reducer, ahead of the gate, so a resumed battle loses no tick.
-    const result = advanceBattleTick(state, [{ kind: 'choose-upgrade', slot: 1 }])
+    const result = advanceBattleTick(state, commandBatch([{ kind: 'choose-upgrade', slot: 1 }]))
     expect(result.ran).toBe(true)
     expect(state.combatTick).toBe(stalledTick + 1)
     expect(state.upgrades.rounds[0].chosen).toBe(state.upgrades.rounds[0].offered[0])
@@ -134,12 +134,12 @@ describe('§1.1 the clock does not advance outside `running`', () => {
     const queue = new BattleInputQueue()
 
     queue.keyDown(state, 'Escape')
-    expect(advanceBattleTick(state, queue.drain()).ran).toBe(false)
+    expect(advanceBattleTick(state, queue).ran).toBe(false)
     expect(state.mode).toBe('paused')
     expect(state.combatTick).toBe(0)
 
     queue.keyDown(state, 'Escape')
-    expect(advanceBattleTick(state, queue.drain()).ran).toBe(true)
+    expect(advanceBattleTick(state, queue).ran).toBe(true)
     expect(state.combatTick).toBe(1)
   })
 })
@@ -160,7 +160,7 @@ describe('§1.11 / §1.15 the reducer wires the movement keydown through', () =>
     const queue = new BattleInputQueue()
 
     queue.keyDown(state, 'Space')
-    advanceBattleTick(state, queue.drain())
+    advanceBattleTick(state, queue)
 
     expect(state.rescue.active).toBe(true)
     expect(state.rescue.targetId).toBe(2)
@@ -171,9 +171,9 @@ describe('§1.11 / §1.15 the reducer wires the movement keydown through', () =>
     const queue = new BattleInputQueue()
 
     queue.keyDown(state, 'Space')
-    advanceBattleTick(state, queue.drain())
-    advanceBattleTick(state, queue.drain())
-    advanceBattleTick(state, queue.drain())
+    advanceBattleTick(state, queue)
+    advanceBattleTick(state, queue)
+    advanceBattleTick(state, queue)
 
     expect(state.rescue.active).toBe(true)
     expect(state.rescue.progress).toBe(3)
@@ -184,12 +184,12 @@ describe('§1.11 / §1.15 the reducer wires the movement keydown through', () =>
     const queue = new BattleInputQueue()
 
     queue.keyDown(state, 'Space')
-    advanceBattleTick(state, queue.drain())
-    advanceBattleTick(state, queue.drain())
+    advanceBattleTick(state, queue)
+    advanceBattleTick(state, queue)
     expect(state.rescue.progress).toBe(2)
 
     queue.keyDown(state, 'KeyW')
-    advanceBattleTick(state, queue.drain())
+    advanceBattleTick(state, queue)
 
     // §1.11's cancel is the EVENT, and the reducer is the only thing that can hand it over:
     // a loop that dropped the events argument would still compile if the argument had a
@@ -206,18 +206,65 @@ describe('§1.11 / §1.15 the reducer wires the movement keydown through', () =>
     // lock never establishes at all. That is §1.11's establishment rule, not its cancel.
     queue.keyDown(state, 'KeyW')
     queue.keyDown(state, 'Space')
-    advanceBattleTick(state, queue.drain())
+    advanceBattleTick(state, queue)
     expect(state.rescue.active).toBe(false)
 
     // Release the key. The axis is 0 again and no keydown happens, so the lock establishes on
     // that tick — and, because §1.16 puts 구조 진행 later in the same tick, it also earns its
     // first point of progress there — and then survives the following tick of held Space.
     queue.keyUp(state, 'KeyW')
-    advanceBattleTick(state, queue.drain())
-    advanceBattleTick(state, queue.drain())
+    advanceBattleTick(state, queue)
+    advanceBattleTick(state, queue)
 
     expect(state.rescue.active).toBe(true)
     expect(state.rescue.progress).toBe(2)
+  })
+})
+
+describe('§1.15 the reducer path releases a pause in full, device half included', () => {
+  it('does not carry a held key across a pause when a queue drives the reducer directly', () => {
+    // The facade is not the only sanctioned driver: `advanceBattleTick` and `BattleInputQueue`
+    // are both public, and this pairing is the cheapest harness a batch F sweep can build. Until
+    // the device half moved out of the facade, this path kept `KeyW` in the queue's held set
+    // across the pause and the next press came out as `{1,-1}`.
+    const state = running()
+    const queue = new BattleInputQueue()
+
+    queue.keyDown(state, 'KeyW')
+    advanceBattleTick(state, queue)
+    expect(state.input.move).toEqual({ x: 0, y: -1 })
+
+    queue.keyDown(state, 'Escape')
+    expect(advanceBattleTick(state, queue).ran).toBe(false)
+    expect(state.mode).toBe('paused')
+    expect(state.input.move).toEqual({ x: 0, y: 0 })
+
+    queue.keyDown(state, 'Escape')
+    expect(advanceBattleTick(state, queue).ran).toBe(true)
+    expect(state.mode).toBe('running')
+
+    queue.keyDown(state, 'KeyD')
+    advanceBattleTick(state, queue)
+
+    expect(state.input.move).toEqual({ x: 1, y: 0 })
+  })
+
+  it('refuses a forbidden command that reaches the reducer without a queue', () => {
+    const state = running()
+    const queue = new BattleInputQueue()
+
+    queue.keyDown(state, 'Escape')
+    advanceBattleTick(state, queue)
+    expect(state.mode).toBe('paused')
+
+    const skipped = advanceBattleTick(
+      state,
+      commandBatch([{ kind: 'set-move', move: { x: 1, y: 0 }, keydown: true }]),
+    )
+
+    expect(skipped.ran).toBe(false)
+    expect(skipped.input.discarded).toBe(1)
+    expect(state.input.move).toEqual({ x: 0, y: 0 })
   })
 })
 
@@ -244,7 +291,7 @@ function playToVerdict(seed: string) {
     const commands: BattleCommand[] =
       state.mode === 'awaiting-upgrade' ? [{ kind: 'choose-upgrade', slot: 1 }] : NO_COMMANDS
     const killsBefore = state.stats.kills
-    const tick = resolved(advanceBattleTick(state, commands))
+    const tick = resolved(advanceBattleTick(state, commandBatch(commands)))
 
     // HAZARD 3 — the damage list is the three sources concatenated in §1.16's order.
     let rank = 0

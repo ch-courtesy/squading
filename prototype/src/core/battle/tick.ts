@@ -1,9 +1,14 @@
 // §1.16 — the sixteen rows of the tick table, as one reducer.
 //
-// THE TABLE ITSELF IS IN `index.ts`, and this is the other place §1.16's numbers are allowed
-// to appear (`tests/battle/battle-step-numbers.test.ts` enforces that, and its own header says
-// a bare `// 6` beside a call in a reducer is the sanctioned form). The numbers below are
-// annotations on the ORDER; the names say what each row does.
+// THE TABLE ITSELF IS IN `index.ts`, and the bare numbers below are annotations on the ORDER;
+// the names say what each row does.
+//
+// WHAT THE GUARD ACTUALLY ENFORCES, since a wrong reading of it is worse than none:
+// `tests/battle/battle-step-numbers.test.ts` greps `src/core/battle` and `tests/battle` for the
+// forms `step(s) N` and `N단계`, and allows them in the table alone. A bare `// 6` matches
+// nothing, so the guard permits one in ANY file — it does not reserve the annotation style for
+// this reducer, and nothing does. What keeps the numbers here is the table's own sentence and a
+// reader who has read it.
 //
 // What this file adds that the sixteen functions could not:
 //
@@ -30,7 +35,7 @@
 import { resolveEnemyAttacks, resolveFriendlyAttacks, advanceCooldowns } from './attacks'
 import { applyDamage, type DamageOutcome } from './damage'
 import { advanceAllEnemyMovement, resolveEliteCycle, resolveEnemyArrivals } from './elite'
-import { applyBattleCommands, type BattleCommand, type InputApplication } from './input'
+import { applyBattleCommands, type BattleCommandSource, type InputApplication } from './input'
 import { advanceCommandUnit, advanceMovement } from './movement'
 import { resolveBattleOutcome } from './outcome'
 import { advanceRescueProgress, resolveRescueLock, type RescueCompletion } from './rescue'
@@ -74,17 +79,24 @@ export type TickResult = SkippedTick | ResolvedTick
 /**
  * One tick of the battle, or none.
  *
- * `commands` has no default. Batch C made `resolveRescueLock`'s events argument required so
+ * `source` has no default. Batch C made `resolveRescueLock`'s events argument required so
  * that a loop which never wires §1.11's movement keydown cannot compile; the same argument
  * applies one level up, and this is the only place the events can be produced — they are the
  * return value of applying THIS tick's input, and nothing else in the project knows them.
+ *
+ * IT IS A SOURCE AND NOT AN ARRAY for the same reason. §1.15's pause release has a state half
+ * and a device half, and a driver that hands over `queue.drain()` gets the first without the
+ * second: the battle forgets the axis, the queue does not forget the keys, and the next press
+ * comes out carrying a direction nobody is holding. `BattleInputQueue` is a source; a hand-built
+ * batch becomes one through `commandBatch`, whose `applied` is a no-op because an array has no
+ * device state to release. Passing the array itself does not type-check.
  */
-export function advanceBattleTick(
-  state: BattleState,
-  commands: readonly BattleCommand[],
-): TickResult {
+export function advanceBattleTick(state: BattleState, source: BattleCommandSource): TickResult {
   // 1
-  const input = applyBattleCommands(state, commands)
+  const input = applyBattleCommands(state, source.drain())
+  // The device half of §1.15's pause release, before the gate below can return: it is part of
+  // applying the input, not part of running the tick, and a paused tick runs nothing.
+  source.applied(input)
 
   // §1.1: the clock does not advance in `paused` or `awaiting-upgrade` — nor before the run
   // starts, nor after it has a verdict. The input above has already landed, which is what lets

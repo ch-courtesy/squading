@@ -168,6 +168,62 @@ describe('the facade', () => {
     battle.step()
     expect(battle.state().input.move).toEqual({ x: 1, y: 0 })
   })
+
+  it('releases the pause in full even when the same batch resumes out of it', () => {
+    const battle = createBattle('seed-a')
+    battle.start()
+    battle.keyDown('KeyW')
+    battle.step()
+    expect(battle.state().input.move).toEqual({ x: 0, y: -1 })
+
+    // Two `Escape`s and a direction key inside ONE batch. The battle ends the batch `running`,
+    // and the release still stands: the pause WAS entered, and the movement command behind it
+    // was built from a held-key set the pause has since thrown away. Applying it would rebuild
+    // the very axis §1.15 had just released, so it is discarded and the player re-presses.
+    battle.keyDown('Escape')
+    battle.keyDown('Escape')
+    battle.keyDown('KeyD')
+    battle.step()
+
+    expect(battle.mode()).toBe('running')
+    expect(battle.state().input.move).toEqual({ x: 0, y: 0 })
+
+    // And `KeyW` is gone from the queue too, so the re-press is the whole axis and not `KeyW`
+    // riding along on it.
+    battle.keyDown('KeyD')
+    battle.step()
+    expect(battle.state().input.move).toEqual({ x: 1, y: 0 })
+  })
+
+  it('lets a held key go up at the card screen instead of walking on without it', () => {
+    const battle = createBattle('seed-a')
+    battle.start()
+    expect(battle.keyDown('KeyW')).toBe(true)
+    expect(battle.keyDown('Space')).toBe(true)
+    battle.step()
+    expect(battle.state().input.move).toEqual({ x: 0, y: -1 })
+    expect(battle.state().input.spaceHeld).toBe(true)
+
+    while (battle.mode() === 'running') {
+      if (battle.state().combatTick > COMBAT_TICK_LIMIT) throw new Error('no card screen came')
+      battle.step()
+    }
+    expect(battle.mode()).toBe('awaiting-upgrade')
+
+    // §1.13 guarantees four of these screens a run, and the player is very likely holding a
+    // direction key at each one. A refused keyup leaves the commander walking north with
+    // nothing pressed, and no `Space` release can reach `state.input` either.
+    expect(battle.keyUp('KeyW')).toBe(true)
+    expect(battle.keyUp('Space')).toBe(true)
+    battle.enqueue({ kind: 'choose-upgrade', slot: 1 })
+    battle.step()
+
+    expect(battle.state().input.move).toEqual({ x: 0, y: 0 })
+    expect(battle.state().input.spaceHeld).toBe(false)
+
+    for (let step = 0; step < 30; step += 1) battle.step()
+    expect(battle.state().input.move).toEqual({ x: 0, y: 0 })
+  })
 })
 
 describe('§1.17 / §4.2 the same seed and the same log replay identically', () => {

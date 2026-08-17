@@ -6,7 +6,7 @@
 // from a log. Both drive the identical path, which is what §4.3 asks for ("같은 seed·같은
 // 입력 로그를 헤드리스 재생과 실시간 브라우저 재생에서" agreeing).
 //
-// Three shapes here are rules, not conveniences:
+// Four shapes here are rules, not conveniences:
 //
 //   1. MOVEMENT IS HELD AXIS STATE. `state.input.move` survives ticks with no input, because
 //      §1.11's lock condition reads "그 tick의 이동 입력 벡터가 0" — a per-tick impulse would
@@ -17,9 +17,20 @@
 //      hundred ticks after it. `applyBattleCommands` returns `RescueInputEvents` for exactly
 //      the one tick in question, and `resolveRescueLock` takes it as a required argument
 //      (`rescue.ts` says why).
-//   3. A FORBIDDEN INPUT IS NEVER QUEUED. §1.15: "금지 상황의 입력은 queue에 넣지 않는다."
-//      Refusing at APPLY time instead would still be correct for one tick and wrong for the
-//      run: a paused battle would bank a burst of movement that all lands on resume.
+//   3. A FORBIDDEN INPUT IS NEVER QUEUED, AND IS REFUSED AGAIN WHEN IT IS APPLIED. §1.15:
+//      "금지 상황의 입력은 queue에 넣지 않는다." The enqueue filter is the half that clause names
+//      and the reason it is worth having: refusing only at apply time would let a paused battle
+//      bank a burst of movement that all lands on resume. But the queue is a FAST PATH, not the
+//      enforcer — `advanceBattleTick` and `applyBattleCommands` are public too, and batch F's
+//      policies build commands without a queue anywhere near them. So `applyBattleCommands`
+//      runs the same predicate over the batch it is handed. Both answers come from
+//      `commandIsAllowed`, so asking twice cannot disagree.
+//   4. A RELEASE IS NOT A FORBIDDEN INPUT, IN ANY MODE. §1.15's 금지 상황 gates the START of an
+//      input. Refusing a `keyup` does not stop the player from having let go of the key; it only
+//      makes `state.input` claim they did not, and §1.11's lock condition ("그 tick의 이동 입력
+//      벡터가 0") is then unreachable for as long as the phantom axis lasts. The one place a
+//      release IS dropped is the same-tick pause clause below, and that is because those
+//      commands were built from a held-key set the pause has already thrown away.
 //
 // WHAT IS NOT IN THE DIGEST, AND WHY THAT IS SOUND: the queue and its held-key set are not
 // part of `BattleState` (see the no-scratch rule in `types.ts`), so §1.17's digest does not
@@ -31,8 +42,7 @@
 
 import { ARRIVE_EPSILON } from './constants'
 import type { RescueInputEvents } from './rescue'
-import { pendingUpgradeRound } from './upgrades'
-import { chooseUpgradeCard } from './upgrades'
+import { chooseUpgradeCard, pendingUpgradeRound } from './upgrades'
 import type { BattleState, Vec2 } from './types'
 
 /**
@@ -73,6 +83,23 @@ export const MOVE_KEY_VECTORS: Readonly<Record<string, Vec2>> = {
   ArrowRight: { x: 1, y: 0 },
 }
 
+/**
+ * The table lookup, and the ONLY way this module is allowed to read it.
+ *
+ * `MOVE_KEY_VECTORS` is an object, and every object answers to `toString`, `constructor`,
+ * `valueOf` and `hasOwnProperty`. A bare `MOVE_KEY_VECTORS[code]` therefore says "yes, that is a
+ * movement key" for four strings this game has never heard of, and the vector it hands back is a
+ * FUNCTION: `sumHeldKeys` adds `undefined` to the axis and `state.input.move` becomes
+ * `{NaN, NaN}`, which §1.17's digest normalizes to `null` — so two states corrupted in different
+ * ways hash to the same value, which is the one thing the digest exists to prevent.
+ *
+ * `event.code` never produces those strings, but the queue is a public seam: batch F replays
+ * serialized input logs through it and batch G feeds it whatever the DOM hands over.
+ */
+function moveVectorFor(code: string): Vec2 | null {
+  return Object.hasOwn(MOVE_KEY_VECTORS, code) ? MOVE_KEY_VECTORS[code] : null
+}
+
 /** §1.15: 구조 `Space` 유지. */
 export const RESCUE_KEY_CODE = 'Space'
 /** §1.15: 강화 `1` `2` `3`, in offered order. */
@@ -88,11 +115,25 @@ export type PointerPhase = 'down' | 'move'
  *
  * Exported because the queue is not the only enqueuer — batch F's policy harness and batch G's
  * controller both build commands, and a second copy of this rule is a second place for it to
- * drift.
+ * drift. It is also what `applyBattleCommands` re-checks, so the three public entry points
+ * (`Battle.step`, `advanceBattleTick`, `applyBattleCommands`) answer with one rule and not three.
+ *
+ * THE RULE GATES THE START OF AN INPUT, NOT ITS END (§1.15). A release — `keyup`, `Space` up, a
+ * pointer coming off — is accepted in every mode there is. Refusing one does not un-press the
+ * key; it makes `state.input` say a key is held that the player let go of, and §1.11's lock
+ * ("그 tick의 이동 입력 벡터가 0") then cannot be satisfied at all. In the command vocabulary
+ * that is `keydown === false` on a `set-move` and `held === false` on a `set-rescue`.
+ *
+ * A CONTINUED POINTER DRAG WEARS THE SAME SHAPE, and is admitted on the same terms, which is
+ * sound rather than an oversight: `pointerDrag` refuses a `'move'` with no pointer already down
+ * (see it), and §1.15's pause release forgets the pointer along with the keys — so the only
+ * `'move'` that survives into a non-`running` mode is one continuing a pointer that went down
+ * while the battle was running, which is a held input and not a new one.
  *
  * The readings §1.15 does not write out, and why each is the one that needs no further rule:
  *
- *   * `ready`, `won`, `lost` take nothing. A run that has not begun or has ended has no input.
+ *   * `ready`, `won`, `lost` START nothing. A run that has not begun or has ended takes no new
+ *     input; it still takes the news that a key came up.
  *   * a card key needs a round WAITING for a card, in any mode. §1.13's `chooseUpgradeCard`
  *     already refuses to un-pause a paused battle, so "choose while paused" is representable
  *     and harmless; a key that maps to no offered card is not.
@@ -103,8 +144,9 @@ export type PointerPhase = 'down' | 'move'
 export function commandIsAllowed(state: Readonly<BattleState>, command: BattleCommand): boolean {
   switch (command.kind) {
     case 'set-move':
+      return state.mode === 'running' || !command.keydown
     case 'set-rescue':
-      return state.mode === 'running'
+      return state.mode === 'running' || !command.held
     case 'choose-upgrade': {
       if (state.mode !== 'running' && state.mode !== 'paused' && state.mode !== 'awaiting-upgrade') {
         return false
@@ -132,10 +174,54 @@ function releaseHeldInput(state: BattleState): void {
 export type InputApplication = {
   /** §1.11's one-tick cancel event, for the rescue lock. */
   events: RescueInputEvents
-  /** §1.15: how many movement/rescue commands the pause in this batch threw away. */
+  /** §1.15: how many commands of this batch were refused, by either clause below. */
   discarded: number
-  /** True when a `toggle-pause` in this batch was the one that ENTERED pause. */
+  /**
+   * True when a `toggle-pause` in this batch ENTERED pause — whether or not a later one in the
+   * same batch resumed out of it. Sticky on purpose: what the pause released does not come back
+   * just because the battle is running again by the end of the batch, and the driver's device
+   * state has to be cleared on the strength of the pause having happened at all.
+   */
   pauseEntered: boolean
+}
+
+/**
+ * Where a tick's commands come from, and where the news of applying them goes back to.
+ *
+ * Two methods rather than one array, because §1.15's pause release has TWO halves that must not
+ * be able to separate: `applyBattleCommands` zeroes `state.input`, and whoever owns the device
+ * state has to forget which keys are down, or the next keyup rebuilds an axis out of keys the
+ * paused game already threw away. The state half is the reducer's and the device half is the
+ * source's, so the reducer takes a source and calls both.
+ *
+ * `advanceBattleTick` accepts NOTHING ELSE — in particular not a `BattleCommand[]`, which is
+ * what `queue.drain()` returns. That is the point: the shape that gets the state half without
+ * the device half does not type-check.
+ */
+export type BattleCommandSource = {
+  /** This tick's commands, oldest first. The source holds none afterwards. */
+  drain(): readonly BattleCommand[]
+  /** What applying them did, in the same tick, before the clock gate has had its say. */
+  applied(application: InputApplication): void
+}
+
+/**
+ * A hand-built batch as a source, for a fixture or a policy that has no device behind it.
+ *
+ * `applied` is a no-op BECAUSE an array owns no device state — there is no held-key set for a
+ * pause to release. That is the whole difference between this and `BattleInputQueue`, and it is
+ * why a driver that has a queue must hand over the queue and not its drained array.
+ */
+export function commandBatch(commands: readonly BattleCommand[]): BattleCommandSource {
+  let pending: readonly BattleCommand[] = commands
+  return {
+    drain(): readonly BattleCommand[] {
+      const drained = pending
+      pending = []
+      return drained
+    },
+    applied(): void {},
+  }
 }
 
 /**
@@ -146,9 +232,15 @@ export type InputApplication = {
  * tick leave the axis at the third one's value, which is the axis the player is actually
  * holding.
  *
- * §1.15's second pause clause is the `pauseEntered` branch: once a pause has been applied,
- * the movement and rescue commands still sitting behind it in the SAME batch are dropped,
- * because they were legal when they were enqueued and are not any more.
+ * TWO CLAUSES REFUSE A COMMAND HERE, and they are different rules:
+ *
+ *   * §1.15's second pause clause, the `pauseEntered` branch: once a pause has been applied, the
+ *     movement and rescue commands still sitting behind it in the SAME batch are dropped — every
+ *     one of them, releases included. They were built from a held-key set the pause has since
+ *     released, so applying one would rebuild the axis the pause just took away.
+ *   * §1.15's 금지 상황, re-checked against the state as it stands. The queue already refused
+ *     these at enqueue; this is the copy that holds for the OTHER two public entry points, which
+ *     have no queue in front of them. Both readings come from `commandIsAllowed`.
  */
 export function applyBattleCommands(
   state: BattleState,
@@ -163,6 +255,10 @@ export function applyBattleCommands(
       discarded += 1
       continue
     }
+    if (!commandIsAllowed(state, command)) {
+      discarded += 1
+      continue
+    }
 
     switch (command.kind) {
       case 'set-move':
@@ -174,9 +270,9 @@ export function applyBattleCommands(
         break
       case 'choose-upgrade': {
         const round = pendingUpgradeRound(state)
-        // Unreachable through the queue, which refuses the key when no round waits. Throwing
-        // rather than ignoring is `chooseUpgradeCard`'s own argument: a drifted mapping must
-        // fail where it is wrong.
+        // Unreachable: `commandIsAllowed` above has already refused a slot with no round behind
+        // it. Kept as the assertion that the two never drift — `chooseUpgradeCard`'s own
+        // argument is that a drifted mapping must fail where it is wrong rather than pick a card.
         if (!round) throw new Error('battle/input: no upgrade round is waiting for a choice (§1.13)')
         chooseUpgradeCard(state, round.offered[command.slot - 1])
         break
@@ -200,7 +296,7 @@ function sumHeldKeys(held: ReadonlySet<string>): Vec2 {
   let x = 0
   let y = 0
   for (const code of held) {
-    const vector = MOVE_KEY_VECTORS[code]
+    const vector = moveVectorFor(code)
     if (!vector) continue
     x += vector.x
     y += vector.y
@@ -220,8 +316,12 @@ function sumHeldKeys(held: ReadonlySet<string>): Vec2 {
  * The pointer OVERRIDES the keys while it is down. §1.15 lists them as alternative ways to
  * steer and does not compose them; adding them would let a held key drag the pointer's target
  * off the point the player is actually pointing at.
+ *
+ * It is a `BattleCommandSource`, and that is how it is handed to `advanceBattleTick`: owning
+ * device state is exactly what makes §1.15's pause release have a second half, so the type that
+ * carries the device state is the type that carries the callback which clears it.
  */
-export class BattleInputQueue {
+export class BattleInputQueue implements BattleCommandSource {
   private pending: BattleCommand[] = []
   private heldMoveKeys = new Set<string>()
   private pointerOffset: Vec2 | null = null
@@ -239,11 +339,13 @@ export class BattleInputQueue {
 
   /**
    * A key going down, by `event.code` (§1.15). Returns false for a code this game does not
-   * use and for a code §1.15 forbids right now — the caller cannot tell the two apart, and
+   * use — including every name `Object.prototype` answers to, which is what `moveVectorFor`
+   * is for — and for a code §1.15 forbids right now. The caller cannot tell the two apart, and
    * does not need to: both mean "nothing was queued".
    */
   keyDown(state: Readonly<BattleState>, code: string): boolean {
-    if (MOVE_KEY_VECTORS[code]) {
+    const vector = moveVectorFor(code)
+    if (vector) {
       if (this.heldMoveKeys.has(code)) {
         // A key repeat. The axis is unchanged, but §1.11 gets no second cancel event out of
         // the operating system holding a key down for the player.
@@ -272,15 +374,26 @@ export class BattleInputQueue {
     return false
   }
 
-  /** A key coming up. Only movement and `Space` have a release; the rest are edge-triggered. */
+  /**
+   * A key coming up. Only movement and `Space` have a release; the rest are edge-triggered.
+   *
+   * Built the same way round as `keyDown`: the held set is not touched until the command is
+   * accepted. The asymmetry that used to be here — delete first, ask afterwards — is what made
+   * a refused keyup leave the game holding a key nobody was pressing.
+   */
   keyUp(state: Readonly<BattleState>, code: string): boolean {
-    if (MOVE_KEY_VECTORS[code]) {
-      if (!this.heldMoveKeys.delete(code)) return false
-      return this.push(state, {
+    const vector = moveVectorFor(code)
+    if (vector) {
+      if (!this.heldMoveKeys.has(code)) return false
+      const held = new Set(this.heldMoveKeys)
+      held.delete(code)
+      const accepted = this.push(state, {
         kind: 'set-move',
-        move: this.pointerOffset ?? sumHeldKeys(this.heldMoveKeys),
+        move: this.pointerOffset ?? sumHeldKeys(held),
         keydown: false,
       })
+      if (accepted) this.heldMoveKeys = held
+      return accepted
     }
     if (code === RESCUE_KEY_CODE) return this.push(state, { kind: 'set-rescue', held: false })
     return false
@@ -295,8 +408,14 @@ export class BattleInputQueue {
    *
    * The offset is not normalized here: `advanceCommandUnit` normalizes whatever it is given,
    * so a magnitude carries no meaning and inventing one would be a second speed rule.
+   *
+   * A `'move'` needs a pointer that is already down. A driver that sends one out of nowhere used
+   * to capture the axis silently and then suppress every key until a `pointerRelease` it had no
+   * reason to send; refusing it is also what keeps a drag from re-establishing an axis that
+   * §1.15's pause release has just cleared, since the release forgets the pointer too.
    */
   pointerDrag(state: Readonly<BattleState>, offset: Vec2, phase: PointerPhase): boolean {
+    if (phase === 'move' && this.pointerOffset === null) return false
     const clamped =
       Math.hypot(offset.x, offset.y) < ARRIVE_EPSILON ? { x: 0, y: 0 } : { x: offset.x, y: offset.y }
     const accepted = this.push(state, {
@@ -323,18 +442,37 @@ export class BattleInputQueue {
    * §1.15's "지속 입력을 해제" for the DEVICE side — the state side is `applyBattleCommands`'s.
    *
    * Both halves are needed and they live in different places: clearing only `state.input` would
-   * let the next keyup rebuild an axis out of keys the paused game already forgot.
+   * let the next keyup rebuild an axis out of keys the paused game already forgot. `applied` is
+   * what joins them on a pause; this is also called directly on a restart, where the whole run
+   * goes rather than one pause.
    */
   clearHeld(): void {
     this.heldMoveKeys.clear()
     this.pointerOffset = null
   }
 
-  /** Everything enqueued since the last drain, oldest first, and the queue is empty after. */
+  /**
+   * Everything enqueued since the last drain, oldest first, and the queue is empty after.
+   *
+   * This is HALF of what a tick needs from the queue — `applied` below is the other half — which
+   * is why `advanceBattleTick` takes the queue itself and not the array this returns.
+   */
   drain(): BattleCommand[] {
     const drained = this.pending
     this.pending = []
     return drained
+  }
+
+  /**
+   * §1.15's device half of the pause release, driven by what the reducer just did.
+   *
+   * `applyBattleCommands` zeroed `state.input`; this forgets which keys were down, so resuming
+   * cannot rebuild an axis out of them. It fires on `pauseEntered` whether or not a later
+   * `toggle-pause` in the same batch resumed the battle: the pause happened, and the movement
+   * commands behind it in that batch were discarded on the same grounds.
+   */
+  applied(application: InputApplication): void {
+    if (application.pauseEntered) this.clearHeld()
   }
 
   /** Drop pending commands without applying them, for a restart. */

@@ -86,12 +86,10 @@ export function createBattle(seed: string): Battle {
     pendingInputCount: () => queue.size,
 
     step(): TickResult {
-      const result = advanceBattleTick(state, queue.drain())
-      // §1.15's "일시정지 진입 시 지속 입력을 해제한다" has a device half as well as a state
-      // half: `applyBattleCommands` zeroed `state.input`, and this forgets which keys were
-      // down, so resuming cannot rebuild an axis out of them.
-      if (result.input.pauseEntered) queue.clearHeld()
-      return result
+      // The QUEUE goes in, not the commands it holds. §1.15's "일시정지 진입 시 지속 입력을
+      // 해제한다" has a device half as well as a state half, and the reducer drives both — which
+      // is what makes this facade one driver among equals rather than the only correct one.
+      return advanceBattleTick(state, queue)
     },
 
     restart(nextSeed?: string): void {

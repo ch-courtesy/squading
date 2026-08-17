@@ -129,14 +129,26 @@
 //         `applyBattleCommands` is the 입력 적용 row and returns the one-tick
 //         `RescueInputEvents` that §1.11's cancel needs — the cancel is a keydown EVENT and
 //         cannot be read off the held axis. Movement is HELD state (the axis survives ticks
-//         with no input, which is what makes the lock's zero-vector test meaningful), and
-//         §1.15's 금지 상황 is enforced at ENQUEUE, so a paused battle banks nothing.
+//         with no input, which is what makes the lock's zero-vector test meaningful).
+//         §1.15's 금지 상황 IS ENFORCED IN BOTH PLACES, and each catches what the other cannot:
+//         the queue refuses at ENQUEUE so a paused battle banks nothing, and
+//         `applyBattleCommands` refuses again over the batch it is handed, because
+//         `advanceBattleTick` and `applyBattleCommands` are public too and batch F's policies
+//         build commands with no queue in front of them. One predicate (`commandIsAllowed`)
+//         answers both, so the two readings cannot disagree. IT GATES THE START OF AN INPUT
+//         ONLY — a release is accepted in every mode, or `state.input` would go on claiming a
+//         key is held that the player let go of, and §1.11's zero-vector lock would be
+//         unreachable while it did.
 //         The queue is NOT in `BattleState` and so not in the digest; it is empty at every
 //         tick boundary, and its held-key set is a function of the input log's prefix.
 //   §1.16 the tick order ....................................... tick
-//         `advanceBattleTick(state, commands)` — the whole table below, in one place, with
+//         `advanceBattleTick(state, source)` — the whole table below, in one place, with
 //         §1.1's clock gate in front of it. Input is applied BEFORE the gate, which is what
 //         lets an `Escape` lift a pause and a card resume the run on the tick it unblocked.
+//         IT TAKES A SOURCE, NOT AN ARRAY, because §1.15's pause release has a state half and a
+//         device half: a driver handing over `queue.drain()` would get the battle to forget the
+//         axis while the queue went on remembering the keys. `BattleInputQueue` is a source;
+//         a hand-built batch becomes one through `commandBatch`. The array does not compile.
 //         Everything derived is RETURNED (`TickResult`), never stored: batch A's no-scratch
 //         rule, and I2/I6/I13 all read their measurements off it.
 //   §6    the facade ........................................... battle

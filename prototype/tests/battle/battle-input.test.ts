@@ -23,6 +23,7 @@ import {
   UPGRADE_KEY_CODES,
   applyBattleCommands,
   commandIsAllowed,
+  type InputApplication,
 } from '../../src/core/battle/input'
 import { createInitialBattleState } from '../../src/core/battle/state'
 import type { BattleState } from '../../src/core/battle/types'
@@ -45,10 +46,23 @@ function awaitingUpgrade(): BattleState {
   return state
 }
 
+/**
+ * Drain and apply, the way the reducer does it — BOTH halves.
+ *
+ * `applyBattleCommands` is the state half of §1.15's pause release and `queue.applied` is the
+ * device half; a fixture that ran only the first would be pinning a path no driver takes, and
+ * would go on passing while the queue remembered keys the battle had already forgotten.
+ */
+function apply(state: BattleState, queue: BattleInputQueue): InputApplication {
+  const application = applyBattleCommands(state, queue.drain())
+  queue.applied(application)
+  return application
+}
+
 /** Enqueue, drain, apply — the whole path a device event takes into `state.input`. */
 function press(state: BattleState, queue: BattleInputQueue, codes: string[]): void {
   for (const code of codes) queue.keyDown(state, code)
-  applyBattleCommands(state, queue.drain())
+  apply(state, queue)
 }
 
 describe('§1.15 movement is persistent axis state', () => {
@@ -61,8 +75,8 @@ describe('§1.15 movement is persistent axis state', () => {
 
     // Two ticks with an empty queue. A per-tick impulse model would zero the vector here,
     // and §1.11's lock would then establish under a key the player is still holding.
-    applyBattleCommands(state, queue.drain())
-    applyBattleCommands(state, queue.drain())
+    apply(state, queue)
+    apply(state, queue)
     expect(state.input.move).toEqual(MOVE_KEY_VECTORS.KeyW)
   })
 
@@ -74,11 +88,11 @@ describe('§1.15 movement is persistent axis state', () => {
     expect(state.input.move).toEqual({ x: 1, y: -1 })
 
     queue.keyUp(state, 'KeyW')
-    applyBattleCommands(state, queue.drain())
+    apply(state, queue)
     expect(state.input.move).toEqual({ x: 1, y: 0 })
 
     queue.keyUp(state, 'KeyD')
-    applyBattleCommands(state, queue.drain())
+    apply(state, queue)
     expect(state.input.move).toEqual({ x: 0, y: 0 })
   })
 
@@ -114,7 +128,7 @@ describe('§1.15 movement is persistent axis state', () => {
     // same axis, so the only things a repeat could add are an unbounded queue and a §1.11
     // cancel event per frame.
     expect(queue.size).toBe(1)
-    expect(applyBattleCommands(state, queue.drain()).events.movementKeydown).toBe(true)
+    expect(apply(state, queue).events.movementKeydown).toBe(true)
   })
 
   it('refuses a key it does not know, and says so', () => {
@@ -124,6 +138,38 @@ describe('§1.15 movement is persistent axis state', () => {
     expect(queue.keyDown(state, 'KeyQ')).toBe(false)
     expect(queue.size).toBe(0)
   })
+
+  it('refuses an Object.prototype name instead of reading it off the table', () => {
+    // `MOVE_KEY_VECTORS` is an object, and every object answers to `toString`. Read without a
+    // hasOwn guard, `MOVE_KEY_VECTORS['toString']` is a truthy FUNCTION: the code is accepted,
+    // remembered as held, and summed as `undefined` — `state.input.move` becomes `{NaN, NaN}`,
+    // which §1.17's digest normalizes to `null`. Two differently poisoned runs then hash the
+    // same, which is the one thing the digest exists to make impossible.
+    const state = running()
+    const queue = new BattleInputQueue()
+
+    for (const code of ['toString', 'constructor', 'valueOf', '__proto__', 'hasOwnProperty']) {
+      expect(queue.keyDown(state, code)).toBe(false)
+      expect(queue.keyUp(state, code)).toBe(false)
+    }
+
+    expect(queue.size).toBe(0)
+    apply(state, queue)
+    expect(state.input.move).toEqual({ x: 0, y: 0 })
+  })
+
+  it('does not let an Object.prototype name poison an axis that is already held', () => {
+    const state = running()
+    const queue = new BattleInputQueue()
+
+    press(state, queue, ['KeyW'])
+    queue.keyDown(state, 'valueOf')
+    apply(state, queue)
+
+    expect(state.input.move).toEqual(MOVE_KEY_VECTORS.KeyW)
+    expect(Number.isNaN(state.input.move.x)).toBe(false)
+    expect(Number.isNaN(state.input.move.y)).toBe(false)
+  })
 })
 
 describe('§1.15 pointer drag', () => {
@@ -132,7 +178,7 @@ describe('§1.15 pointer drag', () => {
     const queue = new BattleInputQueue()
 
     queue.pointerDrag(state, { x: ARRIVE_EPSILON / 2, y: 0 }, 'down')
-    applyBattleCommands(state, queue.drain())
+    apply(state, queue)
 
     // §1.15: "미세 변위로 진동하는 것을 막는다" — and it is also what makes §1.11's
     // zero-vector lock condition reachable with a pointer at all.
@@ -144,9 +190,35 @@ describe('§1.15 pointer drag', () => {
     const queue = new BattleInputQueue()
 
     queue.pointerDrag(state, { x: 3, y: -4 }, 'down')
-    applyBattleCommands(state, queue.drain())
+    apply(state, queue)
 
     expect(state.input.move).toEqual({ x: 3, y: -4 })
+  })
+
+  it('leaves a drag of exactly ARRIVE_EPSILON alone, because §1.15 says 미만', () => {
+    const state = running()
+    const queue = new BattleInputQueue()
+
+    // The boundary itself, not a magnitude comfortably past it: `<` and `<=` differ on exactly
+    // one value and this is it.
+    queue.pointerDrag(state, { x: ARRIVE_EPSILON, y: 0 }, 'down')
+    apply(state, queue)
+
+    expect(state.input.move).toEqual({ x: ARRIVE_EPSILON, y: 0 })
+  })
+
+  it('refuses a drag that continues a pointer which never went down', () => {
+    const state = running()
+    const queue = new BattleInputQueue()
+
+    // A `move` with no `down` behind it used to capture the axis silently and then suppress
+    // every key until a `pointerRelease` that the driver had no reason to send.
+    expect(queue.pointerDrag(state, { x: 4, y: 4 }, 'move')).toBe(false)
+    expect(queue.size).toBe(0)
+
+    expect(queue.keyDown(state, 'KeyD')).toBe(true)
+    apply(state, queue)
+    expect(state.input.move).toEqual(MOVE_KEY_VECTORS.KeyD)
   })
 
   it('returns the axis to the held keys when the pointer is released', () => {
@@ -155,11 +227,11 @@ describe('§1.15 pointer drag', () => {
 
     press(state, queue, ['KeyD'])
     queue.pointerDrag(state, { x: 0, y: 5 }, 'down')
-    applyBattleCommands(state, queue.drain())
+    apply(state, queue)
     expect(state.input.move).toEqual({ x: 0, y: 5 })
 
     queue.pointerRelease(state)
-    applyBattleCommands(state, queue.drain())
+    apply(state, queue)
     expect(state.input.move).toEqual(MOVE_KEY_VECTORS.KeyD)
   })
 })
@@ -170,11 +242,11 @@ describe('§1.11 / §1.15 the movement keydown event', () => {
     const queue = new BattleInputQueue()
 
     queue.keyDown(state, 'KeyW')
-    expect(applyBattleCommands(state, queue.drain()).events.movementKeydown).toBe(true)
+    expect(apply(state, queue).events.movementKeydown).toBe(true)
 
     // The key is STILL DOWN and the axis is still non-zero, but no event happened this tick.
     // §1.11's cancel must not fire again, or a rescue could never survive a held key.
-    expect(applyBattleCommands(state, queue.drain()).events.movementKeydown).toBe(false)
+    expect(apply(state, queue).events.movementKeydown).toBe(false)
     expect(state.input.move).toEqual(MOVE_KEY_VECTORS.KeyW)
   })
 
@@ -185,7 +257,7 @@ describe('§1.11 / §1.15 the movement keydown event', () => {
     press(state, queue, ['KeyW'])
     queue.keyUp(state, 'KeyW')
 
-    expect(applyBattleCommands(state, queue.drain()).events.movementKeydown).toBe(false)
+    expect(apply(state, queue).events.movementKeydown).toBe(false)
   })
 
   it('reports a pointerdown as one, including the one clamped to zero', () => {
@@ -193,7 +265,7 @@ describe('§1.11 / §1.15 the movement keydown event', () => {
     const queue = new BattleInputQueue()
 
     queue.pointerDrag(state, { x: ARRIVE_EPSILON / 2, y: 0 }, 'down')
-    const application = applyBattleCommands(state, queue.drain())
+    const application = apply(state, queue)
 
     // §1.11 lists "이동 keydown/pointerdown" as one cancel condition, and the clamp is about
     // the VECTOR, not about whether the player decided to move.
@@ -206,10 +278,10 @@ describe('§1.11 / §1.15 the movement keydown event', () => {
     const queue = new BattleInputQueue()
 
     queue.pointerDrag(state, { x: 1, y: 0 }, 'down')
-    applyBattleCommands(state, queue.drain())
+    apply(state, queue)
     queue.pointerDrag(state, { x: 2, y: 0 }, 'move')
 
-    expect(applyBattleCommands(state, queue.drain()).events.movementKeydown).toBe(false)
+    expect(apply(state, queue).events.movementKeydown).toBe(false)
   })
 })
 
@@ -222,7 +294,7 @@ describe('§1.15 rescue, upgrade and pause keys', () => {
     expect(state.input.spaceHeld).toBe(true)
 
     queue.keyUp(state, RESCUE_KEY_CODE)
-    applyBattleCommands(state, queue.drain())
+    apply(state, queue)
     expect(state.input.spaceHeld).toBe(false)
   })
 
@@ -263,8 +335,12 @@ describe('§1.15 rescue, upgrade and pause keys', () => {
     expect(state.input.move).toEqual({ x: 0, y: 0 })
     expect(state.input.spaceHeld).toBe(false)
     press(state, queue, [PAUSE_KEY_CODE])
-    applyBattleCommands(state, queue.drain())
-    expect(state.input.move).toEqual({ x: 0, y: 0 })
+    expect(state.mode).toBe('running')
+
+    // The device half, read where it shows: `KeyW` is gone from the queue, so the next key the
+    // player presses is the whole axis rather than that key plus a ghost.
+    press(state, queue, ['KeyD'])
+    expect(state.input.move).toEqual(MOVE_KEY_VECTORS.KeyD)
   })
 
   it('discards the movement and rescue events left in the same batch', () => {
@@ -276,7 +352,7 @@ describe('§1.15 rescue, upgrade and pause keys', () => {
     queue.keyDown(state, PAUSE_KEY_CODE)
     queue.keyDown(state, 'KeyW')
     queue.keyDown(state, RESCUE_KEY_CODE)
-    const application = applyBattleCommands(state, queue.drain())
+    const application = apply(state, queue)
 
     expect(state.mode).toBe('paused')
     expect(state.input.move).toEqual({ x: 0, y: 0 })
@@ -342,6 +418,13 @@ describe('§1.15 forbidden inputs never enter the queue', () => {
   })
 
   it('lets a card be chosen while paused without resuming the battle', () => {
+    // THIS STATE IS NOT REACHABLE THROUGH THE QUEUE, and saying so is the point of the comment
+    // rather than of a deletion. `paused` with a round still waiting needs an `Escape` that
+    // §1.15 refuses under a card, or a tick that §1.1 will not run while paused. What it pins
+    // is the seam BETWEEN two rules that are each reachable: `commandIsAllowed` admits a card
+    // key in `paused`, and `chooseUpgradeCard` refuses to hand the battle back to `running`
+    // from a mode it did not stop. If either changes, this hand-built state is where the
+    // disagreement shows up first.
     const state = awaitingUpgrade()
     state.mode = 'paused'
     const queue = new BattleInputQueue()
@@ -360,6 +443,138 @@ describe('§1.15 forbidden inputs never enter the queue', () => {
       false,
     )
     expect(commandIsAllowed(state, { kind: 'toggle-pause' })).toBe(true)
+  })
+})
+
+describe('§1.15 a release is refused in no mode at all', () => {
+  it('lets a movement key come up while a card is waiting', () => {
+    const state = running()
+    const queue = new BattleInputQueue()
+
+    press(state, queue, ['KeyW'])
+    expect(state.input.move).toEqual(MOVE_KEY_VECTORS.KeyW)
+
+    // The card screen arrives with the key still down. Refusing the keyup here would leave the
+    // axis pointing north under a hand that is no longer on the key — the state would be lying,
+    // and §1.11's lock ("그 tick의 이동 입력 벡터가 0") would be unreachable until the player
+    // pressed and released some OTHER direction.
+    state.upgrades.rounds.push({
+      round: 1,
+      tick: 10,
+      offered: ['firepower', 'mobility', 'vitality'],
+      chosen: null,
+    })
+    state.mode = 'awaiting-upgrade'
+
+    expect(queue.keyUp(state, 'KeyW')).toBe(true)
+    apply(state, queue)
+    expect(state.input.move).toEqual({ x: 0, y: 0 })
+  })
+
+  it('lets Space come up while a card is waiting', () => {
+    const state = running()
+    const queue = new BattleInputQueue()
+
+    press(state, queue, [RESCUE_KEY_CODE])
+    expect(state.input.spaceHeld).toBe(true)
+
+    const awaiting = awaitingUpgrade()
+    awaiting.input.spaceHeld = true
+    expect(queue.keyUp(awaiting, RESCUE_KEY_CODE)).toBe(true)
+    apply(awaiting, queue)
+
+    // A rescue lock that establishes under a `Space` the player let go of is the same defect
+    // wearing the other key.
+    expect(awaiting.input.spaceHeld).toBe(false)
+  })
+
+  it('rebuilds the axis from the keys that are still down when one comes up mid-card', () => {
+    const state = running()
+    const queue = new BattleInputQueue()
+
+    press(state, queue, ['KeyW', 'KeyD'])
+    state.upgrades.rounds.push({
+      round: 1,
+      tick: 10,
+      offered: ['firepower', 'mobility', 'vitality'],
+      chosen: null,
+    })
+    state.mode = 'awaiting-upgrade'
+
+    expect(queue.keyUp(state, 'KeyW')).toBe(true)
+    apply(state, queue)
+
+    expect(state.input.move).toEqual(MOVE_KEY_VECTORS.KeyD)
+  })
+
+  it('says so in the predicate, in every mode there is', () => {
+    const release = { kind: 'set-move', move: { x: 0, y: 0 }, keydown: false } as const
+    const spaceUp = { kind: 'set-rescue', held: false } as const
+    const keyPress = { kind: 'set-move', move: { x: 0, y: -1 }, keydown: true } as const
+
+    for (const mode of ['ready', 'running', 'paused', 'awaiting-upgrade', 'won', 'lost'] as const) {
+      const state = running()
+      state.mode = mode
+
+      expect(commandIsAllowed(state, release)).toBe(true)
+      expect(commandIsAllowed(state, spaceUp)).toBe(true)
+      expect(commandIsAllowed(state, keyPress)).toBe(mode === 'running')
+    }
+  })
+})
+
+describe('§1.15 the reducer enforces the same rule the queue does', () => {
+  it('refuses a forbidden command handed straight to applyBattleCommands', () => {
+    // The queue is a fast path, not the enforcer. `advanceBattleTick` and `applyBattleCommands`
+    // are both public, and batch F's policies build commands without going through a queue at
+    // all — a rule that only one of three entry points holds is not a rule.
+    for (const mode of ['ready', 'paused', 'awaiting-upgrade', 'won', 'lost'] as const) {
+      const state = running()
+      state.mode = mode
+
+      const application = applyBattleCommands(state, [
+        { kind: 'set-move', move: { x: 1, y: 0 }, keydown: true },
+        { kind: 'set-rescue', held: true },
+      ])
+
+      expect(state.input.move).toEqual({ x: 0, y: 0 })
+      expect(state.input.spaceHeld).toBe(false)
+      expect(application.discarded).toBe(2)
+      expect(application.events.movementKeydown).toBe(false)
+    }
+  })
+
+  it('does not let a finished run take input at all', () => {
+    const state = running()
+    state.mode = 'won'
+
+    applyBattleCommands(state, [{ kind: 'set-move', move: { x: -1, y: 1 }, keydown: true }])
+
+    expect(state.input.move).toEqual({ x: 0, y: 0 })
+  })
+
+  it('still takes a release through the reducer, in the modes that refuse a press', () => {
+    const state = awaitingUpgrade()
+    state.input.move = { x: 0, y: -1 }
+    state.input.spaceHeld = true
+
+    const application = applyBattleCommands(state, [
+      { kind: 'set-move', move: { x: 0, y: 0 }, keydown: false },
+      { kind: 'set-rescue', held: false },
+    ])
+
+    expect(state.input.move).toEqual({ x: 0, y: 0 })
+    expect(state.input.spaceHeld).toBe(false)
+    expect(application.discarded).toBe(0)
+  })
+
+  it('refuses a card key that names no offered card, rather than throwing at the reducer', () => {
+    const state = awaitingUpgrade()
+
+    const application = applyBattleCommands(state, [{ kind: 'choose-upgrade', slot: 9 }])
+
+    expect(state.upgrades.rounds[0].chosen).toBeNull()
+    expect(application.discarded).toBe(1)
   })
 })
 
