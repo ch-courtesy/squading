@@ -23,13 +23,19 @@
 //   range and in line of sight — exactly I7's "denied opportunity", minus the
 //   cooldown clause.
 //
-// SIGHT — this harness uses the same function the game uses: `hasBattleSight`
-// (§1.6's endpoint exemption included). That was not true when stage 1 first ran:
+// ARCHIVED (§2 폐기 기록, §5 stage 1). Cover was removed from the design: the game has no
+// terrain, no sight and no I9. This module stays in the repository as the measurement that
+// justified that removal — binary blocking cleared 0 of 504 cells — and it must keep
+// running, so `sight.ts` next door keeps the two sight rules it was measured with. Nothing
+// under `core/battle/` may import any of it.
+//
+// SIGHT — the default is `hasBattleSight`, the rule the game had when this last ran
+// (§1.6's endpoint exemption included). That was not true when stage 1 FIRST ran:
 // §1.6's "선분의 끝점이 어떤 사각형 내부에 있으면 그 사각형은 그 선분을 막지 않는다" was
 // added to the spec AFTER the sweep, and the sweep was measuring `hasLineOfSight`,
-// which blocks a segment whose endpoint sits inside a rectangle. §4.3's replay contract
-// only means something if the harness and the game agree about sight, so `'battle'` is
-// the default and the only mode any gate should be read from.
+// which blocks a segment whose endpoint sits inside a rectangle. While cover still
+// existed, §4.3's replay contract meant the harness and the game had to agree about
+// sight, so `'battle'` became the default and the only mode a gate could be read from.
 //
 //   `sightMode: 'legacy'` reproduces the pre-exemption measurement, and exists for
 //   exactly one purpose: comparing a new run against the numbers in the stage-1 report
@@ -50,7 +56,7 @@
 import { createPrng, type Prng } from '../prng'
 import { resolveFormation } from '../gameplay/formation'
 import { containsAny, hasLineOfSight, type Rect } from '../gameplay/geometry'
-import { hasBattleSight } from '../battle/sight'
+import { hasBattleSight } from './sight'
 import { ARENA_HEIGHT, ARENA_WIDTH, type TerrainLayout } from '../gameplay/terrain'
 
 export const I9_COMMANDER_SAMPLES = 40
@@ -58,8 +64,11 @@ export const I9_MEAN_THRESHOLD = 0.15
 export const I9_BEST_THRESHOLD = 0.35
 
 /**
- * `battle` — `hasBattleSight`, what the game plays (§1.6, endpoint exemption included).
- * `legacy` — `hasLineOfSight`, the pre-exemption rule stage 1 was measured with.
+ * `battle` — `hasBattleSight`, the endpoint-exempt rule cover was finally measured with.
+ * `legacy` — `hasLineOfSight`, the pre-exemption rule the first stage-1 run used.
+ *
+ * Both are archived rules; neither is in the game (§1.6). The names are kept as they were
+ * so the recorded artifacts keep reproducing.
  */
 export type I9SightMode = 'battle' | 'legacy'
 
@@ -82,7 +91,7 @@ export type I9Options = {
   /** §3 fixes this at 40; exposed only so tests can run cheap. */
   commanderSamples?: number
   shooterSamples?: number
-  /** Defaults to `battle`. Only `battle` may be used to judge a gate. */
+  /** Defaults to `battle` — the rule the final cover measurement used. */
   sightMode?: I9SightMode
   /**
    * The max over 40 noisy estimates is biased upward. The top `refineTop` samples

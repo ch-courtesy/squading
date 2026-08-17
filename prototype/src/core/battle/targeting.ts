@@ -7,15 +7,15 @@
 //                    and NEVER `state.input`. A unit shoved against a wall has input
 //                    but no displacement and may fire; a follower inside the settle
 //                    dead-band has displacement exactly 0 and may fire (§1.4).
-//   §1.8 selection — in range AND in sight, then elite first, then nearest, then
-//                    lowest id. §1.16 puts it at step 7, AFTER movement, so that a
-//                    unit that just stepped behind cover is not still shooting through
-//                    it for one tick.
+//   §1.8 selection — in range, then elite first, then nearest, then lowest id. There is
+//                    NO sight filter: §1.6 removed cover, so "시야는 항상 통한다" and
+//                    range is the only geometric test left. §1.16 keeps it at step 7,
+//                    after movement, so an attack always uses a target picked from
+//                    post-movement positions.
 //
-// Selection is NOT gated on the stop test. §1.16 step 7 has no displacement clause,
-// and `targetId` is in the digest (§1.17): a moving unit still tracks what it would
-// shoot, it just does not get to shoot it (step 9). Gating here would additionally
-// hide the I7 measurement, which needs to know that a candidate existed.
+// Selection is NOT gated on the stop test. §1.16 step 7 has no displacement clause, and
+// `targetId` is in the digest (§1.17): a moving unit still tracks what it would shoot, it
+// just does not get to shoot it (step 9).
 
 import {
   COMMANDER_ATTACK_INTERVAL,
@@ -27,22 +27,8 @@ import {
   SOLDIER_RANGE,
 } from './constants'
 import { advanceEnemyTargeting } from './enemy'
-import { hasBattleSight } from './sight'
-import { enemiesById, sightBlockers } from './state'
-import type { BattleState, EnemyUnit, FriendlyUnit, Vec2 } from './types'
-
-/**
- * §1.6 sight between two points of a running battle.
- *
- * Lives here rather than in `sight.ts` so that `sight.ts` stays pure geometry — the I9
- * harness imports it, and §4.3 requires the harness to measure the game's sight, not a
- * copy of it. The hot paths (steps 7, 9, 10, enemy movement) hoist
- * `sightBlockers(state)` out of their loops instead of calling this per pair; it
- * concatenates the two terrain classes on every call.
- */
-export function hasSightBetween(state: BattleState, from: Vec2, to: Vec2): boolean {
-  return hasBattleSight(from.x, from.y, to.x, to.y, sightBlockers(state))
-}
+import { enemiesById } from './state'
+import type { BattleState, EnemyUnit, FriendlyUnit } from './types'
 
 /**
  * §1.3: "at or above MOVE_EPSILON" is movement, so stopped is strictly below it.
@@ -92,14 +78,13 @@ function outranks(candidate: Ranked, best: Ranked): boolean {
 }
 
 export function selectFriendlyTargetId(state: BattleState, unit: FriendlyUnit): number | null {
-  return selectFriendlyTargetIn(state, unit, enemiesById(state), sightBlockers(state))
+  return selectFriendlyTargetIn(state, unit, enemiesById(state))
 }
 
 function selectFriendlyTargetIn(
   state: BattleState,
   unit: FriendlyUnit,
   enemies: readonly EnemyUnit[],
-  blockers: ReturnType<typeof sightBlockers>,
 ): number | null {
   const range = attackRangeOf(state, unit)
   let best: Ranked | null = null
@@ -111,9 +96,6 @@ function selectFriendlyTargetIn(
       enemy.position.y - unit.position.y,
     )
     if (distance > range) continue
-    if (!hasBattleSight(unit.position.x, unit.position.y, enemy.position.x, enemy.position.y, blockers)) {
-      continue
-    }
     const candidate: Ranked = { id: enemy.id, distance, elite: enemy.kind === 'elite' }
     if (best === null || outranks(candidate, best)) best = candidate
   }
@@ -126,14 +108,13 @@ export function advanceFriendlyTargeting(state: BattleState): void {
   // `enemiesById` sorts, so the ascending-id tie-break holds no matter what order the
   // spawn batch appended rows in; hoisted because it is the same list for all 16.
   const enemies = enemiesById(state)
-  const blockers = sightBlockers(state)
 
   for (const unit of state.friendlies) {
     if (unit.life !== 'standing') {
       unit.targetId = null
       continue
     }
-    unit.targetId = selectFriendlyTargetIn(state, unit, enemies, blockers)
+    unit.targetId = selectFriendlyTargetIn(state, unit, enemies)
   }
 }
 

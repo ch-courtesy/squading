@@ -15,13 +15,9 @@
 // below, and it is a return value rather than a field on `BattleState` because of the
 // no-scratch rule in `types.ts`.
 
-import {
-  MELEE_RANGE,
-  SHOOTER_STANDOFF,
-} from './constants'
+import { MELEE_RANGE, SHOOTER_STANDOFF } from './constants'
 import { enemyAttackIntervalOf, enemyDamageOf } from './enemy'
-import { hasBattleSight } from './sight'
-import { enemiesById, findEnemy, findFriendly, friendliesById, sightBlockers } from './state'
+import { enemiesById, findEnemy, findFriendly, friendliesById } from './state'
 import { attackDamageOf, attackIntervalOf, isStopped } from './targeting'
 import type { BattleState, DamageEvent } from './types'
 
@@ -57,8 +53,8 @@ export function advanceStep6Cooldowns(state: BattleState): void {
 /**
  * §1.16 step 9 — friendly attacks, "변위 < MOVE_EPSILON인 유닛만".
  *
- * The target is whatever step 7 chose this tick, so the range and sight tests are not
- * repeated: nothing has moved in between. §1.8's "후보가 없으면 그 tick에 공격하지 않고
+ * The target is whatever step 7 chose this tick, so the range test is not repeated:
+ * nothing has moved in between. §1.8's "후보가 없으면 그 tick에 공격하지 않고
  * cooldown도 소비하지 않는다" is the `targetId === null` branch — the cooldown is only
  * written when a shot actually happens.
  */
@@ -94,22 +90,22 @@ export function resolveStep9FriendlyAttacks(state: BattleState): DamageEvent[] {
  * §1.3 does not apply, so an enemy's displacement is never consulted here. What gates
  * each class is §1.9's own description of when it attacks:
  *
- *   melee   — inside contact range. Sight is NOT required: contact is physical, and
- *             requiring it would let a melee hold in contact behind a corner forever
- *             without attacking, which is a frozen body I1 would report as a supply
- *             problem. At `MELEE_RANGE` 0.75 the two bodies are closer than the
- *             narrowest authored rectangle anyway.
+ *   melee   — inside contact range.
  *   shooter — "standoff 구간이면 정지해 사격하며", so it fires from inside the band and
- *             only there: approaching and retreating cost it the shot, and §1.9's
- *             "시야를 잃으면 사격하지 않고" is the sight test. The band's upper bound is
- *             0.95 x SHOOTER_RANGE, so being in the band implies being in range.
+ *             only there: approaching and retreating cost it the shot. The band's upper
+ *             bound is 0.95 x SHOOTER_RANGE, so being in the band implies being in range.
+ *
+ * Neither class tests sight, because §1.6 removed it from the game. What replaced it is
+ * the range advantage: `SHOOTER_RANGE < SOLDIER_RANGE`, so a friendly standing in the gap
+ * is outside the band the shooter needs in order to fire at all, and the shooter has to
+ * spend ticks closing. That gap is the whole defensive mechanism now.
  *
  * The elite is skipped: its damage is the telegraph/impact cycle (§1.12), which is
- * step 11 and a later batch, and §1.12 states it deals no contact damage at all.
+ * step 11 and a later batch, and §1.12 states it deals no contact damage at all. §1.12 no
+ * longer re-checks sight per target on impact either — there is no sight to re-check.
  */
 export function resolveStep10EnemyAttacks(state: BattleState): DamageEvent[] {
   const events: DamageEvent[] = []
-  const blockers = sightBlockers(state)
   const [standoffLow, standoffHigh] = SHOOTER_STANDOFF
 
   for (const enemy of enemiesById(state)) {
@@ -127,19 +123,8 @@ export function resolveStep10EnemyAttacks(state: BattleState): DamageEvent[] {
 
     if (enemy.kind === 'melee') {
       if (distance > MELEE_RANGE) continue
-    } else {
-      if (distance < standoffLow || distance > standoffHigh) continue
-      if (
-        !hasBattleSight(
-          enemy.position.x,
-          enemy.position.y,
-          target.position.x,
-          target.position.y,
-          blockers,
-        )
-      ) {
-        continue
-      }
+    } else if (distance < standoffLow || distance > standoffHigh) {
+      continue
     }
 
     events.push({

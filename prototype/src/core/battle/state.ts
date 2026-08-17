@@ -1,20 +1,18 @@
-// The initial authoritative state (§1.1, §1.2, §1.4, §1.6, §1.14).
+// The initial authoritative state (§1.1, §1.2, §1.4, §1.14).
 //
 // Construction order is part of the contract, because it decides how far each
 // stream has advanced by tick 0:
 //
-//   1. derive the four streams from the root seed          (§1.17)
-//   2. generate two-class terrain from the `terrain` stream (§1.6)
-//   3. shuffle names from the `names` stream — 23 draws     (§1.14)
-//   4. place the commander at (28, 16) and every soldier on its slot
+//   1. derive the three streams from the root seed      (§1.17)
+//   2. shuffle names from the `names` stream — 23 draws (§1.14)
+//   3. place the commander at (28, 16) and every soldier on its slot
 //
-// `spawn` and `cards` are untouched at tick 0. Nothing in this file consumes them,
-// and nothing should: the first `spawn` draw must be the first spawn request's
-// angle, or every recorded run diverges.
+// There is no step for terrain any more (§1.6) and no `terrain` stream, so `names` is
+// the only stream that has moved at tick 0. `spawn` and `cards` are untouched, and must
+// stay that way: the first `spawn` draw has to be the first spawn request's angle, or
+// every recorded run diverges.
 
-import { generateTerrainFrom, type TerrainOptions, type TerrainRect } from '../gameplay/terrain'
-import { resolveSlotPosition } from '../gameplay/formation'
-import { FORMATION_SLOTS, createSlotAssignments } from './formation'
+import { createSlotAssignments, slotPosition } from './formation'
 import {
   CARD_POOL,
   COMMANDER_HP,
@@ -24,7 +22,6 @@ import {
   ROSTER_SIZE,
   SHOOTER_HP,
   SOLDIER_HP,
-  TERRAIN_OPTIONS,
 } from './constants'
 import { assignNameIndices } from './names'
 import { createStreamStates, streamPrng } from './streams'
@@ -41,21 +38,6 @@ export const SOLDIER_IDS: readonly number[] = Array.from(
 /** Enemy ids start well past the roster so no lookup can confuse the two sides. */
 export const FIRST_ENEMY_ID = 101
 export const ELITE_ID = 1000
-
-export type BattleStateOptions = {
-  /** §1.6 terrain request; defaults to the placeholder layout in `constants.ts`. */
-  terrain?: TerrainOptions
-}
-
-/** §1.6/§1.7: high cover only. Derived so the two views cannot drift. */
-export function movementBlockers(state: BattleState): TerrainRect[] {
-  return state.terrain.high
-}
-
-/** §1.6/§1.8: both classes block sight. */
-export function sightBlockers(state: BattleState): TerrainRect[] {
-  return [...state.terrain.high, ...state.terrain.low]
-}
 
 export function findFriendly(state: BattleState, id: number): FriendlyUnit | null {
   for (const unit of state.friendlies) {
@@ -127,8 +109,8 @@ export const ENEMY_MAX_HP: Readonly<Record<EnemyKind, number>> = {
  * The one place an enemy row is built (§1.9, §1.10, §1.12).
  *
  * Batches C and F both create enemies; without a shared factory they would each
- * initialise `zeroDisplacementTicks`, `excludedTargetId` and `contactSlotOwnerId`
- * by hand, and a row that is missing one is a row the digest sees differently.
+ * initialise `contactSlotOwnerId` by hand, and a row that is missing it is a row the
+ * digest sees differently.
  */
 export function createEnemy(id: number, kind: EnemyKind, position: Vec2): EnemyUnit {
   const maxHp = ENEMY_MAX_HP[kind]
@@ -143,16 +125,13 @@ export function createEnemy(id: number, kind: EnemyKind, position: Vec2): EnemyU
     targetId: null,
     deathTick: null,
     lastDisplacement: 0,
-    zeroDisplacementTicks: 0,
-    excludedTargetId: null,
     contactSlotOwnerId: null,
   }
 }
 
-export function createInitialBattleState(seed: string, options: BattleStateOptions = {}): BattleState {
+export function createInitialBattleState(seed: string): BattleState {
   const prng = createStreamStates(seed)
 
-  const layout = generateTerrainFrom(streamPrng(prng, 'terrain'), options.terrain ?? TERRAIN_OPTIONS)
   const names = assignNameIndices(streamPrng(prng, 'names'), ROSTER_SIZE)
 
   const slotAssignments = createSlotAssignments(SOLDIER_IDS)
@@ -165,12 +144,7 @@ export function createInitialBattleState(seed: string, options: BattleStateOptio
     // Soldiers start settled on their own slots, so tick 1 begins with displacement
     // 0 for all 15 (§1.4) rather than a formation-wide shuffle that would silence
     // the squad for its first few ticks.
-    const slot = resolveSlotPosition(
-      start.x,
-      start.y,
-      FORMATION_SLOTS[assignment.slotIndex],
-      layout.movementBlockers,
-    )
+    const slot = slotPosition(start, assignment.slotIndex)
     friendlies.push(
       createFriendly(assignment.unitId, 'soldier', names[assignment.unitId - 1], {
         x: slot.x,
@@ -187,11 +161,9 @@ export function createInitialBattleState(seed: string, options: BattleStateOptio
     result: null,
     failureReason: null,
     prng,
-    terrain: { high: layout.high, low: layout.low },
     commandUnitId: COMMANDER_ID,
     originalCommanderId: COMMANDER_ID,
     slotAssignments,
-    slotLatchOwnerId: null,
     input: { move: { x: 0, y: 0 }, spaceHeld: false },
     friendlies,
     enemies: [],
@@ -202,7 +174,6 @@ export function createInitialBattleState(seed: string, options: BattleStateOptio
       lastRequestTick: -1,
       discardedByBacklogOverflow: 0,
       discardedByAbsoluteCap: 0,
-      discardedByTerrain: 0,
     },
     // §1.12: the elite's body is an ordinary row in `enemies` once it arrives at
     // tick 1800, with `kind: 'elite'`. This sidecar is its attack cycle only, so

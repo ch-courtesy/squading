@@ -43,8 +43,6 @@ import {
   createInitialBattleState,
   enemiesById,
   friendliesById,
-  movementBlockers,
-  sightBlockers,
 } from '../../src/core/battle/state'
 import { canonicalizeBattleState, digestBattleState } from '../../src/core/battle/digest'
 import { FORMATION_SLOTS } from '../../src/core/gameplay/formation'
@@ -106,8 +104,8 @@ describe('§1.2 anchors and §1.4 structural invariants', () => {
 })
 
 describe('§1.17 named streams', () => {
-  it('derives exactly the four named streams', () => {
-    expect([...STREAM_NAMES]).toEqual(['spawn', 'cards', 'terrain', 'names'])
+  it('derives exactly the three named streams', () => {
+    expect([...STREAM_NAMES]).toEqual(['spawn', 'cards', 'names'])
   })
 
   it('gives each stream a different starting state for the same root seed', () => {
@@ -123,8 +121,7 @@ describe('§1.17 named streams', () => {
     const disturbed = createStreamStates('seed-a')
     for (let index = 0; index < 50; index += 1) nextStreamFloat(disturbed, 'spawn')
     for (let index = 0; index < 7; index += 1) nextStreamFloat(disturbed, 'cards')
-    for (let index = 0; index < 13; index += 1) nextStreamFloat(disturbed, 'terrain')
-    const disturbedNames = shuffleNamePool(streamPrng(disturbed, 'names'))
+      const disturbedNames = shuffleNamePool(streamPrng(disturbed, 'names'))
 
     expect(disturbedNames).toEqual(cleanNames)
   })
@@ -135,7 +132,6 @@ describe('§1.17 named streams', () => {
     nextStreamFloat(states, 'spawn')
     expect(states.spawn).not.toBe(before.spawn)
     expect(states.cards).toBe(before.cards)
-    expect(states.terrain).toBe(before.terrain)
     expect(states.names).toBe(before.names)
   })
 
@@ -290,22 +286,17 @@ describe('initial authoritative state', () => {
         'rootSeed',
         'schemaVersion',
         'slotAssignments',
-        'slotLatchOwnerId',
         'spawn',
         'stats',
-        'terrain',
         'upgrades',
       ].sort(),
     )
   })
 
-  it('generates two-class terrain on the terrain stream', () => {
+  it('has no terrain and no terrain stream (§1.6 removed cover)', () => {
     const state = createInitialBattleState('seed-a')
-    expect(state.terrain.high.length).toBeGreaterThan(0)
-    expect(state.terrain.low.length).toBeGreaterThan(0)
-    expect(movementBlockers(state)).toEqual(state.terrain.high)
-    expect(sightBlockers(state)).toEqual([...state.terrain.high, ...state.terrain.low])
-    expect(state.prng.terrain).not.toBe(createStreamStates('seed-a').terrain)
+    expect('terrain' in state).toBe(false)
+    expect(Object.keys(state.prng).sort()).toEqual(['cards', 'names', 'spawn'])
   })
 })
 
@@ -371,8 +362,6 @@ describe('§1.17 determinism and digest', () => {
       ['friendly.rescuedByIds', (state) => void state.friendlies[2].rescuedByIds.push(4)],
       ['friendly.lastDisplacement', (state) => void (state.friendlies[2].lastDisplacement = 0.1)],
       ['slotAssignments.slotIndex', (state) => void (state.slotAssignments[0].slotIndex = 14)],
-      ['slotAssignments.latchedPosition', (state) => void (state.slotAssignments[0].latchedPosition = { x: 1, y: 2 })],
-      ['slotLatchOwnerId', (state) => void (state.slotLatchOwnerId = 1)],
       ['enemies (melee)', (state) => void state.enemies.push(createEnemy(900, 'melee', { x: 1, y: 1 }))],
       [
         'enemy.kind',
@@ -384,7 +373,6 @@ describe('§1.17 determinism and digest', () => {
       ['spawn.nextEnemyId', (state) => void (state.spawn.nextEnemyId = 500)],
       ['spawn.discardedByAbsoluteCap', (state) => void (state.spawn.discardedByAbsoluteCap = 1)],
       ['spawn.discardedByBacklogOverflow', (state) => void (state.spawn.discardedByBacklogOverflow = 1)],
-      ['spawn.discardedByTerrain', (state) => void (state.spawn.discardedByTerrain = 1)],
       ['elite.enemyId', (state) => void (state.elite.enemyId = 1000)],
       ['elite.attackPhase', (state) => void (state.elite.attackPhase = 'telegraph')],
       ['elite.telegraphCenter', (state) => void (state.elite.telegraphCenter = { x: 2, y: 3 })],
@@ -401,10 +389,7 @@ describe('§1.17 determinism and digest', () => {
       ['stats.rescues', (state) => void (state.stats.rescues = 1)],
       ['prng.spawn', (state) => void (state.prng.spawn = 12345)],
       ['prng.cards', (state) => void (state.prng.cards = 12345)],
-      ['prng.terrain', (state) => void (state.prng.terrain = 12345)],
       ['prng.names', (state) => void (state.prng.names = 12345)],
-      ['terrain.high', (state) => void state.terrain.high.splice(0, 1)],
-      ['terrain.low', (state) => void state.terrain.low.splice(0, 1)],
     ]
 
     const baseline = digestBattleState(base)

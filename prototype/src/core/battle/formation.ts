@@ -1,25 +1,60 @@
-// §1.4: slot assignment and slot resolution.
+// §1.4: the 15 world-axis slots and the fixed id-ascending assignment table.
 //
-// The geometry — the 15 world-axis slots and the 0.1-step pull out of blocking
-// terrain — already lives in `core/gameplay/formation.ts` and is imported, not
-// copied. What this module adds is the part that is stateful and therefore could
-// not live in the stage-1 geometry work:
+// The slots do NOT rotate with movement, and the assignment is made once and never
+// recomputed — when command passes to a soldier (§1.5) that soldier's slot simply goes
+// vacant ("빈칸을 남긴다").
 //
-//   * the assignment table, fixed once at creation and never recomputed, and
-//   * the pull latch, which holds a pulled slot in place until the command unit
-//     moves again.
+//   (-2.2,-1.1) (-1.1,-1.1) ( 0.0,-1.1) ( 1.1,-1.1) ( 2.2,-1.1)
+//   (-2.2, 0.0) (-1.1, 0.0)      *      ( 1.1, 0.0) ( 2.2, 0.0)
+//   (-2.2, 1.1) (-1.1, 1.1) ( 0.0, 1.1) ( 1.1, 1.1) ( 2.2, 1.1)
+//                           ( 0.0, 2.2)
 //
-// Why the latch (§1.4's own "왜"): a slot that flips in and out of terrain while
-// the command unit stands still gives its follower a target that moves every tick,
-// so the follower's displacement never reaches 0 and §1.3 silences that one soldier
-// forever. Latching the pulled position removes the oscillation by construction —
-// the target is a fixed world point for as long as the command unit is stationary.
+// WHY THIS TABLE IS A COPY. Batch A imported it from `gameplay/formation.ts` and wrote
+// "never copied", because at the time both the game and the I9 harness needed the same
+// slot geometry AND the same terrain-aware slot pull. §1.6 removed cover: the game path
+// no longer has terrain, sight or geometry of any kind, and `gameplay/formation.ts` still
+// pulls slots out of movement blockers using `gameplay/geometry.ts`. Importing it would
+// drag both archived modules back into the live game, which is exactly what §2's 폐기
+// 기록 forbids. So the 15 offsets — pure data, unchanged since §1.4 was written — live
+// here, and `tests/battle/battle-boundaries.test.ts` pins them equal to the archived
+// table so the duplication cannot drift.
+//
+// The pull and its latch are GONE, not moved. Both existed only for slots that landed
+// inside terrain; with no terrain a slot is always `command unit + offset`, which is a
+// fixed world point while the command unit stands still — the condition §1.4's settle
+// dead-band needs to make a follower's displacement exactly 0.
 
-import { containsAny, type Rect } from '../gameplay/geometry'
-import { FORMATION_SLOTS, resolveSlotPosition } from '../gameplay/formation'
-import type { BattleState, SlotAssignment, Vec2 } from './types'
+import type { SlotAssignment, Vec2 } from './types'
 
-export { FORMATION_MAX_SLOT_RADIUS, FORMATION_SIZE, FORMATION_SLOTS } from '../gameplay/formation'
+export type FormationSlot = {
+  x: number
+  y: number
+}
+
+export const FORMATION_SLOTS: readonly FormationSlot[] = [
+  { x: -2.2, y: -1.1 },
+  { x: -1.1, y: -1.1 },
+  { x: 0.0, y: -1.1 },
+  { x: 1.1, y: -1.1 },
+  { x: 2.2, y: -1.1 },
+  { x: -2.2, y: 0.0 },
+  { x: -1.1, y: 0.0 },
+  { x: 1.1, y: 0.0 },
+  { x: 2.2, y: 0.0 },
+  { x: -2.2, y: 1.1 },
+  { x: -1.1, y: 1.1 },
+  { x: 0.0, y: 1.1 },
+  { x: 1.1, y: 1.1 },
+  { x: 2.2, y: 1.1 },
+  { x: 0.0, y: 2.2 },
+]
+
+/** §1.4: 15 slots + the command unit itself. */
+export const FORMATION_SIZE = FORMATION_SLOTS.length + 1
+/** §1.4: `hypot(2.2, 1.1) = 2.460`. */
+export const FORMATION_MAX_SLOT_RADIUS = Math.max(
+  ...FORMATION_SLOTS.map((slot) => Math.hypot(slot.x, slot.y)),
+)
 
 /**
  * §1.4: slots go to soldier ids in ascending order, once.
@@ -39,7 +74,7 @@ export function createSlotAssignments(soldierIds: readonly number[]): SlotAssign
   }
   return [...soldierIds]
     .sort((left, right) => left - right)
-    .map((unitId, slotIndex) => ({ unitId, slotIndex, latchedPosition: null }))
+    .map((unitId, slotIndex) => ({ unitId, slotIndex }))
 }
 
 export function findAssignment(
@@ -52,69 +87,25 @@ export function findAssignment(
   return null
 }
 
-/** The raw, un-pulled world position of a slot: world-axis fixed, no rotation. */
-export function rawSlotPosition(center: Vec2, slotIndex: number): Vec2 {
+/**
+ * The world position of a slot: world-axis fixed, no rotation, no pull.
+ *
+ * This is the whole of slot resolution now. It is a pure function of the command unit's
+ * position, so two callers in the same tick cannot disagree and no state is involved.
+ */
+export function slotPosition(center: Vec2, slotIndex: number): Vec2 {
   const slot = FORMATION_SLOTS[slotIndex]
   return { x: center.x + slot.x, y: center.y + slot.y }
 }
 
-/** Drop every latch. Cheap, and the only way a latch is ever released. */
-export function clearSlotLatches(state: BattleState): void {
-  for (const assignment of state.slotAssignments) assignment.latchedPosition = null
-  state.slotLatchOwnerId = null
-}
-
 /**
- * Both reasons a latch goes stale (§1.4):
- *
- *   1. the command unit took a step — the caller's `commandUnitMoved`, and
- *   2. the command unit was REPLACED (§1.5), which moves the formation centre by up
- *      to the 2.460 slot radius without anyone taking a step.
- *
- * (2) is the reachable version of the flicker §1.4 describes. It bites in exactly
- * the scenario succession exists for: the stand-in stops next to the downed original
- * commander and holds still for `RESCUE_TICKS`, so latched followers would aim at
- * points derived from the *previous* body's position for the whole rescue.
+ * The 16 body positions for a command unit at `center`: index 0 is the command unit,
+ * 1..15 are the slots in table order.
  */
-export function latchesAreStale(state: BattleState, commandUnitMoved: boolean): boolean {
-  return commandUnitMoved || state.slotLatchOwnerId !== state.commandUnitId
-}
-
-/**
- * Record which command unit the current latches belong to. Called once per follow
- * pass, after the slots have been resolved.
- */
-export function recordLatchOwner(state: BattleState): void {
-  const latched = state.slotAssignments.some((assignment) => assignment.latchedPosition !== null)
-  state.slotLatchOwnerId = latched ? state.commandUnitId : null
-}
-
-/**
- * The world position a follower should aim at this tick, applying and maintaining
- * the pull latch. Mutates `assignment.latchedPosition`, which is authoritative
- * state and part of the digest.
- *
- * `releaseLatch` must already account for both staleness causes — use
- * `latchesAreStale`.
- */
-export function resolveSlotTarget(
-  assignment: SlotAssignment,
-  center: Vec2,
-  movementBlockers: readonly Rect[],
-  releaseLatch: boolean,
-): Vec2 {
-  if (releaseLatch) assignment.latchedPosition = null
-  if (assignment.latchedPosition) return assignment.latchedPosition
-
-  const raw = rawSlotPosition(center, assignment.slotIndex)
-  if (!containsAny(movementBlockers, raw.x, raw.y)) return raw
-
-  const pulled = resolveSlotPosition(
-    center.x,
-    center.y,
-    FORMATION_SLOTS[assignment.slotIndex],
-    movementBlockers,
-  )
-  assignment.latchedPosition = { x: pulled.x, y: pulled.y }
-  return assignment.latchedPosition
+export function formationPositions(center: Vec2): Vec2[] {
+  const positions: Vec2[] = [{ x: center.x, y: center.y }]
+  for (let index = 0; index < FORMATION_SLOTS.length; index += 1) {
+    positions.push(slotPosition(center, index))
+  }
+  return positions
 }

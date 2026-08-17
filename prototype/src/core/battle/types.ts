@@ -9,9 +9,10 @@
 //   * Fields owned by a later batch are present and inert, not absent. Adding a
 //     field later would change every recorded digest; adding behaviour to a field
 //     that was already there does not.
-//   * Terrain is stored as the two authored classes only. `movementBlockers` and
-//     `sightBlockers` are derived on read (state.ts) so the two views can never
-//     drift apart from the source lists.
+//   * There is no terrain (§1.6). The arena is an empty plane, the only movement
+//     boundary is the arena clamp (§1.7), and nothing in this file may reach into
+//     `gameplay/terrain.ts` or `gameplay/geometry.ts` — those stay in the repository as
+//     the evidence that cover was measured and rejected. See §2's 폐기 기록.
 //
 // THE RULE THAT PAYS FOR THE FIRST BULLET — read this before adding a field:
 //
@@ -29,7 +30,6 @@
 // the exact top-level key set of `BattleState`, so adding one is a deliberate act
 // that has to be argued for in a diff.
 
-import type { TerrainRect } from '../gameplay/terrain'
 import type { CardId } from './constants'
 import type { BattlePrngStates } from './streams'
 
@@ -90,10 +90,6 @@ export type EnemyUnit = {
   targetId: number | null
   deathTick: number | null
   lastDisplacement: number
-  /** §1.7 — owned by the enemy-movement batch. */
-  zeroDisplacementTicks: number
-  /** §1.7 — the target excluded on the retarget after 30 stuck ticks. */
-  excludedTargetId: number | null
   /** §1.9 — the friendly whose contact/target slot this enemy holds. */
   contactSlotOwnerId: number | null
 }
@@ -127,21 +123,19 @@ export type DamageEvent = {
   cause: DamageCause
 }
 
-/** §1.4: fixed id-ascending slot assignment, never recomputed. */
+/**
+ * §1.4: fixed id-ascending slot assignment, never recomputed.
+ *
+ * There is no pull and no latch. Both existed only because a slot could land inside
+ * movement-blocking terrain, and §1.6 removed terrain: a slot is now always exactly
+ * `command unit + offset`, so the follower's target is a fixed world point whenever the
+ * command unit stands still — which is what §1.4's settle dead-band needs in order to
+ * produce a displacement of exactly 0.
+ */
 export type SlotAssignment = {
   unitId: number
   /** Index into `FORMATION_SLOTS`. */
   slotIndex: number
-  /**
-   * §1.4 pull latch: an ABSOLUTE world position, non-null once the slot has been
-   * pulled out of movement-blocking terrain.
-   *
-   * Because it is absolute rather than an offset, it is stale the moment the point
-   * it was derived from moves. Two things move it: the command unit taking a step,
-   * and the command unit being replaced (§1.5), which jumps the formation centre by
-   * up to the 2.460 slot radius. `slotLatchOwnerId` covers the second case.
-   */
-  latchedPosition: Vec2 | null
 }
 
 /** §1.10: a spawn request keeps the coordinate fixed at the tick it was made. */
@@ -164,8 +158,6 @@ export type SpawnState = {
   discardedByBacklogOverflow: number
   /** §1.10: discarded because the absolute live cap was reached. */
   discardedByAbsoluteCap: number
-  /** §1.10: discarded because 8 redraws all landed inside blocking terrain. */
-  discardedByTerrain: number
 }
 
 /**
@@ -220,11 +212,6 @@ export type BattleInput = {
   spaceHeld: boolean
 }
 
-export type BattleTerrain = {
-  high: TerrainRect[]
-  low: TerrainRect[]
-}
-
 export type BattleState = {
   schemaVersion: 1
   rootSeed: string
@@ -232,19 +219,12 @@ export type BattleState = {
   mode: BattleMode
   result: BattleResult
   failureReason: FailureReason
-  /** §1.17: the internal state of all four named streams. */
+  /** §1.17: the internal state of all three named streams. */
   prng: BattlePrngStates
-  terrain: BattleTerrain
   commandUnitId: number
   /** §1.5: the body that unconditionally reclaims command when it stands again. */
   originalCommanderId: number
   slotAssignments: SlotAssignment[]
-  /**
-   * §1.4/§1.5: the command unit the current latches were derived against, or null
-   * when nothing is latched. A latched slot is an absolute world position, so a
-   * change of command invalidates every latch even though no one moved.
-   */
-  slotLatchOwnerId: number | null
   input: BattleInput
   /** Kept sorted by ascending id — §1.5 (nearest, ties by id), §1.8 and §1.9 all
    * resolve ties by id, and `friendliesById` / `enemiesById` are the accessors that

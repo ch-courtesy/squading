@@ -1,27 +1,31 @@
-// Batch B fixtures: move/fire exclusivity (§1.3), target selection (§1.8) and the
-// two enemy classes (§1.9).
+// Batch B fixtures: move/fire exclusivity (§1.3), target selection (§1.8), the two
+// enemy classes (§1.9) and the range advantage that replaced cover (§1.6).
 //
-// Terrain here is hand-authored, never seed-derived (§4.2). Every expected
-// coordinate, tick and shot count below is hand-computed from the constants, not
-// read back off the implementation.
+// There is no terrain (§1.6), so there are no hand-authored layouts here any more and no
+// sight fixtures at all. Every expected coordinate, tick and shot count below is
+// hand-computed from the constants, not read back off the implementation.
 
 import { describe, expect, it } from 'vitest'
 
-import type { TerrainRect } from '../../src/core/gameplay/terrain'
 import {
+  ARENA_WIDTH,
   COMMANDER_ATTACK_INTERVAL,
   COMMANDER_DAMAGE,
   COMMANDER_MOVE_SPEED,
-  ENEMY_STUCK_TICKS,
   MELEE_ATTACK_INTERVAL,
   MELEE_DAMAGE,
   MELEE_MOVE_SPEED,
   MELEE_RANGE,
   MOVE_EPSILON,
+  RANGE_ADVANTAGE,
   SHOOTER_ATTACK_INTERVAL,
   SHOOTER_DAMAGE,
   SHOOTER_MOVE_SPEED,
+  SHOOTER_RANGE,
   SHOOTER_STANDOFF,
+  SOLDIER_ATTACK_INTERVAL,
+  SOLDIER_DAMAGE,
+  SOLDIER_RANGE,
 } from '../../src/core/battle/constants'
 import { advanceCommandUnit } from '../../src/core/battle/movement'
 import {
@@ -30,29 +34,19 @@ import {
   resolveStep9FriendlyAttacks,
 } from '../../src/core/battle/attacks'
 import { advanceStep7Targeting, selectFriendlyTargetId } from '../../src/core/battle/targeting'
-import { advanceEnemyMovement, shooterSightDenied } from '../../src/core/battle/enemy'
-import { hasBattleSight } from '../../src/core/battle/sight'
-import { hasLineOfSight } from '../../src/core/gameplay/geometry'
-import { COMMANDER_ID, createEnemy, createInitialBattleState, findEnemy, findFriendly, sightBlockers } from '../../src/core/battle/state'
+import { advanceEnemyMovement, isEnemyEngaged } from '../../src/core/battle/enemy'
+import { COMMANDER_ID, createEnemy, createInitialBattleState, findEnemy, findFriendly } from '../../src/core/battle/state'
 import type { BattleState, EnemyUnit, FriendlyUnit } from '../../src/core/battle/types'
 
-const HIGH_BLOCK: TerrainRect = { kind: 'high', x: 10, y: 10, width: 4, height: 4 }
-
 /**
- * A battle with hand-authored terrain and only the named friendlies standing.
+ * A battle with only the named friendlies standing.
  *
  * The other bodies are marked dead rather than moved off-arena: every rule in this
  * batch skips non-standing units, so a dead body cannot silently take a slot, absorb
  * a shot or shift a "nearest" tie.
  */
-function fixture(options: {
-  high?: TerrainRect[]
-  low?: TerrainRect[]
-  friendlies?: Record<number, { x: number; y: number }>
-}): BattleState {
+function fixture(options: { friendlies?: Record<number, { x: number; y: number }> } = {}): BattleState {
   const state = createInitialBattleState('seed-a')
-  state.terrain.high = options.high ?? []
-  state.terrain.low = options.low ?? []
 
   const kept = options.friendlies ?? { [COMMANDER_ID]: { x: 28, y: 16 } }
   for (const unit of state.friendlies) {
@@ -82,7 +76,7 @@ function enemyOf(state: BattleState, id: number): EnemyUnit {
 
 describe('§1.3 move/fire exclusivity', () => {
   it('freezes the cooldown and the shot of a unit that moved this tick', () => {
-    const state = fixture({})
+    const state = fixture()
     state.enemies = [createEnemy(101, 'melee', { x: 30, y: 16 })]
     const commander = commanderOf(state)
     commander.attackCooldown = 4
@@ -105,7 +99,7 @@ describe('§1.3 move/fire exclusivity', () => {
   })
 
   it('decrements and fires on a stopped tick', () => {
-    const state = fixture({})
+    const state = fixture()
     state.enemies = [createEnemy(101, 'melee', { x: 30, y: 16 })]
     const commander = commanderOf(state)
     commander.attackCooldown = 1
@@ -126,17 +120,17 @@ describe('§1.3 move/fire exclusivity', () => {
     expect(commander.attackCooldown).toBe(COMMANDER_ATTACK_INTERVAL)
   })
 
-  it('lets a unit blocked by terrain fire — the rule judges displacement, not input', () => {
-    // (9.99, 12) pushing +x into [10,14) x [10,14): x -> 10.065 is inside and is
-    // cancelled, dy is 0, so the actual displacement is exactly 0 (§1.7).
-    const state = fixture({ high: [HIGH_BLOCK], friendlies: { [COMMANDER_ID]: { x: 9.99, y: 12 } } })
-    state.enemies = [createEnemy(101, 'melee', { x: 6, y: 12 })]
+  it('lets a unit stopped by the arena edge fire — the rule judges displacement, not input', () => {
+    // §1.6 removed terrain, so the arena edge is the only place input can produce zero
+    // displacement. The rule is unchanged: it reads displacement, never input.
+    const state = fixture({ friendlies: { [COMMANDER_ID]: { x: ARENA_WIDTH, y: 12 } } })
+    state.enemies = [createEnemy(101, 'melee', { x: ARENA_WIDTH - 3, y: 12 })]
     const commander = commanderOf(state)
     commander.attackCooldown = 1
     state.input.move = { x: 1, y: 0 }
 
     expect(advanceCommandUnit(state)).toBe(0)
-    expect(commander.position).toEqual({ x: 9.99, y: 12 })
+    expect(commander.position).toEqual({ x: ARENA_WIDTH, y: 12 })
     expect(commander.lastDisplacement).toBe(0)
 
     advanceStep6Cooldowns(state)
@@ -146,7 +140,7 @@ describe('§1.3 move/fire exclusivity', () => {
   })
 
   it('does not apply to enemies: their cooldown runs while they close', () => {
-    const state = fixture({})
+    const state = fixture()
     state.enemies = [createEnemy(101, 'melee', { x: 34, y: 16 })]
     const melee = enemyOf(state, 101)
     melee.attackCooldown = 5
@@ -186,7 +180,7 @@ describe('§1.3 move/fire exclusivity', () => {
     ]
 
     for (const row of table) {
-      const state = fixture({})
+      const state = fixture()
       state.enemies = [createEnemy(101, 'melee', { x: 30, y: 16 })]
       const commander = commanderOf(state)
 
@@ -236,7 +230,7 @@ function v5Shots(stopEvery: number, ticks: number, interval: number): number {
 
 describe('§1.8 target selection', () => {
   it('takes the elite over a nearer ordinary enemy', () => {
-    const state = fixture({})
+    const state = fixture()
     state.enemies = [
       createEnemy(101, 'melee', { x: 29, y: 16 }), // distance 1
       createEnemy(1000, 'elite', { x: 32, y: 16 }), // distance 4
@@ -249,7 +243,7 @@ describe('§1.8 target selection', () => {
   })
 
   it('breaks a distance tie by ascending id', () => {
-    const state = fixture({})
+    const state = fixture()
     state.enemies = [
       createEnemy(101, 'melee', { x: 30, y: 16 }),
       createEnemy(102, 'melee', { x: 26, y: 16 }),
@@ -257,39 +251,8 @@ describe('§1.8 target selection', () => {
     expect(selectFriendlyTargetId(state, commanderOf(state))).toBe(101)
   })
 
-  it('skips a candidate behind cover and takes a further visible one', () => {
-    // Low cover [29,31) x [14,18). The commander at (28,16) has:
-    //   101 at (32,16) — distance 4, segment crosses the rectangle -> blocked
-    //   102 at (28,21) — distance 5, segment runs up x = 28 -> clear
-    const low: TerrainRect = { kind: 'low', x: 29, y: 14, width: 2, height: 4 }
-    const state = fixture({ low: [low] })
-    state.enemies = [
-      createEnemy(101, 'melee', { x: 32, y: 16 }),
-      createEnemy(102, 'melee', { x: 28, y: 21 }),
-    ]
-    expect(selectFriendlyTargetId(state, commanderOf(state))).toBe(102)
-
-    // Same geometry without the cover: the nearer one wins, so the fixture really is
-    // testing sight and not distance.
-    state.terrain.low = []
-    expect(selectFriendlyTargetId(state, commanderOf(state))).toBe(101)
-  })
-
-  it('does not let a rectangle block a segment that starts inside it (§1.6)', () => {
-    // The commander stands INSIDE low cover [29,31) x [14,18) and shoots out; §1.6
-    // exempts a rectangle that contains an endpoint. Raw `hasLineOfSight` does NOT
-    // implement that exemption, which is why this batch owns `hasBattleSight`.
-    const low: TerrainRect = { kind: 'low', x: 29, y: 14, width: 2, height: 4 }
-    const state = fixture({ low: [low], friendlies: { [COMMANDER_ID]: { x: 30, y: 16 } } })
-    state.enemies = [createEnemy(101, 'melee', { x: 34, y: 16 })]
-
-    expect(hasLineOfSight(30, 16, 34, 16, sightBlockers(state))).toBe(false)
-    expect(hasBattleSight(30, 16, 34, 16, sightBlockers(state))).toBe(true)
-    expect(selectFriendlyTargetId(state, commanderOf(state))).toBe(101)
-  })
-
   it('spends nothing when there is no candidate', () => {
-    const state = fixture({})
+    const state = fixture()
     // Distance 6.5 > COMMANDER_RANGE 6.0.
     state.enemies = [createEnemy(101, 'melee', { x: 34.5, y: 16 })]
     const commander = commanderOf(state)
@@ -305,7 +268,7 @@ describe('§1.8 target selection', () => {
 
 describe('§1.9 melee', () => {
   it('closes on its target and holds at contact range', () => {
-    const state = fixture({})
+    const state = fixture()
     state.enemies = [createEnemy(101, 'melee', { x: 30, y: 16 })]
     const melee = enemyOf(state, 101)
     melee.targetId = COMMANDER_ID
@@ -391,7 +354,7 @@ describe('§1.9 shooter', () => {
   const [STANDOFF_LOW, STANDOFF_HIGH] = SHOOTER_STANDOFF
 
   function shooterAt(x: number, y: number): { state: BattleState; shooter: EnemyUnit } {
-    const state = fixture({})
+    const state = fixture()
     state.enemies = [createEnemy(201, 'shooter', { x, y })]
     const shooter = enemyOf(state, 201)
     shooter.targetId = COMMANDER_ID
@@ -417,7 +380,7 @@ describe('§1.9 shooter', () => {
     advanceEnemyMovement(hold.state)
     expect(hold.shooter.position).toEqual({ x: 31.5, y: 16 })
     expect(hold.shooter.lastDisplacement).toBe(0)
-    expect(hold.shooter.zeroDisplacementTicks).toBe(0)
+    expect(isEnemyEngaged(hold.state, hold.shooter)).toBe(true)
     expect(resolveStep10EnemyAttacks(hold.state)).toEqual([
       {
         side: 'enemy',
@@ -436,91 +399,6 @@ describe('§1.9 shooter', () => {
     expect(retreat.shooter.position.y).toBeCloseTo(16, 12)
     expect(retreat.shooter.lastDisplacement).toBeCloseTo(SHOOTER_MOVE_SPEED, 12)
     expect(resolveStep10EnemyAttacks(retreat.state)).toEqual([])
-  })
-
-  it('applies sliding to the retreat (§1.9), and a blocked retreat counts as stuck', () => {
-    // Friendly at (15.55, 12), shooter at (14.05, 12): distance 1.5 < 2.7, so the
-    // shooter retreats along -x to 13.99 — inside [10,14) x [10,14), so §1.7 cancels
-    // the x component. dy is 0, so the net displacement is exactly 0. Unlike a
-    // deliberate hold this DOES advance the stuck counter: the shooter wanted to move.
-    const state = fixture({
-      high: [HIGH_BLOCK],
-      friendlies: { [COMMANDER_ID]: { x: 15.55, y: 12 } },
-    })
-    state.enemies = [createEnemy(201, 'shooter', { x: 14.05, y: 12 })]
-    const shooter = enemyOf(state, 201)
-    shooter.targetId = COMMANDER_ID
-    shooter.contactSlotOwnerId = COMMANDER_ID
-
-    advanceEnemyMovement(state)
-    expect(shooter.position).toEqual({ x: 14.05, y: 12 })
-    expect(shooter.lastDisplacement).toBe(0)
-    expect(shooter.zeroDisplacementTicks).toBe(1)
-
-    // Away from the wall the same retreat is a clean 0.06 step along -x.
-    shooter.position = { x: 16.5, y: 12 }
-    findFriendly(state, COMMANDER_ID)!.position = { x: 18, y: 12 }
-    advanceEnemyMovement(state)
-    expect(shooter.position.x).toBeCloseTo(16.44, 12)
-    expect(shooter.zeroDisplacementTicks).toBe(0)
-  })
-
-  it('orbits the shorter way when sight is lost, and does not fire', () => {
-    // Target at (28, 16), shooter at (31.5, 16): distance 3.5, inside the band.
-    // Low cover [29.5, 30.5) x [15.9, 17.9) blocks the straight segment. Its lower
-    // edge is 0.1 below the sight line and its upper edge is 1.9 above it, so the
-    // shorter arc to sight is clockwise (-y). One 5-degree probe clears it: at
-    // -5 degrees the segment reaches y = 16 - 1.5*tan(5) = 15.869 at x = 29.5, below
-    // the rectangle; at +5 degrees it is still inside it.
-    const low: TerrainRect = { kind: 'low', x: 29.5, y: 15.9, width: 1, height: 2 }
-    const state = fixture({ low: [low] })
-    state.enemies = [createEnemy(201, 'shooter', { x: 31.5, y: 16 })]
-    const shooter = enemyOf(state, 201)
-    shooter.targetId = COMMANDER_ID
-    shooter.contactSlotOwnerId = COMMANDER_ID
-
-    expect(hasBattleSight(31.5, 16, 28, 16, sightBlockers(state))).toBe(false)
-    expect(shooterSightDenied(state, shooter)).toBe(true)
-
-    // Radial is (+x); the clockwise tangent is (0, -1) and the whole move speed goes
-    // into it (§1.9), so the step is straight down by 0.06.
-    advanceEnemyMovement(state)
-    expect(shooter.position.x).toBeCloseTo(31.5, 12)
-    expect(shooter.position.y).toBeCloseTo(16 - SHOOTER_MOVE_SPEED, 12)
-    expect(resolveStep10EnemyAttacks(state)).toEqual([])
-  })
-
-  it('orbits the other way when the cover is mirrored', () => {
-    // Same rectangle reflected about y = 16: [29.5, 30.5) x [14.1, 16.1). Now the
-    // short arc is counter-clockwise (+y).
-    const low: TerrainRect = { kind: 'low', x: 29.5, y: 14.1, width: 1, height: 2 }
-    const state = fixture({ low: [low] })
-    state.enemies = [createEnemy(201, 'shooter', { x: 31.5, y: 16 })]
-    const shooter = enemyOf(state, 201)
-    shooter.targetId = COMMANDER_ID
-    shooter.contactSlotOwnerId = COMMANDER_ID
-
-    expect(hasBattleSight(31.5, 16, 28, 16, sightBlockers(state))).toBe(false)
-    advanceEnemyMovement(state)
-    expect(shooter.position.x).toBeCloseTo(31.5, 12)
-    expect(shooter.position.y).toBeCloseTo(16 + SHOOTER_MOVE_SPEED, 12)
-  })
-
-  it('resolves a symmetric wall counter-clockwise', () => {
-    // Low cover [29.5, 30.5) x [15.5, 16.5) is symmetric about the sight line, so both
-    // arcs to sight are the same length: 1.5*tan(angle) must exceed 0.5, i.e. 18.44
-    // degrees, which the 5-degree probe first clears at step 4 (20 degrees) on BOTH
-    // sides at once. §1.9 does not name a tie-break, so this pins the one we chose.
-    const low: TerrainRect = { kind: 'low', x: 29.5, y: 15.5, width: 1, height: 1 }
-    const state = fixture({ low: [low] })
-    state.enemies = [createEnemy(201, 'shooter', { x: 31.5, y: 16 })]
-    const shooter = enemyOf(state, 201)
-    shooter.targetId = COMMANDER_ID
-    shooter.contactSlotOwnerId = COMMANDER_ID
-
-    expect(hasBattleSight(31.5, 16, 28, 16, sightBlockers(state))).toBe(false)
-    advanceEnemyMovement(state)
-    expect(shooter.position.y).toBeCloseTo(16 + SHOOTER_MOVE_SPEED, 12)
   })
 
   it('uses two target slots per friendly', () => {
@@ -543,7 +421,7 @@ describe('§1.9 shooter', () => {
   it('shares a friendly between a melee contact slot and two shooter slots', () => {
     // The two slot kinds are separate pools (§1.9 names them separately), so one
     // friendly can hold one melee and two shooters at once.
-    const state = fixture({})
+    const state = fixture()
     state.enemies = [
       createEnemy(101, 'melee', { x: 28, y: 20 }),
       createEnemy(201, 'shooter', { x: 28, y: 20 }),
@@ -554,62 +432,97 @@ describe('§1.9 shooter', () => {
   })
 })
 
-describe('§1.7 stuck retarget', () => {
-  it('retargets after 30 zero-displacement ticks and excludes the target it gave up', () => {
-    // Melee at (9.99, 12) pursuing friendly 1 at (20, 12) through [10,14) x [10,14):
-    // x -> 10.065 is inside and is cancelled, dy is 0, so every tick nets exactly 0.
-    const state = fixture({
-      high: [HIGH_BLOCK],
-      friendlies: { [COMMANDER_ID]: { x: 20, y: 12 }, 2: { x: 9, y: 20 } },
-    })
-    state.enemies = [createEnemy(101, 'melee', { x: 9.99, y: 12 })]
-    const melee = enemyOf(state, 101)
-    melee.targetId = COMMANDER_ID
-    melee.contactSlotOwnerId = COMMANDER_ID
+describe('§1.6 range advantage — the mechanism that replaced cover', () => {
+  it('lets a soldier in the gap shoot a shooter that cannot shoot back', () => {
+    // The gap is SOLDIER_RANGE 5.0 - SHOOTER_RANGE 4.5 = 0.5, and the shooter can only
+    // fire from inside its standoff band, whose top is 0.95 x 4.5 = 4.275. So a soldier
+    // standing 4.6 away is:
+    //   * inside its own 5.0 range        -> it shoots
+    //   * outside the shooter's 4.5 range -> the shooter cannot reach it at all
+    // Hand-computed: place soldier 2 at (28, 16) and the shooter at (32.6, 16).
+    expect(RANGE_ADVANTAGE).toBeCloseTo(0.5, 12)
+    const distance = 4.6
+    expect(distance).toBeLessThan(SOLDIER_RANGE)
+    expect(distance).toBeGreaterThan(SHOOTER_RANGE)
 
-    for (let tick = 1; tick <= ENEMY_STUCK_TICKS; tick += 1) {
+    const state = fixture({ friendlies: { 2: { x: 28, y: 16 } } })
+    state.enemies = [createEnemy(201, 'shooter', { x: 28 + distance, y: 16 })]
+    const soldier = findFriendly(state, 2)!
+    const shooter = enemyOf(state, 201)
+    soldier.lastDisplacement = 0
+
+    advanceStep7Targeting(state)
+    expect(soldier.targetId).toBe(201)
+
+    // Both sides get their attack step on the same tick, from the same positions.
+    expect(resolveStep9FriendlyAttacks(state)).toEqual([
+      {
+        side: 'friendly',
+        attackerId: 2,
+        targetId: 201,
+        amount: SOLDIER_DAMAGE,
+        cause: 'friendly-attack',
+      },
+    ])
+    expect(resolveStep10EnemyAttacks(state)).toEqual([])
+    expect(isEnemyEngaged(state, shooter)).toBe(false)
+  })
+
+  it('loses the advantage as soon as the shooter closes into its band', () => {
+    // 4.2 is inside the band [2.7, 4.275] and inside the soldier's 5.0, so both fire.
+    const state = fixture({ friendlies: { 2: { x: 28, y: 16 } } })
+    state.enemies = [createEnemy(201, 'shooter', { x: 32.2, y: 16 })]
+    const soldier = findFriendly(state, 2)!
+    soldier.lastDisplacement = 0
+
+    advanceStep7Targeting(state)
+    expect(resolveStep9FriendlyAttacks(state)).toHaveLength(1)
+    expect(resolveStep10EnemyAttacks(state)).toEqual([
+      {
+        side: 'enemy',
+        attackerId: 201,
+        targetId: 2,
+        amount: SHOOTER_DAMAGE,
+        cause: 'shooter-shot',
+      },
+    ])
+  })
+
+  it('measures how long the advantage lasts against a closing melee', () => {
+    // A melee at MELEE_MOVE_SPEED 0.075 starting 4.6 away has to cover 4.6 - 0.75 = 3.85
+    // to reach contact: ceil(3.85 / 0.075) = 52 moving ticks. It stands still on tick 1
+    // because step 5 moves toward the target step 7 has not chosen yet (§1.16's declared
+    // one-tick lag), so contact lands on tick 53: 4.6 - 52 x 0.075 = 0.700 <= 0.75.
+    // The soldier fires on ticks 1, 13, 25, 37, 49 — five shots before the first swing,
+    // and that number is the pressure §1.6 describes ("근접형은 접근을 허용하는 순간 이
+    // 우위가 무너진다"). Its cooldown is then 12 - 4 = 8.
+    const state = fixture({ friendlies: { 2: { x: 28, y: 16 } } })
+    state.enemies = [createEnemy(101, 'melee', { x: 32.6, y: 16 })]
+    const soldier = findFriendly(state, 2)!
+    const melee = enemyOf(state, 101)
+
+    let friendlyShots = 0
+    let enemySwings = 0
+    let contactTick = 0
+    for (let tick = 1; tick <= 60 && enemySwings === 0; tick += 1) {
+      soldier.lastDisplacement = 0
       advanceEnemyMovement(state)
-      expect(melee.lastDisplacement).toBe(0)
-      expect(melee.zeroDisplacementTicks).toBe(tick)
-      if (tick < ENEMY_STUCK_TICKS) {
-        advanceStep7Targeting(state)
-        expect(melee.targetId).toBe(COMMANDER_ID)
-        expect(melee.excludedTargetId).toBeNull()
+      advanceStep6Cooldowns(state)
+      advanceStep7Targeting(state)
+      friendlyShots += resolveStep9FriendlyAttacks(state).length
+      const swings = resolveStep10EnemyAttacks(state).length
+      if (swings > 0) {
+        enemySwings += swings
+        contactTick = tick
       }
     }
 
-    advanceStep7Targeting(state)
-    expect(melee.excludedTargetId).toBe(COMMANDER_ID)
-    expect(melee.targetId).toBe(2)
-    expect(melee.contactSlotOwnerId).toBe(2)
-    // Reset, or the retarget would fire again on every following tick.
-    expect(melee.zeroDisplacementTicks).toBe(0)
-  })
-
-  it('does not count a deliberate hold as being stuck', () => {
-    // A melee sitting at contact range and a shooter holding inside the band both
-    // have displacement 0 by design (§1.9). Charging that against §1.7 would make a
-    // shooter dump its target every 30 ticks — every attack interval.
-    const state = fixture({})
-    state.enemies = [
-      createEnemy(101, 'melee', { x: 28.5, y: 16 }),
-      createEnemy(201, 'shooter', { x: 31.5, y: 16 }),
-    ]
-    for (const enemy of state.enemies) {
-      enemy.targetId = COMMANDER_ID
-      enemy.contactSlotOwnerId = COMMANDER_ID
-    }
-
-    for (let tick = 1; tick <= ENEMY_STUCK_TICKS + 5; tick += 1) {
-      advanceEnemyMovement(state)
-      advanceStep7Targeting(state)
-    }
-    for (const enemy of state.enemies) {
-      expect(enemy.lastDisplacement).toBe(0)
-      expect(enemy.zeroDisplacementTicks).toBe(0)
-      expect(enemy.targetId).toBe(COMMANDER_ID)
-      expect(enemy.excludedTargetId).toBeNull()
-    }
+    expect(contactTick).toBe(53)
+    expect(friendlyShots).toBe(5)
+    // still closing at the tick of first contact — the advantage ends because the
+    // melee arrives, not because it has stopped.
+    expect(melee.lastDisplacement).toBeCloseTo(MELEE_MOVE_SPEED, 12)
+    expect(soldier.attackCooldown).toBe(SOLDIER_ATTACK_INTERVAL - 4)
   })
 })
 
@@ -647,7 +560,7 @@ describe('batch B ordering and shape', () => {
   })
 
   it('leaves the elite row to §1.12 — it neither retargets nor moves nor contacts', () => {
-    const state = fixture({})
+    const state = fixture()
     state.enemies = [createEnemy(1000, 'elite', { x: 30, y: 16 })]
     state.elite.enemyId = 1000
     const elite = enemyOf(state, 1000)

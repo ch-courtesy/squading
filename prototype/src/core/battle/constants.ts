@@ -14,21 +14,22 @@
 // are asserted at module load, so a tuning pass that violates one fails loudly at
 // import time instead of producing a subtly broken run.
 
-import {
-  ARENA_HEIGHT,
-  ARENA_WIDTH,
-  COMMANDER_START,
-  TERRAIN_CLEAR_RADIUS,
-  type TerrainOptions,
-} from '../gameplay/terrain'
-import { SLOT_PULL_MAX_STEPS, SLOT_PULL_STEP } from '../gameplay/formation'
-
-export { ARENA_HEIGHT, ARENA_WIDTH, COMMANDER_START, TERRAIN_CLEAR_RADIUS }
-export { SLOT_PULL_MAX_STEPS, SLOT_PULL_STEP }
-
 // ---------------------------------------------------------------------------
 // FIXED — §1.1 coordinates and clock
 // ---------------------------------------------------------------------------
+
+/**
+ * §1.1: the arena is `0..56 x 0..32` and the commander starts at its centre.
+ *
+ * Declared here rather than imported from `gameplay/terrain.ts` because §1.6 removes
+ * terrain from the game entirely. That module — and `gameplay/geometry.ts`,
+ * `harness/i9.ts`, `artifacts/i9-sweep.md` — stay in the repository as the evidence
+ * that cover was measured and rejected, and `core/battle/` must not import any of
+ * them; `tests/battle/battle-boundaries.test.ts` pins that.
+ */
+export const ARENA_WIDTH = 56
+export const ARENA_HEIGHT = 32
+export const COMMANDER_START: Readonly<{ x: number; y: number }> = { x: 28, y: 16 }
 
 /** §1.1: 90 seconds at 30Hz. */
 export const COMBAT_TICK_LIMIT = 2700
@@ -65,15 +66,13 @@ export const COMMANDER_HP = 5.0
 export const SOLDIER_HP = 1.4
 
 // ---------------------------------------------------------------------------
-// PLACEHOLDER — epsilons (§2: MOVE 0.001~0.02, ARRIVE <= MOVE, EJECT 0.001~0.01)
+// PLACEHOLDER — epsilons (§2: MOVE 0.001~0.02, ARRIVE <= MOVE)
 // ---------------------------------------------------------------------------
 
 /** PLACEHOLDER — §1.3 stop threshold: displacement below this counts as stopped. */
 export const MOVE_EPSILON = 0.005
 /** PLACEHOLDER — §1.4 slot settle threshold. Must stay <= MOVE_EPSILON. */
 export const ARRIVE_EPSILON = 0.004
-/** PLACEHOLDER — §1.6 clearance when pushing a unit out of blocking terrain. */
-export const EJECT_EPSILON = 0.002
 
 // ---------------------------------------------------------------------------
 // PLACEHOLDER — enemy classes (§1.9)
@@ -94,8 +93,14 @@ export const MELEE_DAMAGE = 0.045
 export const SHOOTER_HP = 0.8
 /** PLACEHOLDER */
 export const SHOOTER_MOVE_SPEED = 0.06
-/** PLACEHOLDER — §1.9 hard constraint: must stay below SOLDIER_RANGE. */
+/**
+ * PLACEHOLDER — §2 searches `3.0 ~ 4.9`, and §1.6 makes the gap the whole mechanism:
+ * `SOLDIER_RANGE - SHOOTER_RANGE` IS the band a friendly can stop in and shoot without
+ * being shot back. Cover is gone; this number is what replaced it.
+ */
 export const SHOOTER_RANGE = 4.5
+/** §1.6/§2 sweep axis 1: the size of the range advantage. */
+export const RANGE_ADVANTAGE = SOLDIER_RANGE - SHOOTER_RANGE
 /**
  * PLACEHOLDER — §2 expresses the stop band as a ratio of `SHOOTER_RANGE`, so it is
  * DERIVED from the ratio rather than written out. Writing the pair as literals is
@@ -117,8 +122,6 @@ export const SHOOTER_DAMAGE = 0.035
 export const MELEE_CONTACT_SLOTS_PER_FRIENDLY = 1
 /** §1.9: two shooter target slots per friendly. */
 export const SHOOTER_TARGET_SLOTS_PER_FRIENDLY = 2
-/** §1.7: an enemy with 30 consecutive zero-displacement ticks retargets. */
-export const ENEMY_STUCK_TICKS = 30
 
 // ---------------------------------------------------------------------------
 // PLACEHOLDER — supply geometry (§1.10)
@@ -134,8 +137,6 @@ export const ABSOLUTE_ENEMY_CAP = 60
 export const BACKLOG_SIZE = 12
 /** PLACEHOLDER */
 export const BACKLOG_DRAIN_PER_TICK = 2
-/** §1.10: a spawn point inside blocking terrain is redrawn at most 8 times. */
-export const SPAWN_MAX_REDRAWS = 8
 
 export type PressurePhase = {
   /** First tick of the phase (inclusive). */
@@ -258,18 +259,6 @@ export const CARD_EFFECTS: Readonly<Record<CardId, number>> = {
 }
 
 // ---------------------------------------------------------------------------
-// PLACEHOLDER — terrain (§1.6, §2)
-// ---------------------------------------------------------------------------
-
-/** PLACEHOLDER — requested counts and side ranges; placement counts are measured. */
-export const TERRAIN_OPTIONS: TerrainOptions = {
-  highCount: 6,
-  lowCount: 30,
-  highSide: { min: 3.0, max: 6.0 },
-  lowSide: { min: 3.0, max: 5.0 },
-}
-
-// ---------------------------------------------------------------------------
 // Structural invariants — §1 states these as relations, not as search ranges.
 // ---------------------------------------------------------------------------
 
@@ -280,9 +269,11 @@ function assertRule(condition: boolean, message: string): void {
 // §1.4: without this the settle dead-band can leave a displacement that §1.3 still
 // reads as movement, and the follower is silenced forever.
 assertRule(ARRIVE_EPSILON <= MOVE_EPSILON, 'ARRIVE_EPSILON must be <= MOVE_EPSILON (§1.4)')
-// §1.9: a shooter that outranges a soldier must close, and §1.3 makes the approach
-// free of return fire, so kills collapse.
+// §1.6/§1.9: the range advantage is the mechanism that replaced cover. A shooter that
+// outranges a soldier deletes it — and §1.3 makes the approach free of return fire, so
+// kills collapse as well.
 assertRule(SHOOTER_RANGE < SOLDIER_RANGE, 'SHOOTER_RANGE must be < SOLDIER_RANGE (§1.9)')
+assertRule(RANGE_ADVANTAGE > 0, 'the range advantage must be positive (§1.6)')
 // §1.12: the same argument for the elite.
 assertRule(ELITE_APPROACH_RANGE < SOLDIER_RANGE, 'ELITE_APPROACH_RANGE must be < SOLDIER_RANGE (§1.12)')
 // §1.10: overlapping radii fill the cap with enemies still in transit.

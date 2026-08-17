@@ -16,6 +16,10 @@
 //     request sequence — so array order, which is an implementation detail of the
 //     update loop, cannot change the digest.
 //
+// §1.6 removed terrain, so the digest no longer carries a terrain list and covers three
+// streams rather than four. It is smaller than the v6 digest by construction: every
+// recorded v6 digest value is void, which is stated in §1.16's own header.
+//
 // `rescuedByIds` is deliberately NOT sorted: it is a record of who rescued whom in
 // what order (§1.14), so its order is data.
 
@@ -82,12 +86,6 @@ export function canonicalizeBattleState(state: Readonly<BattleState>): unknown {
     upgrades: {
       ...state.upgrades,
       rounds: [...state.upgrades.rounds].sort((left, right) => left.round - right.round),
-    },
-    terrain: {
-      // Terrain is generated in a fixed draw order and never reordered; sorting it
-      // would hide a generator that changed that order.
-      high: state.terrain.high,
-      low: state.terrain.low,
     },
   })
 }

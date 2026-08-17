@@ -1,4 +1,9 @@
-// §1.17: the four named PRNG streams — `spawn`, `cards`, `terrain`, `names`.
+// §1.17: the three named PRNG streams — `spawn`, `cards`, `names`.
+//
+// There was a fourth, `terrain`, until §1.6 removed cover from the game. It is gone
+// rather than kept-and-unused: an idle stream still occupies a slot in the digest and
+// would let a later batch quietly reintroduce terrain generation without touching this
+// file. §1.17 now says "세 스트림".
 //
 // Naming and derivation follow `core/gameplay/state.ts`: each stream is a separate
 // xorshift seeded from `${rootSeed}:${name}`, so consuming one can never disturb
@@ -6,18 +11,18 @@
 // the spawn draw sequence identical"; §1.17 withdraws that guard, but stream
 // separation itself is what makes replay and the 8-seed bands meaningful.
 //
-// The live state is stored as four raw uint32s inside `BattleState.prng` (the
+// The live state is stored as three raw uint32s inside `BattleState.prng` (the
 // representation `core/gameplay/progression.ts` already uses), because the digest
 // has to see the stream position and a closure cannot be serialized. `streamPrng`
-// hands out a `Prng` view over one of those slots for code — terrain generation,
-// the name shuffle — that wants the `Prng` interface.
+// hands out a `Prng` view over one of those slots for code — the name shuffle, the
+// card draw — that wants the `Prng` interface.
 
 import type { Prng } from '../prng'
 import { createPrng } from '../prng'
 
-export type StreamName = 'spawn' | 'cards' | 'terrain' | 'names'
+export type StreamName = 'spawn' | 'cards' | 'names'
 
-export const STREAM_NAMES: readonly StreamName[] = ['spawn', 'cards', 'terrain', 'names']
+export const STREAM_NAMES: readonly StreamName[] = ['spawn', 'cards', 'names']
 
 export type BattlePrngStates = Record<StreamName, number>
 
@@ -30,7 +35,6 @@ export function createStreamStates(rootSeed: string): BattlePrngStates {
   return {
     spawn: createPrng(streamSeed(rootSeed, 'spawn')).getState(),
     cards: createPrng(streamSeed(rootSeed, 'cards')).getState(),
-    terrain: createPrng(streamSeed(rootSeed, 'terrain')).getState(),
     names: createPrng(streamSeed(rootSeed, 'names')).getState(),
   }
 }
