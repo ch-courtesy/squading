@@ -229,10 +229,22 @@
 //                                      a wrong spelling that compiles: `resolveSpawnRequests`
 //                                      for row 2, `advanceEnemyMovement` for row 5, any
 //                                      permutation of row 11's list, and a second
-//                                      `resolveTransitions()` for row 16. All four are caught
-//                                      by the whole-battle fixture in
+//                                      `resolveTransitions()` for row 16. The first three are
+//                                      caught by the whole-battle fixture in
 //                                      `tests/battle/battle-tick.test.ts`; the batch E report
 //                                      records the mutation run that proves each one bites.
+//                                      ROW 16 IS THE ONE WITH A CONDITION ON IT. The only thing
+//                                      in that run which can see a verdict built from a second
+//                                      `resolveTransitions()` is the elite's death, and a second
+//                                      call reports none because the body is already `dead` by
+//                                      then — so the detector exists only while the run WINS,
+//                                      and §5 stage 2 has to make `tactical-no-input` lose (I3).
+//                                      Two things follow, and both are in the fixture file:
+//                                      the whole-battle run asserts that it produced an elite
+//                                      death, so it fails loudly instead of going quiet the day
+//                                      the verdict flips; and a second fixture kills the elite
+//                                      by hand, which is a detector for row 16 that does not
+//                                      depend on the balance at all.
 //   I1 measurement .................... `isEnemyEngaged` (enemy.ts).
 //   I2 measurement .................... `DamageOutcome.damageToFriendlies` already
 //                                      excludes overkill and absorbed hits, which is

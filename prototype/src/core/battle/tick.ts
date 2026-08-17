@@ -18,7 +18,11 @@
 //   * THE FOUR CHOICES NO TYPE ENFORCES. `resolveSpawnRequests` where `resolveEnemyArrivals`
 //     belongs, `advanceEnemyMovement` where `advanceAllEnemyMovement` belongs, a permuted
 //     damage list, and a second `resolveTransitions` call for the verdict all type-check
-//     perfectly. `tests/battle/battle-tick.test.ts` runs a whole battle and fails on each.
+//     perfectly. `tests/battle/battle-tick.test.ts` runs a whole battle and fails on the first
+//     three. The fourth is only visible on a tick where the elite dies — a second call reports
+//     no deaths at all, because the body is already `dead` — so that file also kills the elite
+//     by hand, and the whole-battle run asserts that it produced an elite death rather than
+//     letting the detector lapse in silence when §5's balance sweep flips the verdict.
 //   * §1.1's CLOCK GATE. "`paused`·`awaiting-upgrade`·hidden에서 증가하지 않는다" is not a
 //     property any single rule can hold; it is a property of the loop, and putting it here
 //     rather than in the facade means every driver — controller, harness, fixture — gets it.

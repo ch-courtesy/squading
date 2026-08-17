@@ -14,8 +14,14 @@
 //     `resolveTransitions` a second time for the verdict also type-checks, and reports no
 //     deaths, so the run never ends.
 //
-// The run below is one fixture that fails on all four, and the batch E report records the
-// mutation output that proves each one bites.
+// The whole-battle run below fails on the first three, and the batch E report records the
+// mutation output that proves each one bites. THE FOURTH IS CONDITIONAL AND THAT CONDITION IS
+// WRITTEN DOWN TWICE. A second `resolveTransitions()` reports no deaths because the bodies are
+// already dead by then, so the only tick that can catch it is one where the ELITE dies — and §5
+// stage 2 has to tune `tactical-no-input` into a defeat, where no such tick exists. So the whole
+// battle asserts the precondition of its own detector (it fails, rather than going quiet, the
+// day the verdict flips), and a separate fixture kills the elite by hand so that row 16 keeps a
+// detector which does not depend on the balance at all.
 
 import { describe, expect, it } from 'vitest'
 
@@ -268,6 +274,37 @@ describe('§1.15 the reducer path releases a pause in full, device half included
   })
 })
 
+describe('§1.16 the verdict reads the transition row that actually ran', () => {
+  it('claims the win on the tick the elite dies, without asking the state a second time', () => {
+    // HAZARD 4b, on a fixture that does NOT depend on how the balance sweep tunes the run. The
+    // whole-battle fixture below detects the second `resolveTransitions()` only through an elite
+    // death, and §5 stage 2 has to make `tactical-no-input` lose. This one kills the elite by
+    // hand, so row 16 keeps a detector after that.
+    const state = running('seed-a')
+    while (state.elite.enemyId === null) {
+      if (state.mode !== 'running' && state.mode !== 'awaiting-upgrade') {
+        throw new Error(`the run ended at ${state.combatTick} before the elite arrived`)
+      }
+      if (state.combatTick > ELITE_SPAWN_TICK + 1) throw new Error('the elite never arrived')
+      const commands: BattleCommand[] =
+        state.mode === 'awaiting-upgrade' ? [{ kind: 'choose-upgrade', slot: 1 }] : NO_COMMANDS
+      advanceBattleTick(state, commandBatch(commands))
+    }
+
+    const elite = state.enemies.find((enemy) => enemy.id === state.elite.enemyId)
+    if (!elite) throw new Error('the elite id names no enemy')
+    elite.hp = 0
+
+    const tick = resolved(advanceBattleTick(state, commandBatch(NO_COMMANDS)))
+
+    // A second `resolveTransitions()` for the verdict type-checks and reports no deaths at all —
+    // the elite is already `dead` by then — so the run would carry on past its own victory.
+    expect(tick.transitions.enemyDeaths.some((death) => death.kind === 'elite')).toBe(true)
+    expect(state.mode).toBe('won')
+    expect(state.result).toBe('won')
+  })
+})
+
 /**
  * §4.1's `tactical-no-input`: nothing but the card choice, which is the one policy with no
  * player model in it. Returns everything the four hazards are judged on.
@@ -358,8 +395,9 @@ describe('§1.16 the reducer runs a whole battle to a verdict', () => {
   it('composes all sixteen rows, and holds the four the types do not', () => {
     const run = playToVerdict('seed-a')
 
-    // The run DECIDES. Which verdict is a balance question this fixture must not answer —
-    // §5 stage 2 owns it, and batch D refused to freeze it here for the same reason.
+    // The run DECIDES. Which verdict it reaches is §5 stage 2's to tune and not this fixture's
+    // to prescribe — but hazard 4b's detector below needs the win it currently produces, and
+    // that assertion is written where the reason for it can be read.
     expect(run.state.result).not.toBeNull()
     expect(run.state.combatTick).toBeLessThanOrEqual(COMBAT_TICK_LIMIT)
 
@@ -388,15 +426,20 @@ describe('§1.16 the reducer runs a whole battle to a verdict', () => {
     // HAZARD 4: both consumers read the transition row's return value.
     expect(run.killMismatches).toEqual([])
     expect(run.unclaimedWins).toEqual([])
-    // And the verdict agrees with the deaths the traces recorded, in whichever direction the
-    // placeholder numbers take it: a win is the elite dying on the last tick, and a defeat is
-    // an elite that never died.
-    if (run.state.result === 'won') {
-      expect(run.eliteDeathTicks).toEqual([run.state.combatTick - 1])
-    } else {
-      expect(run.eliteDeathTicks).toEqual([])
-      expect(run.state.failureReason).not.toBeNull()
-    }
+
+    // HAZARD 4b's SELF-ALARM, and it is the same shape as hazard 1's above. `unclaimedWins` is
+    // the only thing in this run that can see a verdict built from a SECOND `resolveTransitions`
+    // call, and it is filled in only on a tick where the elite dies. §5 stage 2 must make
+    // `tactical-no-input` lose (I3); the day it does, `eliteDeathTicks` empties, this fixture
+    // stops testing row 16, and every assertion above still passes.
+    //
+    // So it asserts the precondition of its own detector. This is NOT a balance claim — the
+    // fixture still refuses to say which verdict is right — it is the statement that when the
+    // verdict flips, row 16 needs a new detector HERE, and the elite-death fixture above is the
+    // one that keeps working while it is written.
+    expect(run.eliteDeathTicks.length).toBeGreaterThan(0)
+    expect(run.state.result).toBe('won')
+    expect(run.eliteDeathTicks).toEqual([run.state.combatTick - 1])
   })
 
   it('replays the same seed to the same digest, and two seeds apart', () => {
