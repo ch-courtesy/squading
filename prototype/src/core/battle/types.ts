@@ -98,6 +98,35 @@ export type EnemyUnit = {
   contactSlotOwnerId: number | null
 }
 
+/**
+ * What steps 9, 10 and 11 hand to the damage-application step (§1.16).
+ *
+ * It is a RETURN VALUE, never a field on `BattleState` — see the no-scratch rule at the
+ * top of this file. The damage step receives the concatenation of the three producers in
+ * §1.16's order (9 friendly, 10 enemy, 11 elite impact) and applies them in that order;
+ * within one producer the list is in ascending attacker id.
+ *
+ * `amount` is the ATTACKER-side number, already carrying anything that scales with the
+ * attacker (§1.13's `firepower`). Defender-side modifiers — §1.11's `invulnerableTicks`,
+ * §1.13's `cover` — belong to the step that applies it, which is also the only step that
+ * may observe an overkill: a 1.0-HP melee can legally receive sixteen simultaneous
+ * events, and I2's accounting has to be able to see and discard the excess.
+ *
+ * `side` is the attacker's side; the target is on the other one. v6 has no friendly
+ * fire, and §1.12 gives the elite blast friendly targets only.
+ */
+export type DamageSide = 'friendly' | 'enemy'
+
+export type DamageCause = 'friendly-attack' | 'melee-contact' | 'shooter-shot' | 'elite-blast'
+
+export type DamageEvent = {
+  side: DamageSide
+  attackerId: number
+  targetId: number
+  amount: number
+  cause: DamageCause
+}
+
 /** §1.4: fixed id-ascending slot assignment, never recomputed. */
 export type SlotAssignment = {
   unitId: number
