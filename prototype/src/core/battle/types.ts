@@ -1,4 +1,4 @@
-// The authoritative state of a v6 commander battle (§1).
+// The authoritative state of a commander battle (§1).
 //
 // Shape rules, so that the later batches can add behaviour without reshaping it:
 //
@@ -77,7 +77,16 @@ export type FriendlyUnit = {
   invulnerableTicks: number
   /** §1.14: ids of everyone who has ever rescued this unit, in rescue order. */
   rescuedByIds: number[]
-  /** §1.3: this tick's actual displacement. Set by every movement rule. */
+  /**
+   * This tick's actual displacement, arena clamp included. Written by every movement rule.
+   *
+   * NO RULE READS IT. §1.3's stop test was its only consumer, and v9 deleted the test. It is
+   * kept as recorded motion — the fixtures assert against it, and the digest uses it to tell a
+   * follower settled inside §1.4's dead-band from one still creeping — which puts it in tension
+   * with the no-scratch rule above ("a field belongs here only if a later tick reads it").
+   * Deleting it is a digest-schema change and is left to whoever needs one; what is NOT open is
+   * re-gating a rule on it, which would be reintroducing §1.3's v6 form.
+   */
   lastDisplacement: number
 }
 

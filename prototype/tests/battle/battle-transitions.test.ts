@@ -227,7 +227,7 @@ describe('§1.5 succession', () => {
   })
 
   it('reflects succession from the NEXT tick, and drives the new body at its own speed', () => {
-    // §1.5: "승계 결과는 다음 tick의 1단계(입력 적용)부터 반영된다." Succession runs after
+    // §1.5: succession takes effect from the NEXT tick's input application. It runs after
     // command-unit movement, so the promoted body cannot have moved in the tick it
     // was promoted in — there is no movement step left to run.
     const state = fixture({ [COMMANDER_ID]: { x: 28, y: 16 }, 3: { x: 29, y: 16 } })

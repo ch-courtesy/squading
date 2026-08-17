@@ -20,13 +20,16 @@
 //     can be chosen at most once in a run. `hasUpgrade` is therefore a predicate, not a
 //     count, and no effect has to define what stacking with itself would mean.
 //
-// The six landing points, each a single call, and each already taking `state` since batch A/C:
+// The SEVEN landing points, each a single call, and each taking `state`. Five of them already
+// took it before batch D; the last two are marked, because "it already took `state`" is only
+// true of the five and an earlier version of this header claimed it of all of them while
+// counting them as six:
 //
 //   firepower  `attackDamageOf`      (targeting.ts)
 //   marksman   `attackRangeOf`       (targeting.ts)
 //   rapid      `attackIntervalOf`    (targeting.ts)
-//   mobility   `moveSpeedOf`         (movement.ts)
-//   cohesion   `followSpeedOf`       (movement.ts)
+//   mobility   `moveSpeedOf`         (movement.ts) — GAINED its `state` parameter in batch D
+//   cohesion   `followSpeedOf`       (movement.ts) — CREATED by batch D
 //   firstaid   `rescueTicksOf`       (rescue.ts)
 //   cover      `damageTakenMultiplierOf` (damage.ts) — defender-side, and the one card whose
 //              name survived §1.6: 차폐 is damage-taken reduction and never had anything to do
@@ -235,7 +238,7 @@ function openUpgradeRoundIfDue(state: BattleState): UpgradeRound | null {
 
   const round: UpgradeRound = {
     round: index + 1,
-    // Step 14 runs before the tick increment, so this is the tick the kill landed on — which
+    // This step runs before the tick increment, so this is the tick the kill landed on — which
     // is what I6 ("강화 4회차가 tick 2400 이전에") replays against.
     tick: state.combatTick,
     offered: drawOfferedCards(state),

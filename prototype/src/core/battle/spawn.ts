@@ -208,9 +208,9 @@ function pushToBacklog(state: BattleState, request: SpawnRequest): void {
  * discard counters) is in the state and therefore in the digest, which is where §1.10 asks
  * for the discard accounting to be.
  *
- * §1.12's elite arrival is NOT here. It is a separate body on a fixed tick with its own id,
- * and batch F composes it after this call so that the draw order inside tick 1800 is
- * something a reader can see written down.
+ * §1.12's elite arrival is NOT here. It is a separate body on a fixed tick with its own id;
+ * `resolveEnemyArrivals` in `elite.ts` composes it after this call so that the draw order
+ * inside tick 1800 is something a reader can see written down.
  */
 export function resolveSpawnRequests(state: BattleState): void {
   const command = commandUnitOf(state)

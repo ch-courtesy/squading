@@ -143,8 +143,9 @@ export function resolveTransitions(state: BattleState): TransitionOutcome {
     unit.hp = 0
     unit.downedTicks = 0
     unit.targetId = null
-    // The body stops where it fell; leaving a stale displacement would let §1.3 read a
-    // corpse as "moving", which is in the digest even though nothing acts on it.
+    // The body stops where it fell. No rule reads the number any more (§1.3 deleted the one
+    // that did), but it is in the digest, and a corpse recorded as mid-stride is a lie about
+    // the state two replays have to agree on.
     unit.lastDisplacement = 0
     friendlyDowns.push(unit.id)
   }

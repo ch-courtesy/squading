@@ -1,5 +1,5 @@
 // `core/battle/` — the commander battle rules
-// (`docs/superpowers/specs/2026-08-16-commander-battle-design.md`, v8).
+// (`docs/superpowers/specs/2026-08-16-commander-battle-design.md`, v9).
 //
 // This is a NEW module. `core/gameplay/` is the shipped v1 game and stays as it is.
 //
@@ -21,7 +21,7 @@
 // revival of five rounds of rejected design.
 //
 // ---------------------------------------------------------------------------
-// Implemented — batch A (as amended by the v8 teardown)
+// Implemented — batch A (as amended by the v8 and v9 teardowns)
 // ---------------------------------------------------------------------------
 //   §1.1  arena, clock, 6-decimal digest normalization ......... constants, digest
 //   §1.2  friendly anchors and the follow speed cap ............ constants
@@ -31,14 +31,20 @@
 //   §1.17 three named streams and the full digest .............. streams, digest
 //
 // ---------------------------------------------------------------------------
-// Implemented — batch B (as amended by the v8 teardown)
+// Implemented — batch B (as amended by the v8 and v9 teardowns)
 // ---------------------------------------------------------------------------
-//   §1.3  move/fire exclusivity ................................ targeting, attacks
-//         `isStopped` is the single stop test; `advanceCooldowns` freezes the cooldown of
-//         anything that moved and `resolveFriendlyAttacks` refuses it the shot. Enemy
-//         cooldowns decrement unconditionally, per §1.3's last line. THIS IS THE DESIGN'S ONE
-//         REMAINING CENTRAL BET: the fixture that pins firepower proportional to the
-//         stopped-tick fraction (30/15/10/3 against v5's 30/30/25/30) is the guard.
+//   §1.3  attack while moving ................................... attacks, constants
+//         THE RULE IS A NON-RULE: displacement affects nothing. `advanceCooldowns` decrements
+//         every standing body on both sides, and `resolveFriendlyAttacks` gates on standing +
+//         cooled down + has a target, nothing else. There is no `isStopped` and no
+//         `MOVE_EPSILON` — v6~v8 had both, taxing movement to close the "constant motion is
+//         invulnerability" defect.
+//         WHAT CLOSES THAT DEFECT NOW IS A CONSTANT, NOT A STEP: `MELEE_MOVE_SPEED >
+//         COMMANDER_MOVE_SPEED`, asserted at import in `constants.ts`. The melee outruns the
+//         body the player drives, so fleeing loses ground every tick and movement is
+//         positioning rather than escape. Shooters stay slower on purpose (§1.3). The guards
+//         are the two fixtures in `battle-combat.test.ts`: a unit that moved this tick still
+//         fires and still cools down, and the flight-is-futile gap table.
 //   §1.8  target selection ..................................... targeting
 //         In range, elite first, nearest, lowest id. No sight filter.
 //   §1.9  enemy classes: slots, movement, attacks .............. enemy, attacks
@@ -89,7 +95,7 @@
 //         tick 1800's draw order is written down. `advanceAllEnemyMovement` is the
 //         `EnemyMovementRule` the tick loop passes to `advanceMovement`: batch B's pass, then
 //         the elite's own approach, which stops EXACTLY at `ELITE_APPROACH_RANGE` (< soldier
-//         range, so the squad can answer back — §1.3 gives a closing unit no fire).
+//         range, so the squad can answer back at all).
 //         `resolveEliteCycle` is the telegraph/impact/cooldown clock: the centre is FROZEN at
 //         the command unit's position on the tick the telegraph started, the impact lands
 //         exactly `ELITE_TELEGRAPH_TICKS` later against positions at IMPACT time, and the
@@ -121,12 +127,19 @@
 //   §1.15 input queue ................. writes `state.input` only, PLUS the one-tick
 //                                      `RescueInputEvents` it hands `resolveRescueLock` —
 //                                      §1.11's cancel is a keydown EVENT and cannot be read
-//                                      off held state. §1.15's own "포인터 드래그가
-//                                      MOVE_EPSILON 미만이면 0으로 클램프" is what makes
-//                                      the lock's zero-vector test meaningful.
+//                                      off held state. §1.15's own "포인터 드래그로 목표까지
+//                                      거리가 ARRIVE_EPSILON 미만이면 0으로 클램프" is what
+//                                      makes the lock's zero-vector test meaningful.
 //   §1.16 the tick order .............. THE STEP NUMBERS LIVE HERE AND IN THE REDUCER, AND
 //                                      NOWHERE ELSE — not in function names, not in the
-//                                      comments beside them. They used to be in the names
+//                                      comments beside them, not in test names.
+//                                      `tests/battle/battle-step-numbers.test.ts` ENFORCES
+//                                      that: it greps this project for a numbered step
+//                                      reference outside this file and fails on one. The
+//                                      claim used to be prose, and while it was prose 26
+//                                      comment lines under `src/core/battle/` disagreed
+//                                      with it.
+//                                      They used to be in the names
 //                                      (`resolveStep9FriendlyAttacks`), and one spec
 //                                      renumber on 2026-08-17 (구조 진행 moved after 피해
 //                                      적용) renamed five exports, two of them another
@@ -138,9 +151,11 @@
 //                                        3  `resolveRescueLock(state, events)`
 //                                        4  `advanceCommandUnit(state)` -> displacement
 //                                        5  `advanceMovement(state, advanceAllEnemyMovement)`
-//                                        6  `advanceCooldowns(state)`
+//                                        6  `advanceCooldowns(state)` — every standing body,
+//                                           unconditionally (§1.3)
 //                                        7  `advanceTargeting(state)`
-//                                        8  `resolveFriendlyAttacks(state)` -> events
+//                                        8  `resolveFriendlyAttacks(state)` -> events; a unit
+//                                           that moved in step 4 or 5 still fires (§1.3)
 //                                        9  `resolveEnemyAttacks(state)` -> events
 //                                        10 `resolveEliteCycle(state)` -> events
 //                                        11 `applyDamage(state, events)` -> outcome

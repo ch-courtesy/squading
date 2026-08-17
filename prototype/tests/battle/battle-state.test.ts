@@ -3,6 +3,8 @@
 import { describe, expect, it } from 'vitest'
 
 import { createPrng, type Prng } from '../../src/core/prng'
+// Namespaced as well as named, so the test below can assert that a constant is ABSENT.
+import * as constants from '../../src/core/battle/constants'
 import {
   ARENA_HEIGHT,
   ARENA_WIDTH,
@@ -16,12 +18,15 @@ import {
   ENGAGE_RADIUS,
   FOLLOW_MAX_SPEED,
   FOLLOW_SPEED_MULTIPLIER,
-  MOVE_EPSILON,
+  MAX_UPGRADES,
+  MELEE_MOVE_SPEED,
+  SHOOTER_MOVE_SPEED,
   SHOOTER_RANGE,
   SOLDIER_ATTACK_INTERVAL,
   SOLDIER_MOVE_SPEED,
   SOLDIER_RANGE,
   SPAWN_RADIUS,
+  UPGRADE_KILL_THRESHOLDS,
 } from '../../src/core/battle/constants'
 import {
   NAME_POOL,
@@ -81,18 +86,42 @@ describe('§1.2 anchors and §1.4 structural invariants', () => {
     expect(FOLLOW_MAX_SPEED).toBeCloseTo(0.13, 12)
   })
 
-  it('keeps ARRIVE_EPSILON <= MOVE_EPSILON (§1.4 invariant relation)', () => {
-    expect(ARRIVE_EPSILON).toBeLessThanOrEqual(MOVE_EPSILON)
+  it('keeps a positive settle band and no stop threshold at all (§1.4, §1.3)', () => {
+    expect(ARRIVE_EPSILON).toBeGreaterThan(0)
+    // §1.3 (v9) deleted the move/fire exclusivity rule, so the threshold it was measured
+    // against is gone from the module rather than left inert at some unused value.
+    expect(Object.keys(constants)).not.toContain('MOVE_EPSILON')
   })
 
   it('keeps the spec-mandated placeholder constraints', () => {
-    // §1.9: a shooter that outranges a soldier has to close, and §1.3 makes the
-    // approach free of return fire.
+    // §1.3: THE relation this version rests on. Units fire while moving, so the only thing
+    // that makes pure flight lose is the melee being faster than the body the player drives.
+    expect(MELEE_MOVE_SPEED).toBeGreaterThan(COMMANDER_MOVE_SPEED)
+    expect(MELEE_MOVE_SPEED).toBeGreaterThan(SOLDIER_MOVE_SPEED)
+    expect(MELEE_MOVE_SPEED).toBeGreaterThan(FOLLOW_MAX_SPEED)
+    // §1.3: "사수형은 더 느려도 된다" — and it is, which is why the range advantage works
+    // against a shooter and not against a melee.
+    expect(SHOOTER_MOVE_SPEED).toBeLessThan(SOLDIER_MOVE_SPEED)
+    // §2's declared search range for the melee speed.
+    expect(MELEE_MOVE_SPEED).toBeGreaterThanOrEqual(0.125)
+    expect(MELEE_MOVE_SPEED).toBeLessThanOrEqual(0.17)
+    // §1.9: a shooter that outranges a soldier erases the band a friendly can stop in.
     expect(SHOOTER_RANGE).toBeLessThan(SOLDIER_RANGE)
-    // §1.12: same argument for the elite.
+    // §1.12: same shape of argument for the elite.
     expect(ELITE_APPROACH_RANGE).toBeLessThan(SOLDIER_RANGE)
     // §1.10: overlapping spawn and engage radii refill the cap with enemies in transit.
     expect(SPAWN_RADIUS).toBeGreaterThanOrEqual(ENGAGE_RADIUS + 2.0)
+  })
+
+  it('keeps the upgrade kill thresholds strictly ascending (§1.13)', () => {
+    // A non-ascending pair opens two rounds off one kill: the second threshold is already
+    // satisfied the moment the first is. `constants.ts` asserts this at import; the fixture
+    // exists because "nothing else fails" is exactly what made it worth asserting.
+    expect(UPGRADE_KILL_THRESHOLDS).toHaveLength(MAX_UPGRADES)
+    for (let index = 1; index < UPGRADE_KILL_THRESHOLDS.length; index += 1) {
+      expect(UPGRADE_KILL_THRESHOLDS[index]).toBeGreaterThan(UPGRADE_KILL_THRESHOLDS[index - 1])
+    }
+    expect(UPGRADE_KILL_THRESHOLDS[0]).toBeGreaterThanOrEqual(1)
   })
 
   it('pins the arena and the clock (§1.1)', () => {
@@ -442,6 +471,9 @@ describe('§1.17 determinism and digest', () => {
       // battles identical.
       ['friendly.downedTicks', (state) => void (state.friendlies[2].downedTicks = 5)],
       ['friendly.invulnerableTicks', (state) => void (state.friendlies[2].invulnerableTicks = 5)],
+      // No rule reads this any more (§1.3 deleted the stop test), but it is still a field on
+      // the row and therefore still in the digest, so it still has to be watched — see the
+      // note on `lastDisplacement` in `types.ts`.
       ['friendly.lastDisplacement', (state) => void (state.friendlies[2].lastDisplacement = 0.1)],
       ['slotAssignments.slotIndex', (state) => void (state.slotAssignments[0].slotIndex = 14)],
       ['enemies (melee)', (state) => void state.enemies.push(createEnemy(900, 'melee', { x: 1, y: 1 }))],

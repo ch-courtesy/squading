@@ -1,4 +1,4 @@
-// Batch B fixtures: move/fire exclusivity (§1.3), target selection (§1.8), the two
+// Batch B fixtures: attack-while-moving (§1.3), target selection (§1.8), the two
 // enemy classes (§1.9) and the range advantage that replaced cover (§1.6).
 //
 // There is no terrain (§1.6), so there are no hand-authored layouts here any more and no
@@ -16,7 +16,6 @@ import {
   MELEE_DAMAGE,
   MELEE_MOVE_SPEED,
   MELEE_RANGE,
-  MOVE_EPSILON,
   RANGE_ADVANTAGE,
   SHOOTER_ATTACK_INTERVAL,
   SHOOTER_DAMAGE,
@@ -74,40 +73,27 @@ function enemyOf(state: BattleState, id: number): EnemyUnit {
   return enemy
 }
 
-describe('§1.3 move/fire exclusivity', () => {
-  it('freezes the cooldown and the shot of a unit that moved this tick', () => {
-    const state = fixture()
-    state.enemies = [createEnemy(101, 'melee', { x: 30, y: 16 })]
-    const commander = commanderOf(state)
-    commander.attackCooldown = 4
-
-    // Exactly at the threshold counts as movement (§1.3: "MOVE_EPSILON 이상").
-    commander.lastDisplacement = MOVE_EPSILON
-    advanceCooldowns(state)
-    expect(commander.attackCooldown).toBe(4)
-
-    advanceTargeting(state)
-    // Step 7 has no displacement gate: the target is chosen, the shot is not taken.
-    expect(commander.targetId).toBe(101)
-    expect(resolveFriendlyAttacks(state)).toEqual([])
-
-    // A ready cooldown does not buy a shot while moving either, and is not spent.
-    commander.attackCooldown = 0
-    commander.lastDisplacement = COMMANDER_MOVE_SPEED
-    expect(resolveFriendlyAttacks(state)).toEqual([])
-    expect(commander.attackCooldown).toBe(0)
-  })
-
-  it('decrements and fires on a stopped tick', () => {
+describe('§1.3 units attack while moving', () => {
+  it('fires and decrements on a tick the unit really moved', () => {
+    // A real movement pass, not a hand-set displacement: the commander walks AWAY from the
+    // melee at full speed and shoots it on the same tick.
+    //   position 28 -> 27.885, so the gap goes 2.0 -> 2.115, still inside COMMANDER_RANGE 6.0.
     const state = fixture()
     state.enemies = [createEnemy(101, 'melee', { x: 30, y: 16 })]
     const commander = commanderOf(state)
     commander.attackCooldown = 1
-    commander.lastDisplacement = 0
+    state.input.move = { x: -1, y: 0 }
 
+    const displacement = advanceCommandUnit(state)
+    expect(displacement).toBeCloseTo(COMMANDER_MOVE_SPEED, 12)
+    expect(commander.position.x).toBeCloseTo(28 - COMMANDER_MOVE_SPEED, 12)
+
+    // The cooldown pass does not consult the displacement (§1.3: "cooldown은 항상 감소한다").
     advanceCooldowns(state)
     expect(commander.attackCooldown).toBe(0)
+
     advanceTargeting(state)
+    expect(commander.targetId).toBe(101)
     expect(resolveFriendlyAttacks(state)).toEqual([
       {
         side: 'friendly',
@@ -120,9 +106,51 @@ describe('§1.3 move/fire exclusivity', () => {
     expect(commander.attackCooldown).toBe(COMMANDER_ATTACK_INTERVAL)
   })
 
-  it('lets a unit stopped by the arena edge fire — the rule judges displacement, not input', () => {
-    // §1.6 removed terrain, so the arena edge is the only place input can produce zero
-    // displacement. The rule is unchanged: it reads displacement, never input.
+  it('gives a body in constant motion exactly the firepower of a body that never moves', () => {
+    // The direct measurement of the reversal, and the guard against re-gating on motion.
+    //
+    // Hand-computed for the commander over 300 ticks: the cooldown starts at 0, so it fires on
+    // tick 1 and sets 10; ten decrements later it is ready again on tick 11. Shots land on
+    // 1, 11, 21, ... 291 — floor(299 / 10) + 1 = 30 — and NOTHING about that arithmetic
+    // mentions displacement.
+    //
+    // Under v6~v8 the same loop gave 30 shots for the stopped policy and 0 for the moving one
+    // (a unit that never stops never decrements), and a policy stopping 1 tick in 10 kept 3.
+    // If any of that comes back, the two counts below stop being equal.
+    const TICKS = 300
+    const EXPECTED_SHOTS = 30
+
+    const shotsWhile = (moving: boolean): number => {
+      const state = fixture()
+      // Parked 2.0 away and left alone: this fixture measures the friendly's clock, so the
+      // melee is a target dummy that neither moves nor dies.
+      state.enemies = [createEnemy(101, 'melee', { x: 30, y: 16 })]
+      const commander = commanderOf(state)
+      let shots = 0
+
+      for (let tick = 1; tick <= TICKS; tick += 1) {
+        if (moving) {
+          // Alternate direction so 300 ticks of real movement stay inside the arena and
+          // inside COMMANDER_RANGE of the dummy: +x on odd ticks, -x on even ones.
+          state.input.move = { x: tick % 2 === 1 ? 1 : -1, y: 0 }
+          expect(advanceCommandUnit(state)).toBeCloseTo(COMMANDER_MOVE_SPEED, 12)
+        }
+        advanceCooldowns(state)
+        advanceTargeting(state)
+        shots += resolveFriendlyAttacks(state).length
+      }
+      return shots
+    }
+
+    expect(shotsWhile(false)).toBe(EXPECTED_SHOTS)
+    expect(shotsWhile(true)).toBe(EXPECTED_SHOTS)
+    expect(EXPECTED_SHOTS).toBe(Math.floor((TICKS - 1) / COMMANDER_ATTACK_INTERVAL) + 1)
+  })
+
+  it('fires while pinned against the arena edge, where input produces no displacement', () => {
+    // The one place a held input yields zero displacement. It used to be the witness for
+    // "the rule judges displacement, not input"; with no such rule left it is the witness
+    // that the shot does not depend on either.
     const state = fixture({ friendlies: { [COMMANDER_ID]: { x: ARENA_WIDTH, y: 12 } } })
     state.enemies = [createEnemy(101, 'melee', { x: ARENA_WIDTH - 3, y: 12 })]
     const commander = commanderOf(state)
@@ -131,7 +159,6 @@ describe('§1.3 move/fire exclusivity', () => {
 
     expect(advanceCommandUnit(state)).toBe(0)
     expect(commander.position).toEqual({ x: ARENA_WIDTH, y: 12 })
-    expect(commander.lastDisplacement).toBe(0)
 
     advanceCooldowns(state)
     expect(commander.attackCooldown).toBe(0)
@@ -139,94 +166,148 @@ describe('§1.3 move/fire exclusivity', () => {
     expect(resolveFriendlyAttacks(state)).toHaveLength(1)
   })
 
-  it('does not apply to enemies: their cooldown runs while they close', () => {
+  it('decrements an enemy cooldown while it closes, as it always did', () => {
     const state = fixture()
     state.enemies = [createEnemy(101, 'melee', { x: 34, y: 16 })]
     const melee = enemyOf(state, 101)
     melee.attackCooldown = 5
-    melee.lastDisplacement = MELEE_MOVE_SPEED
+    melee.targetId = COMMANDER_ID
 
+    advanceEnemyMovement(state)
+    expect(melee.lastDisplacement).toBeCloseTo(MELEE_MOVE_SPEED, 12)
     advanceCooldowns(state)
     expect(melee.attackCooldown).toBe(4)
   })
 
-  /**
-   * THE regression guard for the defect v6 exists to close (§1.3's "왜", I11).
-   *
-   * Two reviewers independently measured that with the cooldown still ticking while
-   * moving, stopping for one tick per attack interval keeps 92~98% of full firepower
-   * while outrunning every enemy. The table below is hand-computed for the commander
-   * (interval 10) over 300 ticks, stopping on ticks where `(tick - 1) % k === 0`:
-   *
-   *   k    stopped ticks   f_stop   v6 shots   v5 shots (no freeze)
-   *   1    300             1.000    30         30
-   *   2    150             0.500    15         30   <- 100% of firepower at half stop
-   *   3    100             0.333    10         25   <-  83%
-   *   10    30             0.100     3         30   <- 100% of firepower at 10% stop
-   *
-   * v6 shots = floor((stopped - 1) / 10) + 1, because the cooldown only advances on a
-   * stopped tick: the first stopped tick fires, and every 10th stopped tick after it
-   * fires. That is exactly proportional to `f_stop`. The v5 column is the counterfactual
-   * simulator below — the exploit, reproduced, so this test fails loudly if the freeze
-   * is ever removed rather than quietly returning to v5 numbers.
-   */
-  it('makes firepower proportional to the stopped-tick fraction, not ~100%', () => {
-    const TICKS = 300
-    const table = [
-      { every: 1, stopped: 300, v6: 30, v5: 30 },
-      { every: 2, stopped: 150, v6: 15, v5: 30 },
-      { every: 3, stopped: 100, v6: 10, v5: 25 },
-      { every: 10, stopped: 30, v6: 3, v5: 30 },
-    ]
+  it('leaves a downed body cold: no cooldown ticks off while it waits for a rescue', () => {
+    // The one condition the cooldown pass still has. §1.5 can hand command back to a revived
+    // body, so a cooldown that ran down while it lay there would buy it a free volley.
+    const state = fixture()
+    const commander = commanderOf(state)
+    commander.attackCooldown = 5
+    commander.life = 'downed'
 
-    for (const row of table) {
-      const state = fixture()
-      state.enemies = [createEnemy(101, 'melee', { x: 30, y: 16 })]
-      const commander = commanderOf(state)
-
-      let stoppedTicks = 0
-      let shots = 0
-      for (let tick = 1; tick <= TICKS; tick += 1) {
-        const stopped = (tick - 1) % row.every === 0
-        if (stopped) stoppedTicks += 1
-        // The movement passes are batch A's; here the displacement is the input to
-        // §1.3, so it is set directly and the two rules that read it are run in
-        // §1.16's order: step 6, then step 7, then step 8.
-        commander.lastDisplacement = stopped ? 0 : COMMANDER_MOVE_SPEED
-        advanceCooldowns(state)
-        advanceTargeting(state)
-        shots += resolveFriendlyAttacks(state).length
-      }
-
-      expect(stoppedTicks).toBe(row.stopped)
-      expect(shots).toBe(row.v6)
-      expect(v5Shots(row.every, TICKS, COMMANDER_ATTACK_INTERVAL)).toBe(row.v5)
-    }
-
-    // The headline: at a 10% stop fraction the v5 rule kept 100% of firepower; §1.3
-    // gives exactly 10%.
-    expect(3 / 30).toBeCloseTo(30 / 300, 12)
-    expect(v5Shots(10, TICKS, COMMANDER_ATTACK_INTERVAL) / 30).toBe(1)
+    advanceCooldowns(state)
+    expect(commander.attackCooldown).toBe(5)
   })
 })
 
-/**
- * The v5 model: the cooldown decrements every tick, and only the SHOT needs a stopped
- * tick. Four lines, kept in the test rather than in `src/`, so the exploit is
- * measurable without being implementable.
- */
-function v5Shots(stopEvery: number, ticks: number, interval: number): number {
-  let cooldown = 0
-  let shots = 0
-  for (let tick = 1; tick <= ticks; tick += 1) {
-    if (cooldown > 0) cooldown -= 1
-    if ((tick - 1) % stopEvery === 0 && cooldown === 0) {
-      shots += 1
-      cooldown = interval
-    }
+describe('§1.3 / I8 flight is futile — the melee outruns the command unit', () => {
+  /**
+   * §4.2 "도망 불가": the command unit runs in a straight line and the gap shrinks every tick.
+   *
+   * ALL OF THE ARITHMETIC BELOW IS FROM THE CONSTANTS, NOT FROM A RUN.
+   *
+   *   MELEE_MOVE_SPEED       0.140
+   *   COMMANDER_MOVE_SPEED   0.115
+   *   CLOSING_PER_TICK       0.140 - 0.115 = 0.025   <- the whole design bet, one subtraction
+   *
+   * Within a tick the command unit moves first and the melee second (§1.16), so one tick is
+   * `gap + 0.115 - 0.140`. Starting at 2.02 the gap after n ticks is `2.02 - 0.025n`:
+   *
+   *   n=1  1.995     n=10  1.770     n=40  1.020     n=50  0.770  <- still out of contact
+   *   n=2  1.970     n=20  1.520     n=51  0.745  <- <= MELEE_RANGE 0.75, first swing
+   *
+   * 2.02 rather than a round 2.0 on purpose: at 2.0 the crossing lands on `2.0 - 0.025 x 50 =
+   * 0.750` EXACTLY, and whether `distance <= MELEE_RANGE` holds there is decided by the last
+   * bits of a hypot rather than by the design. 2.02 puts the first contact tick strictly
+   * inside contact range, and tick 50 strictly outside it.
+   *
+   * The commander covers 51 x 0.115 = 5.865 metres to lose 51 x 0.025 = 1.275 of gap. That is
+   * what "이동은 도망이 아니라 위치 선택이다" costs when it is spent on flight.
+   */
+  const CLOSING_PER_TICK = MELEE_MOVE_SPEED - COMMANDER_MOVE_SPEED
+  const START_GAP = 2.02
+  const CONTACT_TICK = 51
+
+  function fleeing(): { state: BattleState; commander: FriendlyUnit; melee: EnemyUnit } {
+    const state = fixture()
+    state.enemies = [createEnemy(101, 'melee', { x: 28 + START_GAP, y: 16 })]
+    const melee = enemyOf(state, 101)
+    // Pre-claimed, so §1.16's one-tick selection lag is not part of the arithmetic: the melee
+    // is already hunting on tick 1. `battle-combat`'s range-advantage fixture measures the lag
+    // itself; this one measures the speeds.
+    melee.targetId = COMMANDER_ID
+    melee.contactSlotOwnerId = COMMANDER_ID
+    // Straight line, directly away from the melee, held for every tick.
+    state.input.move = { x: -1, y: 0 }
+    return { state, commander: commanderOf(state), melee }
   }
-  return shots
-}
+
+  function gapOf(commander: FriendlyUnit, melee: EnemyUnit): number {
+    return Math.hypot(melee.position.x - commander.position.x, melee.position.y - commander.position.y)
+  }
+
+  it('closes the gap by exactly (melee speed - commander speed) every tick', () => {
+    expect(MELEE_MOVE_SPEED).toBeGreaterThan(COMMANDER_MOVE_SPEED)
+    expect(CLOSING_PER_TICK).toBeCloseTo(0.025, 12)
+
+    const { state, commander, melee } = fleeing()
+    let previous = gapOf(commander, melee)
+    expect(previous).toBeCloseTo(START_GAP, 12)
+
+    const expected = new Map([
+      [1, 1.995],
+      [2, 1.97],
+      [10, 1.77],
+      [20, 1.52],
+      [40, 1.02],
+      [50, 0.77],
+    ])
+
+    for (let tick = 1; tick <= 50; tick += 1) {
+      // The two movement steps, in §1.16's order and nothing else — this fixture is about
+      // distance, so no attack pass runs and neither body can die and stop moving.
+      expect(advanceCommandUnit(state)).toBeCloseTo(COMMANDER_MOVE_SPEED, 12)
+      advanceEnemyMovement(state)
+      expect(melee.lastDisplacement).toBeCloseTo(MELEE_MOVE_SPEED, 12)
+
+      const gap = gapOf(commander, melee)
+      // Every tick, without exception: this is the assertion §4.2 asks for.
+      expect(gap, `tick ${tick} did not close the gap`).toBeLessThan(previous)
+      expect(previous - gap).toBeCloseTo(CLOSING_PER_TICK, 9)
+      const hand = expected.get(tick)
+      if (hand !== undefined) expect(gap, `tick ${tick}`).toBeCloseTo(hand, 9)
+      previous = gap
+    }
+
+    // 50 ticks of full-speed flight, and the melee is nearer than when it started.
+    expect(previous).toBeCloseTo(START_GAP - 50 * CLOSING_PER_TICK, 9)
+    expect(previous).toBeGreaterThan(MELEE_RANGE)
+    // The commander travelled 5.75 metres to give up 1.25 of them.
+    expect(commander.position.x).toBeCloseTo(28 - 50 * COMMANDER_MOVE_SPEED, 9)
+  })
+
+  it('lands the first swing on the hand-computed tick, with the commander still at full speed', () => {
+    // Window: 56 ticks. The first swing is at 51 and MELEE_ATTACK_INTERVAL 15 puts the second
+    // at 66, so exactly one swing belongs in here — and the gap at 56 is 2.02 - 1.4 = 0.62,
+    // clear of the `<= MELEE_RANGE` boundary in both directions.
+    const WINDOW = 56
+    const { state, commander, melee } = fleeing()
+    let firstSwingTick = 0
+    let swings = 0
+
+    for (let tick = 1; tick <= WINDOW; tick += 1) {
+      // Flight is real on every one of these ticks: full displacement, never clamped.
+      expect(advanceCommandUnit(state)).toBeCloseTo(COMMANDER_MOVE_SPEED, 12)
+      advanceEnemyMovement(state)
+      advanceCooldowns(state)
+      advanceTargeting(state)
+      const landed = resolveEnemyAttacks(state).length
+      if (landed > 0) {
+        swings += landed
+        if (firstSwingTick === 0) firstSwingTick = tick
+      }
+    }
+
+    expect(firstSwingTick).toBe(CONTACT_TICK)
+    expect(swings).toBe(1)
+    expect(gapOf(commander, melee)).toBeCloseTo(START_GAP - WINDOW * CLOSING_PER_TICK, 9)
+    expect(gapOf(commander, melee)).toBeLessThan(MELEE_RANGE)
+    // 6.44 metres of running, and it is in contact anyway.
+    expect(commander.position.x).toBeCloseTo(28 - WINDOW * COMMANDER_MOVE_SPEED, 9)
+  })
+})
 
 describe('§1.8 target selection', () => {
   it('takes the elite over a nearer ordinary enemy', () => {
@@ -257,7 +338,6 @@ describe('§1.8 target selection', () => {
     state.enemies = [createEnemy(101, 'melee', { x: 34.5, y: 16 })]
     const commander = commanderOf(state)
     commander.attackCooldown = 0
-    commander.lastDisplacement = 0
 
     advanceTargeting(state)
     expect(commander.targetId).toBeNull()
@@ -274,7 +354,7 @@ describe('§1.9 melee', () => {
     melee.targetId = COMMANDER_ID
     melee.contactSlotOwnerId = COMMANDER_ID
 
-    // distance 2.0 > MELEE_RANGE 0.75 -> one step of 0.075 toward (28, 16).
+    // distance 2.0 > MELEE_RANGE 0.75 -> one step of MELEE_MOVE_SPEED toward (28, 16).
     advanceEnemyMovement(state)
     expect(melee.position.x).toBeCloseTo(30 - MELEE_MOVE_SPEED, 12)
     expect(melee.position.y).toBeCloseTo(16, 12)
@@ -449,7 +529,6 @@ describe('§1.6 range advantage — the mechanism that replaced cover', () => {
     state.enemies = [createEnemy(201, 'shooter', { x: 28 + distance, y: 16 })]
     const soldier = findFriendly(state, 2)!
     const shooter = enemyOf(state, 201)
-    soldier.lastDisplacement = 0
 
     advanceTargeting(state)
     expect(soldier.targetId).toBe(201)
@@ -472,8 +551,6 @@ describe('§1.6 range advantage — the mechanism that replaced cover', () => {
     // 4.2 is inside the band [2.7, 4.275] and inside the soldier's 5.0, so both fire.
     const state = fixture({ friendlies: { 2: { x: 28, y: 16 } } })
     state.enemies = [createEnemy(201, 'shooter', { x: 32.2, y: 16 })]
-    const soldier = findFriendly(state, 2)!
-    soldier.lastDisplacement = 0
 
     advanceTargeting(state)
     expect(resolveFriendlyAttacks(state)).toHaveLength(1)
@@ -489,13 +566,17 @@ describe('§1.6 range advantage — the mechanism that replaced cover', () => {
   })
 
   it('measures how long the advantage lasts against a closing melee', () => {
-    // A melee at MELEE_MOVE_SPEED 0.075 starting 4.6 away has to cover 4.6 - 0.75 = 3.85
-    // to reach contact: ceil(3.85 / 0.075) = 52 moving ticks. It stands still on tick 1
-    // because step 5 moves toward the target step 7 has not chosen yet (§1.16's declared
-    // one-tick lag), so contact lands on tick 53: 4.6 - 52 x 0.075 = 0.700 <= 0.75.
-    // The soldier fires on ticks 1, 13, 25, 37, 49 — five shots before the first swing,
-    // and that number is the pressure §1.6 describes ("근접형은 접근을 허용하는 순간 이
-    // 우위가 무너진다"). Its cooldown is then 12 - 4 = 8.
+    // A STANDING soldier, so this measures the range advantage rather than the flight the
+    // fixture above measures. A melee at MELEE_MOVE_SPEED 0.140 starting 4.6 away has to cover
+    // 4.6 - 0.75 = 3.85 to reach contact: ceil(3.85 / 0.140) = 28 moving ticks. It stands still
+    // on tick 1 because the movement step moves toward a target the selection step has not
+    // chosen yet (§1.16's declared one-tick lag), so contact lands on tick 29:
+    // 4.6 - 28 x 0.140 = 0.680 <= 0.75, while tick 28 is still at 0.820.
+    // The soldier fires on ticks 1, 13, 25 — three shots before the first swing, and that
+    // number is the pressure §1.6 describes ("근접형은 접근을 허용하는 순간 이 우위가
+    // 무너진다"). It is two shots fewer than the same fixture measured at the old 0.075: the
+    // melee's speed is what buys the squad its window, and the window just got shorter.
+    // The soldier's cooldown at tick 29 is 12 - (29 - 25) = 8.
     const state = fixture({ friendlies: { 2: { x: 28, y: 16 } } })
     state.enemies = [createEnemy(101, 'melee', { x: 32.6, y: 16 })]
     const soldier = findFriendly(state, 2)!
@@ -505,7 +586,6 @@ describe('§1.6 range advantage — the mechanism that replaced cover', () => {
     let enemySwings = 0
     let contactTick = 0
     for (let tick = 1; tick <= 60 && enemySwings === 0; tick += 1) {
-      soldier.lastDisplacement = 0
       advanceEnemyMovement(state)
       advanceCooldowns(state)
       advanceTargeting(state)
@@ -517,8 +597,8 @@ describe('§1.6 range advantage — the mechanism that replaced cover', () => {
       }
     }
 
-    expect(contactTick).toBe(53)
-    expect(friendlyShots).toBe(5)
+    expect(contactTick).toBe(29)
+    expect(friendlyShots).toBe(3)
     // still closing at the tick of first contact — the advantage ends because the
     // melee arrives, not because it has stopped.
     expect(melee.lastDisplacement).toBeCloseTo(MELEE_MOVE_SPEED, 12)
@@ -526,7 +606,7 @@ describe('§1.6 range advantage — the mechanism that replaced cover', () => {
   })
 })
 
-describe('batch B ordering and shape', () => {
+describe('attack pass ordering and shape', () => {
   it('emits damage events in ascending attacker id, friendlies then enemies', () => {
     // Friendly 1 at (28,16) and friendly 2 at (30,16); melee 101 at (28.5,16) is in
     // contact with 1, melee 102 at (30.5,16) is in contact with 2, and each melee is
@@ -538,7 +618,6 @@ describe('batch B ordering and shape', () => {
       createEnemy(101, 'melee', { x: 28.5, y: 16 }),
       createEnemy(102, 'melee', { x: 30.5, y: 16 }),
     ]
-    for (const unit of state.friendlies) unit.lastDisplacement = 0
 
     advanceTargeting(state)
     const friendly = resolveFriendlyAttacks(state)

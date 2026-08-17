@@ -9,12 +9,14 @@
 //                      arena edge to push against, an enemy cannot be ground to a halt
 //                      forever, so the retarget rule they fed has no trigger either.
 //   settle (§1.4)  — a follower within ARRIVE_EPSILON of its slot does not move AT
-//                      ALL. Not "moves a little": the displacement must be exactly 0,
-//                      or §1.3 reads it as movement and the soldier never fires again.
-//                      This is the one rule in here that the teardown did not touch, and
-//                      it is now easier to satisfy: a slot is `command unit + offset`
-//                      with no pull and no latch, so it is a fixed point whenever the
-//                      command unit stands still.
+//                      ALL. §1.4 states the reason and it is now the only one: "점근하며
+//                      미세 진동하는 것을 막는다". A slot is `command unit + offset` with no
+//                      pull and no latch, so it is a fixed point whenever the command unit
+//                      stands still, and the dead-band is what stops the follower creeping
+//                      the last micrometre of the way there forever.
+//                      Under v6~v8 this rule also decided whether the soldier could shoot —
+//                      a residual displacement read as movement silenced it. §1.3 (v9)
+//                      deleted that coupling, so the band is about jitter and nothing else.
 //
 // Enemy movement (§1.9) is NOT here — it belongs to `enemy.ts`. It stays an explicit
 // argument of `advanceMovement` so that a tick loop which forgets it is a type
@@ -34,7 +36,7 @@ export function clampToArena(x: number, y: number): Vec2 {
 }
 
 /**
- * §1.7: apply the step and clamp the result to the arena. That is the whole rule.
+ * §1.7: apply the displacement and clamp the result to the arena. That is the whole rule.
  *
  * Kept as a named function rather than inlined at the three call sites because it is the
  * single place a position becomes legal, and because the axis-by-axis sliding it replaced
@@ -62,6 +64,10 @@ export function commandUnitOf(state: BattleState): FriendlyUnit | null {
  * the chosen cards every time it is asked for, so nothing is stored and no digest field moves.
  * Only the command unit consumes this — followers are capped by `followSpeedOf` — so `mobility`
  * is exactly "the body the player is driving moves faster", whichever body that is (§1.5).
+ *
+ * `mobility` is also the one card that touches §1.3's speed relation: it takes the commander to
+ * `0.115 x 1.15 = 0.13225`, which is still under `MELEE_MOVE_SPEED 0.140` but would NOT be under
+ * the bottom of §2's search range. See the note on `MELEE_MOVE_SPEED` in `constants.ts`.
  */
 export function moveSpeedOf(state: BattleState, unit: FriendlyUnit): number {
   const base = unit.role === 'commander' ? COMMANDER_MOVE_SPEED : SOLDIER_MOVE_SPEED
@@ -81,23 +87,25 @@ export function followSpeedOf(state: BattleState): number {
 }
 
 /**
- * Tick step 4 (§1.16): the command unit consumes the held movement vector.
+ * The 지휘 유닛 이동 step: the command unit consumes the held movement vector.
  *
  * The held vector is treated as a DIRECTION, not a displacement — the input layer
  * (§1.15) is what decides whether a pointer drag is long enough to count, and it
- * clamps anything under MOVE_EPSILON to zero before the core ever sees it. The core
+ * clamps anything under ARRIVE_EPSILON to zero before the core ever sees it. The core
  * only asks "is it zero".
  *
- * Returns the actual displacement, which is what §1.3 and step 6 judge — not the
- * input, and not a flag left behind in the state. Walking into the arena edge is still
- * the one way to have input and no displacement, and §1.3 still lets that unit fire.
+ * Returns the actual displacement, clamp included. Under v6~v8 that return value was the
+ * input to §1.3's stop test and the whole reason it was a return value rather than a flag;
+ * §1.3 (v9) deleted the test, so no rule consumes it any more and it is now reported for
+ * the fixtures and the digest. It is still the honest number: the arena edge is the one way
+ * to hold an input and travel nowhere.
  */
 export function advanceCommandUnit(state: BattleState): number {
   const unit = commandUnitOf(state)
   if (!unit || unit.life !== 'standing') return 0
 
-  // §1.11: the rescue lock is decided in step 3, before movement, so the very first
-  // locked tick already produces no movement.
+  // §1.11: the rescue lock is decided before movement, so the very first locked tick
+  // already produces no movement.
   const magnitude = state.rescue.active ? 0 : Math.hypot(state.input.move.x, state.input.move.y)
   if (magnitude === 0) {
     unit.lastDisplacement = 0
@@ -118,7 +126,7 @@ export function advanceCommandUnit(state: BattleState): number {
 }
 
 /**
- * Tick step 5 (§1.16), friendly half: every standing follower closes on its slot.
+ * The 추종·적 이동 step, friendly half: every standing follower closes on its slot.
  *
  * A follower is capped at `followSpeedOf` (§1.2's soldier speed x1.30, times §1.13's
  * `cohesion`) and never overshoots its slot. Inside the ARRIVE_EPSILON dead-band it does not
@@ -163,7 +171,7 @@ export function advanceFormationFollow(state: BattleState): void {
 }
 
 /**
- * Enemy movement written by the enemy rules (§1.9), as step 5 sees it.
+ * Enemy movement written by the enemy rules (§1.9), as the 추종·적 이동 step sees it.
  *
  * It stays an argument rather than an import so that "enemies do not move" can only ever
  * be something a caller typed.
@@ -179,11 +187,12 @@ export type EnemyMovementRule = (state: BattleState) => void
 export const NO_ENEMY_MOVEMENT: EnemyMovementRule = () => {}
 
 /**
- * §1.16 step 5, whole: "추종·적 이동 (정착 dead-zone, 아레나 클램프)".
+ * The whole of the 추종·적 이동 step: "(아레나 클램프)" and nothing else around it.
  *
  * The §1.6 ejection barrier that used to end this step is gone with terrain. The
- * composer stays, because the ORDER inside step 5 is still a rule — followers, then
- * enemies — and because it is the seam batch C and F plug their movers into.
+ * composer stays, because the ORDER inside the step is still a rule — followers, then
+ * enemies — and because it is the seam the enemy movers plug into: `advanceEnemyMovement`
+ * (§1.9, `enemy.ts`) and `advanceAllEnemyMovement`, which adds §1.12's elite (`elite.ts`).
  */
 export function advanceMovement(state: BattleState, moveEnemies: EnemyMovementRule): void {
   advanceFormationFollow(state)

@@ -105,9 +105,9 @@ export function resolveEnemyArrivals(state: BattleState): void {
  * §1.12: "지휘 유닛을 향해 이동하며 `ELITE_APPROACH_RANGE`에서 멈춘다."
  *
  * The last step is clamped to the remaining approach, so the elite comes to rest exactly at the
- * range instead of somewhere inside it that depends on where it started. §1.3 does not apply to
- * enemies, so this never costs the elite anything: its blast is on the telegraph clock, not on
- * a stop test.
+ * range instead of somewhere inside it that depends on where it started. Coming to rest costs it
+ * nothing and moving cost it nothing either: its blast is on the telegraph clock, and §1.3 has
+ * no displacement rule for anyone.
  */
 export function advanceEliteMovement(state: BattleState): void {
   const elite = livingElite(state)
@@ -119,8 +119,10 @@ export function advanceEliteMovement(state: BattleState): void {
     return
   }
 
-  // Recorded so the digest and the renderer do not have to infer what the elite is hunting;
-  // §1.9's slot passes skip `kind: 'elite'`, so this is the only writer of the field.
+  // Recorded so the digest and the renderer do not have to infer what the elite is hunting.
+  // §1.9's slot passes skip `kind: 'elite'`, so this is the only rule that CHOOSES the elite's
+  // target; `resolveTransitions` also writes the field, clearing it to null when the row dies,
+  // which is a lifecycle reset rather than a second opinion about what the elite is hunting.
   elite.targetId = command.id
 
   const distance = distanceBetween(elite.position, command.position)
@@ -239,7 +241,16 @@ export function resolveEliteCycle(state: BattleState): DamageEvent[] {
     state.elite.telegraphRemaining -= 1
     if (state.elite.telegraphRemaining > 0) return []
 
-    const center = state.elite.telegraphCenter ?? command.position
+    // §1.12: "예고 중심은 예고 시작 tick의 지휘 유닛 위치로 고정한다." A telegraph that is
+    // running WITHOUT a frozen centre is not a state this rule has an answer for, and the
+    // tempting fallback — the command unit's LIVE position — is precisely the §1.12 violation
+    // the telegraph fixtures exist to catch: it would land the blast on the body that spent 54
+    // ticks dodging it, silently, with every test still green. `startTelegraph` is the only way
+    // into this phase and it always sets the centre, so this throws instead.
+    const center = state.elite.telegraphCenter
+    if (!center) {
+      throw new Error('battle/elite: a telegraph is resolving with no frozen centre (§1.12)')
+    }
     const events = impactEvents(state, elite, center)
     state.elite.attackPhase = 'cooldown'
     state.elite.telegraphCenter = null

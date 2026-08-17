@@ -522,7 +522,7 @@ describe('§1.12 the elite dying mid-telegraph', () => {
     expect(unit(state, COMMANDER_ID).hp).toBe(COMMANDER_HP)
   })
 
-  it('delivers the impact of the tick it dies on, because step 10 runs before the damage', () => {
+  it('delivers the impact of the tick it dies on, because its cycle runs before the damage', () => {
     const state = withElite()
     resolveEliteCycle(state)
     for (let step = 1; step < ELITE_TELEGRAPH_TICKS; step += 1) resolveEliteCycle(state)

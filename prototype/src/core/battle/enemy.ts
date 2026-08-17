@@ -41,6 +41,15 @@ import { moveEnemyTowards } from './movement'
 import { enemiesById, findFriendly, friendliesById } from './state'
 import type { BattleState, EnemyKind, EnemyUnit, FriendlyUnit, Vec2 } from './types'
 
+/**
+ * §1.9 movement speed by class, and the two are asymmetric ON PURPOSE (§1.3):
+ *
+ *   melee   — FASTER than the command unit, asserted in `constants.ts`. This is what makes
+ *             "run away in a straight line" lose ground every tick, and it is the reason
+ *             §1.3 can let a unit fire while moving without handing out invulnerability.
+ *   shooter — slower than every friendly, which §1.3 explicitly allows: "사수형은 더 느려도
+ *             된다 — 멀리 서서 쏘는 역할이라 따라잡을 이유가 없다."
+ */
 export function enemyMoveSpeedOf(enemy: EnemyUnit): number {
   return enemy.kind === 'melee' ? MELEE_MOVE_SPEED : SHOOTER_MOVE_SPEED
 }
@@ -111,7 +120,7 @@ function hasFreeSlot(ledger: SlotLedger, enemy: EnemyUnit, friendlyId: number): 
 }
 
 /**
- * §1.9: the enemy half of step 7.
+ * §1.9: the enemy half of the 대상 선택 step.
  *
  * Two passes, both in ascending enemy id so the result cannot depend on the order the
  * spawn batch appended rows:
@@ -178,26 +187,26 @@ export function advanceEnemyTargeting(state: BattleState): void {
 /**
  * §1.9: "이번 tick은 움직이지 않기로 했다".
  *
- * Displacement exactly 0 — a shooter holding station inside the standoff band is the
- * enemy mirror of §1.4's settle dead-band. Note that §1.3 does not apply to enemies, so
- * unlike a friendly, an enemy does not need to hold still in order to shoot; the shooter
- * holds because §1.9 tells it to keep its distance, not to earn its shot.
+ * Displacement exactly 0. Nothing in the core reads that number any more (§1.3 deleted the
+ * one rule that did), so this records a fact rather than earning a shot: a shooter inside
+ * the standoff band holds because §1.9 tells it to keep its distance, and it would fire
+ * from there whether it had moved or not.
  */
 function holdStill(enemy: EnemyUnit): void {
   enemy.lastDisplacement = 0
 }
 
 /**
- * §1.16 step 5, enemy half: the `EnemyMovementRule` that step 5 takes as an argument.
+ * The 추종·적 이동 step, enemy half: the `EnemyMovementRule` that step takes as an argument.
  *
  * Both the approach and the retreat go through `moveEnemyTowards`; a waypoint exactly
  * `speed` away turns "move in this direction" into "move towards this point" without a
  * second movement primitive. The shooter has exactly three states now — approach, hold,
  * retreat — because §1.6 deleted the fourth (orbit for an angle).
  *
- * Enemies pursue the target chosen by the PREVIOUS tick's step 7, because §1.16 puts
- * selection at step 7 and movement at step 5. §1.16 states that one-tick lag as an
- * intended contract: the ATTACK always uses a target chosen from post-movement positions.
+ * Enemies pursue the target chosen by the PREVIOUS tick's 대상 선택, because §1.16 puts
+ * selection after movement. §1.16 states that one-tick lag as an intended contract: the
+ * ATTACK always uses a target chosen from post-movement positions.
  */
 export function advanceEnemyMovement(state: BattleState): void {
   const [standoffLow, standoffHigh] = SHOOTER_STANDOFF
@@ -226,7 +235,7 @@ export function advanceEnemyMovement(state: BattleState): void {
       moveEnemyTowards(enemy, retreatWaypoint(enemy, target.position, distance, speed), speed)
       continue
     }
-    // Inside the band: hold and shoot (step 9). This is the whole of the third state.
+    // Inside the band: hold, and shoot when the attack step runs. The whole third state.
     holdStill(enemy)
   }
 }

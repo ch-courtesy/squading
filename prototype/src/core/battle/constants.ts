@@ -1,4 +1,4 @@
-// Every harness-owned number for the v6 commander battle lives in this file.
+// Every harness-owned number for the commander battle lives in this file.
 //
 // The design (§2, §5 stage 0) deliberately defers balance to a later measurement
 // stage. So this file is split in two:
@@ -79,12 +79,21 @@ export const COMMANDER_HP = 5.0
 export const SOLDIER_HP = 1.4
 
 // ---------------------------------------------------------------------------
-// PLACEHOLDER — epsilons (§2: MOVE 0.001~0.02, ARRIVE <= MOVE)
+// PLACEHOLDER — the settle epsilon (§2: `ARRIVE_EPSILON` 0.001~0.02)
 // ---------------------------------------------------------------------------
 
-/** PLACEHOLDER — §1.3 stop threshold: displacement below this counts as stopped. */
-export const MOVE_EPSILON = 0.005
-/** PLACEHOLDER — §1.4 slot settle threshold. Must stay <= MOVE_EPSILON. */
+/**
+ * PLACEHOLDER — the ONE epsilon left, and it is about jitter, not about firepower.
+ *
+ * Two rules use it, both of them "this displacement is too small to be worth making":
+ *   §1.4  a follower within this distance of its slot does not move at all, so it cannot
+ *         approach asymptotically and vibrate.
+ *   §1.15 a pointer drag shorter than this clamps the movement input to zero.
+ *
+ * v6~v8 also had a `MOVE_EPSILON` — the threshold above which a tick counted as movement
+ * and cost the unit its shot. §1.3 (v9) deleted that rule, so the constant is gone rather
+ * than left inert: an unused threshold is one a later batch re-gates something on.
+ */
 export const ARRIVE_EPSILON = 0.004
 
 // ---------------------------------------------------------------------------
@@ -93,8 +102,28 @@ export const ARRIVE_EPSILON = 0.004
 
 /** PLACEHOLDER */
 export const MELEE_HP = 1.0
-/** PLACEHOLDER */
-export const MELEE_MOVE_SPEED = 0.075
+/**
+ * PLACEHOLDER — §1.3/§2 constraint: STRICTLY GREATER than `COMMANDER_MOVE_SPEED` (search
+ * range `0.125~0.170`), asserted at the bottom of this file.
+ *
+ * This is the number that closes the "keep moving and take no damage" defect. v6~v8 closed
+ * it by taxing movement (a unit that moved neither fired nor cooled down); v9 closes it by
+ * making the melee faster than the body the player drives, so pure flight does not work and
+ * movement can stay free. Every friendly speed is below it: soldier `0.100`, commander
+ * `0.115`, follow cap `0.130`.
+ *
+ * At `0.140` against the commander's `0.115` the gap closes `0.025` per tick, i.e. one
+ * second of pure flight costs exactly one `MELEE_RANGE` (30 x 0.025 = 0.75) of distance.
+ * `tests/battle/battle-combat.test.ts` hand-computes the flight-is-futile fixture off that.
+ *
+ * KNOWN GAP, reported rather than silently fixed: §1.13's `mobility` card raises the command
+ * unit to `0.115 x 1.15 = 0.13225`, and §2's search range starts at `0.125`. Any placeholder
+ * in `(0.125, 0.13225]` therefore satisfies §1.3's stated relation while letting one card
+ * restore pure flight. §1.3 states the relation against §1.2's ANCHOR, so the assert below
+ * checks exactly that and no more; narrowing it here would reject values §2 explicitly
+ * permits. `0.140` clears the upgraded speed as well.
+ */
+export const MELEE_MOVE_SPEED = 0.14
 /** PLACEHOLDER — contact range. */
 export const MELEE_RANGE = 0.75
 /** PLACEHOLDER */
@@ -279,15 +308,26 @@ function assertRule(condition: boolean, message: string): void {
   if (!condition) throw new Error(`battle/constants: ${message}`)
 }
 
-// §1.4: without this the settle dead-band can leave a displacement that §1.3 still
-// reads as movement, and the follower is silenced forever.
-assertRule(ARRIVE_EPSILON <= MOVE_EPSILON, 'ARRIVE_EPSILON must be <= MOVE_EPSILON (§1.4)')
-// §1.6/§1.9: the range advantage is the mechanism that replaced cover. A shooter that
-// outranges a soldier deletes it — and §1.3 makes the approach free of return fire, so
-// kills collapse as well.
+// §1.4/§1.15: a non-positive settle band is no band at all — the follower approaches its
+// slot asymptotically and vibrates forever, and the pointer-drag clamp stops clamping.
+assertRule(ARRIVE_EPSILON > 0, 'ARRIVE_EPSILON must be positive (§1.4)')
+// §1.3: THE relation this version of the design rests on. Units fire while moving, so the
+// only thing stopping pure flight is that the melee is faster than the body the player
+// drives. Invert this and "run in a straight line forever" is an unanswerable strategy
+// again, which is the defect §1.3 records v6~v8 taxing movement in order to close.
+assertRule(
+  MELEE_MOVE_SPEED > COMMANDER_MOVE_SPEED,
+  'MELEE_MOVE_SPEED must be > COMMANDER_MOVE_SPEED (§1.3)',
+)
+// §1.6/§1.9: the range advantage is the mechanism that replaced cover. It is the band
+// `[SHOOTER_RANGE, SOLDIER_RANGE]` a friendly can stand in and shoot without being shot
+// back; a shooter that outranged a soldier would erase the band and with it the only reason
+// "where do I stop" is a question. §1.3 (v9) makes the relation matter MORE, not less: the
+// squad is no longer paid for standing still, so the band has to be worth standing in.
 assertRule(SHOOTER_RANGE < SOLDIER_RANGE, 'SHOOTER_RANGE must be < SOLDIER_RANGE (§1.9)')
 assertRule(RANGE_ADVANTAGE > 0, 'the range advantage must be positive (§1.6)')
-// §1.12: the same argument for the elite.
+// §1.12: the same shape of argument for the elite — an elite that parked outside soldier
+// range would be unkillable by the 15 bodies that are supposed to kill it.
 assertRule(ELITE_APPROACH_RANGE < SOLDIER_RANGE, 'ELITE_APPROACH_RANGE must be < SOLDIER_RANGE (§1.12)')
 // §1.10: overlapping radii fill the cap with enemies still in transit.
 assertRule(SPAWN_RADIUS >= ENGAGE_RADIUS + 2.0, 'SPAWN_RADIUS must be >= ENGAGE_RADIUS + 2.0 (§1.10)')
@@ -340,3 +380,18 @@ assertRule(
 )
 assertRule(CARD_POOL.length === 8, 'the card pool is exactly 8 cards (§1.13)')
 assertRule(UPGRADE_KILL_THRESHOLDS.length === MAX_UPGRADES, 'there are exactly 4 upgrade thresholds (§1.13)')
+// §1.13: the thresholds are walked by an index that advances when a round OPENS, exactly like
+// the pressure curve above is walked by tick — and they need the same guard for the same
+// reason. A non-ascending pair fires two rounds off ONE kill (the second threshold is already
+// satisfied the moment the first is), which §1.13's "매 회차" does not describe, and no other
+// test would fail: the round count would still be <= 4 and the digest would still replay.
+for (let index = 0; index < UPGRADE_KILL_THRESHOLDS.length; index += 1) {
+  assertRule(
+    UPGRADE_KILL_THRESHOLDS[index] >= 1,
+    'every upgrade kill threshold must be >= 1 (§1.13)',
+  )
+  assertRule(
+    index === 0 || UPGRADE_KILL_THRESHOLDS[index] > UPGRADE_KILL_THRESHOLDS[index - 1],
+    'upgrade kill thresholds must be strictly ascending (§1.13)',
+  )
+}

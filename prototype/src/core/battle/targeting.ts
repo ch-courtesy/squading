@@ -1,27 +1,23 @@
-// §1.3's stop test and §1.8 target selection (§1.16 step 7).
+// §1.8 target selection, and the three friendly weapon numbers it reads.
 //
-// Two rules, and the order they run in is load-bearing:
+// One rule: in range, then elite first, then nearest, then lowest id. There is NO sight
+// filter — §1.6 removed cover, so "시야는 항상 통한다" and range is the only geometric test
+// left. §1.16 runs selection after movement, so an attack always uses a target picked from
+// post-movement positions.
 //
-//   §1.3 stop test — "그 tick의 실제 변위가 MOVE_EPSILON 이상이면". It reads
-//                    `lastDisplacement`, which every movement rule in batch A writes,
-//                    and NEVER `state.input`. A unit shoved against a wall has input
-//                    but no displacement and may fire; a follower inside the settle
-//                    dead-band has displacement exactly 0 and may fire (§1.4).
-//   §1.8 selection — in range, then elite first, then nearest, then lowest id. There is
-//                    NO sight filter: §1.6 removed cover, so "시야는 항상 통한다" and
-//                    range is the only geometric test left. §1.16 keeps it at step 7,
-//                    after movement, so an attack always uses a target picked from
-//                    post-movement positions.
-//
-// Selection is NOT gated on the stop test. §1.16 step 7 has no displacement clause, and
-// `targetId` is in the digest (§1.17): a moving unit still tracks what it would shoot, it
-// just does not get to shoot it (step 8).
+// THERE IS NO DISPLACEMENT TEST IN THIS FILE ANY MORE. v6~v8 kept `isStopped` here, and both
+// the cooldown pass and the friendly attack pass consulted it: a unit that had moved this
+// tick neither fired nor cooled down. §1.3 (v9) reverses that — "변위는 공격·cooldown에
+// 영향을 주지 않으며 cooldown은 항상 감소한다" — and closes the defect the rule existed for
+// from the other end, by making the melee faster than the command unit
+// (`MELEE_MOVE_SPEED > COMMANDER_MOVE_SPEED`, asserted in `constants.ts`). Nothing in the
+// core reads a displacement to decide anything now; if a later batch wants to gate a rule on
+// motion, it is adding a rule, not restoring one.
 
 import {
   COMMANDER_ATTACK_INTERVAL,
   COMMANDER_DAMAGE,
   COMMANDER_RANGE,
-  MOVE_EPSILON,
   SOLDIER_ATTACK_INTERVAL,
   SOLDIER_DAMAGE,
   SOLDIER_RANGE,
@@ -35,17 +31,6 @@ import {
   tickDurationAfter,
 } from './upgrades'
 import type { BattleState, EnemyUnit, FriendlyUnit } from './types'
-
-/**
- * §1.3: "at or above MOVE_EPSILON" is movement, so stopped is strictly below it.
- *
- * Takes the displacement holder rather than the unit so that step 6 and step 8 cannot
- * disagree about what "stopped" means, and so the test is impossible to write against
- * the input by accident.
- */
-export function isStopped(unit: { lastDisplacement: number }): boolean {
-  return unit.lastDisplacement < MOVE_EPSILON
-}
 
 // The three weapon numbers, in one place each.
 //
@@ -70,7 +55,7 @@ export function attackIntervalOf(state: BattleState, unit: FriendlyUnit): number
 export function attackDamageOf(state: BattleState, unit: FriendlyUnit): number {
   const base = unit.role === 'commander' ? COMMANDER_DAMAGE : SOLDIER_DAMAGE
   // §1.13 `화력`. Attacker-side, so it is baked into the event's `amount` (§1.16) and the
-  // defender-side `cover` multiplier composes with it in the damage step.
+  // defender-side `cover` multiplier composes with it where damage is applied.
   return base * firepowerMultiplierOf(state)
 }
 
@@ -134,7 +119,7 @@ export function advanceFriendlyTargeting(state: BattleState): void {
 }
 
 /**
- * §1.16 step 7, whole: both sides pick their target.
+ * The whole of the 대상 선택 step: both sides pick their target.
  *
  * The two halves are different rules — friendlies rank enemies by §1.8, enemies claim
  * §1.9 slots — but they are one step, and running them together is what keeps them

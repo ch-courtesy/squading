@@ -1,11 +1,11 @@
 // Movement fixtures: the arena clamp (§1.7), formation following and the settle
-// dead-band (§1.4), and step 5's composition (§1.16).
+// dead-band (§1.4), and the composition of the 추종·적 이동 step (§1.16).
 //
 // §1.6 removed cover, so the fixtures that pinned x-then-y sliding, union ejection, the
 // slot pull, the pull latch and the 30-tick stuck counter are gone with the rules. What
-// remains is deliberately small: the arena edge is now the ONLY thing that can turn
-// movement input into zero displacement, which makes it the only remaining witness for
-// §1.3's "판정 대상은 입력이 아니라 실제 변위다".
+// remains is deliberately small. The arena edge is the only thing that can turn movement
+// input into zero displacement; under v6~v8 that made it the witness for §1.3's stop test,
+// and now that §1.3 has no stop test it is just the clamp reporting honestly.
 
 import { describe, expect, it } from 'vitest'
 
@@ -17,7 +17,6 @@ import {
   COMMANDER_START,
   FOLLOW_MAX_SPEED,
   MELEE_MOVE_SPEED,
-  MOVE_EPSILON,
   SOLDIER_MOVE_SPEED,
 } from '../../src/core/battle/constants'
 import { FORMATION_SLOTS, slotPosition } from '../../src/core/battle/formation'
@@ -68,17 +67,21 @@ describe('§1.4 formation following', () => {
     expect(unit.lastDisplacement).toBe(0)
   })
 
-  it('makes displacement exactly 0 inside the arrival dead-band', () => {
+  it('does not jitter inside the arrival dead-band: the position is byte-identical for 100 ticks', () => {
+    // §1.4's stated reason, and now its only one: "점근하며 미세 진동하는 것을 막는다."
+    // 0.003 < ARRIVE_EPSILON 0.004, so the follower must not move AT ALL — not "move a
+    // little", which is what an asymptotic approach looks like tick after tick.
     const state = createInitialBattleState('seed-a')
     const unit = findFriendly(state, 4)!
     const target = slotTarget(state, 4)
-    // 0.003 < ARRIVE_EPSILON 0.004: inside the band, so the follower must not move AT
-    // ALL. "Approximately 0" would silence this soldier forever under §1.3.
-    unit.position = { x: target.x + 0.003, y: target.y }
+    const parked = { x: target.x + 0.003, y: target.y }
+    unit.position = { ...parked }
 
-    advanceFormationFollow(state)
-    expect(unit.position).toEqual({ x: target.x + 0.003, y: target.y })
-    expect(unit.lastDisplacement).toBe(0)
+    for (let tick = 1; tick <= 100; tick += 1) {
+      advanceFormationFollow(state)
+      expect(unit.position, `tick ${tick}`).toEqual(parked)
+      expect(unit.lastDisplacement, `tick ${tick}`).toBe(0)
+    }
   })
 
   it('closes exactly onto the slot just outside the dead-band', () => {
@@ -86,15 +89,14 @@ describe('§1.4 formation following', () => {
     const unit = findFriendly(state, 4)!
     const target = slotTarget(state, 4)
     // 0.01 > ARRIVE_EPSILON 0.004 and 0.01 <= FOLLOW_MAX_SPEED 0.13, so the step is the
-    // whole distance and the follower lands on the slot. It is also >= MOVE_EPSILON, so
-    // §1.3 reads this tick as movement and the follower does not fire on it.
+    // whole distance and the follower lands on the slot. Whether it also fires on this tick
+    // is no longer a question the displacement answers (§1.3).
     unit.position = { x: target.x + 0.01, y: target.y }
 
     advanceFormationFollow(state)
     expect(unit.position.x).toBeCloseTo(target.x, 12)
     expect(unit.lastDisplacement).toBeCloseTo(0.01, 12)
-    expect(unit.lastDisplacement).toBeGreaterThanOrEqual(MOVE_EPSILON)
-    expect(ARRIVE_EPSILON).toBeLessThanOrEqual(MOVE_EPSILON)
+    expect(ARRIVE_EPSILON).toBeLessThan(0.01)
   })
 
   it('moves at the follower speed cap when far from the slot', () => {
@@ -183,7 +185,7 @@ describe('§1.4 slot assignment', () => {
   })
 })
 
-describe('§1.16 step 4: command unit movement', () => {
+describe('§1.16 지휘 유닛 이동: command unit movement', () => {
   it('moves at the role speed and normalizes diagonal input', () => {
     const state = createInitialBattleState('seed-a')
     const command = findFriendly(state, 1)!
@@ -222,10 +224,9 @@ describe('§1.16 step 4: command unit movement', () => {
     expect(command.position).toEqual({ x: COMMANDER_START.x, y: COMMANDER_START.y })
   })
 
-  it('gives input-with-no-displacement at the arena edge — the §1.3 witness', () => {
-    // The last remaining way to hold a movement input and still have displacement 0.
-    // §1.3 judges displacement, so this unit may fire; `battle-combat.test.ts` pins that
-    // half.
+  it('gives input-with-no-displacement at the arena edge', () => {
+    // The last remaining way to hold a movement input and still have displacement 0. It has
+    // no effect on the unit's firepower (§1.3); `battle-combat.test.ts` pins that half.
     const state = createInitialBattleState('seed-a')
     const command = findFriendly(state, 1)!
     command.position = { x: ARENA_WIDTH, y: 16 }
@@ -250,7 +251,7 @@ describe('§1.16 step 4: command unit movement', () => {
   })
 })
 
-describe('§1.16 step 5 composition', () => {
+describe('§1.16 추종·적 이동 composition', () => {
   it('runs followers and then enemies, and nothing else', () => {
     const state = createInitialBattleState('seed-a')
     const follower = findFriendly(state, 2)!

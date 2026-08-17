@@ -1,4 +1,4 @@
-// §1.11 rescue — the lock and the progress (§1.16 steps 3 and 12; see the table in `index.ts`).
+// §1.11 rescue — the 구조 lock 판정 and 구조 진행 steps (see the step table in `index.ts`).
 //
 // Three things in here are decisions, and each is argued where it is made.
 //
@@ -147,8 +147,9 @@ export function cancelRescueIfBroken(state: BattleState): void {
  *
  * Before `advanceCommandUnit`, which is what makes "lock이 성립한 tick부터 지휘 유닛은
  * 이동하지 않는다" true without a special case: `advanceCommandUnit` reads `rescue.active`
- * and the flag is already set when it runs. (An earlier draft of §1.11 said the lock is judged
- * in "4단계" and called movement "5단계", contradicting §1.16's table; the spec now says 3 and 4.)
+ * and the flag is already set when it runs. (An earlier draft of §1.11 named the wrong two
+ * positions for the lock and for movement, contradicting §1.16's own table; the spec now
+ * agrees with the table, and the table is in `index.ts`.)
  */
 export function resolveRescueLock(state: BattleState, events: RescueInputEvents): void {
   if (state.rescue.active) {
