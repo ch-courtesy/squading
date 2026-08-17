@@ -44,6 +44,7 @@ import {
 import { dealtToUnit, type DamageOutcome } from './damage'
 import { commandUnitOf } from './movement'
 import { findFriendly, friendliesById } from './state'
+import { rescueTicksMultiplierOf, tickDurationAfter } from './upgrades'
 import type { BattleState, FriendlyUnit } from './types'
 
 /**
@@ -69,11 +70,12 @@ export const NO_RESCUE_INPUT_EVENTS: RescueInputEvents = { movementKeydown: fals
 /**
  * How many ticks of held Space a rescue takes.
  *
- * Takes `state` for §1.13's `firstaid` card (x0.7 duration), which lands exactly here and
- * nowhere else — the same seam shape `attackIntervalOf` uses for `rapid`.
+ * §1.13's `firstaid` card (x0.7 duration) lands exactly here and nowhere else — the same seam
+ * shape `attackIntervalOf` uses for `rapid`, and rounded to whole ticks for the same reason
+ * (`tickDurationAfter`): the progress counter advances by 1 per tick.
  */
-export function rescueTicksOf(_state: BattleState): number {
-  return RESCUE_TICKS
+export function rescueTicksOf(state: BattleState): number {
+  return tickDurationAfter(RESCUE_TICKS, rescueTicksMultiplierOf(state))
 }
 
 function distanceBetween(from: FriendlyUnit, to: FriendlyUnit): number {

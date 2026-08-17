@@ -6,8 +6,8 @@
 //
 //   * §1.11's invulnerability window, which absorbs a hit whole rather than reducing it;
 //   * §1.13's `cover` card, which is damage TAKEN reduction — it is the one card whose name
-//     survived §1.6 and it never had anything to do with terrain. Its seam is
-//     `damageTakenMultiplierOf`, which batch E fills in.
+//     survived §1.6 and it never had anything to do with terrain. It lands in
+//     `damageTakenMultiplierOf`, which reads the chosen cards out of `upgrades.ts`.
 //
 // Simultaneity is the reason this is a separate step at all. Sixteen friendlies can fire at
 // one 1.0-HP melee in the same tick, and §1.16 keeps the body alive until `resolveTransitions`,
@@ -33,6 +33,7 @@
 
 import { HP_EPSILON } from './constants'
 import { findEnemy, findFriendly } from './state'
+import { damageTakenMultiplierFromCards } from './upgrades'
 import type { BattleState, DamageEvent, EnemyUnit, FriendlyUnit } from './types'
 
 /** One event's fate, in the order the events were given. */
@@ -59,13 +60,15 @@ export type DamageOutcome = {
 }
 
 /**
- * §1.13's `cover` card seam: the multiplier on damage a friendly TAKES.
+ * §1.13's `cover` card: the multiplier on damage a friendly TAKES.
  *
- * 1 until batch E, and a separate function from the invulnerability test on purpose — a
- * multiplier composes with other multipliers, while §1.11's window is absolute.
+ * A separate function from the invulnerability test on purpose — a multiplier composes with
+ * other multipliers, while §1.11's window is absolute. The unit is a parameter even though the
+ * card is squad-wide: a per-body defender modifier (a downed body, a revived one) would land
+ * here and nowhere else.
  */
-export function damageTakenMultiplierOf(_state: BattleState, _unit: FriendlyUnit): number {
-  return 1
+export function damageTakenMultiplierOf(state: BattleState, _unit: FriendlyUnit): number {
+  return damageTakenMultiplierFromCards(state)
 }
 
 function targetOf(state: BattleState, event: DamageEvent): FriendlyUnit | EnemyUnit | null {

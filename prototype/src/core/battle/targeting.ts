@@ -28,6 +28,12 @@ import {
 } from './constants'
 import { advanceEnemyTargeting } from './enemy'
 import { enemiesById } from './state'
+import {
+  attackIntervalMultiplierOf,
+  firepowerMultiplierOf,
+  rangeBonusOf,
+  tickDurationAfter,
+} from './upgrades'
 import type { BattleState, EnemyUnit, FriendlyUnit } from './types'
 
 /**
@@ -43,20 +49,29 @@ export function isStopped(unit: { lastDisplacement: number }): boolean {
 
 // The three weapon numbers, in one place each.
 //
-// `state` is a parameter on all three even though none of them reads it yet: §1.13's
-// `firepower`, `rapid` and `marksman` cards all land exactly here, and batch E adding
-// a parameter would otherwise touch every call site in steps 7 and 9.
+// `state` is a parameter on all three because §1.13's `marksman`, `rapid` and `firepower` land
+// exactly here and nowhere else. Each reads the card through `upgrades.ts`, which derives it
+// from `state.upgrades.rounds[].chosen` — there is no stored multiplier, and no field was added
+// to `BattleState` for any of it.
 
-export function attackRangeOf(_state: BattleState, unit: FriendlyUnit): number {
-  return unit.role === 'commander' ? COMMANDER_RANGE : SOLDIER_RANGE
+export function attackRangeOf(state: BattleState, unit: FriendlyUnit): number {
+  const base = unit.role === 'commander' ? COMMANDER_RANGE : SOLDIER_RANGE
+  // §1.13 `사수`: additive, so the range advantage (§1.6) widens by the same metre for the
+  // commander and for a soldier instead of scaling apart.
+  return base + rangeBonusOf(state)
 }
 
-export function attackIntervalOf(_state: BattleState, unit: FriendlyUnit): number {
-  return unit.role === 'commander' ? COMMANDER_ATTACK_INTERVAL : SOLDIER_ATTACK_INTERVAL
+export function attackIntervalOf(state: BattleState, unit: FriendlyUnit): number {
+  const base = unit.role === 'commander' ? COMMANDER_ATTACK_INTERVAL : SOLDIER_ATTACK_INTERVAL
+  // §1.13 `연사`, rounded to whole ticks — see `tickDurationAfter`.
+  return tickDurationAfter(base, attackIntervalMultiplierOf(state))
 }
 
-export function attackDamageOf(_state: BattleState, unit: FriendlyUnit): number {
-  return unit.role === 'commander' ? COMMANDER_DAMAGE : SOLDIER_DAMAGE
+export function attackDamageOf(state: BattleState, unit: FriendlyUnit): number {
+  const base = unit.role === 'commander' ? COMMANDER_DAMAGE : SOLDIER_DAMAGE
+  // §1.13 `화력`. Attacker-side, so it is baked into the event's `amount` (§1.16) and the
+  // defender-side `cover` multiplier composes with it in the damage step.
+  return base * firepowerMultiplierOf(state)
 }
 
 type Ranked = {

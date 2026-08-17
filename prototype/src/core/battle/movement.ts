@@ -22,6 +22,7 @@
 
 import { ARENA_HEIGHT, ARENA_WIDTH, ARRIVE_EPSILON, COMMANDER_MOVE_SPEED, FOLLOW_MAX_SPEED, SOLDIER_MOVE_SPEED } from './constants'
 import { findAssignment, slotPosition } from './formation'
+import { followSpeedMultiplierOf, moveSpeedMultiplierOf } from './upgrades'
 import type { BattleState, EnemyUnit, FriendlyUnit, Vec2 } from './types'
 
 function clamp(value: number, maximum: number): number {
@@ -54,8 +55,29 @@ export function commandUnitOf(state: BattleState): FriendlyUnit | null {
   return null
 }
 
-export function moveSpeedOf(unit: FriendlyUnit): number {
-  return unit.role === 'commander' ? COMMANDER_MOVE_SPEED : SOLDIER_MOVE_SPEED
+/**
+ * §1.2's move speed for a body, after §1.13's `mobility` card (+15%).
+ *
+ * Takes `state` for that card, in the same shape as `attackDamageOf`: the magnitude is read off
+ * the chosen cards every time it is asked for, so nothing is stored and no digest field moves.
+ * Only the command unit consumes this — followers are capped by `followSpeedOf` — so `mobility`
+ * is exactly "the body the player is driving moves faster", whichever body that is (§1.5).
+ */
+export function moveSpeedOf(state: BattleState, unit: FriendlyUnit): number {
+  const base = unit.role === 'commander' ? COMMANDER_MOVE_SPEED : SOLDIER_MOVE_SPEED
+  return base * moveSpeedMultiplierOf(state)
+}
+
+/**
+ * §1.2's follow-speed cap, after §1.13's `cohesion` card (x1.2).
+ *
+ * `FOLLOW_SPEED_MULTIPLIER` itself is FIXED by §1.2, so `cohesion` is the only thing that may
+ * move this number, and it is deliberately disjoint from `mobility`: a squad whose leader took
+ * `mobility` (0.13225) outruns the base cap (0.130) while moving, and `cohesion` is the card
+ * that buys the formation back. Both apply to the same tick without touching each other.
+ */
+export function followSpeedOf(state: BattleState): number {
+  return FOLLOW_MAX_SPEED * followSpeedMultiplierOf(state)
 }
 
 /**
@@ -82,7 +104,7 @@ export function advanceCommandUnit(state: BattleState): number {
     return 0
   }
 
-  const speed = moveSpeedOf(unit)
+  const speed = moveSpeedOf(state, unit)
   const from = unit.position
   const to = stepMove(
     from,
@@ -98,13 +120,15 @@ export function advanceCommandUnit(state: BattleState): number {
 /**
  * Tick step 5 (§1.16), friendly half: every standing follower closes on its slot.
  *
- * A follower is capped at `FOLLOW_MAX_SPEED` (§1.2, soldier speed x1.30) and never
- * overshoots its slot. Inside the ARRIVE_EPSILON dead-band it does not move at all.
+ * A follower is capped at `followSpeedOf` (§1.2's soldier speed x1.30, times §1.13's
+ * `cohesion`) and never overshoots its slot. Inside the ARRIVE_EPSILON dead-band it does not
+ * move at all.
  */
 export function advanceFormationFollow(state: BattleState): void {
   const command = commandUnitOf(state)
   if (!command) return
   const center = command.position
+  const followSpeed = followSpeedOf(state)
 
   for (const unit of state.friendlies) {
     if (unit.id === state.commandUnitId) continue
@@ -130,7 +154,7 @@ export function advanceFormationFollow(state: BattleState): void {
       continue
     }
 
-    const step = Math.min(distance, FOLLOW_MAX_SPEED)
+    const step = Math.min(distance, followSpeed)
     const from = unit.position
     const to = stepMove(from, (dx / distance) * step, (dy / distance) * step)
     unit.position = to

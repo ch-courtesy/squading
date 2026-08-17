@@ -5,7 +5,8 @@
 //   1. friendlies at 0 hp go DOWNED. Not dead: §1.11 exists because a fallen body is a
 //      decision, and a friendly only dies from its downed timer running out.
 //   2. enemies at 0 hp die, and their ids and kinds are what the kill accounting counts
-//      (§1.13 excludes the elite, so the kind has to travel with the id).
+//      (§1.13 excludes the elite, so the kind has to travel with the id). The elite's death also
+//      clears its §1.12 attack cycle, which is a separate axis from its `life`.
 //   3. downed timers advance, and a timer that reaches DOWNED_TICKS kills. A body that fell
 //      in THIS tick is not charged a tick for it.
 //   4. a rescue whose subject or object just vanished is cancelled, so no tick ever ends
@@ -22,6 +23,7 @@
 // explicit that the commander's death alone is not a defeat.
 
 import { DOWNED_TICKS } from './constants'
+import { clearEliteCycle } from './elite'
 import { cancelRescue, cancelRescueIfBroken } from './rescue'
 import { enemiesById, findFriendly, friendliesById } from './state'
 import type { BattleState, EnemyKind, FriendlyUnit, Vec2 } from './types'
@@ -159,6 +161,13 @@ export function resolveTransitions(state: BattleState): TransitionOutcome {
     enemy.contactSlotOwnerId = null
     enemy.lastDisplacement = 0
     enemyDeaths.push({ id: enemy.id, kind: enemy.kind })
+    // §1.12: `state.elite` is the ATTACK CYCLE, not the lifecycle, so the row going `dead` does
+    // not by itself end a telegraph. Cleared here, at the moment of death, rather than on the
+    // next tick's elite step: a tick that ENDS with a `telegraphCenter` belonging to a dead
+    // elite puts a warning circle on screen for a body that is gone and writes a cycle into the
+    // digest that can never resolve. The impact of THIS tick is already out — it was resolved
+    // before the damage that killed it.
+    if (enemy.kind === 'elite') clearEliteCycle(state)
   }
 
   // 3. Downed timers. `fellThisTick` is why a body downed above is not charged a tick for

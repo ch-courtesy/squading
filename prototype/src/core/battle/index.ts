@@ -80,45 +80,44 @@
 //         `stats.kills`, `mode` or `failureReason`.
 //
 // ---------------------------------------------------------------------------
+// Implemented — batch D (the fight the run is about, and what the player earns from it)
+// ---------------------------------------------------------------------------
+//   §1.12 elite ................................................ elite
+//         `resolveEliteArrival` places the body at tick 1800 through `drawSpawnPosition`, so
+//         the arrival is ONE `spawn` draw with the arena clamp and nothing else;
+//         `resolveEnemyArrivals` composes it AFTER `resolveSpawnRequests`, which is where
+//         tick 1800's draw order is written down. `advanceAllEnemyMovement` is the
+//         `EnemyMovementRule` the tick loop passes to `advanceMovement`: batch B's pass, then
+//         the elite's own approach, which stops EXACTLY at `ELITE_APPROACH_RANGE` (< soldier
+//         range, so the squad can answer back — §1.3 gives a closing unit no fire).
+//         `resolveEliteCycle` is the telegraph/impact/cooldown clock: the centre is FROZEN at
+//         the command unit's position on the tick the telegraph started, the impact lands
+//         exactly `ELITE_TELEGRAPH_TICKS` later against positions at IMPACT time, and the
+//         cycle is 54 + 56 = 110 ticks (1854, 1964, 2074 for a 1800 arrival). Its events are
+//         `cause: 'elite-blast'` and join the damage step's list. The blast hits STANDING
+//         friendlies only, and there is no contact damage at all.
+//   §1.13 upgrades and kill accounting ......................... upgrades
+//         `resolveKillAccounting` counts `enemyDeaths` whose kind is not `'elite'` into
+//         `stats.kills` and opens at most one round per tick against
+//         `UPGRADE_KILL_THRESHOLDS`. A round is 3 cards from the remaining pool by partial
+//         Fisher-Yates, exactly 3 `cards` draws, and `chooseUpgradeCard` removes ONLY the
+//         chosen one. WHERE CARD EFFECTS ARE READ FROM: `state.upgrades.rounds[].chosen`,
+//         through `hasUpgrade` and the multiplier functions in `upgrades.ts` — no stored
+//         multiplier, and batch D added NO field to `BattleState`. The seven landing points
+//         are `attackDamageOf` / `attackRangeOf` / `attackIntervalOf` (targeting),
+//         `moveSpeedOf` / `followSpeedOf` (movement), `rescueTicksOf` (rescue) and
+//         `damageTakenMultiplierOf` (damage). `vitality` is the one exception and §1.13 makes
+//         it one: with no HP multiplier field it multiplies `maxHp` and `hp` once, at choice
+//         time.
+//   §1.16 승패 판정 ............................................ outcome
+//         `resolveBattleOutcome(state, transitionOutcome)`, in §1.16's priority
+//         `won > lost > awaiting-upgrade` with `all-units-lost > elite-survived` inside the
+//         defeat. It reads the transition step's RETURN VALUE, because both defeat inputs are
+//         events of this tick, and it runs after the tick increment.
+//
+// ---------------------------------------------------------------------------
 // Seams — rules a later batch owns, and where each one plugs in
 // ---------------------------------------------------------------------------
-//   §1.12 elite ....................... a row in `enemies` with `kind: 'elite'` plus
-//                                      the `state.elite` attack-cycle sidecar;
-//                                      `spawn` stream. `eliteEnemy(state)` joins them.
-//                                      Batch B's two enemy passes SKIP `kind: 'elite'`
-//                                      entirely, so compose your movement rule with
-//                                      `advanceEnemyMovement`. Impact has no per-target
-//                                      sight re-check any more — just the blast radius.
-//                                      Arrival: reuse `drawSpawnPosition` (spawn.ts) so
-//                                      there is one draw, and compose it AFTER
-//                                      `resolveSpawnRequests` so tick 1800's draw order is
-//                                      written down somewhere. The telegraph/impact cycle
-//                                      is step 10; its blast events join the step-11 list
-//                                      as `cause: 'elite-blast'`. Step 11 drops events
-//                                      aimed at a non-standing body, so "does the blast
-//                                      damage a downed friendly" is a §1.12 decision that
-//                                      has to be made explicitly.
-//                                      The elite counts towards BOTH §1.10 caps.
-//   §1.13 upgrades .................... `state.upgrades`; `cards` stream, exactly 3
-//                                      draws per round. `CARD_EFFECTS` gives you the
-//                                      magnitudes; the SHAPE of each effect is yours.
-//                                      `attackRangeOf` / `attackIntervalOf` /
-//                                      `attackDamageOf` (targeting.ts) already take
-//                                      `state` for exactly this: `marksman`, `rapid`
-//                                      and `firepower` land inside those three and
-//                                      nowhere else. `cover` is defender-side and
-//                                      belongs to the damage step. NOTE: the `cover`
-//                                      CARD is damage reduction and survives §1.6 —
-//                                      it never had anything to do with terrain.
-//   §1.13 kill accounting ............. `resolveTransitions` RETURNS
-//                                      `TransitionOutcome`. `enemyDeaths` is `{ id, kind }`
-//                                      in ascending id, so the accounting step counts the
-//                                      ones whose kind is not `'elite'` into `stats.kills`
-//                                      and compares against `UPGRADE_KILL_THRESHOLDS`; the
-//                                      elite death in that same list is the 승패 판정's
-//                                      victory. `friendlyDowns` / `friendlyDeaths` are
-//                                      there for I2 and the results screen, and
-//                                      `allUnitsLost` is the 승패 판정's `all-units-lost`.
 //   §1.15 input queue ................. writes `state.input` only, PLUS the one-tick
 //                                      `RescueInputEvents` it hands `resolveRescueLock` —
 //                                      §1.11's cancel is a keydown EVENT and cannot be read
@@ -135,25 +134,33 @@
 //                                      function DOES; this table says WHEN it runs.
 //
 //                                        1  input application ................. open
-//                                        2  `resolveSpawnRequests(state)`
+//                                        2  `resolveEnemyArrivals(state)`
 //                                        3  `resolveRescueLock(state, events)`
 //                                        4  `advanceCommandUnit(state)` -> displacement
-//                                        5  `advanceMovement(state, enemyRule)`
+//                                        5  `advanceMovement(state, advanceAllEnemyMovement)`
 //                                        6  `advanceCooldowns(state)`
 //                                        7  `advanceTargeting(state)`
 //                                        8  `resolveFriendlyAttacks(state)` -> events
 //                                        9  `resolveEnemyAttacks(state)` -> events
-//                                        10 elite telegraph / impact ........... open
+//                                        10 `resolveEliteCycle(state)` -> events
 //                                        11 `applyDamage(state, events)` -> outcome
 //                                        12 `advanceRescueProgress(state, outcome)`
 //                                        13 `resolveTransitions(state)` -> outcome
-//                                        14 kill accounting, upgrade thresholds  open
+//                                        14 `resolveKillAccounting(state, outcome)`
 //                                        15 tick increment ..................... open
-//                                        16 승패 판정 .......................... open
+//                                        16 `resolveBattleOutcome(state, outcome)`
 //
 //                                      Step 12 MUST receive step 11's outcome: that is
 //                                      where §1.11's hit freeze is read, and the type has
-//                                      no empty value to fake it with.
+//                                      no empty value to fake it with. Step 11's list is the
+//                                      concatenation of steps 8, 9 and 10 IN THAT ORDER.
+//                                      Steps 14 and 16 both take step 13's outcome: the kill
+//                                      count and the verdict are both facts about the deaths
+//                                      of THIS tick.
+//                                      §1.1: the loop must not run steps at all while `mode`
+//                                      is `paused` or `awaiting-upgrade`; step 16 is what
+//                                      enters the latter and `chooseUpgradeCard` is what
+//                                      leaves it.
 //   I1 measurement .................... `isEnemyEngaged` (enemy.ts).
 //   I2 measurement .................... `DamageOutcome.damageToFriendlies` already
 //                                      excludes overkill and absorbed hits, which is
@@ -167,10 +174,12 @@ export * from './attacks'
 export * from './constants'
 export * from './damage'
 export * from './digest'
+export * from './elite'
 export * from './enemy'
 export * from './formation'
 export * from './movement'
 export * from './names'
+export * from './outcome'
 export * from './rescue'
 export * from './spawn'
 export * from './state'
@@ -178,3 +187,4 @@ export * from './streams'
 export * from './targeting'
 export * from './transitions'
 export * from './types'
+export * from './upgrades'
