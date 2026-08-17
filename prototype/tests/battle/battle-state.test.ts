@@ -39,7 +39,10 @@ import {
   COMMANDER_ID,
   ROSTER_SIZE,
   SOLDIER_IDS,
+  createEnemy,
   createInitialBattleState,
+  enemiesById,
+  friendliesById,
   movementBlockers,
   sightBlockers,
 } from '../../src/core/battle/state'
@@ -143,6 +146,22 @@ describe('§1.17 named streams', () => {
     expect(states.cards).toBe(value)
     expect(prng.getState()).toBe(states.cards)
   })
+
+  it('is bit-identical to core/prng.ts', () => {
+    // `streams.ts` re-implements the xorshift step over a raw uint32 because the
+    // digest has to see the stream position. Terrain and names are generated through
+    // that re-implementation while the sweep tooling uses `createPrng` directly, so
+    // the equivalence is load-bearing and pinned here rather than assumed.
+    for (const name of STREAM_NAMES) {
+      const view = streamPrng(createStreamStates('seed-a'), name)
+      const direct = createPrng(`seed-a:${name}`)
+      expect(view.getState()).toBe(direct.getState())
+      for (let draw = 0; draw < 8; draw += 1) {
+        expect(view.nextFloat()).toBe(direct.nextFloat())
+        expect(view.getState()).toBe(direct.getState())
+      }
+    }
+  })
 })
 
 describe('§1.14 names', () => {
@@ -214,12 +233,29 @@ describe('initial authoritative state', () => {
     expect(state.slotAssignments.some((entry) => entry.unitId === COMMANDER_ID)).toBe(false)
   })
 
+  it('keeps the roster in ascending id order and exposes that as a guarantee', () => {
+    const state = createInitialBattleState('seed-a')
+    expect(friendliesById(state).map((unit) => unit.id)).toEqual(state.friendlies.map((u) => u.id))
+
+    // The accessor is the contract, not the array's current order.
+    state.friendlies.reverse()
+    state.enemies.push(createEnemy(102, 'melee', { x: 1, y: 1 }))
+    state.enemies.push(createEnemy(101, 'shooter', { x: 2, y: 2 }))
+    expect(friendliesById(state).map((unit) => unit.id)).toEqual(
+      Array.from({ length: ROSTER_SIZE }, (_, index) => index + 1),
+    )
+    expect(enemiesById(state).map((enemy) => enemy.id)).toEqual([101, 102])
+  })
+
   it('starts empty for the later batches', () => {
     const state = createInitialBattleState('seed-a')
     expect(state.enemies).toEqual([])
     expect(state.spawn.backlog).toEqual([])
     expect(state.spawn.discardedByAbsoluteCap).toBe(0)
-    expect(state.elite.phase).toBe('absent')
+    // §1.12: the elite has no body yet, and its attack cycle is a separate axis from
+    // its lifecycle so that "died mid-telegraph" is representable.
+    expect(state.elite.enemyId).toBeNull()
+    expect(state.elite.attackPhase).toBe('idle')
     expect(state.upgrades.rounds).toEqual([])
     expect(state.upgrades.remainingPool).toHaveLength(8)
     expect(state.rescue).toEqual({ active: false, targetId: null, progress: 0 })
@@ -228,6 +264,39 @@ describe('initial authoritative state', () => {
     expect(state.result).toBeNull()
     expect(state.failureReason).toBeNull()
     expect(state.input).toEqual({ move: { x: 0, y: 0 }, spaceHeld: false })
+  })
+
+  it('pins the exact top-level field set of BattleState', () => {
+    // This is the enforcement behind "no scratch in BattleState" (see types.ts).
+    // The digest walks the whole object, so a memoized list or a debug counter added
+    // here would silently change every digest in the project and invalidate every
+    // recorded 8-seed band — and NOTHING else would fail, because no test asserts a
+    // digest value, only that two runs agree. Adding a key must be a deliberate act
+    // that shows up in a diff, so it has to be added to this list too.
+    expect(Object.keys(createInitialBattleState('seed-a')).sort()).toEqual(
+      [
+        'combatTick',
+        'commandUnitId',
+        'elite',
+        'enemies',
+        'failureReason',
+        'friendlies',
+        'input',
+        'mode',
+        'originalCommanderId',
+        'prng',
+        'rescue',
+        'result',
+        'rootSeed',
+        'schemaVersion',
+        'slotAssignments',
+        'slotLatchOwnerId',
+        'spawn',
+        'stats',
+        'terrain',
+        'upgrades',
+      ].sort(),
+    )
   })
 
   it('generates two-class terrain on the terrain stream', () => {
@@ -277,56 +346,78 @@ describe('§1.17 determinism and digest', () => {
     shuffled.slotAssignments.reverse()
     expect(digestBattleState(shuffled)).toBe(digestBattleState(base))
 
-    const fields: Array<(state: ReturnType<typeof createInitialBattleState>) => void> = [
-      (state) => void (state.combatTick = 1),
-      (state) => void (state.mode = 'running'),
-      (state) => void (state.result = 'won'),
-      (state) => void (state.failureReason = 'elite-survived'),
-      (state) => void (state.commandUnitId = 3),
-      (state) => void (state.input.spaceHeld = true),
-      (state) => void (state.input.move = { x: 1, y: 0 }),
-      (state) => void (state.friendlies[2].hp = 0.5),
-      (state) => void (state.friendlies[2].maxHp = 9),
-      (state) => void (state.friendlies[2].life = 'downed'),
-      (state) => void (state.friendlies[2].attackCooldown = 4),
-      (state) => void (state.friendlies[2].targetId = 900),
-      (state) => void (state.friendlies[2].nameIndex = 23),
-      (state) => void (state.friendlies[2].deathTick = 12),
-      (state) => void state.friendlies[2].rescuedByIds.push(4),
-      (state) => void (state.slotAssignments[0].latchedPosition = { x: 1, y: 2 }),
-      (state) => void (state.spawn.discardedByAbsoluteCap = 1),
-      (state) => void (state.spawn.discardedByBacklogOverflow = 1),
-      (state) => void (state.elite.hp = 1),
-      (state) => void (state.rescue.progress = 1),
-      (state) => void (state.stats.kills = 1),
-      (state) => void (state.prng.spawn = 12345),
-      (state) => void (state.terrain.high.splice(0, 1)),
-      (state) =>
-        void state.enemies.push({
-          id: 900,
-          enemyClass: 'melee',
-          hp: 1,
-          maxHp: 1,
-          life: 'standing',
-          position: { x: 1, y: 1 },
-          attackCooldown: 0,
-          targetId: null,
-          deathTick: null,
-          lastDisplacement: 0,
-          zeroDisplacementTicks: 0,
-          excludedTargetId: null,
-          contactSlotOwnerId: null,
-        }),
-      (state) =>
-        void state.upgrades.rounds.push({ round: 1, tick: 10, offered: ['firepower'], chosen: null }),
+    // Every field §1.17 enumerates, one mutation each. Labelled so a failure names
+    // the field the digest stopped watching.
+    type Mutation = [string, (state: ReturnType<typeof createInitialBattleState>) => void]
+    const fields: Mutation[] = [
+      ['schemaVersion', (state) => void ((state as { schemaVersion: number }).schemaVersion = 2)],
+      ['rootSeed', (state) => void (state.rootSeed = 'other')],
+      ['combatTick', (state) => void (state.combatTick = 1)],
+      ['mode', (state) => void (state.mode = 'running')],
+      ['result', (state) => void (state.result = 'won')],
+      ['failureReason', (state) => void (state.failureReason = 'elite-survived')],
+      ['commandUnitId', (state) => void (state.commandUnitId = 3)],
+      ['originalCommanderId', (state) => void (state.originalCommanderId = 3)],
+      ['input.spaceHeld', (state) => void (state.input.spaceHeld = true)],
+      ['input.move', (state) => void (state.input.move = { x: 1, y: 0 })],
+      ['friendly.hp', (state) => void (state.friendlies[2].hp = 0.5)],
+      ['friendly.maxHp', (state) => void (state.friendlies[2].maxHp = 9)],
+      ['friendly.life', (state) => void (state.friendlies[2].life = 'downed')],
+      ['friendly.position', (state) => void (state.friendlies[2].position = { x: 1, y: 1 })],
+      ['friendly.attackCooldown', (state) => void (state.friendlies[2].attackCooldown = 4)],
+      ['friendly.targetId', (state) => void (state.friendlies[2].targetId = 900)],
+      ['friendly.nameIndex', (state) => void (state.friendlies[2].nameIndex = 23)],
+      ['friendly.deathTick', (state) => void (state.friendlies[2].deathTick = 12)],
+      ['friendly.rescuedByIds', (state) => void state.friendlies[2].rescuedByIds.push(4)],
+      ['friendly.lastDisplacement', (state) => void (state.friendlies[2].lastDisplacement = 0.1)],
+      ['slotAssignments.slotIndex', (state) => void (state.slotAssignments[0].slotIndex = 14)],
+      ['slotAssignments.latchedPosition', (state) => void (state.slotAssignments[0].latchedPosition = { x: 1, y: 2 })],
+      ['slotLatchOwnerId', (state) => void (state.slotLatchOwnerId = 1)],
+      ['enemies (melee)', (state) => void state.enemies.push(createEnemy(900, 'melee', { x: 1, y: 1 }))],
+      [
+        'enemy.kind',
+        (state) => {
+          state.enemies.push(createEnemy(900, 'shooter', { x: 1, y: 1 }))
+        },
+      ],
+      ['spawn.backlog', (state) => void state.spawn.backlog.push({ id: 900, kind: 'melee', position: { x: 3, y: 4 }, requestedTick: 7, sequence: 0 })],
+      ['spawn.nextEnemyId', (state) => void (state.spawn.nextEnemyId = 500)],
+      ['spawn.discardedByAbsoluteCap', (state) => void (state.spawn.discardedByAbsoluteCap = 1)],
+      ['spawn.discardedByBacklogOverflow', (state) => void (state.spawn.discardedByBacklogOverflow = 1)],
+      ['spawn.discardedByTerrain', (state) => void (state.spawn.discardedByTerrain = 1)],
+      ['elite.enemyId', (state) => void (state.elite.enemyId = 1000)],
+      ['elite.attackPhase', (state) => void (state.elite.attackPhase = 'telegraph')],
+      ['elite.telegraphCenter', (state) => void (state.elite.telegraphCenter = { x: 2, y: 3 })],
+      ['elite.telegraphRemaining', (state) => void (state.elite.telegraphRemaining = 9)],
+      ['elite.cooldownRemaining', (state) => void (state.elite.cooldownRemaining = 9)],
+      ['elite.spawnTick', (state) => void (state.elite.spawnTick = 1800)],
+      ['upgrades.rounds', (state) => void state.upgrades.rounds.push({ round: 1, tick: 10, offered: ['firepower'], chosen: null })],
+      ['upgrades.remainingPool', (state) => void state.upgrades.remainingPool.pop()],
+      ['upgrades.nextThresholdIndex', (state) => void (state.upgrades.nextThresholdIndex = 1)],
+      ['rescue.active', (state) => void (state.rescue.active = true)],
+      ['rescue.targetId', (state) => void (state.rescue.targetId = 4)],
+      ['rescue.progress', (state) => void (state.rescue.progress = 1)],
+      ['stats.kills', (state) => void (state.stats.kills = 1)],
+      ['stats.rescues', (state) => void (state.stats.rescues = 1)],
+      ['prng.spawn', (state) => void (state.prng.spawn = 12345)],
+      ['prng.cards', (state) => void (state.prng.cards = 12345)],
+      ['prng.terrain', (state) => void (state.prng.terrain = 12345)],
+      ['prng.names', (state) => void (state.prng.names = 12345)],
+      ['terrain.high', (state) => void state.terrain.high.splice(0, 1)],
+      ['terrain.low', (state) => void state.terrain.low.splice(0, 1)],
     ]
 
     const baseline = digestBattleState(base)
-    for (const mutate of fields) {
+    const seen = new Set<string>([baseline])
+    for (const [label, mutate] of fields) {
       const state = createInitialBattleState('seed-a')
       mutate(state)
-      expect(digestBattleState(state), `digest ignored a §1.17 field`).not.toBe(baseline)
+      const digest = digestBattleState(state)
+      expect(digest, `digest ignored ${label}`).not.toBe(baseline)
+      seen.add(digest)
     }
+    // Every mutation is distinguishable from every other, not just from the baseline.
+    expect(seen.size).toBe(fields.length + 1)
   })
 
   it('canonicalizes to sorted keys and sorted units', () => {

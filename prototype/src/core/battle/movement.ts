@@ -2,22 +2,29 @@
 //
 // Three rules, and each one exists to close a specific hole:
 //
-//   sliding (§1.7)   — x is applied and tested first, then y from the result. The
-//                      order is fixed because the two orders give different answers
-//                      at a corner, and a digest that depends on evaluation order is
-//                      not a digest.
+//   sliding (§1.7)   — each axis is clamped to the arena FIRST, then tested against
+//                      terrain: x applied and tested, then y from that result. The
+//                      axis order is fixed because the two orders give different
+//                      answers at a corner, and a digest that depends on evaluation
+//                      order is not a digest. The clamp order matters too — clamping
+//                      after the terrain test would push a unit back INTO a rectangle
+//                      that sits flush against the arena edge.
 //   ejection (§1.6)  — rectangles are half-open, so a unit found inside one cannot
 //                      be freed by moving it onto a face; it has to be pushed past
-//                      the face by EJECT_EPSILON. Sliding alone can never free such
-//                      a unit either (every axis test says "inside"), so movement
-//                      begins by ejecting the mover.
+//                      the face by EJECT_EPSILON. §1.16 puts this at the END of step
+//                      5, after everything has moved, and that placement is
+//                      observable: a trapped unit has displacement 0 for that tick,
+//                      so §1.3 lets it fire, and it is freed before step 6 reads
+//                      cooldowns. Ejecting before movement instead would let the unit
+//                      move that same tick and §1.3 would silence it.
 //   settle (§1.4)    — a follower within ARRIVE_EPSILON of its slot does not move
 //                      AT ALL. Not "moves a little": the displacement must be
 //                      exactly 0, or §1.3 reads it as movement and the soldier never
 //                      fires again.
 //
-// Enemy movement (§1.9) is NOT here — it belongs to the enemy batch, which should
-// use `slideMove` and `ejectPoint` rather than reimplementing them.
+// Enemy movement (§1.9) is NOT here — it belongs to the enemy batch. It plugs into
+// `advanceStep5Movement` as an explicit argument, so it is inside the ejection
+// barrier without having to remember to be.
 
 import { containsAny, ejectFromRects, type Ejection, type Rect } from '../gameplay/geometry'
 import {
@@ -29,7 +36,13 @@ import {
   FOLLOW_MAX_SPEED,
   SOLDIER_MOVE_SPEED,
 } from './constants'
-import { findAssignment, resolveSlotTarget } from './formation'
+import {
+  clearSlotLatches,
+  findAssignment,
+  latchesAreStale,
+  recordLatchOwner,
+  resolveSlotTarget,
+} from './formation'
 import { movementBlockers } from './state'
 import type { BattleState, EnemyUnit, FriendlyUnit, Vec2 } from './types'
 
@@ -58,13 +71,40 @@ export function slideMove(from: Vec2, dx: number, dy: number, blockers: readonly
   return { x, y }
 }
 
-/** §1.6: nearest-face ejection with the `-x, +x, -y, +y` tie-break. */
+/** How many times ejection may bounce between touching rectangles before it gives up. */
+export const EJECT_MAX_PASSES = 4
+
+/**
+ * §1.6: nearest-face ejection with the `-x, +x, -y, +y` tie-break.
+ *
+ * Looped, not single-pass. Seed-generated high cover keeps a 5.0 gap from its own
+ * class so one pass always suffices, but §4.2 REQUIRES hand-authored fixture terrain,
+ * where two rectangles may touch and the push out of one can land inside the other.
+ * A single pass would return a point that is still trapped while reporting success.
+ * Four passes, then a loud failure: a fixture that cannot be escaped is an authoring
+ * bug, and silently leaving a unit inside a wall is how it would otherwise present —
+ * as a balance anomaly, ten batches later.
+ */
 export function ejectPoint(
   position: Vec2,
   blockers: readonly Rect[],
   epsilon: number = EJECT_EPSILON,
 ): Ejection | null {
-  return ejectFromRects(blockers, position.x, position.y, epsilon)
+  let current = ejectFromRects(blockers, position.x, position.y, epsilon)
+  if (!current) return null
+
+  for (let pass = 1; pass < EJECT_MAX_PASSES; pass += 1) {
+    const again = ejectFromRects(blockers, current.x, current.y, epsilon)
+    if (!again) return current
+    current = again
+  }
+
+  if (containsAny(blockers, current.x, current.y)) {
+    throw new Error(
+      `battle/movement: could not eject (${position.x}, ${position.y}) from movement-blocking terrain in ${EJECT_MAX_PASSES} passes (§1.6)`,
+    )
+  }
+  return current
 }
 
 function ejectUnit(unit: { position: Vec2 }, blockers: readonly Rect[]): boolean {
@@ -75,9 +115,14 @@ function ejectUnit(unit: { position: Vec2 }, blockers: readonly Rect[]): boolean
 }
 
 /**
- * §1.6 applied to everyone currently alive. The spawn batch (§1.10, §1.12) calls
- * this after placing a body; movement calls it on the mover, because a trapped unit
- * can never slide out on its own.
+ * §1.6/§1.16 step 5, last thing: everyone alive who ended the step inside blocking
+ * terrain is pushed out.
+ *
+ * Running this once at the end of the whole step — rather than per mover before it
+ * moves — is what makes it impossible to forget. A spawn (step 2) that lands an
+ * enemy inside high cover is corrected here on the same tick, before step 7 ever
+ * looks at it; the enemy batch does not have to remember to call anything, and the
+ * elite arrives through the same door because it is an ordinary row in `enemies`.
  *
  * Ejection deliberately does NOT count as displacement: it is a correction of an
  * illegal position, not a move, and charging it against §1.3 would silence a unit
@@ -93,9 +138,6 @@ export function ejectTrappedUnits(state: BattleState): number {
   for (const enemy of state.enemies) {
     if (enemy.life === 'dead') continue
     if (ejectUnit(enemy, blockers)) ejected += 1
-  }
-  if (state.elite.phase !== 'absent' && state.elite.phase !== 'dead') {
-    if (ejectUnit(state.elite, blockers)) ejected += 1
   }
   return ejected
 }
@@ -124,24 +166,22 @@ export function moveSpeedOf(unit: FriendlyUnit): number {
  * only asks "is it zero".
  *
  * Returns the actual displacement, which is what §1.3 and step 6 judge — not the
- * input. A command unit pinned against a wall has displacement 0 and may fire.
+ * input, and not a flag left behind in the state. The return value is also step 5's
+ * `commandUnitMoved` argument; making the caller pass it means a tick loop that
+ * skips this step, or runs step 5 twice, is a type error rather than a squad that
+ * quietly holds stale slots.
  */
 export function advanceCommandUnit(state: BattleState): number {
   const unit = commandUnitOf(state)
-  if (!unit || unit.life !== 'standing') {
-    state.commandUnitMoved = false
-    return 0
-  }
+  if (!unit || unit.life !== 'standing') return 0
 
   const blockers = movementBlockers(state)
-  ejectUnit(unit, blockers)
 
   // §1.11: the rescue lock is decided in step 3, before movement, so the very first
   // locked tick already produces no movement.
   const magnitude = state.rescue.active ? 0 : Math.hypot(state.input.move.x, state.input.move.y)
   if (magnitude === 0) {
     unit.lastDisplacement = 0
-    state.commandUnitMoved = false
     return 0
   }
 
@@ -156,9 +196,6 @@ export function advanceCommandUnit(state: BattleState): number {
   const displacement = displacementOf(from, to)
   unit.position = to
   unit.lastDisplacement = displacement
-  // §1.4: any real movement invalidates a latched slot, because the latch stores a
-  // world position rather than an offset.
-  state.commandUnitMoved = displacement !== 0
   return displacement
 }
 
@@ -167,13 +204,25 @@ export function advanceCommandUnit(state: BattleState): number {
  *
  * A follower is capped at `FOLLOW_MAX_SPEED` (§1.2, soldier speed x1.30) and never
  * overshoots its slot. Inside the ARRIVE_EPSILON dead-band it does not move at all.
+ *
+ * `commandUnitMoved` is required, not inferred: pass `advanceCommandUnit`'s return
+ * value `!== 0`. §1.4's latch is released here and nowhere else, so a caller that
+ * forgot to run step 4 would otherwise leave every latched follower aiming at a
+ * position the command unit has long since walked away from — with no error.
+ *
+ * Ejection is NOT done here; it belongs to the end of the whole of step 5, which is
+ * `advanceStep5Movement`.
  */
-export function advanceFormationFollow(state: BattleState): void {
+export function advanceFormationFollow(state: BattleState, commandUnitMoved: boolean): void {
   const command = commandUnitOf(state)
   if (!command) return
 
   const blockers = movementBlockers(state)
   const center = command.position
+  // Decided once for the whole pass: a follower resolved late in the loop must see
+  // the same release decision as one resolved early.
+  const releaseLatch = latchesAreStale(state, commandUnitMoved)
+  if (releaseLatch) clearSlotLatches(state)
 
   for (const unit of state.friendlies) {
     if (unit.id === state.commandUnitId) continue
@@ -188,9 +237,7 @@ export function advanceFormationFollow(state: BattleState): void {
       continue
     }
 
-    ejectUnit(unit, blockers)
-
-    const target = resolveSlotTarget(assignment, center, blockers, state.commandUnitMoved)
+    const target = resolveSlotTarget(assignment, center, blockers, false)
     const dx = target.x - unit.position.x
     const dy = target.y - unit.position.y
     const distance = Math.hypot(dx, dy)
@@ -208,12 +255,55 @@ export function advanceFormationFollow(state: BattleState): void {
     unit.lastDisplacement = displacementOf(from, to)
   }
 
-  // The latch release is consumed once per tick: a follower resolved later in the
-  // loop must see the same release decision as one resolved earlier.
-  state.commandUnitMoved = false
+  recordLatchOwner(state)
 }
 
-/** Exposed for the enemy batch (§1.9) so it slides and ejects by the same rules. */
+/**
+ * Enemy movement written by the enemy batch (§1.9), as step 5 sees it.
+ *
+ * It is an argument rather than an import so that enemy movement is structurally
+ * inside the ejection barrier below.
+ */
+export type EnemyMovementRule = (state: BattleState) => void
+
+/**
+ * An explicit "no enemy movement rule is wired yet".
+ *
+ * Named, exported and ugly on purpose: the tick loop has to name it to get the
+ * behaviour, so "enemies do not move" can only ever be a decision someone typed, not
+ * a default that quietly held for three batches.
+ */
+export const NO_ENEMY_MOVEMENT: EnemyMovementRule = () => {}
+
+/**
+ * §1.16 step 5, whole: "추종·적 이동 (슬라이딩, 정착 dead-zone, 아레나 클램프),
+ * 그 뒤 §1.6 지형 밀어내기".
+ *
+ * The ejection pass is the reason this composer exists. Putting it at the end of
+ * `advanceFormationFollow` would leave it BEFORE enemy movement, since §1.16 lists
+ * followers first — enemies would move after the barrier and any enemy that ended
+ * its move inside high cover would stay there, frozen at displacement 0 and firing
+ * forever. One owner for the whole step keeps the barrier last.
+ */
+export function advanceStep5Movement(
+  state: BattleState,
+  commandUnitMoved: boolean,
+  moveEnemies: EnemyMovementRule,
+): void {
+  advanceFormationFollow(state, commandUnitMoved)
+  moveEnemies(state)
+  ejectTrappedUnits(state)
+}
+
+/**
+ * Exposed for the enemy batch (§1.9) so it slides by the same rules.
+ *
+ * It also owns the §1.7 stuck counter, because that counter is pure movement
+ * bookkeeping: "how many consecutive ticks was this enemy's NET displacement 0". The
+ * retarget *decision* at 30 belongs to §1.8/§1.9, but if the counter were left to
+ * them, an enemy grinding against a wall would simply never be noticed — and I1
+ * would read it as a supply-curve problem rather than a stuck body.
+ */
 export function moveEnemyTowards(
   enemy: EnemyUnit,
   target: Vec2,
@@ -225,6 +315,7 @@ export function moveEnemyTowards(
   const distance = Math.hypot(dx, dy)
   if (distance === 0) {
     enemy.lastDisplacement = 0
+    enemy.zeroDisplacementTicks += 1
     return 0
   }
   const step = Math.min(distance, speed)
@@ -232,5 +323,8 @@ export function moveEnemyTowards(
   const to = slideMove(from, (dx / distance) * step, (dy / distance) * step, blockers)
   enemy.position = to
   enemy.lastDisplacement = displacementOf(from, to)
+  // §1.7: exactly 0, not "under MOVE_EPSILON". A shooter creeping around a corner at
+  // 0.001/tick is making progress; one pinned against a wall is not.
+  enemy.zeroDisplacementTicks = enemy.lastDisplacement === 0 ? enemy.zeroDisplacementTicks + 1 : 0
   return enemy.lastDisplacement
 }

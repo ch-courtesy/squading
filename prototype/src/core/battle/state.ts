@@ -20,13 +20,15 @@ import {
   COMMANDER_HP,
   COMMANDER_START,
   ELITE_HP,
+  MELEE_HP,
   ROSTER_SIZE,
+  SHOOTER_HP,
   SOLDIER_HP,
   TERRAIN_OPTIONS,
 } from './constants'
 import { assignNameIndices } from './names'
 import { createStreamStates, streamPrng } from './streams'
-import type { BattleState, FriendlyUnit, Vec2 } from './types'
+import type { BattleState, EnemyKind, EnemyUnit, FriendlyUnit, Vec2 } from './types'
 
 export { ROSTER_SIZE }
 
@@ -62,6 +64,33 @@ export function findFriendly(state: BattleState, id: number): FriendlyUnit | nul
   return null
 }
 
+export function findEnemy(state: BattleState, id: number): EnemyUnit | null {
+  for (const enemy of state.enemies) {
+    if (enemy.id === id) return enemy
+  }
+  return null
+}
+
+/**
+ * §1.5, §1.8, §1.9 all break ties by ascending id, so they must not read
+ * `state.friendlies` directly and inherit whatever order the array happens to be in.
+ * The array IS kept in id order, but "kept" is a convention and this is the
+ * guarantee — one sort of 16 elements, once per rule that needs it.
+ */
+export function friendliesById(state: BattleState): FriendlyUnit[] {
+  return [...state.friendlies].sort((left, right) => left.id - right.id)
+}
+
+/** Same guarantee for enemies (§1.8's "정예 우선 → 최근접 → id"). */
+export function enemiesById(state: BattleState): EnemyUnit[] {
+  return [...state.enemies].sort((left, right) => left.id - right.id)
+}
+
+/** §1.12: the elite's body, once it has arrived. */
+export function eliteEnemy(state: BattleState): EnemyUnit | null {
+  return state.elite.enemyId === null ? null : findEnemy(state, state.elite.enemyId)
+}
+
 function createFriendly(
   id: number,
   role: FriendlyUnit['role'],
@@ -84,6 +113,39 @@ function createFriendly(
     invulnerableTicks: 0,
     rescuedByIds: [],
     lastDisplacement: 0,
+  }
+}
+
+/** §1.9/§1.12: HP by kind. The elite is an enemy, so its HP lives in the same table. */
+export const ENEMY_MAX_HP: Readonly<Record<EnemyKind, number>> = {
+  melee: MELEE_HP,
+  shooter: SHOOTER_HP,
+  elite: ELITE_HP,
+}
+
+/**
+ * The one place an enemy row is built (§1.9, §1.10, §1.12).
+ *
+ * Batches C and F both create enemies; without a shared factory they would each
+ * initialise `zeroDisplacementTicks`, `excludedTargetId` and `contactSlotOwnerId`
+ * by hand, and a row that is missing one is a row the digest sees differently.
+ */
+export function createEnemy(id: number, kind: EnemyKind, position: Vec2): EnemyUnit {
+  const maxHp = ENEMY_MAX_HP[kind]
+  return {
+    id,
+    kind,
+    hp: maxHp,
+    maxHp,
+    life: 'standing',
+    position: { x: position.x, y: position.y },
+    attackCooldown: 0,
+    targetId: null,
+    deathTick: null,
+    lastDisplacement: 0,
+    zeroDisplacementTicks: 0,
+    excludedTargetId: null,
+    contactSlotOwnerId: null,
   }
 }
 
@@ -129,7 +191,7 @@ export function createInitialBattleState(seed: string, options: BattleStateOptio
     commandUnitId: COMMANDER_ID,
     originalCommanderId: COMMANDER_ID,
     slotAssignments,
-    commandUnitMoved: false,
+    slotLatchOwnerId: null,
     input: { move: { x: 0, y: 0 }, spaceHeld: false },
     friendlies,
     enemies: [],
@@ -142,18 +204,17 @@ export function createInitialBattleState(seed: string, options: BattleStateOptio
       discardedByAbsoluteCap: 0,
       discardedByTerrain: 0,
     },
+    // §1.12: the elite's body is an ordinary row in `enemies` once it arrives at
+    // tick 1800, with `kind: 'elite'`. This sidecar is its attack cycle only, so
+    // "died mid-telegraph" is representable: the row goes `life: 'dead'` while
+    // `attackPhase` is still `'telegraph'`.
     elite: {
-      id: ELITE_ID,
-      phase: 'absent',
-      hp: ELITE_HP,
-      maxHp: ELITE_HP,
-      position: { x: 0, y: 0 },
+      enemyId: null,
       spawnTick: null,
+      attackPhase: 'idle',
       telegraphCenter: null,
       telegraphRemaining: 0,
       cooldownRemaining: 0,
-      deathTick: null,
-      lastDisplacement: 0,
     },
     upgrades: {
       remainingPool: [...CARD_POOL],

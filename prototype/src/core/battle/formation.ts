@@ -17,7 +17,7 @@
 
 import { containsAny, type Rect } from '../gameplay/geometry'
 import { FORMATION_SLOTS, resolveSlotPosition } from '../gameplay/formation'
-import type { SlotAssignment, Vec2 } from './types'
+import type { BattleState, SlotAssignment, Vec2 } from './types'
 
 export { FORMATION_MAX_SLOT_RADIUS, FORMATION_SIZE, FORMATION_SLOTS } from '../gameplay/formation'
 
@@ -58,14 +58,44 @@ export function rawSlotPosition(center: Vec2, slotIndex: number): Vec2 {
   return { x: center.x + slot.x, y: center.y + slot.y }
 }
 
+/** Drop every latch. Cheap, and the only way a latch is ever released. */
+export function clearSlotLatches(state: BattleState): void {
+  for (const assignment of state.slotAssignments) assignment.latchedPosition = null
+  state.slotLatchOwnerId = null
+}
+
+/**
+ * Both reasons a latch goes stale (§1.4):
+ *
+ *   1. the command unit took a step — the caller's `commandUnitMoved`, and
+ *   2. the command unit was REPLACED (§1.5), which moves the formation centre by up
+ *      to the 2.460 slot radius without anyone taking a step.
+ *
+ * (2) is the reachable version of the flicker §1.4 describes. It bites in exactly
+ * the scenario succession exists for: the stand-in stops next to the downed original
+ * commander and holds still for `RESCUE_TICKS`, so latched followers would aim at
+ * points derived from the *previous* body's position for the whole rescue.
+ */
+export function latchesAreStale(state: BattleState, commandUnitMoved: boolean): boolean {
+  return commandUnitMoved || state.slotLatchOwnerId !== state.commandUnitId
+}
+
+/**
+ * Record which command unit the current latches belong to. Called once per follow
+ * pass, after the slots have been resolved.
+ */
+export function recordLatchOwner(state: BattleState): void {
+  const latched = state.slotAssignments.some((assignment) => assignment.latchedPosition !== null)
+  state.slotLatchOwnerId = latched ? state.commandUnitId : null
+}
+
 /**
  * The world position a follower should aim at this tick, applying and maintaining
  * the pull latch. Mutates `assignment.latchedPosition`, which is authoritative
  * state and part of the digest.
  *
- * `releaseLatch` is the command unit's "did I move this tick" answer: a latched
- * point is a fixed world position, so as soon as the command unit moves it is stale
- * and the slot has to be resolved again.
+ * `releaseLatch` must already account for both staleness causes — use
+ * `latchesAreStale`.
  */
 export function resolveSlotTarget(
   assignment: SlotAssignment,

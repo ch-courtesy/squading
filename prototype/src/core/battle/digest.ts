@@ -43,11 +43,24 @@ function normalize(value: unknown): unknown {
   if (value && typeof value === 'object') {
     return Object.fromEntries(
       Object.entries(value as Record<string, unknown>)
-        .sort(([left], [right]) => left.localeCompare(right))
+        .sort(([left], [right]) => compareCodePoints(left, right))
         .map(([key, entry]) => [key, normalize(entry)]),
     )
   }
   return value
+}
+
+/**
+ * Code-point order, NOT `localeCompare`.
+ *
+ * §4.3 requires the same seed and input log to produce the same result in a headless
+ * replay and in a real browser. `localeCompare` answers to the host's locale and ICU
+ * build, so the same state could canonicalize to two different key orders on two
+ * machines and the digests would disagree with nothing wrong in the simulation.
+ */
+function compareCodePoints(left: string, right: string): number {
+  if (left === right) return 0
+  return left < right ? -1 : 1
 }
 
 function byId<T extends { id: number }>(left: T, right: T): number {

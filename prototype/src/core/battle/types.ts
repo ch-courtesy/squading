@@ -12,6 +12,22 @@
 //   * Terrain is stored as the two authored classes only. `movementBlockers` and
 //     `sightBlockers` are derived on read (state.ts) so the two views can never
 //     drift apart from the source lists.
+//
+// THE RULE THAT PAYS FOR THE FIRST BULLET — read this before adding a field:
+//
+//     NOTHING SCRATCH GOES IN `BattleState`.
+//
+// No memoized lists, no per-tick accumulators kept "for convenience", no debug or
+// renderer fields. The digest walks the whole object, so a scratch field silently
+// changes every digest in the project and invalidates every recorded 8-seed band —
+// with no test failing, because nothing asserts a digest VALUE, only that two runs
+// agree. Derived and temporary values are returned from functions instead
+// (`movementBlockers`, `friendliesById`, the displacement returned by
+// `advanceCommandUnit`). A field belongs here only if a later tick reads it.
+//
+// This is enforced, not merely asserted: `tests/battle/battle-state.test.ts` pins
+// the exact top-level key set of `BattleState`, so adding one is a deliberate act
+// that has to be argued for in a diff.
 
 import type { TerrainRect } from '../gameplay/terrain'
 import type { CardId } from './constants'
@@ -27,8 +43,16 @@ export type FailureReason = 'all-units-lost' | 'elite-survived' | null
 
 export type LifeState = 'standing' | 'downed' | 'dead'
 export type FriendlyRole = 'commander' | 'soldier'
-/** §1.9. */
-export type EnemyClass = 'melee' | 'shooter'
+/**
+ * §1.9 plus the elite (§1.12).
+ *
+ * The elite is an enemy, not a parallel entity: §1.8 ranks it *inside* the enemy
+ * candidate list ("정예 우선 → 최근접 → id"), §1.12 gives it damage and a body, and
+ * §1.17 asks for "적 전체의 같은 항목과 병종". A separate embedded object would
+ * force every one of those rules to special-case it, and merging it later would
+ * change the digest after the 8-seed bands are recorded.
+ */
+export type EnemyKind = 'melee' | 'shooter' | 'elite'
 
 export type FriendlyUnit = {
   id: number
@@ -56,7 +80,7 @@ export type FriendlyUnit = {
 
 export type EnemyUnit = {
   id: number
-  enemyClass: EnemyClass
+  kind: EnemyKind
   hp: number
   maxHp: number
   /** Enemies never go `downed`; the field is shared so the digest shape is uniform. */
@@ -80,8 +104,13 @@ export type SlotAssignment = {
   /** Index into `FORMATION_SLOTS`. */
   slotIndex: number
   /**
-   * §1.4 pull latch. Non-null once the slot has been pulled out of movement-blocking
-   * terrain; released only when the command unit moves again.
+   * §1.4 pull latch: an ABSOLUTE world position, non-null once the slot has been
+   * pulled out of movement-blocking terrain.
+   *
+   * Because it is absolute rather than an offset, it is stale the moment the point
+   * it was derived from moves. Two things move it: the command unit taking a step,
+   * and the command unit being replaced (§1.5), which jumps the formation centre by
+   * up to the 2.460 slot radius. `slotLatchOwnerId` covers the second case.
    */
   latchedPosition: Vec2 | null
 }
@@ -89,7 +118,7 @@ export type SlotAssignment = {
 /** §1.10: a spawn request keeps the coordinate fixed at the tick it was made. */
 export type SpawnRequest = {
   id: number
-  enemyClass: EnemyClass
+  kind: EnemyKind
   position: Vec2
   requestedTick: number
   /** Monotonic; defines backlog order and the oldest-first discard. */
@@ -110,21 +139,27 @@ export type SpawnState = {
   discardedByTerrain: number
 }
 
-export type ElitePhase = 'absent' | 'idle' | 'telegraph' | 'cooldown' | 'dead'
+/**
+ * §1.12: the elite's ATTACK cycle only — telegraph, impact, cooldown.
+ *
+ * Lifecycle (present / alive / dead) is NOT here: it is the elite's entry in
+ * `enemies`, which carries hp, position, cooldown, target and `life` in the same
+ * fields as any other enemy. Mixing the two into one `phase` enum made "died during
+ * the telegraph" unrepresentable — a real state, since a telegraph runs 54 ticks and
+ * 16 friendlies are shooting at the thing the whole time, and §1.12 keeps the
+ * telegraph centre frozen from the tick it started regardless of what happens next.
+ */
+export type EliteAttackPhase = 'idle' | 'telegraph' | 'cooldown'
 
 export type EliteState = {
-  id: number
-  phase: ElitePhase
-  hp: number
-  maxHp: number
-  position: Vec2
+  /** The id of the elite's row in `enemies`, or null before it arrives (§1.12). */
+  enemyId: number | null
   spawnTick: number | null
+  attackPhase: EliteAttackPhase
   /** §1.12: frozen at the tick the telegraph started. */
   telegraphCenter: Vec2 | null
   telegraphRemaining: number
   cooldownRemaining: number
-  deathTick: number | null
-  lastDisplacement: number
 }
 
 /** §1.13: one entry per upgrade round, offered and chosen both recorded. */
@@ -175,10 +210,18 @@ export type BattleState = {
   /** §1.5: the body that unconditionally reclaims command when it stands again. */
   originalCommanderId: number
   slotAssignments: SlotAssignment[]
-  /** §1.4: set by command-unit movement; releases the slot pull latch. */
-  commandUnitMoved: boolean
+  /**
+   * §1.4/§1.5: the command unit the current latches were derived against, or null
+   * when nothing is latched. A latched slot is an absolute world position, so a
+   * change of command invalidates every latch even though no one moved.
+   */
+  slotLatchOwnerId: number | null
   input: BattleInput
+  /** Kept sorted by ascending id — §1.5 (nearest, ties by id), §1.8 and §1.9 all
+   * resolve ties by id, and `friendliesById` / `enemiesById` are the accessors that
+   * guarantee it for readers that must not depend on insertion order. */
   friendlies: FriendlyUnit[]
+  /** Kept sorted by ascending id; see `friendlies`. */
   enemies: EnemyUnit[]
   spawn: SpawnState
   elite: EliteState

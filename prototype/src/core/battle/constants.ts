@@ -96,8 +96,18 @@ export const SHOOTER_HP = 0.8
 export const SHOOTER_MOVE_SPEED = 0.06
 /** PLACEHOLDER — §1.9 hard constraint: must stay below SOLDIER_RANGE. */
 export const SHOOTER_RANGE = 4.5
-/** PLACEHOLDER — §1.9 stop band; below the low end the shooter backs off. */
-export const SHOOTER_STANDOFF: readonly [number, number] = [2.7, 4.28]
+/**
+ * PLACEHOLDER — §2 expresses the stop band as a ratio of `SHOOTER_RANGE`, so it is
+ * DERIVED from the ratio rather than written out. Writing the pair as literals is
+ * how the first draft ended up at `4.28` against a ceiling of `0.95 x 4.5 = 4.275`:
+ * outside its own declared box, and the assert below could not see it because it
+ * only compared against `SHOOTER_RANGE`.
+ */
+export const SHOOTER_STANDOFF_RATIO: readonly [number, number] = [0.6, 0.95]
+export const SHOOTER_STANDOFF: readonly [number, number] = [
+  SHOOTER_STANDOFF_RATIO[0] * SHOOTER_RANGE,
+  SHOOTER_STANDOFF_RATIO[1] * SHOOTER_RANGE,
+]
 /** PLACEHOLDER */
 export const SHOOTER_ATTACK_INTERVAL = 30
 /** PLACEHOLDER */
@@ -214,8 +224,21 @@ export const MAX_UPGRADES = 4
 /** PLACEHOLDER — kill counts that trigger rounds 1..4 (elite kill excluded). */
 export const UPGRADE_KILL_THRESHOLDS: readonly number[] = [15, 45, 90, 145]
 
-/** PLACEHOLDER — effect size of each card (§1.13 leaves all of these to the harness). */
-export const CARD_EFFECTS = {
+/**
+ * PLACEHOLDER — the effect MAGNITUDE of each card, one scalar each.
+ *
+ * §1.13 says "각 카드의 효과 크기는 하네스가 정한다" — the SIZE is the harness's, the
+ * SHAPE is §1.13's batch. So this table is flat scalars and nothing else: a nested
+ * shape here would be batch A deciding how a card is applied. The comment on each
+ * line is the intended reading, not a contract.
+ *
+ * `cohesion` is a scalar for the follow-speed half only. The starting brief also
+ * wanted "슬롯 x0.8", which would scale `FORMATION_SLOTS` at runtime — that collides
+ * with §1.4's slot table being fixed and with the digest recording slot geometry as
+ * a constant, so whether it is expressible at all is a §1.13 decision, not a number
+ * batch A gets to pre-commit.
+ */
+export const CARD_EFFECTS: Readonly<Record<CardId, number>> = {
   /** +30% damage. */
   firepower: 0.3,
   /** +15% move speed. */
@@ -230,9 +253,9 @@ export const CARD_EFFECTS = {
   cover: 0.35,
   /** x0.85 attack interval. */
   rapid: 0.85,
-  /** Formation slots x0.8, follow speed x1.2. */
-  cohesion: { slotScale: 0.8, followScale: 1.2 },
-} as const
+  /** x1.2 follow speed. */
+  cohesion: 1.2,
+}
 
 // ---------------------------------------------------------------------------
 // PLACEHOLDER — terrain (§1.6, §2)
@@ -264,9 +287,14 @@ assertRule(SHOOTER_RANGE < SOLDIER_RANGE, 'SHOOTER_RANGE must be < SOLDIER_RANGE
 assertRule(ELITE_APPROACH_RANGE < SOLDIER_RANGE, 'ELITE_APPROACH_RANGE must be < SOLDIER_RANGE (§1.12)')
 // §1.10: overlapping radii fill the cap with enemies still in transit.
 assertRule(SPAWN_RADIUS >= ENGAGE_RADIUS + 2.0, 'SPAWN_RADIUS must be >= ENGAGE_RADIUS + 2.0 (§1.10)')
+// §2: the band is declared as a ratio of SHOOTER_RANGE, so the ratio is what gets
+// checked. Comparing the derived metres against SHOOTER_RANGE alone would accept
+// anything up to 4.5 and miss exactly the kind of drift it exists to catch.
 assertRule(
-  SHOOTER_STANDOFF[0] > 0 && SHOOTER_STANDOFF[0] < SHOOTER_STANDOFF[1] && SHOOTER_STANDOFF[1] <= SHOOTER_RANGE,
-  'SHOOTER_STANDOFF must be an increasing band inside SHOOTER_RANGE (§1.9)',
+  SHOOTER_STANDOFF_RATIO[0] >= 0.6 &&
+    SHOOTER_STANDOFF_RATIO[0] < SHOOTER_STANDOFF_RATIO[1] &&
+    SHOOTER_STANDOFF_RATIO[1] <= 0.95,
+  'SHOOTER_STANDOFF_RATIO must be an increasing band inside [0.60, 0.95] (§2)',
 )
 assertRule(CARD_POOL.length === 8, 'the card pool is exactly 8 cards (§1.13)')
 assertRule(UPGRADE_KILL_THRESHOLDS.length === MAX_UPGRADES, 'there are exactly 4 upgrade thresholds (§1.13)')

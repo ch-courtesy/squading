@@ -28,21 +28,32 @@
 //                                      succession, keep `input.spaceHeld`. The slot
 //                                      table must NOT be rebuilt (§1.4).
 //   §1.8  target selection ............ `sightBlockers(state)` + `hasLineOfSight`.
-//   §1.9  enemy movement .............. use `moveEnemyTowards` / `slideMove`; drive
-//                                      `zeroDisplacementTicks`, `excludedTargetId`,
-//                                      `contactSlotOwnerId`.
+//   §1.9  enemy movement .............. write an `EnemyMovementRule` and pass it to
+//                                      `advanceStep5Movement`; use `moveEnemyTowards`,
+//                                      which already keeps `zeroDisplacementTicks`.
+//                                      The retarget DECISION at 30 is yours, as are
+//                                      `excludedTargetId` and `contactSlotOwnerId`.
 //   §1.10 spawning .................... `state.spawn` (backlog, three discard
 //                                      counters, `nextEnemyId`); draw from the
-//                                      `spawn` stream only. Call `ejectTrappedUnits`
-//                                      after placement.
+//                                      `spawn` stream only. Build rows with
+//                                      `createEnemy`. You do NOT need to eject: step
+//                                      5 ends with `ejectTrappedUnits` for everyone.
 //   §1.11 rescue ...................... `state.rescue`; `advanceCommandUnit` already
 //                                      refuses to move while `rescue.active`.
-//   §1.12 elite ....................... `state.elite`; `spawn` stream.
+//   §1.12 elite ....................... a row in `enemies` with `kind: 'elite'` plus
+//                                      the `state.elite` attack-cycle sidecar;
+//                                      `spawn` stream. `eliteEnemy(state)` joins them.
 //   §1.13 upgrades .................... `state.upgrades`; `cards` stream, exactly 3
-//                                      draws per round.
+//                                      draws per round. `CARD_EFFECTS` gives you the
+//                                      magnitudes; the SHAPE of each effect is yours.
 //   §1.15 input queue ................. writes `state.input` only.
-//   §1.16 the 16-step tick ............ steps 4 and 5 are `advanceCommandUnit` and
-//                                      `advanceFormationFollow`, in that order.
+//   §1.16 the 16-step tick ............ step 4 is `advanceCommandUnit`, which RETURNS
+//                                      the displacement; step 5 is
+//                                      `advanceStep5Movement(state, moved, rule)`,
+//                                      which ends with the §1.6 ejection barrier.
+//
+// And one rule that outranks all of them: do not put scratch state in `BattleState`.
+// See the header of `types.ts` — the digest walks the whole object.
 
 export * from './constants'
 export * from './digest'
