@@ -30,14 +30,64 @@
 //
 // The mechanical rule those two produce: `PolicyRules` in `policies.ts` is the record of decision
 // points that §4.1's "한 가지만 바꾼 변형" is built out of, so EVERY ONE OF ITS FIVE KEYS CARRIES
-// AT LEAST ONE MUTATION — `intent`, `allowsMove`, `standoff`, `rescues`, `commitTicks`. The
-// `policies.ts` section below is grouped by those five keys and every group names the rule it was
-// derived from. A key with no mutation under it is a hole in THIS FILE, not a property of the
-// code; that is exactly what `commitTicks` was before this round.
+// AT LEAST ONE MUTATION THAT CHANGES THAT KEY'S OWN DEFINITION — `intent`, `allowsMove`,
+// `standoff`, `rescues`, `commitTicks`.
 //
-// `view.ts` and `run.ts` are not decision points. Their mutations come from the two lists in
-// `view.ts`'s own header ("what is on the screen" against "what is not") and from the band
+// THE BASELINE IS THE DEFINITION, NOT THE CALL SITE. A mutation that edits
+// `if (rules.allowsMove(intent.reason))` pins that the filter is CONSULTED and says nothing about
+// which reasons it admits; for one round that was the only `allowsMove` mutation in this table,
+// and `camps-in-place` could be widened to walk across the board with the whole suite green.
+// Call-site mutations are still worth having — they are the ones that catch a hook being bypassed
+// — but they are not counted toward a key. A key with no definition-level mutation under it is a
+// hole in THIS FILE, not a property of the code: that is what `commitTicks` was two rounds ago
+// and what `allowsMove` and `rescues` were one round ago.
+//
+// The `policies.ts` sections below are labelled by key and each names the rule it was derived
+// from. TWO OF THE SECTIONS ARE NOT KEYS and say so in their own headings — the path every policy
+// shares (`commandsFor` and the geometry helper, which no variant replaces) and the architecture
+// guard, which is not a decision at all. Nothing under those two counts toward any key. Filing
+// them under one is how per-key coverage reads denser than it is, which is what this file did
+// until this round: SIX mutations sat under `PolicyRules.intent` that are not in the `intent`
+// hook — five in the shared path (one of them the card slot, which `policies.ts:433-437`
+// documents as DELIBERATELY not a variant axis) and the architecture guard.
+//
+// `view.ts` and `run.ts` are not decision points either. Their mutations come from the two lists
+// in `view.ts`'s own header ("what is on the screen" against "what is not") and from the band
 // arithmetic §4.1 counts policies by.
+//
+// ---------------------------------------------------------------------------
+// A LOWER BOUND, NOT A PROOF — AND THE NEXT PLACES TO DIG
+// ---------------------------------------------------------------------------
+// "N/N caught" is a floor and reads like a ceiling. It has been read as a ceiling twice on this
+// branch, and both times one pass of fresh mutations derived from the spec — written without
+// reading this table — found survivors: five the first time, four the second, spread over three
+// of the five decision points. A full sweep proves only that every line IN the table has at least
+// one assertion standing on it. It says nothing at all about the lines that are not in it.
+//
+// So the table names what has been dug, and this list names what has not. These are the
+// candidates batch G inherits, by name, each with the rule that would make it a decision:
+//
+//   * `eliteDodgeIntent`'s degenerate heading (`policies.ts:211`) — the `{x:1,y:0}` a body
+//     standing exactly on the frozen centre runs in. §1.12 does not say which way it should go.
+//   * `standoffIntent`'s degenerate heading (`policies.ts:257`) — the same `{x:1,y:0}` for a body
+//     standing on top of what it is measuring against.
+//   * `skilled`'s band UPPER edge (`policies.ts:303`) — `SOLDIER_RANGE`, because past it the
+//     squad stops shooting (§1.6). Only the lower edge's fraction is mutated today.
+//   * `conservativeStandoff` and `aggressiveStandoff`'s band fractions (`policies.ts:384`,
+//     `policies.ts:392`) — §3's FIRST axis, "어디에 멈출지(§1.6의 사거리 격차 안 어디)". Only the
+//     second axis, `commitTicks`, is mutated today.
+//   * `contactStandoff`'s band `[0, MELEE_RANGE]` (`policies.ts:351`) — §4.1's "적에게 붙어서
+//     멈춘다", which is the whole of `ignores-range`.
+//   * `noInputIntent` (`policies.ts:321`) — §4.1's "강화 선택 외 입력 없음". Nothing here mutates
+//     the variant whose entire content is doing nothing.
+//   * `commandsFor`'s two de-duplication tests (`policies.ts:492`, `policies.ts:502`) — what the
+//     battle is already holding. A policy that re-sends every tick is a different input stream.
+//   * `projectPolicyView`'s command/roster split in `view.ts` — §1.5's command unit is the one row
+//     that must not also appear in `friendlies`.
+//
+// Four of those (`:211`, `:303`, `:351`, `:384`) were probed exactly once, by the batch F
+// re-reviewer, and were caught. A probe that is not in this table is not a standing check: it
+// does not run again, and nothing notices when the fixture behind it moves.
 //
 // Usage, from `prototype/`:  node scripts/mutate.mjs [--filter <substring>]
 //
@@ -117,6 +167,10 @@ const MUTATIONS = [
   // §4.1: `ignores-range` is "정지 위치를 고를 때 사거리 우위를 참조하지 않음 — 적에게 붙어서
   // 멈춘다. 그 외 동일", so WHERE the policy stops is a decision the table names in its own row,
   // and §1.6's gap is what it stops against.
+  //
+  // Two of the four change `rangeAdvantageStandoff` itself — the band's lower edge and the body
+  // the band is taken from. The other two change `standoffIntent`, which READS the hook's answer;
+  // they are the ones that catch the answer being used wrongly, and they do not count for the key.
   {
     file: POLICIES,
     label: 'flip the sign of the standoff fraction',
@@ -149,6 +203,10 @@ const MUTATIONS = [
   // --- policies.ts / `PolicyRules.rescues` ----------------------------------------------------
   // §4.1: `abandons-downed` is "`set-rescue`를 절대 보내지 않음", and I13 counts the survivor
   // difference that switch is supposed to produce.
+  //
+  // The key is a boolean rather than a function, so its DEFINITION is the value in
+  // `POLICY_OVERRIDES` — the first of the three. The other two change the code that reads the
+  // switch and the behaviour the switch turns off; neither says what the switch is set to.
   {
     // The key itself, where the one variant that owns it is defined. The two below change the
     // code that READS the switch; this one changes what the switch says.
@@ -174,6 +232,10 @@ const MUTATIONS = [
   // --- policies.ts / `PolicyRules.allowsMove` ------------------------------------------------
   // §4.1: `camps-in-place` is "한 자리에 멈춰 정예 회피 외에는 움직이지 않음" — one filter on
   // which reasons are worth a step, and I10 is the band it is measured by.
+  //
+  // The first changes `dodgeOnly`, which is what the row actually says; the second changes the
+  // `if` that consults it, which only says the filter is reached. For one round the second was
+  // the only one here.
   {
     // The hook's own definition. "정예 회피 외에는" names ONE reason, so widening the set is the
     // mutation the row is written against — and `rescue-approach` is the widening that walks the
@@ -193,26 +255,12 @@ const MUTATIONS = [
   // --- policies.ts / `PolicyRules.intent` ----------------------------------------------------
   // §4.1's two whole-decision rows: `tactical-no-input` ("강화 선택 외 입력 없음") and
   // `flees-always` ("가장 가까운 적에서 계속 멀어지기만 함. 구조·정예 대응 없음"). §1.12's
-  // telegraph, §1.11's countdown, §1.8's nearest-and-ties and §1.15's pointer vocabulary are the
-  // rules `skilled`'s own intent is assembled out of.
-  {
-    file: POLICIES,
-    label: 'never report a keydown',
-    find: '    const keydown = !sameVector(move, ZERO) && sameVector(memory.sentMove, ZERO)',
-    replace: '    const keydown = false',
-  },
-  {
-    file: POLICIES,
-    label: 'break the nearest tie toward the higher id',
-    find: '    if (distance < bestDistance) {',
-    replace: '    if (distance <= bestDistance) {',
-  },
-  {
-    file: POLICIES,
-    label: 'take the second card instead of the first',
-    find: 'const FIRST_OFFERED_SLOT = 1',
-    replace: 'const FIRST_OFFERED_SLOT = 2',
-  },
+  // telegraph and §1.11's countdown are the rules `skilled`'s own intent is assembled out of, and
+  // the ORDER it asks them in is part of the hook.
+  //
+  // Everything under this heading is inside an `intent` implementation — `fleeIntent`,
+  // `skilledIntent`, or one of the helpers only `skilledIntent` calls. The shared command path
+  // that used to sit under this heading has its own section below, and does not count here.
   {
     file: POLICIES,
     label: 'flee toward the enemy',
@@ -221,21 +269,9 @@ const MUTATIONS = [
   },
   {
     file: POLICIES,
-    label: 'drop the short-offset clamp',
-    find: '    move = magnitude(intent.direction) < ARRIVE_EPSILON ? ZERO : intent.direction',
-    replace: '    move = magnitude(intent.direction) < 0 ? ZERO : intent.direction',
-  },
-  {
-    file: POLICIES,
     label: 'flip the sign of the elite dodge margin',
     find: 'const ELITE_DODGE_MARGIN_FRACTION = 0.3125',
     replace: 'const ELITE_DODGE_MARGIN_FRACTION = -0.3125',
-  },
-  {
-    file: POLICIES,
-    label: 'forget that succession zeroes the held vector',
-    find: '  if (commandUnitId !== memory.commandUnitId) {',
-    replace: '  if (false) {',
   },
   {
     // Review M3. §1.11 runs a countdown per body, so WHICH body the approach walks to is the
@@ -287,6 +323,55 @@ const MUTATIONS = [
     find: '    if (travelTicks + RESCUE_TICKS > unit.downedTicksRemaining) continue',
     replace: '    if (travelTicks > unit.downedTicksRemaining) continue',
   },
+
+  // --- policies.ts / the path every policy shares — NOT A DECISION POINT ----------------------
+  // `commandsFor` and the geometry helpers. No variant in `POLICY_OVERRIDES` replaces any of
+  // this, so a mutation here moves `tactical-no-input` and `skilled` alike and isolates nothing
+  // §4.1's table names. These are worth mutating — §1.15's pointer vocabulary, §1.13's card
+  // screen, §1.5's succession and §1.8's tie-break are all rules — but they DO NOT COUNT toward
+  // any `PolicyRules` key, and they sat under `PolicyRules.intent` for two rounds, which made
+  // that key's coverage read denser than it was.
+  {
+    file: POLICIES,
+    label: 'never report a keydown',
+    find: '    const keydown = !sameVector(move, ZERO) && sameVector(memory.sentMove, ZERO)',
+    replace: '    const keydown = false',
+  },
+  {
+    file: POLICIES,
+    label: 'drop the short-offset clamp',
+    find: '    move = magnitude(intent.direction) < ARRIVE_EPSILON ? ZERO : intent.direction',
+    replace: '    move = magnitude(intent.direction) < 0 ? ZERO : intent.direction',
+  },
+  {
+    file: POLICIES,
+    label: 'forget that succession zeroes the held vector',
+    find: '  if (commandUnitId !== memory.commandUnitId) {',
+    replace: '  if (false) {',
+  },
+  {
+    // §1.8's tie-break, in the helper `fleeIntent`, `rangeAdvantageStandoff` and
+    // `contactStandoff` all read — which is why it is shared rather than filed under either key.
+    file: POLICIES,
+    label: 'break the nearest tie toward the higher id',
+    find: '    if (distance < bestDistance) {',
+    replace: '    if (distance <= bestDistance) {',
+  },
+  {
+    // Explicitly NOT a decision point: `policies.ts:433-437` documents the first-card rule as
+    // deliberately not a variant axis, because §4.1's table has no card-choice row and a
+    // preference order would move all eight bands together. Filing it under a key contradicts
+    // the file it is mutating.
+    file: POLICIES,
+    label: 'take the second card instead of the first',
+    find: 'const FIRST_OFFERED_SLOT = 1',
+    replace: 'const FIRST_OFFERED_SLOT = 2',
+  },
+
+  // --- policies.ts / architecture guard — not a decision at all -------------------------------
+  // Batch F's constraint that the policy harness does not reach back into the archived cover
+  // geometry. There is no §4.1 row behind this and no behaviour to vary; the fixture that catches
+  // it is a guard, not a claim about what a player does.
   {
     file: POLICIES,
     label: 'revive cover with an import of the archived geometry',
@@ -299,7 +384,10 @@ const MUTATIONS = [
   // §3's amended second variant is defined ON THIS AXIS: "얼마나 자주 다시 고를지". A policy that
   // re-aims every tick at whichever body is nearest this frame is not a player, and two models
   // that re-aim on the same clock are not the two models §3 asks for. All three mutations here
-  // are review findings (M1, M2, M4) and all three passed 569/569 before this round.
+  // are review findings (M1, M2, M4) and all three passed 569/569 before the round that added
+  // them. The key is a number, so its definition is the two values — `SKILLED_COMMIT_TICKS` and
+  // the two player models' overrides. The middle one deletes the block in `commandsFor` that
+  // spends the number, which is the reader and not the key.
   {
     file: POLICIES,
     label: 'zero the commitment, so the heading is re-aimed every tick',

@@ -23,8 +23,12 @@
 //   rescue                  §1.11's lock in progress: its target and its progress bar.
 //   rescueCandidateId       which body `Space` would pick up. `rescue.ts:99-100` states that the
 //                           renderer has to show this. HANDED TO BATCH G — see the note on the
-//                           field below; it is the one item in this list whose justification is
-//                           a promise about a renderer that does not exist yet.
+//                           field below. What sets it apart is NOT that it waits on a renderer:
+//                           `command`'s hp bar does too and §1 names no hp bar anywhere,
+//                           `friendlies` rests on §1.4's formation being drawn, and `rescue`
+//                           rests on its progress bar. What sets it apart is that it is DERIVED
+//                           — it resolves a tie on fields the view does not carry, so it hands
+//                           over an ordering the view otherwise hides.
 //   pendingUpgrade          §1.13's three offered cards — the card screen, literally.
 //   kills                   §1.13's kill counter, which the upgrade thresholds are read off.
 //

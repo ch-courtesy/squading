@@ -47,6 +47,13 @@ describe('§4.1 `flees-always` on the three seeds', () => {
     // to the tick, the kill and the survivor. The loop that produced the baseline is deleted, so
     // there is nothing left to re-run against it. Five of the six numbers are localized; this one
     // is an unexplained residual.
+    //
+    // AND THE LOCALIZATION ITSELF IS THE WEAKEST INFERENCE IN THIS FILE. `battle-e0-report.md:25`
+    // describes E0's own loop as moving away from "최근접 생존 적" — no kind filter, which is the
+    // reading SHIPPED here, and the shipped reading does not reproduce E0. So "the deleted
+    // policy's reading of 가장 가까운 적" is in tension with E0's own prose about that policy. It
+    // stands as a localization and not as a proof; what pins the reducer is the digest block
+    // above, which does not depend on this argument at all.
     expect(THREE_SEEDS.map((seed) => runPolicySeed(policyFactory('flees-always'), seed))).toEqual([
       { seed: 'seed-a', outcome: 'won', endTick: 1932, kills: 170, standing: 15, digest: '19a98b3b' },
       { seed: 'seed-b', outcome: 'won', endTick: 1995, kills: 181, standing: 16, digest: 'd8406125' },

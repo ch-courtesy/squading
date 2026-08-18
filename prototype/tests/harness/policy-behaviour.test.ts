@@ -462,9 +462,17 @@ describe('§3 a reposition holds its heading, and the three models re-aim on dif
     return reAimed
   }
 
-  // The three numbers, written out rather than derived from `commitTicks`: an expectation that
-  // moved with the value it is checking would pass against a model whose clock had been zeroed or
-  // flattened onto `skilled`'s, which is the failure this fixture exists for.
+  // The three numbers are written out rather than derived from `commitTicks`. What that buys has
+  // been MEASURED, and it is less than an earlier version of this comment claimed: with
+  // `reAimsOn` rewritten as `commitTicks + 2` and the pin at the top of the `it` removed, a
+  // zeroed clock and a clock flattened onto `skilled`'s are BOTH still caught — by the sibling
+  // assertion below, which fails at 30 > 0 and at 12 > 12. The derived expectation would pass;
+  // the mutation would not, and coverage is measured in suites and not in single `it`s.
+  //
+  // So the literals are not what holds those mutations down, and `POLICY_RULES[id].commitTicks`
+  // is pinned directly on the line above anyway. They are kept as a second, redundant statement
+  // of where the three clocks sit today, because a reader of this block should be able to see the
+  // numbers without going to look them up.
   const MODELS = [
     { id: 'skilled', commitTicks: 12, reAimsOn: 14 },
     { id: 'skilled-conservative', commitTicks: 30, reAimsOn: 32 },
