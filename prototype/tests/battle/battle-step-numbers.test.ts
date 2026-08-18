@@ -30,7 +30,12 @@ const TABLE = join('src', 'core', 'battle', 'index.ts')
  */
 const EXEMPT = [TABLE, join('tests', 'battle', 'battle-step-numbers.test.ts')]
 
-const SCANNED_ROOTS = ['src/core/battle', 'tests/battle']
+// Batch F added `src/core/harness/policy` and `tests/harness`, and they are scanned for the
+// same reason the two above are: a harness comment that names a position in §1.16's order is a
+// second copy of the table, and the next renumber has to find it. The whole of
+// `src/core/harness` is in scope rather than the policy directory alone — the archived stage-1
+// sweep beside it names no step today, and there is no reason it should start.
+const SCANNED_ROOTS = ['src/core/battle', 'tests/battle', 'src/core/harness', 'tests/harness']
 
 const STEP_REFERENCE = /\b(?:steps?\s+\d+|\d+\s*단계)/gi
 

@@ -28,7 +28,13 @@ const ARCHIVED = [
 // 57 of the 62 specifiers under `src/core/battle`, and two of the five it missed were added by
 // batch C. Reviving cover in the house style would have passed the one test that exists to
 // prevent it. Widening the scope while the reader is blind widens the blind spot.
-const GAME_PATH_ROOTS = ['src/core/battle']
+//
+// `src/core/harness/policy` is here for batch F: the policies drive the v2 game and a cover
+// import there would revive it just as effectively as one in the core. The root is the POLICY
+// directory and not `src/core/harness`, because the archived stage-1 sweep (`harness/i9.ts`,
+// `harness/sight.ts`) lives one level up and legitimately imports the geometry it was the
+// evidence about — pointing the guard at the parent would fail on the archive itself.
+const GAME_PATH_ROOTS = ['src/core/battle', 'src/core/harness/policy']
 
 function sourceFiles(root: string): string[] {
   const absolute = join(process.cwd(), root)
