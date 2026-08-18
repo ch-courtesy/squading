@@ -425,7 +425,8 @@ describe('§1.16 the reducer runs a whole battle to a verdict', () => {
   it('composes all sixteen rows, and holds the four the types do not', () => {
     const run = playToVerdict('seed-a')
 
-    // The run DECIDES. This fixture also prescribes WHICH verdict, three assertions down, and
+    // The run DECIDES. This fixture also prescribes WHICH verdict, in the last assertion of the
+    // fixture (`toBe('won')`, at the very bottom), and
     // that line is deliberate rather than an accident of what the balance happens to do today —
     // hazard 4b's alarm below needs the win. §5 stage 2 owns the tune and owns that line with it.
     expect(run.state.result).not.toBeNull()

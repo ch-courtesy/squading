@@ -555,6 +555,10 @@ describe('§1.15 the reducer enforces the same rule the queue does', () => {
     // The name is the whole claim, and until §1.15's release clause named its modes it was
     // false: a `won` run refused the press and took the release. Both halves are asserted here
     // now, because a name that is true of half the fixture is how this file stops being read.
+    //
+    // "at all" means all four kinds, not just the two the release clause was about. A body that
+    // covered `set-move` and `set-rescue` only would leave the name two kinds wider than what it
+    // proves — the same gap in miniature that this fixture was renamed to close.
     for (const mode of ['won', 'lost'] as const) {
       const state = running()
       state.mode = mode
@@ -566,11 +570,15 @@ describe('§1.15 the reducer enforces the same rule the queue does', () => {
         { kind: 'set-move', move: { x: 7, y: -3 }, keydown: false },
         { kind: 'set-rescue', held: true },
         { kind: 'set-rescue', held: false },
+        { kind: 'toggle-pause' },
+        { kind: 'choose-upgrade', slot: 1 },
       ])
 
       expect(state.input.move).toEqual({ x: 0, y: -1 })
       expect(state.input.spaceHeld).toBe(true)
-      expect(application.discarded).toBe(4)
+      expect(state.mode).toBe(mode)
+      expect(application.discarded).toBe(6)
+      expect(application.events.movementKeydown).toBe(false)
     }
   })
 

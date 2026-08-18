@@ -38,8 +38,11 @@
 //
 // WHAT IS NOT IN THE DIGEST, AND WHY THAT IS SOUND: the queue and its held-key set are not
 // part of `BattleState` (see the no-scratch rule in `types.ts`), so §1.17's digest does not
-// cover them. The queue is empty at every tick boundary — `drain` is total, and the tick
-// reducer drains before it does anything else — so nothing pending can survive into a replay.
+// cover them. The queue is empty at every tick boundary — the source that `drain()` hands over
+// takes everything pending when the reducer reads it, and the reducer reads before it does
+// anything else — so nothing pending can survive into a replay. (Two operations share the name:
+// `BattleInputQueue.drain()` hands over the source and empties nothing; `source.drain()`, which
+// only the reducer calls, is the one that empties the queue.)
 // The held-key set does survive, and it is a pure function of the input log's prefix: a replay
 // that starts at tick 0 and feeds the same log rebuilds it exactly. A replay that starts from
 // a digest alone does NOT, and there is no such replay in this project.
@@ -265,7 +268,9 @@ export type BattleCommandSource = {
  * nothing while the queue went on holding `KeyW` across a pause, which is the ghost axis
  * `{ x: 1, y: -1 }` that §1.15's release exists to prevent. `BattleInputQueue.drain()` now hands
  * back a source rather than an array, so that particular wrapping no longer compiles; nothing
- * checks the general case, and nothing can. USE THIS FOR COMMANDS YOU WROTE OUT BY HAND. If a
+ * in this project checks the general case. Branding this function's parameter so a value that
+ * came out of a queue cannot be passed to it would close the remaining reach; it has not been
+ * done. USE THIS FOR COMMANDS YOU WROTE OUT BY HAND. If a
  * device is behind them, hand over the source the device owns.
  */
 export function commandBatch(commands: readonly BattleCommand[]): BattleCommandSource {
