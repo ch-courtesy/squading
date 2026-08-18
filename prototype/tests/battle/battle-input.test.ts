@@ -15,6 +15,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { ARRIVE_EPSILON } from '../../src/core/battle/constants'
+import { digestBattleState } from '../../src/core/battle/digest'
 import {
   BattleInputQueue,
   MOVE_KEY_VECTORS,
@@ -446,7 +447,7 @@ describe('§1.15 forbidden inputs never enter the queue', () => {
   })
 })
 
-describe('§1.15 a release is refused in no mode at all', () => {
+describe('§1.15 a release is refused only by a run that has already ended', () => {
   it('lets a movement key come up while a card is waiting', () => {
     const state = running()
     const queue = new BattleInputQueue()
@@ -516,8 +517,11 @@ describe('§1.15 a release is refused in no mode at all', () => {
       const state = running()
       state.mode = mode
 
-      expect(commandIsAllowed(state, release)).toBe(true)
-      expect(commandIsAllowed(state, spaceUp)).toBe(true)
+      // §1.15: the release clause holds in the modes a run can still continue from. `won` and
+      // `lost` are not among them — see the finished-run fixtures below for why.
+      const canContinue = mode !== 'won' && mode !== 'lost'
+      expect(commandIsAllowed(state, release)).toBe(canContinue)
+      expect(commandIsAllowed(state, spaceUp)).toBe(canContinue)
       expect(commandIsAllowed(state, keyPress)).toBe(mode === 'running')
     }
   })
@@ -545,12 +549,46 @@ describe('§1.15 the reducer enforces the same rule the queue does', () => {
   })
 
   it('does not let a finished run take input at all', () => {
+    // The name is the whole claim, and until §1.15's release clause named its modes it was
+    // false: a `won` run refused the press and took the release. Both halves are asserted here
+    // now, because a name that is true of half the fixture is how this file stops being read.
+    for (const mode of ['won', 'lost'] as const) {
+      const state = running()
+      state.mode = mode
+      state.input.move = { x: 0, y: -1 }
+      state.input.spaceHeld = true
+
+      const application = applyBattleCommands(state, [
+        { kind: 'set-move', move: { x: -1, y: 1 }, keydown: true },
+        { kind: 'set-move', move: { x: 7, y: -3 }, keydown: false },
+        { kind: 'set-rescue', held: true },
+        { kind: 'set-rescue', held: false },
+      ])
+
+      expect(state.input.move).toEqual({ x: 0, y: -1 })
+      expect(state.input.spaceHeld).toBe(true)
+      expect(application.discarded).toBe(4)
+    }
+  })
+
+  it('leaves a finished run at the digest it finished on, whatever a release carries', () => {
+    // WHY THE RELEASE CLAUSE STOPS AT THE VERDICT. It exists so that a key the player let go of
+    // cannot stay held over the play that FOLLOWS; a finished run has none, and the clause with
+    // its reason removed is a write into `state.input` that moves §1.17's digest. §4.3 compares
+    // a headless replay against a browser one BY digest, so a trailing keyup that only one side
+    // sends is exactly the divergence that comparison is looking for.
     const state = running()
     state.mode = 'won'
+    state.result = 'won'
+    const finished = digestBattleState(state)
 
-    applyBattleCommands(state, [{ kind: 'set-move', move: { x: -1, y: 1 }, keydown: true }])
+    const application = applyBattleCommands(state, [
+      { kind: 'set-move', move: { x: 7, y: -3 }, keydown: false },
+      { kind: 'set-rescue', held: false },
+    ])
 
-    expect(state.input.move).toEqual({ x: 0, y: 0 })
+    expect(application.discarded).toBe(2)
+    expect(digestBattleState(state)).toBe(finished)
   })
 
   it('still takes a release through the reducer, in the modes that refuse a press', () => {

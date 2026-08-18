@@ -25,12 +25,16 @@
 //      policies build commands without a queue anywhere near them. So `applyBattleCommands`
 //      runs the same predicate over the batch it is handed. Both answers come from
 //      `commandIsAllowed`, so asking twice cannot disagree.
-//   4. A RELEASE IS NOT A FORBIDDEN INPUT, IN ANY MODE. §1.15's 금지 상황 gates the START of an
-//      input. Refusing a `keyup` does not stop the player from having let go of the key; it only
-//      makes `state.input` claim they did not, and §1.11's lock condition ("그 tick의 이동 입력
-//      벡터가 0") is then unreachable for as long as the phantom axis lasts. The one place a
-//      release IS dropped is the same-tick pause clause below, and that is because those
-//      commands were built from a held-key set the pause has already thrown away.
+//   4. A RELEASE IS NOT A FORBIDDEN INPUT WHILE THE RUN CAN STILL CONTINUE. §1.15's 금지 상황
+//      gates the START of an input. Refusing a `keyup` does not stop the player from having let go
+//      of the key; it only makes `state.input` claim they did not, and §1.11's lock condition
+//      ("그 tick의 이동 입력 벡터가 0") is then unreachable for as long as the phantom axis lasts.
+//      That reason reaches `ready`, `running`, `paused` and `awaiting-upgrade`, and stops at the
+//      verdict: a `won` or `lost` run has no play left to run on a false axis, so a release there
+//      is only a write that moves §1.17's digest, and it is refused like a press
+//      (`runCanContinue`). Two more places drop a release: the same-tick pause clause below,
+//      because those commands were built from a held-key set the pause has already thrown away,
+//      and a vector that is not finite (`isFiniteVector`).
 //
 // WHAT IS NOT IN THE DIGEST, AND WHY THAT IS SOUND: the queue and its held-key set are not
 // part of `BattleState` (see the no-scratch rule in `types.ts`), so §1.17's digest does not
@@ -43,7 +47,7 @@
 import { ARRIVE_EPSILON } from './constants'
 import type { RescueInputEvents } from './rescue'
 import { chooseUpgradeCard, pendingUpgradeRound } from './upgrades'
-import type { BattleState, Vec2 } from './types'
+import type { BattleMode, BattleState, Vec2 } from './types'
 
 /**
  * §1.15's four inputs, as the commands a tick applies.
@@ -126,6 +130,19 @@ function isFiniteVector(vector: Vec2): boolean {
 }
 
 /**
+ * The modes §1.15's release clause holds in — the ones a run can still continue from.
+ *
+ * The clause is there so a key the player let go of cannot stay held over the play that FOLLOWS.
+ * `won` and `lost` have no play that follows, so the harm it prevents does not exist there, and
+ * what is left is a write into `state.input` on a run that has already produced its verdict —
+ * §1.17's digest moves under it. §4.3 compares a headless replay against a browser one BY digest,
+ * and a trailing keyup that only one side sends is exactly the divergence it is looking for.
+ */
+function runCanContinue(mode: BattleMode): boolean {
+  return mode !== 'won' && mode !== 'lost'
+}
+
+/**
  * §1.15's 금지 상황, as one predicate — plus the one well-formedness check a command carries.
  *
  * Exported because the queue is not the only enqueuer — batch F's policy harness and batch G's
@@ -134,10 +151,12 @@ function isFiniteVector(vector: Vec2): boolean {
  * (`Battle.step`, `advanceBattleTick`, `applyBattleCommands`) answer with one rule and not three.
  *
  * THE RULE GATES THE START OF AN INPUT, NOT ITS END (§1.15). A release — `keyup`, `Space` up, a
- * pointer coming off — is accepted in every mode there is. Refusing one does not un-press the
- * key; it makes `state.input` say a key is held that the player let go of, and §1.11's lock
- * ("그 tick의 이동 입력 벡터가 0") then cannot be satisfied at all. In the command vocabulary
- * that is `keydown === false` on a `set-move` and `held === false` on a `set-rescue`.
+ * pointer coming off — is accepted in `ready`, `running`, `paused` and `awaiting-upgrade`.
+ * Refusing one does not un-press the key; it makes `state.input` say a key is held that the
+ * player let go of, and §1.11's lock ("그 tick의 이동 입력 벡터가 0") then cannot be satisfied at
+ * all. In the command vocabulary that is `keydown === false` on a `set-move` and
+ * `held === false` on a `set-rescue`. `won` and `lost` are the exception and `runCanContinue`
+ * says why: there is no later tick to lie to there, only a digest to move.
  *
  * A CONTINUED POINTER DRAG WEARS THE SAME SHAPE, and is admitted on the same terms, which is
  * sound rather than an oversight: `pointerDrag` refuses a `'move'` with no pointer already down
@@ -147,8 +166,9 @@ function isFiniteVector(vector: Vec2): boolean {
  *
  * The readings §1.15 does not write out, and why each is the one that needs no further rule:
  *
- *   * `ready`, `won`, `lost` START nothing. A run that has not begun or has ended takes no new
- *     input; it still takes the news that a key came up.
+ *   * `ready` STARTS nothing, and still takes the news that a key came up: the run that follows
+ *     would otherwise begin holding it.
+ *   * `won` and `lost` take NOTHING — not a press and not a release. See `runCanContinue`.
  *   * a card key needs a round WAITING for a card, in any mode. §1.13's `chooseUpgradeCard`
  *     already refuses to un-pause a paused battle, so "choose while paused" is representable
  *     and harmless; a key that maps to no offered card is not.
@@ -165,9 +185,9 @@ export function commandIsAllowed(state: Readonly<BattleState>, command: BattleCo
   switch (command.kind) {
     case 'set-move':
       if (!isFiniteVector(command.move)) return false
-      return state.mode === 'running' || !command.keydown
+      return state.mode === 'running' || (!command.keydown && runCanContinue(state.mode))
     case 'set-rescue':
-      return state.mode === 'running' || !command.held
+      return state.mode === 'running' || (!command.held && runCanContinue(state.mode))
     case 'choose-upgrade': {
       if (state.mode !== 'running' && state.mode !== 'paused' && state.mode !== 'awaiting-upgrade') {
         return false

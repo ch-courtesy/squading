@@ -136,9 +136,13 @@
 //         `advanceBattleTick` and `applyBattleCommands` are public too and batch F's policies
 //         build commands with no queue in front of them. One predicate (`commandIsAllowed`)
 //         answers both, so the two readings cannot disagree. IT GATES THE START OF AN INPUT
-//         ONLY — a release is accepted in every mode, or `state.input` would go on claiming a
-//         key is held that the player let go of, and §1.11's zero-vector lock would be
-//         unreachable while it did.
+//         ONLY — a release is accepted in `ready`, `running`, `paused` and `awaiting-upgrade`,
+//         or `state.input` would go on claiming a key is held that the player let go of, and
+//         §1.11's zero-vector lock would be unreachable while it did. IT STOPS AT THE VERDICT:
+//         `won` and `lost` refuse a release too, because there is no later tick there for the
+//         phantom axis to spoil and a write into `state.input` would move §1.17's digest of a
+//         run that is already over. The same predicate also refuses a `set-move` whose vector
+//         is not finite, for the digest reason `isFiniteVector` gives.
 //         The queue is NOT in `BattleState` and so not in the digest; it is empty at every
 //         tick boundary, and its held-key set is a function of the input log's prefix.
 //   §1.16 the tick order ....................................... tick
