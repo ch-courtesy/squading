@@ -27,8 +27,11 @@
 //                           `command`'s hp bar does too and §1 names no hp bar anywhere,
 //                           `friendlies` rests on §1.4's formation being drawn, and `rescue`
 //                           rests on its progress bar. What sets it apart is that it is DERIVED
-//                           — it resolves a tie on fields the view does not carry, so it hands
-//                           over an ordering the view otherwise hides.
+//                           — it resolves a tie the view cannot resolve itself. Of the tie-break's
+//                           three keys (`rescue.ts:87-94`) the view carries two: `downedTicks` as
+//                           the bijection `downedTicksRemaining`, and `id`. The first key,
+//                           `originalCommanderId`, it does not carry — and that one key is enough
+//                           to make the ordering unreachable from the view alone.
 //   pendingUpgrade          §1.13's three offered cards — the card screen, literally.
 //   kills                   §1.13's kill counter, which the upgrade thresholds are read off.
 //
@@ -141,9 +144,12 @@ export type PolicyView = {
    * §1.11's "후보 존재" — which body `Space` would pick up right now, or null.
    *
    * THIS FIELD IS A DEBT, AND BATCH G IS WHERE IT IS SETTLED. It is a DERIVED id, not a reading:
-   * `rescueCandidateId` breaks its tie on `state.originalCommanderId` and `unit.downedTicks`
-   * (`rescue.ts:86-94`), and the view exposes NEITHER. So it resolves an ordering the view
-   * otherwise hides, which the two lists above do not license on their own — the standard there
+   * `rescueCandidateId` breaks its tie on `state.originalCommanderId`, then `unit.downedTicks`,
+   * then `id` (`rescue.ts:86-94`), and the view exposes the last two — `downedTicks` as the
+   * bijection `downedTicksRemaining`. It is the FIRST key the view does not carry, and one
+   * missing key is all it takes: without it the ordering cannot be reproduced from the view. So
+   * it resolves an ordering the view otherwise hides, which the two lists above do not license
+   * on their own — the standard there
    * is "is it on the screen", and whether this id is on the screen cannot be checked until a
    * renderer exists.
    *

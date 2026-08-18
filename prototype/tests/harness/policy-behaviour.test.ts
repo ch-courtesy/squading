@@ -105,8 +105,8 @@ describe('§4.1 `skilled` stops where the range advantage is', () => {
     // SOLDIER_RANGE` is the whole of it, and a melee has no range for the gap to be a gap
     // against. So WHICH body the band is measured from decides the SIGN of the step here.
     //
-    // The melee is 0.95 east, inside every band, so a policy measuring against the nearest body
-    // of any kind backs WEST off it. The shooter is 5.1 east, outside [4.7, 5.0], so a policy
+    // The melee is 0.95 east, inside the LOWER EDGE of every band, so a policy measuring against
+    // the nearest body of any kind backs WEST off it. The shooter is 5.1 east, outside [4.7, 5.0], so a policy
     // measuring against the nearest shooter closes EAST on it. The magnitude names which body it
     // used: the step is the whole offset to the goal.
     const move = moveIn(
@@ -276,6 +276,43 @@ describe('§1.11 `skilled` goes back for a body, and `abandons-downed` does not'
     )
     expect(mirrored).not.toBeNull()
     expect(mirrored!.x).toBeGreaterThan(0)
+  })
+
+  it('breaks a tie between two equidistant bodies toward the LOWER id', () => {
+    // The fixture above pins nearest-over-first; this one pins what happens when "nearest" does
+    // not decide. `nearestEnemy`'s docblock calls the ascending-id tie-break "the tie-break §1.5,
+    // §1.8 and §1.9 all use", and `reachableDownedFriendly` follows it by comparing with `>=` so
+    // the first equidistant row survives. Relaxing that to `>` lets the later row displace the
+    // earlier one, which is a policy that walks the other way on a board where the rule says it
+    // should not — and until this fixture nothing anywhere held it.
+    const lowerIdEast = friendly(4, ORIGIN.x + 3, ORIGIN.y, {
+      life: 'downed',
+      downedTicksRemaining: DOWNED_TICKS,
+    })
+    const higherIdWest = friendly(5, ORIGIN.x - 3, ORIGIN.y, {
+      life: 'downed',
+      downedTicksRemaining: DOWNED_TICKS,
+    })
+    // Exactly equidistant: 3.0 either way, so distance cannot decide and only the id can.
+    const move = moveIn(decideOnce('skilled', viewOf({ friendlies: [lowerIdEast, higherIdWest] })))
+    expect(move).not.toBeNull()
+    expect(move!.x).toBeGreaterThan(0)
+
+    // Swap which side the lower id is on. If the answer were "east" rather than "the lower id",
+    // this second board would come out east too.
+    const lowerIdWest = friendly(4, ORIGIN.x - 3, ORIGIN.y, {
+      life: 'downed',
+      downedTicksRemaining: DOWNED_TICKS,
+    })
+    const higherIdEast = friendly(5, ORIGIN.x + 3, ORIGIN.y, {
+      life: 'downed',
+      downedTicksRemaining: DOWNED_TICKS,
+    })
+    const swapped = moveIn(
+      decideOnce('skilled', viewOf({ friendlies: [lowerIdWest, higherIdEast] })),
+    )
+    expect(swapped).not.toBeNull()
+    expect(swapped!.x).toBeLessThan(0)
   })
 
   it('keeps a lock that is already running after the body stops being a candidate', () => {
@@ -466,7 +503,7 @@ describe('§3 a reposition holds its heading, and the three models re-aim on dif
   // been MEASURED, and it is less than an earlier version of this comment claimed: with
   // `reAimsOn` rewritten as `commitTicks + 2` and the pin at the top of the `it` removed, a
   // zeroed clock and a clock flattened onto `skilled`'s are BOTH still caught — by the sibling
-  // assertion below, which fails at 30 > 0 and at 12 > 12. The derived expectation would pass;
+  // assertion below, which fails at 4 < 0 and at 12 > 12. The derived expectation would pass;
   // the mutation would not, and coverage is measured in suites and not in single `it`s.
   //
   // So the literals are not what holds those mutations down, and `POLICY_RULES[id].commitTicks`
