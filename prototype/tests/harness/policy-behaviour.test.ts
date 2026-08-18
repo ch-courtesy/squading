@@ -198,6 +198,56 @@ describe('§1.11 `skilled` goes back for a body, and `abandons-downed` does not'
     expect(commands).toEqual([{ kind: 'set-rescue', held: true }])
   })
 
+  it('walks to the NEAREST body rather than the first one in id order', () => {
+    // Two bodies, both reachable, in opposite directions — and the nearer one has the HIGHER id.
+    // A walk that kept the first reachable row instead of the closest would point EAST here, so
+    // the sign is the comparison deciding. §1.11 runs a countdown per body, which makes going to
+    // the wrong one the difference between one rescue and none.
+    const nearerHigherId = friendly(9, ORIGIN.x - 2, ORIGIN.y, {
+      life: 'downed',
+      downedTicksRemaining: DOWNED_TICKS,
+    })
+    // Ascending id, which is the order `projectPolicyView` hands the roster out in.
+    const move = moveIn(decideOnce('skilled', viewOf({ friendlies: [downed, nearerHigherId] })))
+    expect(move).not.toBeNull()
+    expect(move!.x).toBeLessThan(0)
+
+    // The mirror: the same two distances and the same two directions, with only WHICH body is
+    // nearer swapped. It comes out the other way, so the fixture above is not a board on which
+    // west was the only answer available.
+    const nearerLowerId = friendly(4, ORIGIN.x + 2, ORIGIN.y, {
+      life: 'downed',
+      downedTicksRemaining: DOWNED_TICKS,
+    })
+    const fartherHigherId = friendly(9, ORIGIN.x - 3, ORIGIN.y, {
+      life: 'downed',
+      downedTicksRemaining: DOWNED_TICKS,
+    })
+    const mirrored = moveIn(
+      decideOnce('skilled', viewOf({ friendlies: [nearerLowerId, fartherHigherId] })),
+    )
+    expect(mirrored).not.toBeNull()
+    expect(mirrored!.x).toBeGreaterThan(0)
+  })
+
+  it('keeps a lock that is already running after the body stops being a candidate', () => {
+    // §1.11 re-tests "후보 존재" every tick and zeroes the progress on release, so a lock can
+    // outlive the candidacy that established it — releasing `Space` here throws the progress
+    // away. `rescueCandidateId` is null and there is no downed row in the view either, so the
+    // running lock is the ONLY thing that can still be holding the key down.
+    const locked = viewOf({
+      enemies: [shooterEast(4)],
+      rescue: { targetId: 4, progress: 12 },
+      rescueCandidateId: null,
+    })
+    expect(decideOnce('skilled', locked)).toEqual([{ kind: 'set-rescue', held: true }])
+
+    // The same board with no lock running: the standoff wants to back away from a shooter at 4.0,
+    // and it does. So the assertion above is the branch deciding and not an empty fixture.
+    const unlocked = viewOf({ enemies: [shooterEast(4)], rescue: null, rescueCandidateId: null })
+    expect(moveIn(decideOnce('skilled', unlocked))!.x).toBeLessThan(0)
+  })
+
   it('gives up on a body the countdown will not let it reach', () => {
     const doomed = friendly(4, ORIGIN.x + 20, ORIGIN.y, { life: 'downed', downedTicksRemaining: 10 })
     const reachable = friendly(4, ORIGIN.x + 20, ORIGIN.y, {
@@ -278,6 +328,88 @@ describe('§3 the two `skilled` player models stand in different places', () => 
     const view = viewOf({ enemies: [shooterEast(SHOOTER_RANGE + 0.15)] })
     expect(moveIn(decideOnce('skilled', view))!.x).toBeLessThan(0)
     expect(decideOnce('skilled-aggressive', view)).toEqual([])
+  })
+})
+
+describe('§3 a reposition holds its heading, and the three models re-aim on different clocks', () => {
+  // THE OTHER HALF OF §3's SECOND VARIANT. v9 re-defined it on two axes — "어디에 멈출지(§1.6의
+  // 사거리 격차 안 어디)와 얼마나 자주 다시 고를지" — and the block above only measures the first
+  // one. This measures the second: how long a reposition keeps walking the way it set off before
+  // it looks at the board again.
+  //
+  // Counted in DECISIONS rather than in ticks, because that is what the policy counts. The first
+  // decision commits a heading; the next `commitTicks` decisions are handed the committed one
+  // back; decision `commitTicks + 2` is the first that re-aims.
+
+  /**
+   * Send a model east, then move the shooter west, and report which decisions emitted a command.
+   *
+   * A held heading emits NOTHING, because it is already what the battle is holding — so the one
+   * decision number that comes back is the one on which the model looked again.
+   */
+  function reAimsOnDecisions(id: PolicyId): number[] {
+    const policy = policyFactory(id)('seed-a')
+
+    // 6.0 is outside the upper edge of all three bands ([4.7, 5.0], [4.875, 5.0], [4.525, 4.75]),
+    // so all three walk toward it.
+    const first = moveIn(policy.decide(viewOf({ enemies: [shooterEast(6)] })))
+    expect(first).not.toBeNull()
+    expect(first!.x).toBeGreaterThan(0)
+
+    const reAimed: number[] = []
+    for (let decision = 2; decision <= 60; decision += 1) {
+      // The same board mirrored: a model that re-aimed this decision walks WEST instead.
+      const commands = policy.decide(viewOf({ enemies: [shooterEast(-6)] }))
+      if (commands.length === 0) continue
+      expect(moveIn(commands)!.x).toBeLessThan(0)
+      reAimed.push(decision)
+    }
+    return reAimed
+  }
+
+  // The three numbers, written out rather than derived from `commitTicks`: an expectation that
+  // moved with the value it is checking would pass against a model whose clock had been zeroed or
+  // flattened onto `skilled`'s, which is the failure this fixture exists for.
+  const MODELS = [
+    { id: 'skilled', commitTicks: 12, reAimsOn: 14 },
+    { id: 'skilled-conservative', commitTicks: 30, reAimsOn: 32 },
+    { id: 'skilled-aggressive', commitTicks: 4, reAimsOn: 6 },
+  ] as const
+
+  for (const model of MODELS) {
+    it(`\`${model.id}\` holds its heading for ${model.commitTicks} decisions and re-aims on the next`, () => {
+      expect(POLICY_RULES[model.id].commitTicks).toBe(model.commitTicks)
+      // Exactly one decision in sixty emits anything: the heading is held until then, and it does
+      // flip once the commitment runs out. Both halves are in the one assertion.
+      expect(reAimsOnDecisions(model.id)).toEqual([model.reAimsOn])
+    })
+  }
+
+  it('§3 the conservative model re-aims LESS often than the base one and the aggressive one MORE', () => {
+    // The ordering is the spec claim; the three numbers above are only where it currently sits.
+    // "보수적 변형(더 긴 standoff, 더 드문 재배치)과 공격적 변형(더 짧은 standoff, 더 잦은 재배치)".
+    expect(POLICY_RULES['skilled-conservative'].commitTicks).toBeGreaterThan(
+      POLICY_RULES.skilled.commitTicks,
+    )
+    expect(POLICY_RULES['skilled-aggressive'].commitTicks).toBeLessThan(
+      POLICY_RULES.skilled.commitTicks,
+    )
+  })
+
+  it('drops the commitment the moment the policy stops wanting to reposition', () => {
+    // The commitment is not a timer that runs on regardless: it is dropped whenever the intent
+    // stops being a standoff move, so an interruption re-aims on the very next decision instead
+    // of eleven decisions later.
+    const policy = policyFactory('skilled')('seed-a')
+    expect(moveIn(policy.decide(viewOf({ enemies: [shooterEast(6)] })))!.x).toBeGreaterThan(0)
+
+    // 4.8 is inside [4.7, 5.0], so this decision is a hold and the commitment goes with it.
+    expect(policy.decide(viewOf({ enemies: [shooterEast(4.8)] }))).toEqual([
+      { kind: 'set-move', move: { x: 0, y: 0 }, keydown: false },
+    ])
+
+    // Decision 3, not decision 14.
+    expect(moveIn(policy.decide(viewOf({ enemies: [shooterEast(-6)] })))!.x).toBeLessThan(0)
   })
 })
 
