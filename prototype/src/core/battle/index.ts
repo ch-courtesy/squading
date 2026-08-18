@@ -1,5 +1,5 @@
 // `core/battle/` — the commander battle rules
-// (`docs/superpowers/specs/2026-08-16-commander-battle-design.md`, v9).
+// (`docs/superpowers/specs/2026-08-16-commander-battle-design.md`, v10).
 //
 // This is a NEW module. `core/gameplay/` is the shipped v1 game and stays as it is.
 //
@@ -159,6 +159,23 @@
 //         and wraps the array underneath still compiles; nothing here catches that.
 //         Everything derived is RETURNED (`TickResult`), never stored: batch A's no-scratch
 //         rule, and I2/I6/I13 all read their measurements off it.
+//   §1.4.1 leash engagement (batch H) ......................... movement, constants
+//         THE ONE RULE OF THIS BATCH, and it is a change INSIDE the 추종·적 이동 row rather than
+//         a new row — §1.16's table below is untouched and `battle-step-numbers.test.ts` is what
+//         keeps that true. `advanceFormationFollow` now asks one question per soldier per tick:
+//         is there a standing enemy within `LEASH_RADIUS` OF THE COMMAND UNIT? If there is, the
+//         soldier leaves its slot and moves to its own range band `[SHOOTER_RANGE, its range]`
+//         around the §1.8-ranked one of them; if there is not, the slot is where it goes, by
+//         §1.4's follow rule exactly. The slot is a REST position now, not a battle position.
+//         THE LEASH IS ANCHORED TO THE COMMAND UNIT. Not to each soldier and not to its slot,
+//         and that is the whole design rather than an implementation choice: soldiers that hunted
+//         from wherever they stood would make where the player stands stop changing the outcome,
+//         which is v1's agency-free auto-battle. §4.5's third question needs the anchor.
+//         NO FIELD WAS ADDED TO `BattleState`. "Am I engaging" is derived every tick from the
+//         command unit's position and the live enemy list — §1.4.1 requires that in as many
+//         words, and `battle-state.test.ts`'s four key-set pins are what hold it.
+//         §1.8's ORDER is not duplicated: `selectRankedEnemyId` (targeting.ts) is the one copy,
+//         and the leash and the attack differ only in which bodies they admit.
 //   §6    the facade ........................................... battle
 //         `createBattle(seed)`: start, enqueue input, step, read state, read digest, restart.
 //         Display-agnostic and driverless — no camera, no snapshot, no timer. §4.3 compares a

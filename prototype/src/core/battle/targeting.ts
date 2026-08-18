@@ -30,7 +30,7 @@ import {
   rangeBonusOf,
   tickDurationAfter,
 } from './upgrades'
-import type { BattleState, EnemyUnit, FriendlyUnit } from './types'
+import type { BattleState, EnemyUnit, FriendlyUnit, Vec2 } from './types'
 
 // The three weapon numbers, in one place each.
 //
@@ -77,6 +77,37 @@ function outranks(candidate: Ranked, best: Ranked): boolean {
   return candidate.distance < best.distance
 }
 
+/**
+ * §1.8's ORDER, with the candidate test left to the caller.
+ *
+ * Two rules rank enemies by "정예 우선 → 최근접 → id 오름차순" and they disagree about which
+ * bodies are candidates at all: the attack (below) admits what is inside the unit's own range,
+ * and §1.4.1's leash admits what is inside `LEASH_RADIUS` OF THE COMMAND UNIT, which is a test
+ * about a body the unit is not. Only the admission differs, so only the admission is a
+ * parameter — the ordering itself exists once, here, and `movement.ts` calls this rather than
+ * writing §1.8 out a second time where the two could drift apart.
+ *
+ * `enemies` must already be in ascending id order (`enemiesById`); that ordering is what makes
+ * the strict `<` above into §1.8's id tie-break, and this function does not re-sort.
+ */
+export function selectRankedEnemyId(
+  from: Vec2,
+  enemies: readonly EnemyUnit[],
+  admits: (enemy: EnemyUnit, distance: number) => boolean,
+): number | null {
+  let best: Ranked | null = null
+
+  for (const enemy of enemies) {
+    if (enemy.life !== 'standing') continue
+    const distance = Math.hypot(enemy.position.x - from.x, enemy.position.y - from.y)
+    if (!admits(enemy, distance)) continue
+    const candidate: Ranked = { id: enemy.id, distance, elite: enemy.kind === 'elite' }
+    if (best === null || outranks(candidate, best)) best = candidate
+  }
+
+  return best === null ? null : best.id
+}
+
 export function selectFriendlyTargetId(state: BattleState, unit: FriendlyUnit): number | null {
   return selectFriendlyTargetIn(state, unit, enemiesById(state))
 }
@@ -87,20 +118,7 @@ function selectFriendlyTargetIn(
   enemies: readonly EnemyUnit[],
 ): number | null {
   const range = attackRangeOf(state, unit)
-  let best: Ranked | null = null
-
-  for (const enemy of enemies) {
-    if (enemy.life !== 'standing') continue
-    const distance = Math.hypot(
-      enemy.position.x - unit.position.x,
-      enemy.position.y - unit.position.y,
-    )
-    if (distance > range) continue
-    const candidate: Ranked = { id: enemy.id, distance, elite: enemy.kind === 'elite' }
-    if (best === null || outranks(candidate, best)) best = candidate
-  }
-
-  return best === null ? null : best.id
+  return selectRankedEnemyId(unit.position, enemies, (_enemy, distance) => distance <= range)
 }
 
 /** §1.8 for every standing friendly. */

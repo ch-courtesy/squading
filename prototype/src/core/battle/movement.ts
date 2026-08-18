@@ -1,7 +1,14 @@
-// §1.7 movement boundary and §1.4 follow.
+// §1.7 movement boundary, §1.4 follow and §1.4.1 leash engagement.
 //
 // §1.6 removed cover, and with it most of what used to be in this file. What is left:
 //
+//   leash (§1.4.1) — a soldier with a standing enemy inside `LEASH_RADIUS` OF THE COMMAND
+//                      UNIT leaves its slot and moves to its own range band around that enemy;
+//                      one without goes back to the slot by the follow rule below. Through v9
+//                      every soldier was pinned to a slot and the sixteen bodies slid as one,
+//                      which is what the first person to play it read as "각개전투가 안 됨".
+//                      The leash is anchored to the COMMAND UNIT and nothing else: that is
+//                      what keeps where the player stands deciding which fight happens.
 //   the arena clamp (§1.7) — the ONLY movement boundary. "지형이 없으므로 슬라이딩·
 //                      밀어내기·끼임 판정은 존재하지 않는다." x-then-y sliding, the
 //                      union-based ejection out of blocking rectangles, and the 30-tick
@@ -22,8 +29,19 @@
 // argument of `advanceMovement` so that a tick loop which forgets it is a type
 // error rather than a battle where nothing attacks.
 
-import { ARENA_HEIGHT, ARENA_WIDTH, ARRIVE_EPSILON, COMMANDER_MOVE_SPEED, FOLLOW_MAX_SPEED, SOLDIER_MOVE_SPEED } from './constants'
+import {
+  ARENA_HEIGHT,
+  ARENA_WIDTH,
+  ARRIVE_EPSILON,
+  COMMANDER_MOVE_SPEED,
+  FOLLOW_MAX_SPEED,
+  LEASH_RADIUS,
+  SHOOTER_RANGE,
+  SOLDIER_MOVE_SPEED,
+} from './constants'
 import { findAssignment, slotPosition } from './formation'
+import { enemiesById, findEnemy } from './state'
+import { attackRangeOf, selectRankedEnemyId } from './targeting'
 import { followSpeedMultiplierOf, moveSpeedMultiplierOf } from './upgrades'
 import type { BattleState, EnemyUnit, FriendlyUnit, Vec2 } from './types'
 
@@ -126,17 +144,142 @@ export function advanceCommandUnit(state: BattleState): number {
 }
 
 /**
- * The 추종·적 이동 step, friendly half: every standing follower closes on its slot.
+ * §1.4.1: the enemy this soldier is fighting on THIS tick, or `null` if it is off the leash.
  *
- * A follower is capped at `followSpeedOf` (§1.2's soldier speed x1.30, times §1.13's
- * `cohesion`) and never overshoots its slot. Inside the ARRIVE_EPSILON dead-band it does not
- * move at all.
+ * DERIVED, NEVER STORED. §1.4.1 says so in as many words — "새 상태 필드를 만들지 않는다.
+ * '지금 교전 중인가'는 매 tick 유도된다" — and §1.17's no-scratch rule is why: the digest walks
+ * the whole of `BattleState`, so an `engagedWith` field would move every recorded digest and
+ * every 8-seed band with it. The answer is recomputed here every tick instead, and
+ * `slotAssignments` goes on meaning exactly what it meant before: the rest position.
+ *
+ * THE LEASH IS ANCHORED TO THE COMMAND UNIT. Not to the soldier and not to its slot, and that
+ * is the whole design: an enemy is a candidate because of where THE PLAYER'S BODY is standing,
+ * so "where do I stop" selects which fight happens (§4.5 question 3). Soldiers that hunted from
+ * wherever they happened to be would make the command unit's position stop changing the
+ * outcome, which is v1's agency-free auto-battle and the thing v2 exists to escape.
+ *
+ * Within the admitted set the ORDER is §1.8's, unchanged and shared with the attack — see
+ * `selectRankedEnemyId`. §1.16 runs 대상 선택 after this step, so the enemy a soldier walks
+ * toward and the enemy it fires at are picked by the same ranking one step apart: it closes on
+ * the ranked body here, and §1.8 re-picks from post-movement positions with its own range test.
+ */
+export function selectEngagementTargetId(state: BattleState, unit: FriendlyUnit): number | null {
+  return selectEngagementTargetIn(state, unit, enemiesById(state))
+}
+
+function selectEngagementTargetIn(
+  state: BattleState,
+  unit: FriendlyUnit,
+  enemies: readonly EnemyUnit[],
+): number | null {
+  const command = commandUnitOf(state)
+  if (!command) return null
+  // The design point, on one line so that changing it is one visible edit.
+  const leashCenter = command.position
+
+  return selectRankedEnemyId(unit.position, enemies, (enemy) => {
+    const leashDistance = Math.hypot(
+      enemy.position.x - leashCenter.x,
+      enemy.position.y - leashCenter.y,
+    )
+    return leashDistance <= LEASH_RADIUS
+  })
+}
+
+/**
+ * §1.4.1's "자기 사거리 밴드": `[SHOOTER_RANGE, this unit's own range]`.
+ *
+ * It is §1.6's range advantage measured for ONE body instead of for the formation. The far edge
+ * is the unit's own attack range, because past it the unit is walking without shooting; the near
+ * edge is the SHOOTER's range, because inside it the shooter answers back and the advantage is
+ * gone. §1.13's `marksman` widens the band by moving the far edge only — the enemy's reach is
+ * not something a friendly card changes.
+ */
+export function engagementBandOf(state: BattleState, unit: FriendlyUnit): readonly [number, number] {
+  return [SHOOTER_RANGE, attackRangeOf(state, unit)]
+}
+
+/** §1.4: close on `target`, never overshooting it, and stop dead inside ARRIVE_EPSILON. */
+function stepToward(unit: FriendlyUnit, target: Vec2, speed: number): void {
+  const dx = target.x - unit.position.x
+  const dy = target.y - unit.position.y
+  const distance = Math.hypot(dx, dy)
+
+  // The settle rule. Exactly zero, not approximately zero.
+  if (distance <= ARRIVE_EPSILON) {
+    unit.lastDisplacement = 0
+    return
+  }
+
+  const step = Math.min(distance, speed)
+  const from = unit.position
+  const to = stepMove(from, (dx / distance) * step, (dy / distance) * step)
+  unit.position = to
+  unit.lastDisplacement = displacementOf(from, to)
+}
+
+/**
+ * §1.4.1: an engaged soldier moves to its BAND around its target — not to the target.
+ *
+ * Outside the far edge it closes; inside the near edge it backs off; between them it does not
+ * move at all, which is the same dead-band §1.4 uses for the slot and the same reason (a body
+ * asymptotically approaching an edge vibrates forever). Walking onto the enemy instead would
+ * hand the whole squad to the shooters it is supposed to outrange.
+ *
+ * A soldier standing EXACTLY on its target has no direction to move in and does not move. §1.4.1
+ * does not say which way it should go and neither does §1.6 — any heading leaves the band — so
+ * this is deliberately unpinned rather than an arbitrary choice written into a fixture. What
+ * does bind is that it is the same every replay, and §1.17's digests hold that.
+ */
+function advanceEngagement(
+  state: BattleState,
+  unit: FriendlyUnit,
+  target: EnemyUnit,
+  followSpeed: number,
+): void {
+  const [near, far] = engagementBandOf(state, unit)
+  const dx = target.position.x - unit.position.x
+  const dy = target.position.y - unit.position.y
+  const distance = Math.hypot(dx, dy)
+  if (distance === 0) {
+    unit.lastDisplacement = 0
+    return
+  }
+
+  // Signed distance to the band: positive means close in, negative means back off, 0 means hold.
+  const toBand = distance > far ? distance - far : distance < near ? distance - near : 0
+  const step = Math.sign(toBand) * Math.min(Math.abs(toBand), followSpeed)
+  if (Math.abs(step) <= ARRIVE_EPSILON) {
+    unit.lastDisplacement = 0
+    return
+  }
+
+  const from = unit.position
+  const to = stepMove(from, (dx / distance) * step, (dy / distance) * step)
+  unit.position = to
+  unit.lastDisplacement = displacementOf(from, to)
+}
+
+/**
+ * The 추종·적 이동 step, friendly half — §1.4's follow and §1.4.1's leash, which are the two
+ * halves of one question asked per soldier per tick: is there anything to fight?
+ *
+ * ENGAGED (a standing enemy inside `LEASH_RADIUS` of the command unit): the soldier leaves its
+ * slot and moves to its own range band around that enemy. NOT ENGAGED: the slot is where it goes,
+ * by §1.4's follow rule exactly — capped at `followSpeedOf`, no overshoot, and no movement at all
+ * inside the dead-band. The slot is a REST position, not a battle position (§1.4).
+ *
+ * This is a change INSIDE the movement step, not a new step: §1.16's table is unchanged and
+ * `tests/battle/battle-step-numbers.test.ts` is what keeps that true.
  */
 export function advanceFormationFollow(state: BattleState): void {
   const command = commandUnitOf(state)
   if (!command) return
   const center = command.position
   const followSpeed = followSpeedOf(state)
+  // Sorted once for all fifteen: `selectRankedEnemyId` needs ascending id for §1.8's tie-break
+  // and re-sorting per soldier is the same answer at fifteen times the cost (§4.3).
+  const enemies = enemiesById(state)
 
   for (const unit of state.friendlies) {
     if (unit.id === state.commandUnitId) continue
@@ -145,28 +288,21 @@ export function advanceFormationFollow(state: BattleState): void {
     const assignment = findAssignment(state.slotAssignments, unit.id)
     // §1.4: a body without a slot (the original commander while a soldier holds
     // command) has nothing to follow. It is never left standing for more than the
-    // tick in which §1.5 rule 1 returns command to it.
+    // tick in which §1.5 rule 1 returns command to it. §1.4.1 speaks of 병사 and every
+    // soldier has a slot, so it does not engage either — "그 자리에 머문다" is still whole.
     if (!assignment) {
       unit.lastDisplacement = 0
       continue
     }
 
-    const target = slotPosition(center, assignment.slotIndex)
-    const dx = target.x - unit.position.x
-    const dy = target.y - unit.position.y
-    const distance = Math.hypot(dx, dy)
-
-    // The settle rule. Exactly zero, not approximately zero.
-    if (distance <= ARRIVE_EPSILON) {
-      unit.lastDisplacement = 0
+    const engagementId = selectEngagementTargetIn(state, unit, enemies)
+    const engagement = engagementId === null ? null : findEnemy(state, engagementId)
+    if (engagement !== null) {
+      advanceEngagement(state, unit, engagement, followSpeed)
       continue
     }
 
-    const step = Math.min(distance, followSpeed)
-    const from = unit.position
-    const to = stepMove(from, (dx / distance) * step, (dy / distance) * step)
-    unit.position = to
-    unit.lastDisplacement = displacementOf(from, to)
+    stepToward(unit, slotPosition(center, assignment.slotIndex), followSpeed)
   }
 }
 

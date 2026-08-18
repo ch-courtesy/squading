@@ -462,13 +462,32 @@ describe('§1.12 telegraph, impact, cooldown', () => {
     }
 
     expect(events).toEqual([])
+    const command = unit(state, 1)
+    // The command unit's half is pure §1.12 arithmetic and §1.4.1 does not touch it:
+    // 54 x 0.115 = 6.21 of travel, from a body the player drives and nothing else moves.
+    expect(command.position.x - 28).toBeCloseTo(6.21, 9)
+
     const distances = state.friendlies
       .filter((body) => body.life === 'standing')
       .map((body) => Math.hypot(body.position.x - 28, body.position.y - 16))
-    // The command unit travelled 54 x 0.115 = 6.21; the trailing slot (-2.2, 0) is therefore
-    // 4.01 from the centre, which is the closest body on the board.
-    expect(Math.min(...distances)).toBeCloseTo(6.21 - 2.2, 6)
     expect(Math.min(...distances)).toBeGreaterThan(ELITE_BLAST_RADIUS)
+
+    // WHAT §1.4.1 TOOK AWAY FROM THIS FIXTURE. It used to read "the trailing slot (-2.2, 0) is
+    // therefore 4.01 from the centre, which is the closest body on the board" — a derivation
+    // that was true only while the fifteen were pinned to their slots. They are not any more:
+    // the elite crosses into `LEASH_RADIUS` on its way in, the soldiers position against IT,
+    // and where the closest body ends up is a function of the elite's approach rather than of
+    // the slot table. So the number below is MEASURED at these placeholder values, not derived,
+    // and it is here to notice a change rather than to justify one. The claim the fixture
+    // exists for is the line above it, and that one is still derived: nobody is in the circle.
+    expect(Math.min(...distances)).toBeCloseTo(3.525, 6)
+
+    // And the reason it moved, asserted rather than assumed: the squad is off its slots.
+    const trailing = unit(state, 2)
+    const itsSlot = { x: command.position.x - 2.2, y: command.position.y - 1.1 }
+    expect(
+      Math.hypot(trailing.position.x - itsSlot.x, trailing.position.y - itsSlot.y),
+    ).toBeGreaterThan(0.1)
   })
 
   it('deals no contact damage, at any distance', () => {

@@ -19,15 +19,25 @@ import { projectPolicyView } from '../../src/core/harness/policy/view'
 
 const THREE_SEEDS = ['seed-a', 'seed-b', 'seed-c'] as const
 
-describe('§1.17 the runner reproduces the digests batch E recorded', () => {
-  it('drives `tactical-no-input` to exactly the states batch E measured', () => {
+describe('§1.17 the runner reproduces the digests batch H recorded', () => {
+  it('drives `tactical-no-input` to exactly the states batch H measured', () => {
     // Batch E ran the facade with the card choice and no other input — which is what §4.1 calls
-    // `tactical-no-input` — and recorded these. They are the standing evidence that batch F added
-    // no field to `BattleState` and no draw to a stream: either would move all three.
+    // `tactical-no-input` — and recorded 2017/178/`b4fea139`, 2060/187/`68378662` and
+    // 2008/180/`a769c2fa`. §1.4.1 (batch H) MOVED ALL THREE, on purpose: the soldiers stopped
+    // being pinned to slots, so every position in the digest is a different number from the tick
+    // the first enemy came inside `LEASH_RADIUS`. The spec commit that introduced §1.4.1 said
+    // these would move; the values below are the measurement of where they moved to.
+    //
+    // WHAT THEY STILL PIN, and it is the reason they are here rather than deleted: no field was
+    // added to `BattleState` and no draw to a stream. A moved digest cannot prove that on its
+    // own — `tests/battle/battle-state.test.ts` is what proves it, by pinning the top-level key
+    // set, every nested object's key set, both row types and the three stream names, and none of
+    // those four pins was touched by this batch. These three lines are the OTHER half: they say
+    // that whatever moved, it moved once and reproducibly.
     expect(THREE_SEEDS.map((seed) => runPolicySeed(policyFactory('tactical-no-input'), seed))).toEqual([
-      { seed: 'seed-a', outcome: 'won', endTick: 2017, kills: 178, standing: 16, digest: 'b4fea139' },
-      { seed: 'seed-b', outcome: 'won', endTick: 2060, kills: 187, standing: 16, digest: '68378662' },
-      { seed: 'seed-c', outcome: 'won', endTick: 2008, kills: 180, standing: 16, digest: 'a769c2fa' },
+      { seed: 'seed-a', outcome: 'won', endTick: 2018, kills: 164, standing: 16, digest: '74e89375' },
+      { seed: 'seed-b', outcome: 'won', endTick: 2005, kills: 167, standing: 16, digest: 'a6d977a4' },
+      { seed: 'seed-c', outcome: 'won', endTick: 2295, kills: 206, standing: 15, digest: '7a3382f0' },
     ])
   })
 })
@@ -54,10 +64,16 @@ describe('§4.1 `flees-always` on the three seeds', () => {
     // policy's reading of 가장 가까운 적" is in tension with E0's own prose about that policy. It
     // stands as a localization and not as a proof; what pins the reducer is the digest block
     // above, which does not depend on this argument at all.
+    //
+    // BATCH H MOVED THESE TOO, for §1.4.1's reason and not for a new one. The batch F values
+    // were 1932/170/15/`19a98b3b`, 1995/181/16/`d8406125` and 2040/185/16/`1a56f90a`; the
+    // localization argument above is about the DELETED E0 loop and is untouched by the move —
+    // it was already an argument about numbers this batch has now superseded, and nothing below
+    // re-derives it.
     expect(THREE_SEEDS.map((seed) => runPolicySeed(policyFactory('flees-always'), seed))).toEqual([
-      { seed: 'seed-a', outcome: 'won', endTick: 1932, kills: 170, standing: 15, digest: '19a98b3b' },
-      { seed: 'seed-b', outcome: 'won', endTick: 1995, kills: 181, standing: 16, digest: 'd8406125' },
-      { seed: 'seed-c', outcome: 'won', endTick: 2040, kills: 185, standing: 16, digest: '1a56f90a' },
+      { seed: 'seed-a', outcome: 'won', endTick: 2069, kills: 161, standing: 9, digest: '03d32a9b' },
+      { seed: 'seed-b', outcome: 'won', endTick: 1961, kills: 175, standing: 16, digest: '7f093e81' },
+      { seed: 'seed-c', outcome: 'won', endTick: 1983, kills: 176, standing: 16, digest: 'e005f02e' },
     ])
   })
 
@@ -91,11 +107,12 @@ describe('§1.11 the rescue difference, driven through the real rules', () => {
   /**
    * A hand-authored down, because the placeholders do not produce one.
    *
-   * Measured over the three seeds, in seed order: 2, 0 and 0 bodies go down in a whole `skilled`
-   * run. Both of `seed-a`'s fall inside the last dozen ticks — 1971 and 1979, against a verdict
-   * at 1979 — and the second goes down ON the verdict tick, after the last decision, so only ONE
-   * of the two is ever in a view the policy reads, for eight decisions. `skilled` completes no
-   * rescue on any of the three, and sends no `set-rescue` at all.
+   * Re-measured after §1.4.1 (batch H), over all EIGHT band seeds: `skilled` now takes ZERO
+   * bodies down on every one of them, completes no rescue and sends no `set-rescue`. Batch F
+   * measured 2, 0 and 0 over the first three seeds, with both of `seed-a`'s inside the last dozen
+   * ticks; the leash moved that to 0 everywhere, which is a fact about balance and belongs in the
+   * §5 record, not a fact about the policy. `tactical-no-input` is the one that produces downs
+   * now — 0/0/1/0/7/0/0/1 over the eight seeds, all of them after tick 1995.
    *
    * There is nothing to rescue at these values, which is a fact about §5 stage 2 (아군 HP × 적
    * 피해) and not about the policy — so the fixture makes the situation instead of waiting for

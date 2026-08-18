@@ -452,7 +452,19 @@ describe('§1.16 the reducer runs a whole battle to a verdict', () => {
     expect(run.orderViolations).toEqual([])
     expect([...run.sourcesSeen].sort()).toEqual([1, 2, 3])
     expect(run.ticksOrderingFriendlyAgainstEnemy).toBeGreaterThan(0)
-    expect(run.ticksOrderingBlastAgainstAnother).toBeGreaterThan(0)
+    // THE RANK-3 HALF IS TAKEN FROM A SECOND SEED, and §1.4.1 is why. While the fifteen were
+    // pinned to slots the elite's impact caught twelve or thirteen bodies clumped inside the
+    // frozen 2.4 circle, and one of `seed-a`'s two impacts shared its tick with a friendly
+    // volley. They scatter now — 4.5~5.0 from the elite instead of 2.46 from the command unit —
+    // so on `seed-a` each impact catches the command unit ALONE and neither impact tick has a
+    // second source on it. Measured over the eight band seeds: `seed-a` 0, `seed-g` 0, the other
+    // six between 1 and 5. `seed-b` is the nearest one that is not vacuous, so the check is
+    // taken there and `seed-a` keeps everything else. A run with `seed-b` at 0 would fail here
+    // rather than pass quietly, which is the point of the counter.
+    const blastRun = playToVerdict('seed-b')
+    expect(blastRun.orderViolations).toEqual([])
+    expect(blastRun.ticksOrderingBlastAgainstAnother).toBeGreaterThan(0)
+    expect(run.ticksOrderingBlastAgainstAnother).toBe(0)
 
     // HAZARD 4: both consumers read the transition row's return value.
     expect(run.killMismatches).toEqual([])
