@@ -16,8 +16,11 @@ import {
   COMMANDER_MOVE_SPEED,
   COMMANDER_START,
   FOLLOW_MAX_SPEED,
+  LEASH_RADIUS,
   MELEE_MOVE_SPEED,
+  SHOOTER_RANGE,
   SOLDIER_MOVE_SPEED,
+  SOLDIER_RANGE,
 } from '../../src/core/battle/constants'
 import { FORMATION_SLOTS, slotPosition } from '../../src/core/battle/formation'
 import {
@@ -150,6 +153,179 @@ describe('§1.4 formation following', () => {
 
     expect(slotTarget(state, 2)).toEqual({ x: 10 + slot.x, y: 10 + slot.y })
     expect(Object.keys(assignment).sort()).toEqual(['slotIndex', 'unitId'])
+  })
+})
+
+describe('§1.4.1 leash engagement — the soldiers fight for themselves', () => {
+  // WHAT THESE ARE MEASURED AGAINST. `LEASH_RADIUS` is 8.0, the band is
+  // `[SHOOTER_RANGE 4.5, SOLDIER_RANGE 5.0]`, the follow cap is 0.13 and the command unit
+  // starts at (28, 16). Every distance below is hand-computed off those four numbers, so a
+  // tuning pass that moves any of them fails these loudly instead of quietly re-deriving.
+  //
+  // `advanceFormationFollow` is called directly rather than through a tick, because §1.16
+  // runs 대상 선택 AFTER 추종·적 이동: what this step engages against is a target it derives
+  // itself, and driving a whole tick would hide which of the two picked it.
+
+  /** Soldier 2 holds slot 0, `(-2.2, -1.1)` — so its rest position is `(25.8, 14.9)`. */
+  const SOLDIER = 2
+
+  it('leaves its slot for an enemy inside the leash, and stays for one outside', () => {
+    // The contrast IS the evidence that the leash exists: same board, same soldier, one
+    // enemy moved from 7.0 to 9.0 away from the command unit.
+    const inside = createInitialBattleState('seed-a')
+    inside.enemies = [createEnemy(101, 'melee', { x: COMMANDER_START.x + 7, y: 16 })]
+    const engaged = findFriendly(inside, SOLDIER)!
+    const slot = { ...engaged.position }
+    expect(slot).toEqual({ x: 25.8, y: 14.9 })
+
+    advanceFormationFollow(inside)
+    // 9.2655 away from the enemy at (35, 16), so it closes at the follow cap.
+    expect(engaged.position.x).toBeGreaterThan(slot.x)
+    expect(engaged.lastDisplacement).toBeCloseTo(FOLLOW_MAX_SPEED, 12)
+
+    const outside = createInitialBattleState('seed-a')
+    outside.enemies = [createEnemy(101, 'melee', { x: COMMANDER_START.x + 9, y: 16 })]
+    const held = findFriendly(outside, SOLDIER)!
+    const heldSlot = { ...held.position }
+
+    advanceFormationFollow(outside)
+    expect(held.position).toEqual(heldSlot)
+    expect(held.lastDisplacement).toBe(0)
+    // Not a fluke of the epsilon: the enemy is 9.0 out and the leash is 8.0.
+    expect(LEASH_RADIUS).toBeGreaterThan(7)
+    expect(LEASH_RADIUS).toBeLessThan(9)
+  })
+
+  it('walks to its own range band and stops there, not onto the enemy (§1.6)', () => {
+    // Enemy at (31, 16): 3.0 from the command unit, so well inside the leash. The soldier
+    // starts 5.3 away from it, and the band's far edge is its own range, 5.0.
+    const state = createInitialBattleState('seed-a')
+    state.enemies = [createEnemy(101, 'melee', { x: 31, y: 16 })]
+    const unit = findFriendly(state, SOLDIER)!
+    unit.position = { x: 31 - 5.3, y: 16 }
+
+    // 5.3 -> 5.17 -> 5.04 (two full 0.13 steps) -> 5.00 (the 0.04 remainder, no overshoot).
+    advanceFormationFollow(state)
+    expect(unit.position.x).toBeCloseTo(25.83, 12)
+    advanceFormationFollow(state)
+    expect(unit.position.x).toBeCloseTo(25.96, 12)
+    advanceFormationFollow(state)
+    expect(unit.position.x).toBeCloseTo(26.0, 12)
+
+    const distance = 31 - unit.position.x
+    expect(distance).toBeCloseTo(SOLDIER_RANGE, 12)
+    // §1.6's gap, per unit: it shoots and a shooter at the same spot could not shoot back.
+    expect(distance).toBeGreaterThan(SHOOTER_RANGE)
+
+    // And it holds: inside the band the displacement is exactly 0, not "small".
+    advanceFormationFollow(state)
+    expect(unit.position.x).toBeCloseTo(26.0, 12)
+    expect(unit.lastDisplacement).toBe(0)
+  })
+
+  it('does not move at all while it is already inside the band', () => {
+    const state = createInitialBattleState('seed-a')
+    state.enemies = [createEnemy(101, 'melee', { x: 31, y: 16 })]
+    const unit = findFriendly(state, SOLDIER)!
+    // 4.7 is strictly between 4.5 and 5.0 — neither edge, so neither branch may fire.
+    const parked = { x: 31 - 4.7, y: 16 }
+    unit.position = { ...parked }
+
+    for (let tick = 1; tick <= 100; tick += 1) {
+      advanceFormationFollow(state)
+      expect(unit.position, `tick ${tick}`).toEqual(parked)
+      expect(unit.lastDisplacement, `tick ${tick}`).toBe(0)
+    }
+  })
+
+  it('returns to its slot when the target is gone, and settles without jitter', () => {
+    const state = createInitialBattleState('seed-a')
+    state.enemies = [createEnemy(101, 'melee', { x: 34, y: 16 })]
+    const unit = findFriendly(state, SOLDIER)!
+    const slot = { ...unit.position }
+
+    for (let tick = 0; tick < 20; tick += 1) advanceFormationFollow(state)
+    expect(unit.position.x).toBeGreaterThan(slot.x + 2)
+
+    // The enemy dies. §1.4.1: no candidate, so the follow rule of §1.4 takes over again.
+    state.enemies = []
+    for (let tick = 0; tick < 200; tick += 1) advanceFormationFollow(state)
+    expect(unit.position.x).toBeCloseTo(slot.x, 12)
+    expect(unit.position.y).toBeCloseTo(slot.y, 12)
+
+    // §1.4's dead-band, on the return: exactly still, for fifty more ticks.
+    for (let tick = 1; tick <= 50; tick += 1) {
+      const settled = { ...unit.position }
+      advanceFormationFollow(state)
+      expect(unit.position, `tick ${tick}`).toEqual(settled)
+      expect(unit.lastDisplacement, `tick ${tick}`).toBe(0)
+    }
+  })
+
+  it('anchors the leash to the COMMAND UNIT, not to the soldier and not to its slot', () => {
+    // THE design point of §1.4.1. Both halves put the same soldier at (29, 16) and the same
+    // enemy at (35, 16) — 6.0 apart, so the soldier is outside its own range and would
+    // close on the enemy if the leash were measured from itself. Only the command unit moves.
+    function board(commandX: number) {
+      const state = createInitialBattleState('seed-a')
+      findFriendly(state, state.commandUnitId)!.position = { x: commandX, y: 16 }
+      state.enemies = [createEnemy(101, 'melee', { x: 35, y: 16 })]
+      const unit = findFriendly(state, SOLDIER)!
+      unit.position = { x: 29, y: 16 }
+      return { state, unit }
+    }
+
+    // Command unit at (28, 16): 7.0 from the enemy, inside the leash. The soldier engages
+    // and walks AWAY from its slot at (25.8, 14.9), toward the enemy.
+    const near = board(28)
+    advanceFormationFollow(near.state)
+    expect(near.unit.position.x).toBeGreaterThan(29)
+
+    // Command unit at (10, 16): 25.0 from the enemy, outside it. Nothing about the soldier
+    // or the enemy changed, and it walks the other way, back to its slot at (7.8, 14.9).
+    const far = board(10)
+    advanceFormationFollow(far.state)
+    expect(far.unit.position.x).toBeLessThan(29)
+    expect(far.unit.position.y).toBeLessThan(16)
+  })
+
+  it('never leashes the command unit itself — player input is its only mover (§1.4.1)', () => {
+    const state = createInitialBattleState('seed-a')
+    const command = findFriendly(state, state.commandUnitId)!
+    state.enemies = [createEnemy(101, 'melee', { x: command.position.x + 3, y: command.position.y })]
+    const before = { ...command.position }
+
+    advanceFormationFollow(state)
+    expect(command.position).toEqual(before)
+    expect(command.lastDisplacement).toBe(0)
+    // 3.0 is inside the band's near edge, so every soldier around it is backing off — this
+    // is the tick on which a leashed command unit would be most obvious.
+    expect(findFriendly(state, SOLDIER)!.lastDisplacement).toBeGreaterThan(0)
+  })
+
+  it('moves the leash centre with §1.5 succession', () => {
+    // Enemy at (44, 10): 17.09 from the original commander at (28, 16) and 4.0 from soldier
+    // 5 at (40, 10). The soldier under test sits at (38, 10), 6.0 from the enemy.
+    function board(commandUnitId: number) {
+      const state = createInitialBattleState('seed-a')
+      state.commandUnitId = commandUnitId
+      findFriendly(state, 5)!.position = { x: 40, y: 10 }
+      state.enemies = [createEnemy(101, 'melee', { x: 44, y: 10 })]
+      const unit = findFriendly(state, SOLDIER)!
+      unit.position = { x: 38, y: 10 }
+      return { state, unit }
+    }
+
+    // Command with the original commander: the enemy is off the leash, so the soldier walks
+    // back toward its slot at (25.8, 14.9) — leftward.
+    const beforeSuccession = board(1)
+    advanceFormationFollow(beforeSuccession.state)
+    expect(beforeSuccession.unit.position.x).toBeLessThan(38)
+
+    // §1.5 hands command to soldier 5. Same enemy, same soldier, and now it engages.
+    const afterSuccession = board(5)
+    advanceFormationFollow(afterSuccession.state)
+    expect(afterSuccession.unit.position.x).toBeGreaterThan(38)
   })
 })
 

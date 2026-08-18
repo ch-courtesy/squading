@@ -455,7 +455,9 @@ const MUTATIONS = [
   // three of the four survived `tests/battle/battle-movement.test.ts` — the first, second and
   // third — and all four were caught by the digest block alone. The fourth was already caught by
   // §1.4's own follow fixtures, which is what a soldier that never walks back to its slot breaks.
-  // The batch H report records that run. The fixtures are what make the verdict legible.
+  // The batch H report records that run. With the fixtures in place all four are caught by
+  // `tests/battle/battle-movement.test.ts` ALONE, which is the property that makes the verdict
+  // legible: the failure names the rule instead of naming a hash.
   {
     file: MOVEMENT,
     label: 'chase only the enemies OUTSIDE the leash',
