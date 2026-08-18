@@ -117,11 +117,14 @@ const TARGET_TESTS = [
   'tests/harness',
   'tests/battle/battle-no-cover.test.ts',
   'tests/battle/battle-step-numbers.test.ts',
+  // Batch H: §1.4.1's rule lives in `movement.ts` and its fixtures live here.
+  'tests/battle/battle-movement.test.ts',
 ]
 
 const VIEW = 'src/core/harness/policy/view.ts'
 const POLICIES = 'src/core/harness/policy/policies.ts'
 const RUN = 'src/core/harness/policy/run.ts'
+const MOVEMENT = 'src/core/battle/movement.ts'
 
 /**
  * The mutation table. Hardcoded on purpose — a generated mutation set is a different tool, and
@@ -428,6 +431,56 @@ const MUTATIONS = [
     replace:
       "  'skilled-conservative': { standoff: conservativeStandoff, commitTicks: 12 },\n" +
       "  'skilled-aggressive': { standoff: aggressiveStandoff, commitTicks: 12 },",
+  },
+
+  // --- movement.ts / §1.4.1's four decisions --------------------------------------------------
+  // NOT chosen by reading the fixtures. §1.4.1 is four sentences and each one of these mutations
+  // negates exactly one of them:
+  //
+  //   "이 반경 안의 적만 병사가 쫓아갈 대상이 된다"          -> flip the comparison
+  //   "`LEASH_RADIUS`는 지휘 유닛에 고정된다. 슬롯이 아니라"  -> move the anchor to the soldier
+  //   "자기 대상에 대해 자기 사거리 밴드로 이동한다"          -> walk onto the body instead
+  //   "대상이 없는 병사는 슬롯으로 복귀한다"                  -> stand still instead
+  //
+  // THE SECOND ONE IS THE DESIGN. §1.4.1 gives the reason in its own text — a soldier that hunted
+  // from where it stands makes the command unit's position stop selecting which fight happens,
+  // and §4.5's third question then has no mechanism under it. It is one line in `movement.ts` on
+  // purpose, so that changing it is one visible edit.
+  //
+  // WHAT THE DIGEST PINS DO AND DO NOT DO HERE. `tests/harness/policy-run.test.ts` pins three
+  // whole-run digests, so ANY behavioural change under `src/core/battle/` moves them and every
+  // mutation below is caught by that alone. That is a change detector, not a statement about
+  // which rule broke: it says the run is different, never that the leash is anchored to the
+  // command unit. Measured with the mutations committed and the §1.4.1 fixtures NOT yet written:
+  // three of the four survived `tests/battle/battle-movement.test.ts` — the first, second and
+  // third — and all four were caught by the digest block alone. The fourth was already caught by
+  // §1.4's own follow fixtures, which is what a soldier that never walks back to its slot breaks.
+  // The batch H report records that run. The fixtures are what make the verdict legible.
+  {
+    file: MOVEMENT,
+    label: 'chase only the enemies OUTSIDE the leash',
+    find: '    return leashDistance <= LEASH_RADIUS',
+    replace: '    return leashDistance > LEASH_RADIUS',
+  },
+  {
+    // THE design point of §1.4.1, and the one a reviewer should check first.
+    file: MOVEMENT,
+    label: 'anchor the leash to the soldier instead of the command unit',
+    find: '  const leashCenter = command.position',
+    replace: '  const leashCenter = unit.position',
+  },
+  {
+    file: MOVEMENT,
+    label: 'walk onto the enemy instead of to the range band',
+    find:
+      '  const toBand = distance > far ? distance - far : distance < near ? distance - near : 0',
+    replace: '  const toBand = distance',
+  },
+  {
+    file: MOVEMENT,
+    label: 'stand still instead of returning to the slot',
+    find: '    stepToward(unit, slotPosition(center, assignment.slotIndex), followSpeed)',
+    replace: '    unit.lastDisplacement = 0',
   },
 
   // --- run.ts: the aggregation ---------------------------------------------------------------
