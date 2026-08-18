@@ -78,7 +78,18 @@ export type RenderSnapshot = {
   readonly units: readonly RenderUnit[]
   readonly projectiles: readonly RenderProjectile[]
   readonly effects: readonly RenderEffect[]
+  /** What must be on screen. It moves when the camera follows something. */
   readonly camera: CameraState
+  /**
+   * The board itself — the world region the rules confine play to.
+   *
+   * Separate from `camera` because a FOLLOWING camera makes them different things, and drawing
+   * the board at the camera's extent then paints the arena boundary as a rail that walks around
+   * with the player. v1 and the renderer lab publish one static rectangle that is both, and omit
+   * this; the renderer falls back to `camera`, which is exactly what they had. The v2 commander
+   * battle follows its command unit and publishes its arena here.
+   */
+  readonly playArea?: CameraState
   readonly activeSquad?: Squad
 }
 

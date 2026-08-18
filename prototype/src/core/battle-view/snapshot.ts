@@ -253,6 +253,15 @@ export function projectBattleSnapshot(state: Readonly<BattleState>): RenderSnaps
     projectiles: [],
     effects,
     camera: { centerX: center.x, centerY: center.y, ...frameAround(center, framedBodies) },
+    // §1.7's arena, which is where play is confined and where the board's rail belongs. It is
+    // NOT the camera rectangle: that follows the command unit, and a board drawn at its extent
+    // paints a boundary that walks around with the player.
+    playArea: {
+      centerX: ARENA_WIDTH / 2,
+      centerY: ARENA_HEIGHT / 2,
+      worldWidth: ARENA_WIDTH,
+      worldHeight: ARENA_HEIGHT,
+    },
     // The renderer's diorama presentation is gated on this signal, and the command unit is
     // what wears it: the pulsing ring marks the body the player is driving.
     activeSquad: COMMAND_SQUAD,

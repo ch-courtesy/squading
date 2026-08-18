@@ -88,6 +88,17 @@ describe('battle-view: the display-only projection (§6)', () => {
     expect(camera.worldHeight / 2).toBeGreaterThanOrEqual(VIEW_REQUIRED_RADIUS)
   })
 
+  it('publishes §1.7 arena as the board, which the camera is not', () => {
+    const state = stateAt()
+    unitOf(state, COMMANDER_ID).position = { x: 8, y: 6 }
+
+    const { camera, playArea } = projectBattleSnapshot(state)
+    expect(playArea).toEqual({ centerX: 28, centerY: 16, worldWidth: 56, worldHeight: 32 })
+    // The two must not be the same rectangle, or the rail walks around with the player.
+    expect(camera.worldWidth).toBeLessThan(playArea!.worldWidth)
+    expect(camera.centerX).not.toBe(playArea!.centerX)
+  })
+
   it('widens the camera for a body that has fallen behind the formation (§4.4a)', () => {
     const state = stateAt()
     const straggler = unitOf(state, 3)

@@ -556,7 +556,7 @@ class ThreeHybridRenderer implements HybridGameRenderer {
   /** The decals are paint, not scenery: no mark may reach past the play area. */
   private decalsWithinPlayArea(): boolean {
     const decals = this.surfaceDecals
-    const camera = this.snapshot?.camera
+    const camera = this.snapshot?.playArea ?? this.snapshot?.camera
     if (!decals || !camera) return false
     const halfWidth = camera.worldWidth / 2
     const halfDepth = camera.worldHeight / 2
@@ -698,7 +698,7 @@ class ThreeHybridRenderer implements HybridGameRenderer {
 
     // The terrain surround. Built once, from cosmetic randomness only, entirely outside
     // the play area — it decorates the board and never takes part in judgement.
-    this.props = createTerrainProps(snapshot.camera, { sightlineSlope: 1.05 / Math.tan(DIORAMA_PITCH_RADIANS) })
+    this.props = createTerrainProps(snapshot.playArea ?? snapshot.camera, { sightlineSlope: 1.05 / Math.tan(DIORAMA_PITCH_RADIANS) })
     this.props.meshes.forEach((mesh) => this.scene!.add(mesh))
 
     // Action feedback: the two pooled particle systems and the textures the sigil, the
@@ -714,7 +714,7 @@ class ThreeHybridRenderer implements HybridGameRenderer {
     //
     // All of it merges into a single vertex-coloured mesh: one draw call for the whole
     // set, and it is built once from the play-area bounds the snapshot publishes.
-    this.surfaceDecals = createSurfaceDecals(snapshot.camera)
+    this.surfaceDecals = createSurfaceDecals(snapshot.playArea ?? snapshot.camera)
     this.surfaceDecals.mesh.name = SURFACE_DECAL_NAME
     this.scene.add(this.surfaceDecals.mesh)
 
@@ -1240,7 +1240,12 @@ class ThreeHybridRenderer implements HybridGameRenderer {
   }
 
   private updateTabletopBounds(snapshot: RenderSnapshot): void {
-    const { centerX, centerY, worldWidth, worldHeight } = snapshot.camera
+    // The BOARD, which is where play is confined — not the camera's window onto it. They are the
+    // same rectangle for v1 and the lab, which publish no `playArea`; they are not the same for a
+    // camera that follows a unit, and drawing the rail at the window's edge would paint a
+    // boundary that walks around with the player.
+    const { centerX, centerY, worldWidth, worldHeight } = snapshot.playArea ?? snapshot.camera
+    const view = snapshot.camera
     const ground = this.scene?.getObjectByName('tabletop-ground')
     if (ground) {
       ground.position.set(centerX, 0, centerY)
@@ -1257,16 +1262,20 @@ class ThreeHybridRenderer implements HybridGameRenderer {
       // A low raking key from the front left. Its 29-degree elevation is what stretches
       // a miniature's shadow to nearly twice its own height, the way the concept art
       // reads; it sits far out so every prop stays in front of the shadow camera.
-      if (this.diorama) light.position.set(centerX - 26, 22, centerY + 30)
-      else light.position.set(centerX - 8, CAMERA_HEIGHT - 2, centerY + 10)
-      light.target.position.set(centerX, 0, centerY)
+      //
+      // The LIGHTS track the view and not the board: the shadow camera covers a fixed span
+      // around wherever it is aimed, so aiming it at a board centre the player has walked away
+      // from would leave the lit half of the arena without shadows.
+      if (this.diorama) light.position.set(view.centerX - 26, 22, view.centerY + 30)
+      else light.position.set(view.centerX - 8, CAMERA_HEIGHT - 2, view.centerY + 10)
+      light.target.position.set(view.centerX, 0, view.centerY)
       light.target.updateMatrixWorld()
     }
     this.updateFrameRails(centerX, centerY, worldWidth, worldHeight)
     const rim = this.scene?.getObjectByName(RIM_LIGHT_NAME) as THREE.DirectionalLight | undefined
     if (rim) {
-      rim.position.set(centerX + 12, 9, centerY - 14)
-      rim.target.position.set(centerX, 0, centerY)
+      rim.position.set(view.centerX + 12, 9, view.centerY - 14)
+      rim.target.position.set(view.centerX, 0, view.centerY)
       rim.target.updateMatrixWorld()
     }
   }
