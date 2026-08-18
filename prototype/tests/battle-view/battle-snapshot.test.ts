@@ -151,18 +151,28 @@ describe('battle-view: the display-only projection (§6)', () => {
     expect(signals.map((effect) => effect.id).sort()).toEqual([COMMANDER_ID, body.id].sort())
   })
 
-  it('never writes through to the state it projects', () => {
+  it('never writes to the state it projects, and hands back no reference into it', () => {
     const state = stateAt()
     state.enemies.push(createEnemy(101, 'shooter', { x: 33, y: 16 }))
+    const body = unitOf(state, 5)
+    body.life = 'downed'
+    body.position = { x: 28.4, y: 16 }
+    state.elite.attackPhase = 'telegraph'
+    state.elite.telegraphCenter = { x: 20, y: 12 }
+    state.elite.telegraphRemaining = 30
     const before = digestBattleState(state)
 
     const snapshot = projectBattleSnapshot(state)
-    for (const unit of snapshot.units as { x: number; y: number }[]) {
-      unit.x += 100
-      unit.y += 100
-    }
-
     expect(digestBattleState(state)).toBe(before)
+
+    // Every coordinate the snapshot carries is a copied number, so there is no object a
+    // renderer could reach back through — including the one Vec2 the state does own.
+    expect(snapshot.effects.some((effect) => effect.kind === 'elite-telegraph')).toBe(true)
+    for (const effect of snapshot.effects) {
+      expect(effect).not.toBe(state.elite.telegraphCenter)
+      expect(typeof effect.x).toBe('number')
+    }
+    expect(snapshot.units.every((unit) => typeof unit.x === 'number')).toBe(true)
   })
 
   it('keeps every slot of §1.4 inside the guaranteed region', () => {
