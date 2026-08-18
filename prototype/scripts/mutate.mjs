@@ -135,10 +135,28 @@ const MUTATIONS = [
     find: '  if (distance < goal.band[0]) return',
     replace: '  if (distance < goal.band[1]) return',
   },
+  {
+    // §1.6 is a gap against the SHOOTER — `SHOOTER_RANGE < SOLDIER_RANGE` is the whole of it, and
+    // a melee has no range for the gap to be a gap against. Dropping the filter measures the band
+    // against whichever body is nearest, which reverses the direction of the step outright.
+    file: POLICIES,
+    label: 'measure the standoff band against the nearest body of any kind',
+    find:
+      '  const target = nearestEnemy(shooters.length > 0 ? shooters : view.enemies, command.position)',
+    replace: '  const target = nearestEnemy(view.enemies, command.position)',
+  },
 
   // --- policies.ts / `PolicyRules.rescues` ----------------------------------------------------
   // §4.1: `abandons-downed` is "`set-rescue`를 절대 보내지 않음", and I13 counts the survivor
   // difference that switch is supposed to produce.
+  {
+    // The key itself, where the one variant that owns it is defined. The two below change the
+    // code that READS the switch; this one changes what the switch says.
+    file: POLICIES,
+    label: 'turn the `abandons-downed` switch back on',
+    find: "  'abandons-downed': { rescues: false },",
+    replace: "  'abandons-downed': { rescues: true },",
+  },
   {
     file: POLICIES,
     label: 'never rescue (early return)',
@@ -156,6 +174,15 @@ const MUTATIONS = [
   // --- policies.ts / `PolicyRules.allowsMove` ------------------------------------------------
   // §4.1: `camps-in-place` is "한 자리에 멈춰 정예 회피 외에는 움직이지 않음" — one filter on
   // which reasons are worth a step, and I10 is the band it is measured by.
+  {
+    // The hook's own definition. "정예 회피 외에는" names ONE reason, so widening the set is the
+    // mutation the row is written against — and `rescue-approach` is the widening that walks the
+    // camper across the board.
+    file: POLICIES,
+    label: 'let the camper move for a rescue as well as for the blast',
+    find: "  return reason === 'elite-dodge'",
+    replace: "  return reason === 'elite-dodge' || reason === 'rescue-approach'",
+  },
   {
     file: POLICIES,
     label: 'ignore the `allowsMove` filter',
@@ -227,6 +254,38 @@ const MUTATIONS = [
     label: 'release a lock the moment the body stops being a candidate',
     find: '  if (view.rescue !== null) return { kind: \'rescue\' }',
     replace: '  if (false) return { kind: \'rescue\' }',
+  },
+  {
+    // The ORDER `skilledIntent` asks its three questions in. §1.12's blast is the only thing that
+    // can take the whole formation at once, so it outranks §1.11's countdown — this swaps them
+    // and leaves the rescuer standing inside the circle.
+    file: POLICIES,
+    label: 'answer the countdown before the blast',
+    find:
+      '  const dodge = eliteDodgeIntent(view, command)\n' +
+      '  if (dodge !== null) return dodge\n' +
+      '\n' +
+      '  if (rules.rescues) {\n' +
+      '    const rescue = rescueIntent(view, command)\n' +
+      '    if (rescue !== null) return rescue\n' +
+      '  }',
+    replace:
+      '  if (rules.rescues) {\n' +
+      '    const rescue = rescueIntent(view, command)\n' +
+      '    if (rescue !== null) return rescue\n' +
+      '  }\n' +
+      '\n' +
+      '  const dodge = eliteDodgeIntent(view, command)\n' +
+      '  if (dodge !== null) return dodge',
+  },
+  {
+    // §1.11's countdown has to cover the WHOLE trip, and the lock is part of the trip: a body
+    // reached with fewer than `RESCUE_TICKS` left is a body that dies under the lock. Dropping
+    // the term walks the policy to a body it has already been shown it cannot finish.
+    file: POLICIES,
+    label: 'budget the walk to a downed body but not the lock at the end of it',
+    find: '    if (travelTicks + RESCUE_TICKS > unit.downedTicksRemaining) continue',
+    replace: '    if (travelTicks > unit.downedTicksRemaining) continue',
   },
   {
     file: POLICIES,
