@@ -11,6 +11,34 @@
 // margin that nothing pins on purpose. Both outcomes are printed; the batch report is where a
 // miss has to be argued for.
 //
+// ---------------------------------------------------------------------------
+// WHERE THE LIST COMES FROM, AND WHY IT IS NOT READ OFF THE FIXTURES
+// ---------------------------------------------------------------------------
+// The first version of this table was assembled by reading the fixtures and asking what they
+// would notice. The number that comes out of that is a tautology — it measures the tests against
+// themselves — and the review of batch F demonstrated it rather than asserting it: it picked five
+// mutations of its own and ALL FIVE passed the whole 569-test suite, three of them deleting the
+// `commitTicks` mechanism the spec patch `ba2fa70` had just introduced.
+//
+// So this table is chosen from the RULES, with the fixtures unread. The two sources are:
+//
+//   * §4.1's table in `docs/superpowers/specs/2026-08-16-commander-battle-design.md` — the six
+//     policies and the ONE difference each names against `skilled`.
+//   * §3's two `skilled` player models, and in particular the amended second one: "둘째 변형을
+//     v9가 실제로 가르는 축 — 어디에 멈출지(§1.6의 사거리 격차 안 어디)와 얼마나 자주 다시
+//     고를지 — 으로 재정의한다."
+//
+// The mechanical rule those two produce: `PolicyRules` in `policies.ts` is the record of decision
+// points that §4.1's "한 가지만 바꾼 변형" is built out of, so EVERY ONE OF ITS FIVE KEYS CARRIES
+// AT LEAST ONE MUTATION — `intent`, `allowsMove`, `standoff`, `rescues`, `commitTicks`. The
+// `policies.ts` section below is grouped by those five keys and every group names the rule it was
+// derived from. A key with no mutation under it is a hole in THIS FILE, not a property of the
+// code; that is exactly what `commitTicks` was before this round.
+//
+// `view.ts` and `run.ts` are not decision points. Their mutations come from the two lists in
+// `view.ts`'s own header ("what is on the screen" against "what is not") and from the band
+// arithmetic §4.1 counts policies by.
+//
 // Usage, from `prototype/`:  node scripts/mutate.mjs [--filter <substring>]
 //
 // It restores every file it touches, including on Ctrl-C. If it ever exits with a file still
@@ -85,7 +113,10 @@ const MUTATIONS = [
     replace: '    if (assignment.unitId === unitId) return null',
   },
 
-  // --- policies.ts: the decisions ------------------------------------------------------------
+  // --- policies.ts / `PolicyRules.standoff` --------------------------------------------------
+  // §4.1: `ignores-range` is "정지 위치를 고를 때 사거리 우위를 참조하지 않음 — 적에게 붙어서
+  // 멈춘다. 그 외 동일", so WHERE the policy stops is a decision the table names in its own row,
+  // and §1.6's gap is what it stops against.
   {
     file: POLICIES,
     label: 'flip the sign of the standoff fraction',
@@ -104,6 +135,10 @@ const MUTATIONS = [
     find: '  if (distance < goal.band[0]) return',
     replace: '  if (distance < goal.band[1]) return',
   },
+
+  // --- policies.ts / `PolicyRules.rescues` ----------------------------------------------------
+  // §4.1: `abandons-downed` is "`set-rescue`를 절대 보내지 않음", and I13 counts the survivor
+  // difference that switch is supposed to produce.
   {
     file: POLICIES,
     label: 'never rescue (early return)',
@@ -117,12 +152,22 @@ const MUTATIONS = [
     find: '  if (rules.rescues) {',
     replace: '  if (true) {',
   },
+
+  // --- policies.ts / `PolicyRules.allowsMove` ------------------------------------------------
+  // §4.1: `camps-in-place` is "한 자리에 멈춰 정예 회피 외에는 움직이지 않음" — one filter on
+  // which reasons are worth a step, and I10 is the band it is measured by.
   {
     file: POLICIES,
     label: 'ignore the `allowsMove` filter',
     find: "  if (intent.kind === 'move' && rules.allowsMove(intent.reason)) {",
     replace: "  if (intent.kind === 'move') {",
   },
+
+  // --- policies.ts / `PolicyRules.intent` ----------------------------------------------------
+  // §4.1's two whole-decision rows: `tactical-no-input` ("강화 선택 외 입력 없음") and
+  // `flees-always` ("가장 가까운 적에서 계속 멀어지기만 함. 구조·정예 대응 없음"). §1.12's
+  // telegraph, §1.11's countdown, §1.8's nearest-and-ties and §1.15's pointer vocabulary are the
+  // rules `skilled`'s own intent is assembled out of.
   {
     file: POLICIES,
     label: 'never report a keydown',
@@ -166,11 +211,57 @@ const MUTATIONS = [
     replace: '  if (false) {',
   },
   {
+    // Review M3. §1.11 runs a countdown per body, so WHICH body the approach walks to is the
+    // difference between one rescue and none — and it is the only choice `skilled` makes on the
+    // rescue side. This takes the first reachable row in id order instead of the nearest.
+    file: POLICIES,
+    label: 'go for the first reachable body in id order, not the nearest',
+    find: '    if (distance >= bestDistance) continue',
+    replace: '    if (best !== null) continue',
+  },
+  {
+    // Review M5. §1.11: "취소 시 진행도는 0으로 되돌린다", and the candidate test is re-run every
+    // tick, so a lock can outlive the candidacy that started it. Dropping this branch releases
+    // `Space` mid-lock and throws the progress away.
+    file: POLICIES,
+    label: 'release a lock the moment the body stops being a candidate',
+    find: '  if (view.rescue !== null) return { kind: \'rescue\' }',
+    replace: '  if (false) return { kind: \'rescue\' }',
+  },
+  {
     file: POLICIES,
     label: 'revive cover with an import of the archived geometry',
     find: "import type { BattleCommand } from '../../battle/input'",
     replace:
       "import type { BattleCommand } from '../../battle/input'\nimport '../../gameplay/geometry'",
+  },
+
+  // --- policies.ts / `PolicyRules.commitTicks` -----------------------------------------------
+  // §3's amended second variant is defined ON THIS AXIS: "얼마나 자주 다시 고를지". A policy that
+  // re-aims every tick at whichever body is nearest this frame is not a player, and two models
+  // that re-aim on the same clock are not the two models §3 asks for. All three mutations here
+  // are review findings (M1, M2, M4) and all three passed 569/569 before this round.
+  {
+    file: POLICIES,
+    label: 'zero the commitment, so the heading is re-aimed every tick',
+    find: 'const SKILLED_COMMIT_TICKS = 12',
+    replace: 'const SKILLED_COMMIT_TICKS = 0',
+  },
+  {
+    file: POLICIES,
+    label: 'delete the commitment block entirely',
+    find: "  if (intent.kind === 'move' && intent.reason === 'standoff') {",
+    replace: '  if (false) {',
+  },
+  {
+    file: POLICIES,
+    label: "flatten both player models onto `skilled`'s re-aim clock",
+    find:
+      "  'skilled-conservative': { standoff: conservativeStandoff, commitTicks: 30 },\n" +
+      "  'skilled-aggressive': { standoff: aggressiveStandoff, commitTicks: 4 },",
+    replace:
+      "  'skilled-conservative': { standoff: conservativeStandoff, commitTicks: 12 },\n" +
+      "  'skilled-aggressive': { standoff: aggressiveStandoff, commitTicks: 12 },",
   },
 
   // --- run.ts: the aggregation ---------------------------------------------------------------
