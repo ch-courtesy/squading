@@ -37,9 +37,16 @@ describe('§4.1 `flees-always` on the three seeds', () => {
     // E0 measured a hand-assembled flight loop at 1925/171/16, 1995/182/16 and 1935/176/16 and
     // left it as this batch's regression target. These numbers are NOT those. The report for this
     // batch records the localization: a loop that flees the nearest NON-SHOOTER reproduces
-    // seed-a and seed-c exactly and seed-b to the tick, so the difference is in the deleted
-    // policy's reading of "가장 가까운 적", not in the reducer — which the digest block above
-    // pins independently.
+    // seed-a and seed-c exactly and seed-b to the tick and the survivor count, which puts the
+    // difference in the deleted policy's reading of "가장 가까운 적" rather than in the reducer —
+    // and the digest block above pins the reducer independently of that argument.
+    //
+    // ONE KILL IS NOT ACCOUNTED FOR, and this comment does not pretend otherwise. `seed-b` comes
+    // out at 181 against the baseline's 182 under EVERY reading measured — the shipped one, the
+    // nearest non-shooter, and melee-only — including the two that reproduce the other two seeds
+    // to the tick, the kill and the survivor. The loop that produced the baseline is deleted, so
+    // there is nothing left to re-run against it. Five of the six numbers are localized; this one
+    // is an unexplained residual.
     expect(THREE_SEEDS.map((seed) => runPolicySeed(policyFactory('flees-always'), seed))).toEqual([
       { seed: 'seed-a', outcome: 'won', endTick: 1932, kills: 170, standing: 15, digest: '19a98b3b' },
       { seed: 'seed-b', outcome: 'won', endTick: 1995, kills: 181, standing: 16, digest: 'd8406125' },
@@ -77,11 +84,15 @@ describe('§1.11 the rescue difference, driven through the real rules', () => {
   /**
    * A hand-authored down, because the placeholders do not produce one.
    *
-   * Measured over the three seeds: `skilled` sees 0, 0 and 2 downed bodies in a whole run, and
-   * the two on `seed-a` fall inside the last dozen ticks. There is nothing to rescue at these
-   * values, which is a fact about §5 stage 2 (아군 HP × 적 피해) and not about the policy — so
-   * the fixture makes the situation instead of waiting for one, and drives the real §1.11 lock,
-   * the real damage step and the real facade over it.
+   * Measured over the three seeds, in seed order: 2, 0 and 0 bodies go down in a whole `skilled`
+   * run. Both of `seed-a`'s fall inside the last dozen ticks — 1971 and 1979, against a verdict
+   * at 1979 — and the second goes down ON the verdict tick, after the last decision, so only ONE
+   * of the two is ever in a view the policy reads, for eight decisions. `skilled` completes no
+   * rescue on any of the three, and sends no `set-rescue` at all.
+   *
+   * There is nothing to rescue at these values, which is a fact about §5 stage 2 (아군 HP × 적
+   * 피해) and not about the policy — so the fixture makes the situation instead of waiting for
+   * one, and drives the real §1.11 lock, the real damage step and the real facade over it.
    */
   function battleWithADownedSquadmate() {
     const battle = createBattle('seed-a')

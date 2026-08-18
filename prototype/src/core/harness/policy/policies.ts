@@ -8,9 +8,17 @@
 // file. If a gate can only be passed by editing a decision below, the sweep restarts — that is
 // the rule, and editing here instead is how a balance number gets a policy built around it.
 //
-// Everything here is expressed against the CONSTANTS rather than against copies of their current
-// values, for the same reason: a sweep that moves `SHOOTER_RANGE` moves where `skilled` stands
-// without anybody editing a policy.
+// Every DISTANCE here is expressed against the constants rather than against a copy of their
+// current values, for the same reason: a sweep that moves `SHOOTER_RANGE` moves where `skilled`
+// stands, and a sweep that moves `ELITE_BLAST_RADIUS` moves how far outside the circle it runs,
+// without anybody editing a policy. The standoff bands are fractions of `RANGE_ADVANTAGE`, the
+// contact band is `MELEE_RANGE`, the dodge clearance is a fraction of the drawn radius, and the
+// reachability test is built out of `COMMANDER_MOVE_SPEED`, `RESCUE_RANGE` and `RESCUE_TICKS`.
+//
+// THE TICK COUNTS ARE NOT, AND ARE NOT MEANT TO BE. `SKILLED_COMMIT_TICKS` and the two player
+// models' 30 and 4 name no constant and no sweep axis. They are the policy's own axis under §3
+// ("얼마나 자주 다시 고를지"), which is a property of the person playing rather than of the
+// balance, so a sweep is not supposed to carry them.
 //
 // ---------------------------------------------------------------------------
 // ONE POLICY, FIVE ONE-POINT VARIANTS
@@ -166,12 +174,21 @@ function nearestEnemy(enemies: readonly EnemyView[], from: Vec2): EnemyView | nu
 // ---------------------------------------------------------------------------
 
 /**
- * How far outside §1.12's circle the dodge keeps walking.
+ * How far outside §1.12's circle the dodge keeps walking, as a fraction of the circle's radius.
  *
  * Leaving on the edge is not leaving: the impact is measured at IMPACT time against the frozen
  * centre, and a body sitting exactly on the radius is one clamp away from being inside it.
+ *
+ * WHAT THE FRACTION IS, AND WHAT IT IS NOT. It is the 0.75 m this margin was first written as,
+ * divided by the current `ELITE_BLAST_RADIUS` — picked so the clearance does not move today, and
+ * NOT derived from a rule. §2 has no axis that says how much room the dodge should leave, and
+ * nothing here claims to know. What the fraction buys over the raw metre value is only the
+ * property the header states: a sweep of the blast radius carries the dodge with it, and 0.75 m
+ * would have sat still while the circle it is a margin on grew. It is taken against the radius
+ * the view hands over rather than against the imported constant, because the circle the policy
+ * is looking at is the one it has to leave.
  */
-const ELITE_DODGE_MARGIN = 0.75
+const ELITE_DODGE_MARGIN_FRACTION = 0.3125
 
 /**
  * The band `skilled` wants to stand in, as a fraction of §1.6's range advantage.
@@ -188,7 +205,8 @@ function eliteDodgeIntent(view: PolicyView, command: FriendlyView): Intent | nul
   if (telegraph === null) return null
 
   const away = offset(telegraph.center, command.position)
-  if (magnitude(away) > telegraph.radius + ELITE_DODGE_MARGIN) return null
+  const clearance = telegraph.radius + telegraph.radius * ELITE_DODGE_MARGIN_FRACTION
+  if (magnitude(away) > clearance) return null
   // Standing exactly on the frozen centre gives no direction to run in; any heading leaves.
   return { kind: 'move', direction: magnitude(away) === 0 ? { x: 1, y: 0 } : away, reason: 'elite-dodge' }
 }

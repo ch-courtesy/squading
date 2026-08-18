@@ -21,9 +21,10 @@
 //   eliteTelegraph          §1.12's warning circle — centre and radius, the two numbers that
 //                           make it a circle on the ground. Null when no telegraph is running.
 //   rescue                  §1.11's lock in progress: its target and its progress bar.
-//   rescueCandidateId       which body `Space` would pick up. `rescue.ts` states that the
-//                           renderer has to show this, and it is a function of positions the
-//                           view already carries.
+//   rescueCandidateId       which body `Space` would pick up. `rescue.ts:99-100` states that the
+//                           renderer has to show this. HANDED TO BATCH G — see the note on the
+//                           field below; it is the one item in this list whose justification is
+//                           a promise about a renderer that does not exist yet.
 //   pendingUpgrade          §1.13's three offered cards — the card screen, literally.
 //   kills                   §1.13's kill counter, which the upgrade thresholds are read off.
 //
@@ -132,6 +133,21 @@ export type PolicyView = {
   enemies: readonly EnemyView[]
   eliteTelegraph: EliteTelegraphView | null
   rescue: RescueView | null
+  /**
+   * §1.11's "후보 존재" — which body `Space` would pick up right now, or null.
+   *
+   * THIS FIELD IS A DEBT, AND BATCH G IS WHERE IT IS SETTLED. It is a DERIVED id, not a reading:
+   * `rescueCandidateId` breaks its tie on `state.originalCommanderId` and `unit.downedTicks`
+   * (`rescue.ts:86-94`), and the view exposes NEITHER. So it resolves an ordering the view
+   * otherwise hides, which the two lists above do not license on their own — the standard there
+   * is "is it on the screen", and whether this id is on the screen cannot be checked until a
+   * renderer exists.
+   *
+   * It is harmless today because its only consumer (`policies.ts` `rescueIntent`) reads it as a
+   * boolean. The rule for batch G: if the pickup highlight is not actually drawn, this field is
+   * reduced to a boolean or removed. Keeping a number nobody draws is how the projection stops
+   * being a projection.
+   */
   rescueCandidateId: number | null
   pendingUpgrade: UpgradeChoiceView | null
   kills: number

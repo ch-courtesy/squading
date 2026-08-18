@@ -201,8 +201,8 @@ const MUTATIONS = [
   {
     file: POLICIES,
     label: 'flip the sign of the elite dodge margin',
-    find: 'const ELITE_DODGE_MARGIN = 0.75',
-    replace: 'const ELITE_DODGE_MARGIN = -0.75',
+    find: 'const ELITE_DODGE_MARGIN_FRACTION = 0.3125',
+    replace: 'const ELITE_DODGE_MARGIN_FRACTION = -0.3125',
   },
   {
     file: POLICIES,
