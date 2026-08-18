@@ -63,8 +63,14 @@ export const MAX_STEPS_PER_FRAME = 5
 const STEP_EPSILON_MS = 0.001
 const STEP_THRESHOLD_MS = STEP_MS - STEP_EPSILON_MS
 
-/** How many frames of CPU timing are kept for §4.3. 600 frames covers its 300-tick window. */
-const FRAME_SAMPLE_LIMIT = 600
+/**
+ * How many frames of CPU timing are kept for §4.3.
+ *
+ * Its scenario is the FINAL 300 ticks, and a 60 Hz display draws two frames per 30 Hz tick — so
+ * 600 would be the exact minimum and any dropped frame would cut into the window. 2000 leaves
+ * room and still bounds the array.
+ */
+const FRAME_SAMPLE_LIMIT = 2000
 
 /** One frame's CPU cost, in milliseconds, against the tick it left the battle on. */
 export type FrameSample = { tick: number; ms: number }

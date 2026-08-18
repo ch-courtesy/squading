@@ -256,7 +256,9 @@ export function mountApp(root: HTMLElement, dependencies: BattleAppDependencies 
       ? `${view.rescue.targetName} 구조 중 ${view.rescue.progress}/${view.rescue.total}`
       : view.rescueCandidateId !== null
         ? 'Space로 구조'
-        : '구조 대상 없음'
+        : view.rescueHeld
+          ? 'Space 유지 중 · 대상 없음'
+          : '구조 대상 없음'
     chosen.textContent = view.chosenCards.length === 0
       ? '없음'
       : view.chosenCards.map((card) => card.name).join(' · ')

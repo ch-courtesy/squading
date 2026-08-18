@@ -136,6 +136,14 @@ describe('the v2 shell prints the projection and sends §1.15 inputs', () => {
     expect(root.querySelector('[data-battle-rescue]')!.textContent).toBe('Space로 구조')
   })
 
+  it('says Space registered even with nobody to pick up', () => {
+    const state = running()
+    state.input.spaceHeld = true
+    const { root, stub } = mount(state)
+    stub.publish(state)
+    expect(root.querySelector('[data-battle-rescue]')!.textContent).toBe('Space 유지 중 · 대상 없음')
+  })
+
   it('reads a movement key by `event.code` even when an IME rewrote `event.key`', () => {
     const { stub } = mount(running())
     // The exact shape of the v1 defect: a Korean IME reports 'ㅈ' for the W key.

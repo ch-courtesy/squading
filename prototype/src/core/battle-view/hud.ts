@@ -91,6 +91,15 @@ export type BattleHud = {
   dead: number
   rescue: RescueProgressView | null
   rescueCandidateId: number | null
+  /**
+   * §1.15's `Space`, held right now — the player's own input, echoed back.
+   *
+   * It is on screen because a key that does nothing visible is a key the player cannot tell they
+   * pressed: at §5 stage 0's balance no friendly ever goes down in a whole run, so "hold Space
+   * near a body" has no other feedback to give. It is not a rule and no rule reads it; the
+   * policy view deliberately does not carry it (a policy knows its own input).
+   */
+  rescueHeld: boolean
   pendingUpgrade: { round: number; cards: readonly UpgradeCardView[] } | null
   chosenCards: readonly UpgradeCardView[]
   casualties: readonly CasualtyView[]
@@ -207,6 +216,7 @@ export function projectBattleHud(state: Readonly<BattleState>): BattleHud {
         }
       : null,
     rescueCandidateId: candidateId,
+    rescueHeld: state.input.spaceHeld,
     pendingUpgrade:
       round === null
         ? null

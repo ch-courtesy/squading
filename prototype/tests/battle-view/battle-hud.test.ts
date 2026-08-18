@@ -73,6 +73,13 @@ describe('battle-view: the HUD projection', () => {
     expect(hud.roster.filter((entry) => entry.isRescueCandidate).map((entry) => entry.id)).toEqual([body.id])
   })
 
+  it('echoes §1.15 Space back, which is the only feedback it has with nobody down', () => {
+    const state = stateAt()
+    expect(projectBattleHud(state).rescueHeld).toBe(false)
+    state.input.spaceHeld = true
+    expect(projectBattleHud(state).rescueHeld).toBe(true)
+  })
+
   it('reports a rescue in progress against the duration §1.13 can shorten', () => {
     const state = stateAt()
     const body = unitOf(state, 7)
