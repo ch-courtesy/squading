@@ -86,10 +86,10 @@ export function createBattle(seed: string): Battle {
     pendingInputCount: () => queue.size,
 
     step(): TickResult {
-      // The QUEUE goes in, not the commands it holds. §1.15's "일시정지 진입 시 지속 입력을
-      // 해제한다" has a device half as well as a state half, and the reducer drives both — which
-      // is what makes this facade one driver among equals rather than the only correct one.
-      return advanceBattleTick(state, queue)
+      // The queue's SOURCE goes in, not the commands it holds: `drain()` hands over both halves
+      // of §1.15's "일시정지 진입 시 지속 입력을 해제한다" at once, and the reducer drives both —
+      // which is what makes this facade one driver among equals rather than the only correct one.
+      return advanceBattleTick(state, queue.drain())
     },
 
     restart(nextSeed?: string): void {

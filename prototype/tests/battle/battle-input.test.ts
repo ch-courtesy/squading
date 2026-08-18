@@ -50,13 +50,16 @@ function awaitingUpgrade(): BattleState {
 /**
  * Drain and apply, the way the reducer does it — BOTH halves.
  *
- * `applyBattleCommands` is the state half of §1.15's pause release and `queue.applied` is the
+ * `applyBattleCommands` is the state half of §1.15's pause release and `source.applied` is the
  * device half; a fixture that ran only the first would be pinning a path no driver takes, and
- * would go on passing while the queue remembered keys the battle had already forgotten.
+ * would go on passing while the queue remembered keys the battle had already forgotten. This is
+ * `advanceBattleTick`'s first three lines, unrolled so the fixtures below can watch the state
+ * without the clock gate deciding whether a tick runs.
  */
 function apply(state: BattleState, queue: BattleInputQueue): InputApplication {
-  const application = applyBattleCommands(state, queue.drain())
-  queue.applied(application)
+  const source = queue.drain()
+  const application = applyBattleCommands(state, source.drain())
+  source.applied(application)
   return application
 }
 
@@ -657,7 +660,10 @@ describe('§1.17 the queue is a deterministic FIFO', () => {
     queue.keyDown(state, 'KeyW')
     queue.keyDown(state, 'KeyD')
     queue.keyUp(state, 'KeyW')
-    const drained = queue.drain()
+    // Reaching past the source for the array itself. Nothing stops it — see the note on
+    // `BattleCommandSource` — and here there is no device half to strand, because the fixture
+    // is about the ORDER and never pauses.
+    const drained = queue.drain().drain()
 
     expect(drained.map((command) => command.kind)).toEqual(['set-move', 'set-move', 'set-move'])
     applyBattleCommands(state, drained)
@@ -671,12 +677,12 @@ describe('§1.17 the queue is a deterministic FIFO', () => {
 
     queue.keyDown(state, 'KeyW')
     expect(queue.size).toBe(1)
-    queue.drain()
+    queue.drain().drain()
 
     // §1.17's digest covers `state.input` but not the queue. The queue is only outside the
     // digest safely because it is EMPTY at every tick boundary; what does survive is the held
     // key set, which is a function of the input log prefix and nothing else.
     expect(queue.size).toBe(0)
-    expect(queue.drain()).toEqual([])
+    expect(queue.drain().drain()).toEqual([])
   })
 })

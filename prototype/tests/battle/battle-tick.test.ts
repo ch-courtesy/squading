@@ -140,12 +140,12 @@ describe('§1.1 the clock does not advance outside `running`', () => {
     const queue = new BattleInputQueue()
 
     queue.keyDown(state, 'Escape')
-    expect(advanceBattleTick(state, queue).ran).toBe(false)
+    expect(advanceBattleTick(state, queue.drain()).ran).toBe(false)
     expect(state.mode).toBe('paused')
     expect(state.combatTick).toBe(0)
 
     queue.keyDown(state, 'Escape')
-    expect(advanceBattleTick(state, queue).ran).toBe(true)
+    expect(advanceBattleTick(state, queue.drain()).ran).toBe(true)
     expect(state.combatTick).toBe(1)
   })
 })
@@ -166,7 +166,7 @@ describe('§1.11 / §1.15 the reducer wires the movement keydown through', () =>
     const queue = new BattleInputQueue()
 
     queue.keyDown(state, 'Space')
-    advanceBattleTick(state, queue)
+    advanceBattleTick(state, queue.drain())
 
     expect(state.rescue.active).toBe(true)
     expect(state.rescue.targetId).toBe(2)
@@ -177,9 +177,9 @@ describe('§1.11 / §1.15 the reducer wires the movement keydown through', () =>
     const queue = new BattleInputQueue()
 
     queue.keyDown(state, 'Space')
-    advanceBattleTick(state, queue)
-    advanceBattleTick(state, queue)
-    advanceBattleTick(state, queue)
+    advanceBattleTick(state, queue.drain())
+    advanceBattleTick(state, queue.drain())
+    advanceBattleTick(state, queue.drain())
 
     expect(state.rescue.active).toBe(true)
     expect(state.rescue.progress).toBe(3)
@@ -190,12 +190,12 @@ describe('§1.11 / §1.15 the reducer wires the movement keydown through', () =>
     const queue = new BattleInputQueue()
 
     queue.keyDown(state, 'Space')
-    advanceBattleTick(state, queue)
-    advanceBattleTick(state, queue)
+    advanceBattleTick(state, queue.drain())
+    advanceBattleTick(state, queue.drain())
     expect(state.rescue.progress).toBe(2)
 
     queue.keyDown(state, 'KeyW')
-    advanceBattleTick(state, queue)
+    advanceBattleTick(state, queue.drain())
 
     // §1.11's cancel is the EVENT, and the reducer is the only thing that can hand it over:
     // a loop that dropped the events argument would still compile if the argument had a
@@ -212,20 +212,43 @@ describe('§1.11 / §1.15 the reducer wires the movement keydown through', () =>
     // lock never establishes at all. That is §1.11's establishment rule, not its cancel.
     queue.keyDown(state, 'KeyW')
     queue.keyDown(state, 'Space')
-    advanceBattleTick(state, queue)
+    advanceBattleTick(state, queue.drain())
     expect(state.rescue.active).toBe(false)
 
     // Release the key. The axis is 0 again and no keydown happens, so the lock establishes on
     // that tick — and, because §1.16 puts 구조 진행 later in the same tick, it also earns its
     // first point of progress there — and then survives the following tick of held Space.
     queue.keyUp(state, 'KeyW')
-    advanceBattleTick(state, queue)
-    advanceBattleTick(state, queue)
+    advanceBattleTick(state, queue.drain())
+    advanceBattleTick(state, queue.drain())
 
     expect(state.rescue.active).toBe(true)
     expect(state.rescue.progress).toBe(2)
   })
 })
+
+/**
+ * A TYPE-LEVEL fixture, and the only kind that can hold this rule.
+ *
+ * At 599de17 `advanceBattleTick(state, commandBatch(queue.drain()))` compiled clean and
+ * reproduced the ghost axis exactly — measured `{ x: 1, y: -1 }` from `KeyW → Escape → Escape →
+ * KeyD`. The state half of §1.15's pause release ran and the device half did not, because
+ * `commandBatch`'s `applied` is a no-op while the queue behind the array still held `KeyW`.
+ * Rejecting `queue.drain()` as a plain array was not enough: the compiler's own error pointed
+ * at the one exported helper that would make it compile again.
+ *
+ * WHAT ASSERTS THIS IS `tsc`, NOT VITEST. Vitest never typechecks, so no runtime fixture can
+ * fail on a line that no longer compiles. The assertion is the `@ts-expect-error` below, and the
+ * thing that runs it is `tsc --noEmit` — the first command in `npm run build`. If the line ever
+ * compiles again, the directive goes unused and the build fails on TS2578.
+ *
+ * Never called. It exists to be compiled.
+ */
+export function theRewrapTheQueueMustNotAccept(state: BattleState, queue: BattleInputQueue): void {
+  // @ts-expect-error `queue.drain()` hands over the source — the commands AND the device-half
+  // callback — and `commandBatch` takes an array. There is nothing left to re-wrap.
+  advanceBattleTick(state, commandBatch(queue.drain()))
+}
 
 describe('§1.15 the reducer path releases a pause in full, device half included', () => {
   it('does not carry a held key across a pause when a queue drives the reducer directly', () => {
@@ -237,20 +260,20 @@ describe('§1.15 the reducer path releases a pause in full, device half included
     const queue = new BattleInputQueue()
 
     queue.keyDown(state, 'KeyW')
-    advanceBattleTick(state, queue)
+    advanceBattleTick(state, queue.drain())
     expect(state.input.move).toEqual({ x: 0, y: -1 })
 
     queue.keyDown(state, 'Escape')
-    expect(advanceBattleTick(state, queue).ran).toBe(false)
+    expect(advanceBattleTick(state, queue.drain()).ran).toBe(false)
     expect(state.mode).toBe('paused')
     expect(state.input.move).toEqual({ x: 0, y: 0 })
 
     queue.keyDown(state, 'Escape')
-    expect(advanceBattleTick(state, queue).ran).toBe(true)
+    expect(advanceBattleTick(state, queue.drain()).ran).toBe(true)
     expect(state.mode).toBe('running')
 
     queue.keyDown(state, 'KeyD')
-    advanceBattleTick(state, queue)
+    advanceBattleTick(state, queue.drain())
 
     expect(state.input.move).toEqual({ x: 1, y: 0 })
   })
@@ -260,7 +283,7 @@ describe('§1.15 the reducer path releases a pause in full, device half included
     const queue = new BattleInputQueue()
 
     queue.keyDown(state, 'Escape')
-    advanceBattleTick(state, queue)
+    advanceBattleTick(state, queue.drain())
     expect(state.mode).toBe('paused')
 
     const skipped = advanceBattleTick(

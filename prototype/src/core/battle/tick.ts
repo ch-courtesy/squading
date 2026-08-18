@@ -89,11 +89,14 @@ export type TickResult = SkippedTick | ResolvedTick
  * return value of applying THIS tick's input, and nothing else in the project knows them.
  *
  * IT IS A SOURCE AND NOT AN ARRAY for the same reason. §1.15's pause release has a state half
- * and a device half, and a driver that hands over `queue.drain()` gets the first without the
+ * and a device half, and a driver that hands over the commands alone gets the first without the
  * second: the battle forgets the axis, the queue does not forget the keys, and the next press
- * comes out carrying a direction nobody is holding. `BattleInputQueue` is a source; a hand-built
- * batch becomes one through `commandBatch`, whose `applied` is a no-op because an array has no
- * device state to release. Passing the array itself does not type-check.
+ * comes out carrying a direction nobody is holding — measured `{ x: 1, y: -1 }` on
+ * `KeyW → Escape → Escape → KeyD`. `BattleInputQueue.drain()` returns a source; a hand-built
+ * batch becomes one through `commandBatch`. A raw `BattleCommand[]` does not type-check, and
+ * neither does re-wrapping what `drain()` hands back (`tests/battle/battle-tick.test.ts` pins
+ * that with a `@ts-expect-error`). What is NOT ruled out is a caller who unpacks the source
+ * first and wraps the array — nothing catches that, and this comment will not pretend otherwise.
  */
 export function advanceBattleTick(state: BattleState, source: BattleCommandSource): TickResult {
   // 1

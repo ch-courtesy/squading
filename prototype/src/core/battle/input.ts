@@ -229,15 +229,20 @@ export type InputApplication = {
 /**
  * Where a tick's commands come from, and where the news of applying them goes back to.
  *
- * Two methods rather than one array, because §1.15's pause release has TWO halves that must not
- * be able to separate: `applyBattleCommands` zeroes `state.input`, and whoever owns the device
- * state has to forget which keys are down, or the next keyup rebuilds an axis out of keys the
- * paused game already threw away. The state half is the reducer's and the device half is the
- * source's, so the reducer takes a source and calls both.
+ * Two methods rather than one array, because §1.15's pause release has TWO halves and a driver
+ * that carries one without the other is the defect: `applyBattleCommands` zeroes `state.input`,
+ * and whoever owns the device state has to forget which keys are down, or the next keyup
+ * rebuilds an axis out of keys the paused game already threw away. The state half is the
+ * reducer's and the device half is the source's, so the reducer takes a source and calls both.
  *
- * `advanceBattleTick` accepts NOTHING ELSE — in particular not a `BattleCommand[]`, which is
- * what `queue.drain()` returns. That is the point: the shape that gets the state half without
- * the device half does not type-check.
+ * WHAT THE TYPE ACTUALLY BUYS, stated exactly, because the overstatement it replaces is what
+ * made the hole look safe: `advanceBattleTick` refuses a raw `BattleCommand[]`, and
+ * `BattleInputQueue.drain()` hands back one of these rather than an array, so neither of the two
+ * spellings a driver reaches for first can lose the device half. It is NOT unrepresentable —
+ * `commandBatch(queue.drain().drain())` type-checks and strands the queue exactly as before, and
+ * so does an inline `{ drain: () => …, applied: () => {} }`. Nothing in this project catches
+ * either. A driver that owns device state must hand over the source that owns it, and the type
+ * makes that the easy path rather than the only one.
  */
 export type BattleCommandSource = {
   /** This tick's commands, oldest first. The source holds none afterwards. */
@@ -249,9 +254,14 @@ export type BattleCommandSource = {
 /**
  * A hand-built batch as a source, for a fixture or a policy that has no device behind it.
  *
- * `applied` is a no-op BECAUSE an array owns no device state — there is no held-key set for a
- * pause to release. That is the whole difference between this and `BattleInputQueue`, and it is
- * why a driver that has a queue must hand over the queue and not its drained array.
+ * `applied` IS A NO-OP, AND THAT IS ONLY SAFE WHEN NOTHING BEHIND THE ARRAY REMEMBERS ANYTHING.
+ * An array does not own device state, but it can have come out of something that does: the
+ * spelling this comment used to bless — wrapping a live queue's commands — left `applied` doing
+ * nothing while the queue went on holding `KeyW` across a pause, which is the ghost axis
+ * `{ x: 1, y: -1 }` that §1.15's release exists to prevent. `BattleInputQueue.drain()` now hands
+ * back a source rather than an array, so that particular wrapping no longer compiles; nothing
+ * checks the general case, and nothing can. USE THIS FOR COMMANDS YOU WROTE OUT BY HAND. If a
+ * device is behind them, hand over the source the device owns.
  */
 export function commandBatch(commands: readonly BattleCommand[]): BattleCommandSource {
   let pending: readonly BattleCommand[] = commands
@@ -358,14 +368,36 @@ function sumHeldKeys(held: ReadonlySet<string>): Vec2 {
  * steer and does not compose them; adding them would let a held key drag the pointer's target
  * off the point the player is actually pointing at.
  *
- * It is a `BattleCommandSource`, and that is how it is handed to `advanceBattleTick`: owning
- * device state is exactly what makes §1.15's pause release have a second half, so the type that
- * carries the device state is the type that carries the callback which clears it.
+ * It MAKES a `BattleCommandSource` — `drain()` — and that is how it reaches `advanceBattleTick`:
+ * owning device state is exactly what makes §1.15's pause release have a second half, so the
+ * value that carries this tick's commands is the value that carries the callback clearing it.
  */
-export class BattleInputQueue implements BattleCommandSource {
+export class BattleInputQueue {
   private pending: BattleCommand[] = []
   private heldMoveKeys = new Set<string>()
   private pointerOffset: Vec2 | null = null
+
+  /**
+   * The queue's two halves, bound together in one value: this tick's commands, and what to do
+   * with the news of having applied them.
+   *
+   * It is a private field and `drain()` is the only way to a reference, so the halves are handed
+   * over together or not at all. `applied` is §1.15's device side of the pause release —
+   * `applyBattleCommands` zeroed `state.input`, and this forgets which keys were down so that
+   * resuming cannot rebuild an axis out of them. It fires on `pauseEntered` whether or not a
+   * later `toggle-pause` in the same batch resumed the battle: the pause happened, and the
+   * movement commands behind it in that batch were discarded on the same grounds.
+   */
+  private readonly source: BattleCommandSource = {
+    drain: (): readonly BattleCommand[] => {
+      const drained = this.pending
+      this.pending = []
+      return drained
+    },
+    applied: (application: InputApplication): void => {
+      if (application.pauseEntered) this.clearHeld()
+    },
+  }
 
   get size(): number {
     return this.pending.length
@@ -493,27 +525,26 @@ export class BattleInputQueue implements BattleCommandSource {
   }
 
   /**
-   * Everything enqueued since the last drain, oldest first, and the queue is empty after.
+   * The queue as this tick's source: hand the result straight to `advanceBattleTick`.
    *
-   * This is HALF of what a tick needs from the queue — `applied` below is the other half — which
-   * is why `advanceBattleTick` takes the queue itself and not the array this returns.
-   */
-  drain(): BattleCommand[] {
-    const drained = this.pending
-    this.pending = []
-    return drained
-  }
-
-  /**
-   * §1.15's device half of the pause release, driven by what the reducer just did.
+   * IT RETURNS THE SOURCE AND NOT THE COMMANDS, and that is the whole rule. An earlier shape had
+   * this return `BattleCommand[]`, so `advanceBattleTick(state, queue.drain())` was a type error
+   * — and the repair the compiler's message pointed at was `commandBatch(queue.drain())`, which
+   * compiled, kept the state half, dropped the device half, and reproduced the ghost axis
+   * `{ x: 1, y: -1 }` measured on `KeyW → Escape → Escape → KeyD`. The obvious spelling being
+   * rejected is what made the wrong one look like the fix. Now the obvious spelling IS the fix,
+   * and `commandBatch` no longer accepts what this hands back.
    *
-   * `applyBattleCommands` zeroed `state.input`; this forgets which keys were down, so resuming
-   * cannot rebuild an axis out of them. It fires on `pauseEntered` whether or not a later
-   * `toggle-pause` in the same batch resumed the battle: the pause happened, and the movement
-   * commands behind it in that batch were discarded on the same grounds.
+   * The queue is still empty after the returned source is drained, and the source reads
+   * `pending` when it is asked rather than when it is made — so taking one early and enqueueing
+   * afterwards loses nothing.
+   *
+   * WHAT THIS DOES NOT DO: make the two halves unreachable apart. `queue.drain().drain()` is
+   * still an array, and `commandBatch` will still take it. Nothing here or anywhere else catches
+   * that; what is gone is the ONE-WORD spelling that a compiler error used to recommend.
    */
-  applied(application: InputApplication): void {
-    if (application.pauseEntered) this.clearHeld()
+  drain(): BattleCommandSource {
+    return this.source
   }
 
   /** Drop pending commands without applying them, for a restart. */

@@ -150,9 +150,13 @@
 //         §1.1's clock gate in front of it. Input is applied BEFORE the gate, which is what
 //         lets an `Escape` lift a pause and a card resume the run on the tick it unblocked.
 //         IT TAKES A SOURCE, NOT AN ARRAY, because §1.15's pause release has a state half and a
-//         device half: a driver handing over `queue.drain()` would get the battle to forget the
-//         axis while the queue went on remembering the keys. `BattleInputQueue` is a source;
-//         a hand-built batch becomes one through `commandBatch`. The array does not compile.
+//         device half: a driver handing over the commands alone would get the battle to forget
+//         the axis while the queue went on remembering the keys. `BattleInputQueue.drain()`
+//         RETURNS A SOURCE, so the spelling a driver reaches for first is the correct one; a
+//         hand-built batch becomes one through `commandBatch`. Neither a raw array nor a re-wrap
+//         of what `drain()` returns compiles, and `battle-tick.test.ts` pins the second with a
+//         `@ts-expect-error` that `tsc --noEmit` is what checks. A caller who unpacks the source
+//         and wraps the array underneath still compiles; nothing here catches that.
 //         Everything derived is RETURNED (`TickResult`), never stored: batch A's no-scratch
 //         rule, and I2/I6/I13 all read their measurements off it.
 //   §6    the facade ........................................... battle
