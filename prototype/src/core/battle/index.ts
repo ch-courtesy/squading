@@ -170,10 +170,16 @@
 // (The last entry is not a seam. §1.16's table lives here permanently, and it is listed with
 // the seams because it is the thing every future batch has to read before it plugs anything
 // in.)
-//   §4.1 policies (batch F) ........... a policy is a function from `state()` to commands,
-//                                      driven through the facade. `TickResult` already carries
-//                                      what the invariants measure: `damage.damageToFriendlies`
-//                                      (I2), `accounting` (I6), `rescue` (I13), `transitions`.
+//   §4.1 policies (BUILT, batch F) .... `src/core/harness/policy/`, and NOT here: nothing under
+//                                      `core/battle/` imports it, and the dependency runs one
+//                                      way only. A policy decides from a PROJECTION of
+//                                      `state()` (`view.ts`) rather than from the state, so
+//                                      that what it can see is what a player can see, and it
+//                                      is driven through the facade. `TickResult` still carries
+//                                      what the invariants measure — `damage.damageToFriendlies`
+//                                      (I2), `accounting` (I6), `rescue` (I13), `transitions` —
+//                                      and the runner does not read any of them yet; §5's tuning
+//                                      stages are what will.
 //   §1.1 hidden (batch G) ............. the clock gate in `tick.ts` covers `paused` and
 //                                      `awaiting-upgrade`, which are modes. HIDDEN IS NOT A
 //                                      MODE — it is a fact about a document, and nothing under
