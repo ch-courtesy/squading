@@ -56,6 +56,14 @@ function sourceFiles(root: string): string[] {
  * line it exists to fail on. It imports for side effects only, which is not how anybody revives
  * cover on purpose — and that is exactly why nothing else would have noticed.
  *
+ * THIRD BLINDNESS, found before batch G widened the scope rather than after: the reader required
+ * whitespace after `import`, so `await import('./three-hybrid')` — no space before the quote —
+ * walked past it. `src/renderers/registry.ts` writes six of those and is exactly the file batch G
+ * brings into scope. Adding the path while the reader could not read the file's own import style
+ * would have bought coverage that was nominal only. Double-quoted specifiers were invisible for
+ * the same reason: nothing in `src/` writes them today, so nothing would have failed until the
+ * day something did.
+ *
  * Matching bare `from '...'` also matches the phrase inside a comment or a string. That is
  * deliberate — the only false positive it can produce is text that names an archived module
  * the way an import does, and making that fail is exactly the point. Comments in this project
@@ -65,7 +73,7 @@ function sourceFiles(root: string): string[] {
  * a guard whose extraction is silently incomplete reports "no offenders" forever.
  */
 export function moduleSpecifiers(source: string): string[] {
-  return [...source.matchAll(/(?:from|import)\s+'([^']+)'/g)].map((match) => match[1])
+  return [...source.matchAll(/(?:from|import)\s*\(?\s*['"]([^'"]+)['"]/g)].map((match) => match[1])
 }
 
 function namesArchivedModule(specifier: string): boolean {
@@ -73,7 +81,7 @@ function namesArchivedModule(specifier: string): boolean {
 }
 
 describe('§1.6 cover stays removed', () => {
-  it('reads multi-line imports and side-effect imports, the two forms it has gone blind to', () => {
+  it('reads every import form this codebase writes, including the three it has gone blind to', () => {
     const multiLine = [
       'import {',
       '  ARENA_WIDTH,',
@@ -82,21 +90,54 @@ describe('§1.6 cover stays removed', () => {
       '',
       "import './side-effect'",
       "import { clampToArena } from './movement'",
+      "const load = async () => (await import('./three-hybrid')).createRenderer()",
+      'const wide = async () => (await import(',
+      "  '../gameplay/geometry'",
+      ')).segmentHitsRect',
+      'import { doubleQuoted } from "./double-quoted"',
       'export {',
       '  segmentHitsRect,',
-      "} from '../gameplay/geometry'",
+      "} from '../gameplay/terrain'",
     ].join('\n')
 
     expect(moduleSpecifiers(multiLine)).toEqual([
       '../gameplay/terrain',
       './side-effect',
       './movement',
+      './three-hybrid',
       '../gameplay/geometry',
+      './double-quoted',
+      '../gameplay/terrain',
     ])
+    // Three archived hits, and the middle one is the point: it arrives through a dynamic import
+    // split across three lines, which is both forms the reader was blind to at once.
     expect(moduleSpecifiers(multiLine).filter(namesArchivedModule)).toEqual([
       '../gameplay/terrain',
       '../gameplay/geometry',
+      '../gameplay/terrain',
     ])
+  })
+
+  it('sees the dynamic imports in the real file batch G brings into scope', () => {
+    // `sourceFiles` walks `GAME_PATH_ROOTS`, which does not include `src/renderers` yet — so this
+    // reads the file directly. It is the whole reason the reader was widened BEFORE the scope was:
+    // `registry.ts` reaches every renderer through `await import('...')`, so a reader that cannot
+    // see that form would report a clean renderer tree while reading none of its imports.
+    //
+    // When batch G adds `src/renderers` to GAME_PATH_ROOTS, this test stops being special and the
+    // offender scan below covers it. Until then it is the only thing standing between the guard
+    // and nominal coverage.
+    const registry = readFileSync(join(process.cwd(), 'src/renderers/registry.ts'), 'utf8')
+    const specifiers = moduleSpecifiers(registry)
+
+    expect(specifiers).toContain('./three-hybrid')
+    expect(specifiers).toContain('./phaser-2d')
+    expect(specifiers).toContain('./three-3d')
+    expect(specifiers).toContain('./pending-renderer')
+    // None of them is archived — that is the fact this asserts. The value is that the reader was
+    // able to look: a blind reader would produce the same empty offender list from no readings.
+    expect(specifiers.filter(namesArchivedModule)).toEqual([])
+    expect(specifiers.length).toBeGreaterThanOrEqual(4)
   })
 
   it('sees strictly more of the real tree than the line-anchored reader did', () => {
