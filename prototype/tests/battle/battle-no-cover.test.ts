@@ -47,8 +47,14 @@ function sourceFiles(root: string): string[] {
 }
 
 /**
- * Every module specifier in a source file: bare `from '...'`, no line anchor, no
- * single-line constraint.
+ * Every module specifier in a source file: `from '...'` and bare `import '...'`, no line anchor,
+ * no single-line constraint.
+ *
+ * THE SIDE-EFFECT FORM IS HERE BECAUSE IT WAS MISSING. Batch F's mutation harness
+ * (`scripts/mutate.mjs`) inserted `import '../../gameplay/geometry'` into a policy file and this
+ * guard passed: a bare `import '...'` has no `from`, so the reader walked straight past the one
+ * line it exists to fail on. It imports for side effects only, which is not how anybody revives
+ * cover on purpose — and that is exactly why nothing else would have noticed.
  *
  * Matching bare `from '...'` also matches the phrase inside a comment or a string. That is
  * deliberate — the only false positive it can produce is text that names an archived module
@@ -59,7 +65,7 @@ function sourceFiles(root: string): string[] {
  * a guard whose extraction is silently incomplete reports "no offenders" forever.
  */
 export function moduleSpecifiers(source: string): string[] {
-  return [...source.matchAll(/from\s+'([^']+)'/g)].map((match) => match[1])
+  return [...source.matchAll(/(?:from|import)\s+'([^']+)'/g)].map((match) => match[1])
 }
 
 function namesArchivedModule(specifier: string): boolean {
@@ -67,13 +73,14 @@ function namesArchivedModule(specifier: string): boolean {
 }
 
 describe('§1.6 cover stays removed', () => {
-  it('reads multi-line imports, which is how the first version of this guard went blind', () => {
+  it('reads multi-line imports and side-effect imports, the two forms it has gone blind to', () => {
     const multiLine = [
       'import {',
       '  ARENA_WIDTH,',
       '  isInsideBlocker,',
       "} from '../gameplay/terrain'",
       '',
+      "import './side-effect'",
       "import { clampToArena } from './movement'",
       'export {',
       '  segmentHitsRect,',
@@ -82,6 +89,7 @@ describe('§1.6 cover stays removed', () => {
 
     expect(moduleSpecifiers(multiLine)).toEqual([
       '../gameplay/terrain',
+      './side-effect',
       './movement',
       '../gameplay/geometry',
     ])

@@ -141,6 +141,24 @@ describe('§1.12 `skilled` leaves the telegraph, ahead of everything else', () =
     expect(move!.x).toBeLessThan(0)
   })
 
+  it('keeps walking past the edge, because standing on the radius is not standing clear of it', () => {
+    // §1.12 measures the impact against the FROZEN centre at impact time, so a body sitting on
+    // the rim is one clamp away from being inside it. The dodge therefore runs until it is clear
+    // by a margin, and this fixture is just outside the circle and still moving.
+    const view = viewOf({
+      enemies: [shooterEast(6)],
+      eliteTelegraph: {
+        center: { x: ORIGIN.x + ELITE_BLAST_RADIUS + 0.1, y: ORIGIN.y },
+        radius: ELITE_BLAST_RADIUS,
+      },
+    })
+    const move = moveIn(decideOnce('skilled', view))
+
+    // The standoff in this fixture wants EAST, so a westward step is the margin deciding.
+    expect(move).not.toBeNull()
+    expect(move!.x).toBeLessThan(0)
+  })
+
   it('ignores a circle it is already clear of, so the dodge is not simply always on', () => {
     const clear = ELITE_BLAST_RADIUS + 2
     const view = viewOf({

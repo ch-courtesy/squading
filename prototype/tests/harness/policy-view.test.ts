@@ -70,6 +70,21 @@ describe('the policy view carries exactly what the screen carries', () => {
     }
   })
 
+  it('carries §1.4\'s slot for every follower and none for the body being driven', () => {
+    const state = freshState()
+    const view = projectPolicyView(state)
+
+    expect(view.command!.slotIndex).toBeNull()
+    expect(view.friendlies.length).toBe(state.friendlies.length - 1)
+    for (const row of view.friendlies) {
+      const assignment = state.slotAssignments.find((entry) => entry.unitId === row.id)
+      expect(assignment).toBeDefined()
+      expect(row.slotIndex).toBe(assignment!.slotIndex)
+    }
+    // The slots are not all the same number, so the comparison above is a comparison.
+    expect(new Set(view.friendlies.map((row) => row.slotIndex)).size).toBe(view.friendlies.length)
+  })
+
   it('projects an enemy as a shape in a place, with no hp and no cooldown', () => {
     const state = freshState()
     state.enemies.push(createEnemy(101, 'shooter', { x: 10, y: 10 }))
