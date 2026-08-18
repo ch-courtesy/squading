@@ -2,6 +2,7 @@ import { expect, test, type Page } from '@playwright/test'
 
 import { createBattle } from '../src/core/battle/battle'
 import { COMBAT_TICK_LIMIT } from '../src/core/battle/constants'
+import { FORMATION_MAX_SLOT_RADIUS } from '../src/core/battle/formation'
 import { replayBattleInput } from '../src/app/battle/battle-replay'
 import { VIEW_REQUIRED_RADIUS } from '../src/core/battle-view/snapshot'
 
@@ -13,10 +14,10 @@ import { VIEW_REQUIRED_RADIUS } from '../src/core/battle-view/snapshot'
 // that displayed nothing.
 //
 // THE BALANCE IS §5 STAGE 0's PLACEHOLDER and this file does not fix it. Two consequences show
-// up here and are named where they bite: every policy wins, so the defeat below is produced by
-// a specific route rather than by a specific seed; and no friendly ever goes down in a whole
-// run, so a COMPLETED rescue is not reachable and what is asserted is that `Space` reaches the
-// battle at all.
+// up here and are named where they bite: almost every route wins, so the defeat below is
+// produced by a searched route on a specific seed; and no friendly goes down early enough in a
+// run for a COMPLETED rescue to be reachable from the browser, so what is asserted is that
+// `Space` reaches the battle at all.
 
 /** Where the v2 game lives now: the default route. */
 async function open(page: Page, seed: string): Promise<void> {
@@ -135,6 +136,17 @@ test('frames the command unit, its fifteen, and §4.4(b) region around it', asyn
   // drawn and is not asked for; nobody is dead this early, which the count below pins.
   const squad = view.units.filter((unit) => unit.team !== 'enemy' && unit.state !== 'dead')
   expect(squad).toHaveLength(16)
+
+  // §4.4(a) AS AMENDED BY §1.4.1: "그 범위는 진형 반경 2.460이 아니라 LEASH_RADIUS가 정한다".
+  // A framing test taken while the squad is clumped proves nothing about that, and until this
+  // line every framing test on this branch was taken clumped — the fifteen could not leave their
+  // slots. So the fixture asserts the precondition of its own claim: at least one body is
+  // further from the command unit than the formation could ever put it. If a tuning pass ever
+  // makes the squad hold formation for this whole 240-tick opening, this fails loudly instead of
+  // going back to testing the easy case in silence.
+  const spread = squad.map((unit) => Math.hypot(unit.x - command.x, unit.y - command.y))
+  expect(Math.max(...spread)).toBeGreaterThan(FORMATION_MAX_SLOT_RADIUS)
+
   for (const point of await projectAll(page, squad)) {
     expect(point).not.toBeNull()
     expect(Math.abs(point!.x)).toBeLessThanOrEqual(1)
@@ -254,10 +266,12 @@ test('takes §1.15 Space, and says so when there is nobody to pick up', async ({
   await expect(rescue).toHaveText('구조 대상 없음')
 
   // WHAT THIS DOES NOT ASSERT, and cannot at §5 stage 0's balance: a completed rescue. Measured
-  // headlessly over eight seeds, no friendly goes down in a whole 2700-tick run at these
-  // placeholder values, so there is never a body to pick up. §1.11's lock, its cancel and its
-  // completion are covered by the core fixtures against hand-authored downs; what a browser can
-  // still prove is that the key reaches the battle.
+  // headlessly after §1.4.1, `tactical-no-input` — the route this test drives — takes bodies down
+  // on three of the eight band seeds (`seed-c` 1, `seed-e` 7, `seed-h` 1) and none of them falls
+  // before tick 1995. `seed-b`, which is the seed here, has none at all, and this assertion runs
+  // in the first seconds of the run in any case. §1.11's lock, its cancel and its completion are
+  // covered by the core fixtures against hand-authored downs; what a browser can still prove is
+  // that the key reaches the battle.
   await page.keyboard.down('Space')
   await expect(rescue).toHaveText('Space 유지 중 · 대상 없음')
   await page.keyboard.up('Space')
@@ -294,10 +308,11 @@ test('plays seed-a to a win with real input, and restarts to a fresh run (§4.4 
   await expect(terminal).toBeVisible({ timeout: 120_000 })
   await expect(page.locator('[data-battle-result-title]')).toHaveText('승리')
   await expect(page.locator('[data-battle-result-cause]')).toHaveText('정예를 처치했습니다.')
-  // The card screens are the only input this route sends, which is §4.1's `tactical-no-input` —
-  // and batch E recorded that run on this seed at tick 2017 with 178 kills.
-  expect(await tick(page)).toBe(2017)
-  await expect(page.locator('[data-battle-result-kills]')).toHaveText('178')
+  // The card screens are the only input this route sends, which is §4.1's `tactical-no-input`.
+  // Batch E recorded that run on this seed at 2017/178; §1.4.1 (batch H) moved it to 2018/164,
+  // and `tests/harness/policy-run.test.ts` pins the same pair headlessly with its digest.
+  expect(await tick(page)).toBe(2018)
+  await expect(page.locator('[data-battle-result-kills]')).toHaveText('164')
   await expect(page.locator('[data-battle-result-commander]')).toHaveText('생존')
 
   // §4.3: the same seed and the same input log, replayed headlessly, must agree.
@@ -309,7 +324,7 @@ test('plays seed-a to a win with real input, and restarts to a fresh run (§4.4 
   }))
   const replay = replayBattleInput(createBattle(recorded.seed), recorded.log, recorded.steps)
   expect(replay.outcome).toBe('won')
-  expect(replay.endTick).toBe(2017)
+  expect(replay.endTick).toBe(2018)
   expect(replay.digest).toBe(recorded.digest)
 
   await page.getByRole('button', { name: '다시 시작' }).click()
@@ -331,26 +346,35 @@ test('plays seed-a to a win with real input, and restarts to a fresh run (§4.4 
  * elite away from the squad for the whole 900 ticks it is alive — the run then reaches
  * `COMBAT_TICK_LIMIT` with it standing and §1.16 calls `elite-survived`.
  *
- * This lap around the arena does that on `seed-a`. It is a SEARCHED route, not a designed one:
- * a 400/150-tick rectangle was found by sweeping leg lengths headlessly, it loses on `seed-a`
- * and `seed-c` and wins on `seed-b`, and the same sweep showed `seed-a` still losing with every
- * leg shifted by up to eight ticks in either direction — which is the margin this test needs,
- * since a browser cannot change keys on an exact tick. No balance constant was touched to make
- * it happen, and none may be.
+ * IT IS A SEARCHED ROUTE, NOT A DESIGNED ONE, and §1.4.1 (batch H) made it re-search. The
+ * previous one — 400/150 on `seed-a` — now WINS, because a soldier's reach is no longer the
+ * 2.46 formation radius but `LEASH_RADIUS + SOLDIER_RANGE` = 13.0 around the command unit, so an
+ * elite that used to trail the squad harmlessly is now shot at. The replacement was found the
+ * same way: a headless sweep of leg lengths over all eight band seeds. `seed-g` at 300/130 is
+ * the result, and it is not a single point — the whole block `long 260~340 x short 90~130` loses
+ * on that seed.
+ *
+ * THE MARGIN THIS TEST NEEDS is lateness, because a browser cannot change keys on an exact tick.
+ * The boundaries are absolute, so what actually varies is how many ticks each key change lands
+ * late. Measured over 69 schedules with every boundary independently 0~8 ticks late — nine
+ * uniform delays and sixty mixed ones — all 69 still lose by `elite-survived` at tick 2700.
+ * Under the cruder model the old comment used (one leg's LENGTH shifted by up to eight in either
+ * direction, which a browser cannot actually produce here) it is 83 of 85. No balance constant
+ * was touched to make any of this happen, and none may be.
  *
  * The leg boundaries are ABSOLUTE tick numbers on purpose: a relative schedule accumulates the
  * few ticks each key change lands late, and by the fourth lap that is not the route any more.
  */
 const CIRCUIT: readonly { code: string; ticks: number }[] = [
-  { code: 'KeyD', ticks: 400 },
-  { code: 'KeyS', ticks: 150 },
-  { code: 'KeyA', ticks: 400 },
-  { code: 'KeyW', ticks: 150 },
+  { code: 'KeyD', ticks: 300 },
+  { code: 'KeyS', ticks: 130 },
+  { code: 'KeyA', ticks: 300 },
+  { code: 'KeyW', ticks: 130 },
 ]
 
-test('runs seed-a out of time with real input, and restarts from the defeat (§4.4 완주)', async ({ page }) => {
+test('runs seed-g out of time with real input, and restarts from the defeat (§4.4 완주)', async ({ page }) => {
   test.setTimeout(300_000)
-  await start(page, 'seed-a')
+  await start(page, 'seed-g')
 
   const terminal = page.locator('[data-battle-terminal]')
   let boundary = 0
