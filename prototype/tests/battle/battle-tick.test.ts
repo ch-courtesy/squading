@@ -21,7 +21,10 @@
 // stage 2 has to tune `tactical-no-input` into a defeat, where no such tick exists. So the whole
 // battle asserts the precondition of its own detector (it fails, rather than going quiet, the
 // day the verdict flips), and a separate fixture kills the elite by hand so that row 16 keeps a
-// detector which does not depend on the balance at all.
+// detector which does not depend on the VERDICT. It is NOT balance-free: it drives the run to
+// the elite's arrival and throws if the run decides first. Margin measured on all three seeds:
+// 16/16 standing, 0 downed, at tick 1801. Breaking it takes a wipe of the whole squad before
+// `ELITE_SPAWN_TICK`, and it would throw rather than pass quietly.
 
 import { describe, expect, it } from 'vitest'
 
@@ -299,10 +302,14 @@ describe('§1.15 the reducer path releases a pause in full, device half included
 
 describe('§1.16 the verdict reads the transition row that actually ran', () => {
   it('claims the win on the tick the elite dies, without asking the state a second time', () => {
-    // HAZARD 4b, on a fixture that does NOT depend on how the balance sweep tunes the run. The
-    // whole-battle fixture below detects the second `resolveTransitions()` only through an elite
-    // death, and §5 stage 2 has to make `tactical-no-input` lose. This one kills the elite by
-    // hand, so row 16 keeps a detector after that.
+    // HAZARD 4b, on a fixture that does not depend on which VERDICT the balance sweep tunes the
+    // run into. The whole-battle fixture below detects the second `resolveTransitions()` only
+    // through an elite death, and §5 stage 2 has to make `tactical-no-input` lose. This one
+    // kills the elite by hand, so row 16 keeps a detector after that.
+    //
+    // What it DOES depend on is the loop below reaching the arrival at all — measured margin,
+    // all three seeds: 16/16 standing and 0 downed at tick 1801. A tune that ends the run before
+    // `ELITE_SPAWN_TICK` breaks this fixture, and the `throw` two lines down is how it says so.
     const state = running('seed-a')
     while (state.elite.enemyId === null) {
       if (state.mode !== 'running' && state.mode !== 'awaiting-upgrade') {
@@ -418,9 +425,9 @@ describe('§1.16 the reducer runs a whole battle to a verdict', () => {
   it('composes all sixteen rows, and holds the four the types do not', () => {
     const run = playToVerdict('seed-a')
 
-    // The run DECIDES. Which verdict it reaches is §5 stage 2's to tune and not this fixture's
-    // to prescribe — but hazard 4b's detector below needs the win it currently produces, and
-    // that assertion is written where the reason for it can be read.
+    // The run DECIDES. This fixture also prescribes WHICH verdict, three assertions down, and
+    // that line is deliberate rather than an accident of what the balance happens to do today —
+    // hazard 4b's alarm below needs the win. §5 stage 2 owns the tune and owns that line with it.
     expect(run.state.result).not.toBeNull()
     expect(run.state.combatTick).toBeLessThanOrEqual(COMBAT_TICK_LIMIT)
 
@@ -456,10 +463,12 @@ describe('§1.16 the reducer runs a whole battle to a verdict', () => {
     // `tactical-no-input` lose (I3); the day it does, `eliteDeathTicks` empties, this fixture
     // stops testing row 16, and every assertion above still passes.
     //
-    // So it asserts the precondition of its own detector. This is NOT a balance claim — the
-    // fixture still refuses to say which verdict is right — it is the statement that when the
-    // verdict flips, row 16 needs a new detector HERE, and the elite-death fixture above is the
-    // one that keeps working while it is written.
+    // So it asserts the precondition of its own detector, and the second of the three lines
+    // below IS A BALANCE CLAIM: it pins today's verdict. That is the price of the alarm, paid on
+    // purpose — an alarm that will not name what it is watching cannot ring. §5 stage 2 must
+    // REPLACE that line when it tunes `tactical-no-input` into a defeat, not delete it, and the
+    // hand-killed-elite fixture above is what keeps row 16 covered while the replacement is
+    // written.
     expect(run.eliteDeathTicks.length).toBeGreaterThan(0)
     expect(run.state.result).toBe('won')
     expect(run.eliteDeathTicks).toEqual([run.state.combatTick - 1])

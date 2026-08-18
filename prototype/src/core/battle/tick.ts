@@ -5,10 +5,12 @@
 //
 // WHAT THE GUARD ACTUALLY ENFORCES, since a wrong reading of it is worse than none:
 // `tests/battle/battle-step-numbers.test.ts` greps `src/core/battle` and `tests/battle` for the
-// forms `step(s) N` and `N단계`, and allows them in the table alone. A bare `// 6` matches
-// nothing, so the guard permits one in ANY file — it does not reserve the annotation style for
-// this reducer, and nothing does. What keeps the numbers here is the table's own sentence and a
-// reader who has read it.
+// forms `step(s) N` and `N단계`, and its `EXEMPT` list names TWO files — `index.ts`, which holds
+// the table, and the guard test itself, which cannot state the rule without quoting what breaks
+// it. That file says so in as many words ("exactly two exemptions, both named"), and this
+// paragraph got the count wrong once. A bare `// 6` matches neither form, so the guard permits
+// one in ANY file — it does not reserve the annotation style for this reducer, and nothing does.
+// What keeps the numbers here is the table's own sentence and a reader who has read it.
 //
 // What this file adds that the sixteen functions could not:
 //

@@ -252,7 +252,15 @@
 //                                      death, so it fails loudly instead of going quiet the day
 //                                      the verdict flips; and a second fixture kills the elite
 //                                      by hand, which is a detector for row 16 that does not
-//                                      depend on the balance at all.
+//                                      depend on the VERDICT. It is not balance-free, and the
+//                                      word that said so was wrong: it drives
+//                                      `tactical-no-input` to the elite's arrival and throws
+//                                      `the run ended at N before the elite arrived` if the run
+//                                      decides first. The margin, measured on all three seeds,
+//                                      is 16/16 standing and 0 downed at tick 1801 — a tune that
+//                                      broke this detector would have to wipe a full squad
+//                                      before `ELITE_SPAWN_TICK`, and it would throw rather
+//                                      than pass.
 //   I1 measurement .................... `isEnemyEngaged` (enemy.ts).
 //   I2 measurement .................... `DamageOutcome.damageToFriendlies` already
 //                                      excludes overkill and absorbed hits, which is

@@ -90,12 +90,16 @@ export const MOVE_KEY_VECTORS: Readonly<Record<string, Vec2>> = {
 /**
  * The table lookup, and the ONLY way this module is allowed to read it.
  *
- * `MOVE_KEY_VECTORS` is an object, and every object answers to `toString`, `constructor`,
- * `valueOf` and `hasOwnProperty`. A bare `MOVE_KEY_VECTORS[code]` therefore says "yes, that is a
- * movement key" for four strings this game has never heard of, and the vector it hands back is a
- * FUNCTION: `sumHeldKeys` adds `undefined` to the axis and `state.input.move` becomes
- * `{NaN, NaN}`, which §1.17's digest normalizes to `null` — so two states corrupted in different
- * ways hash to the same value, which is the one thing the digest exists to prevent.
+ * `MOVE_KEY_VECTORS` is an object, so a bare `MOVE_KEY_VECTORS[code]` says "yes, that is a
+ * movement key" for every name `Object.prototype` answers to. Measured in this project's
+ * runtime: TWELVE of them — `constructor`, `hasOwnProperty`, `isPrototypeOf`,
+ * `propertyIsEnumerable`, `toString`, `toLocaleString`, `valueOf`, the four `__define*`/
+ * `__lookup*` accessors, and `__proto__`. The count is a property of the HOST's
+ * `Object.prototype`, not of this file, and it has grown before. Eleven hand back a FUNCTION and
+ * `__proto__` hands back an OBJECT; either way `sumHeldKeys` adds `undefined` to the axis and
+ * `state.input.move` becomes `{NaN, NaN}`, which §1.17's digest normalizes to `null` — so two
+ * states corrupted in different ways hash to the same value, which is the one thing the digest
+ * exists to prevent.
  *
  * `event.code` never produces those strings, but the queue is a public seam: batch F replays
  * serialized input logs through it and batch G feeds it whatever the DOM hands over.
@@ -169,9 +173,10 @@ function runCanContinue(mode: BattleMode): boolean {
  *   * `ready` STARTS nothing, and still takes the news that a key came up: the run that follows
  *     would otherwise begin holding it.
  *   * `won` and `lost` take NOTHING — not a press and not a release. See `runCanContinue`.
- *   * a card key needs a round WAITING for a card, in any mode. §1.13's `chooseUpgradeCard`
- *     already refuses to un-pause a paused battle, so "choose while paused" is representable
- *     and harmless; a key that maps to no offered card is not.
+ *   * a card key needs a round WAITING for a card, and one of `running`, `paused`,
+ *     `awaiting-upgrade`. §1.13's `chooseUpgradeCard` already refuses to un-pause a paused
+ *     battle, so "choose while paused" is representable and harmless; a key that maps to no
+ *     offered card is not.
  *   * `Escape` is refused while a card is waiting. §1.13 has already stopped the clock there,
  *     so a second stop adds nothing and would need a rule for which state Escape leaves —
  *     §1.15 does not write one. See the batch E report's §1 note.
