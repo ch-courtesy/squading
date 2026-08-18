@@ -18,6 +18,18 @@ import { projectPolicyView } from './view'
 /** §1.16's two terminal verdicts. A run always reaches one — §1.12's timeout guarantees it. */
 export type PolicyOutcome = 'won' | 'lost'
 
+/**
+ * WHY THERE IS NO `rescues` HERE, decided by batch G rather than inherited again.
+ *
+ * §5 stage 6 measures I13 and will need `state.stats.rescues` off a band run, so the field is
+ * owed. Batch G did not add it, and the reason is not scope: at §5 stage 0's placeholder values
+ * NO band run produces a rescue. `skilled` completes none on any of the three seeds and sends no
+ * `set-rescue` at all (`tests/harness/policy-run.test.ts` records both), so the field would ship
+ * pinned against `0` in every fixture that could see it — indistinguishable from a hard-coded
+ * zero, and a mutation replacing it with one would survive. Stage 6 is the first stage where a
+ * fixture can tell the two apart, and it is the stage that wants the field.
+ */
+
 export type SeedResult = {
   seed: string
   outcome: PolicyOutcome

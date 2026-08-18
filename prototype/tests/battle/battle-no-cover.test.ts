@@ -18,9 +18,7 @@ const ARCHIVED = [
   'core/harness/sight',
 ]
 
-// Scoped to the v2 battle core. `src/app` and `src/renderers` still belong to the
-// shipped v1 game, which legitimately imports `core/gameplay/*`; batch G must add the new
-// v2 shell and controller paths here when it wires them.
+// Every path the live game is assembled out of, v1's and v2's alike.
 //
 // BEFORE ADDING A PATH, read `moduleSpecifiers` below. The first version of this guard used
 // `/^\s*(?:import|export)[^\n]*?from\s+'([^']+)'/gm`, and `[^\n]*?` cannot cross a newline —
@@ -34,7 +32,25 @@ const ARCHIVED = [
 // directory and not `src/core/harness`, because the archived stage-1 sweep (`harness/i9.ts`,
 // `harness/sight.ts`) lives one level up and legitimately imports the geometry it was the
 // evidence about — pointing the guard at the parent would fail on the archive itself.
-const GAME_PATH_ROOTS = ['src/core/battle', 'src/core/harness/policy']
+//
+// Batch G added the last three: `src/core/battle-view` is v2's display projection,
+// `src/app` is both shells and both controllers, and `src/renderers` is the diorama the v2
+// route now draws through. §6 asks batch G for "새 셸·컨트롤러 경로"; the v1 files under those
+// two directories came along because splitting the roots file-by-file would leave the guard
+// keyed on a naming convention rather than on a directory. It costs nothing: v1 imports
+// `core/gameplay/constants`, `types`, `simulation` and `rescue`, and none of those is archived.
+//
+// NOT IN SCOPE, and named so the omission is a decision rather than an oversight:
+// `src/scenarios`, `src/metrics`, and the four v1 modules directly under `src/core`
+// (`simulation.ts`, `snapshot.ts`, `types.ts`, `input-log.ts`, `prng.ts`). They are the
+// renderer-comparison lab's supporting cast, not the game.
+const GAME_PATH_ROOTS = [
+  'src/core/battle',
+  'src/core/battle-view',
+  'src/core/harness/policy',
+  'src/app',
+  'src/renderers',
+]
 
 function sourceFiles(root: string): string[] {
   const absolute = join(process.cwd(), root)
@@ -76,8 +92,26 @@ export function moduleSpecifiers(source: string): string[] {
   return [...source.matchAll(/(?:from|import)\s*\(?\s*['"]([^'"]+)['"]/g)].map((match) => match[1])
 }
 
+/**
+ * Whether a module specifier names one of the archived cover modules.
+ *
+ * IT MATCHES PATH SEGMENTS, NOT SUBSTRINGS, and the difference is what let batch G widen the
+ * scope at all. The previous form asked whether the specifier CONTAINED an archived basename,
+ * which makes `./terrain-props` — the diorama renderer's own scenery module, no relation to
+ * `gameplay/terrain.ts` — an offender. A guard that fails on innocent code gets edited until it
+ * stops, and the edit that stops it fastest is the one that stops it noticing anything.
+ *
+ * Segment equality still catches every spelling a revival can wear: a relative path from any
+ * depth (`../gameplay/terrain`, `../../core/gameplay/geometry`), an explicit extension
+ * (`../gameplay/terrain.ts`), and a directory in the middle of a longer path. What it no longer
+ * catches is a module whose NAME merely starts or ends with an archived one, which is exactly
+ * the class of thing it was never about.
+ */
 function namesArchivedModule(specifier: string): boolean {
-  return ARCHIVED.some((archived) => specifier.includes(archived.split('/').pop()!))
+  const segments = specifier.split('/').map((segment) => segment.replace(/\.(?:m?[jt]s)$/, ''))
+  return ARCHIVED.some(
+    (archived) => specifier.includes(archived) || segments.includes(archived.split('/').pop()!),
+  )
 }
 
 describe('§1.6 cover stays removed', () => {
@@ -118,50 +152,50 @@ describe('§1.6 cover stays removed', () => {
     ])
   })
 
-  it('sees the dynamic imports in the real file batch G brings into scope', () => {
-    // `sourceFiles` walks `GAME_PATH_ROOTS`, which does not include `src/renderers` yet — so this
-    // reads the file directly. It is the whole reason the reader was widened BEFORE the scope was:
-    // `registry.ts` reaches every renderer through `await import('...')`, so a reader that cannot
-    // see that form would report a clean renderer tree while reading none of its imports.
-    //
-    // When batch G adds `src/renderers` to GAME_PATH_ROOTS, this test stops being special and the
-    // offender scan below covers it. Until then it is the only thing standing between the guard
-    // and nominal coverage.
-    const registry = readFileSync(join(process.cwd(), 'src/renderers/registry.ts'), 'utf8')
-    const specifiers = moduleSpecifiers(registry)
+  it('tells an archived module from one whose name merely starts the same way', () => {
+    // The matcher's own fixture, and it has to fail in BOTH directions or widening the scope
+    // is what broke it. `./terrain-props` is the diorama's scenery, `sight-line` is nothing at
+    // all — neither is `gameplay/terrain.ts` or `harness/sight.ts`, and a substring matcher
+    // called all four of them offenders.
+    expect(
+      [
+        '../gameplay/terrain',
+        '../../core/gameplay/geometry',
+        '../gameplay/terrain.ts',
+        '../harness/i9',
+        '../harness/sight',
+      ].filter(namesArchivedModule),
+    ).toHaveLength(5)
 
-    expect(specifiers).toContain('./three-hybrid')
-    expect(specifiers).toContain('./phaser-2d')
-    expect(specifiers).toContain('./three-3d')
-    expect(specifiers).toContain('./pending-renderer')
-    // None of them is archived — that is the fact this asserts. The value is that the reader was
-    // able to look: a blind reader would produce the same empty offender list from no readings.
-    expect(specifiers.filter(namesArchivedModule)).toEqual([])
-    expect(specifiers.length).toBeGreaterThanOrEqual(4)
+    expect(
+      [
+        './terrain-props',
+        './sight-line',
+        'three/examples/jsm/utils/BufferGeometryUtils.js',
+        '../../core/battle/formation',
+      ].filter(namesArchivedModule),
+    ).toEqual([])
   })
 
-  it('sees strictly more of the real tree than the line-anchored reader did', () => {
-    // The regression test for the defect itself, measured against the actual battle core rather
-    // than a fixture: this codebase writes multi-line imports, so a line-anchored reader finds
-    // strictly fewer specifiers here than a newline-agnostic one. If `moduleSpecifiers` is ever
-    // reverted to the anchored form, the two counts become equal and this fails.
-    let total = 0
-    let lineAnchored = 0
-
+  it('walks every root, and reads more than one specifier in each', () => {
+    // The offender scan below reports "no offenders" just as convincingly from a root it could
+    // not read as from a clean one. This is what separates the two: every root has files, and
+    // every root yields specifiers through the widened reader.
     for (const root of GAME_PATH_ROOTS) {
       const files = sourceFiles(root)
-      expect(files.length).toBeGreaterThan(0)
-      for (const file of files) {
-        const source = readFileSync(file, 'utf8')
-        total += moduleSpecifiers(source).length
-        lineAnchored += [
-          ...source.matchAll(/^\s*(?:import|export)[^\n]*?from\s+'([^']+)'/gm),
-        ].length
-      }
+      expect(files.length, root).toBeGreaterThan(0)
+      const specifiers = files.flatMap((file) => moduleSpecifiers(readFileSync(file, 'utf8')))
+      expect(specifiers.length, root).toBeGreaterThan(files.length)
     }
 
-    expect(lineAnchored).toBeGreaterThan(0)
-    expect(total).toBeGreaterThan(lineAnchored)
+    // `registry.ts` is the file the reader was widened FOR: it reaches every renderer through
+    // `await import('...')` with no space before the quote, and the anchored reader walked
+    // straight past all six. It is inside the scan now, so this only has to prove it was read.
+    const registry = moduleSpecifiers(
+      readFileSync(join(process.cwd(), 'src/renderers/registry.ts'), 'utf8'),
+    )
+    expect(registry).toContain('./three-hybrid')
+    expect(registry).toContain('./pending-renderer')
   })
 
   it('keeps the archived cover modules out of every game-path import', () => {

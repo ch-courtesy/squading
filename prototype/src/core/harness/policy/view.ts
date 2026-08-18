@@ -9,29 +9,38 @@
 // ---------------------------------------------------------------------------
 // WHAT IS IN THE VIEW, and why each item is something the player has
 // ---------------------------------------------------------------------------
+// The four entries batch G owed a screen to are settled: what follows is what
+// `app/battle/battle-shell.ts` and `core/battle-view/` ACTUALLY draw, checked against them.
+//
 //   tick, mode              the HUD's clock and the pause/card screen the player is looking at.
 //   ticksRemaining          §1.1's 90-second limit counted down; a run clock is on screen.
-//   command                 the body the player drives — position, hp/maxHp (an hp bar shows
-//                           both), `life`, and the downed countdown §1.11 races.
-//   friendlies              the other fifteen, same fields plus `slotIndex`: §1.4's formation is
-//                           drawn, so which body sits in which slot is visible geometry.
+//   command                 the body the player drives — position, hp/maxHp, `life`, and the
+//                           downed countdown §1.11 races. THE HP BAR IS REAL NOW: the shell's
+//                           roster strip gives every body a bar filled to `hp / maxHp`, with
+//                           both numbers on the bar's own tooltip. §1 still names no hp bar
+//                           anywhere — batch G decided to draw one, and that decision is what
+//                           licenses these two fields rather than any clause of §1.
+//   friendlies              the other fifteen, same fields plus `slotIndex`. §1.4's formation IS
+//                           drawn — the fifteen are miniatures at their own positions, and
+//                           §4.4(a) requires every one of them inside the viewport. The slot
+//                           NUMBER is not printed anywhere; what is on screen is the geometry it
+//                           names, which is what a policy standing in for a player can see.
 //   enemies                 position and `kind` for every LIVING enemy. Shape and place are
 //                           what a body on screen is; the list omits the dead because a dead
-//                           body is not drawn.
+//                           body is not drawn. The three classes get three silhouettes
+//                           (`core/battle-view/snapshot.ts`), so `kind` is visible too.
 //   eliteTelegraph          §1.12's warning circle — centre and radius, the two numbers that
 //                           make it a circle on the ground. Null when no telegraph is running.
-//   rescue                  §1.11's lock in progress: its target and its progress bar.
-//   rescueCandidateId       which body `Space` would pick up. `rescue.ts:99-100` states that the
-//                           renderer has to show this. HANDED TO BATCH G — see the note on the
-//                           field below. What sets it apart is NOT that it waits on a renderer:
-//                           `command`'s hp bar does too and §1 names no hp bar anywhere,
-//                           `friendlies` rests on §1.4's formation being drawn, and `rescue`
-//                           rests on its progress bar. What sets it apart is that it is DERIVED
-//                           — it resolves a tie the view cannot resolve itself. Of the tie-break's
-//                           three keys (`rescue.ts:87-94`) the view carries two: `downedTicks` as
-//                           the bijection `downedTicksRemaining`, and `id`. The first key,
-//                           `originalCommanderId`, it does not carry — and that one key is enough
-//                           to make the ordering unreachable from the view alone.
+//                           Drawn as the renderer's telegraph ring at exactly that radius.
+//   rescue                  §1.11's lock in progress: its target and its progress. THE SHELL
+//                           PRINTS IT AS A FRACTION, NOT A BAR — "이름 구조 중 9/36" — and the
+//                           earlier wording here ("its progress bar") described a widget that
+//                           does not exist. Both numbers are on screen either way.
+//   rescueCandidateId       which body `Space` would pick up. `rescue.ts:99-100` says the
+//                           renderer has to show this, and batch G does: the pickup gets a
+//                           `rescue-signal` on the board (the renderer's gold token) and its
+//                           roster chip is outlined. The debt below is therefore settled as a
+//                           number rather than reduced to a boolean — see the field.
 //   pendingUpgrade          §1.13's three offered cards — the card screen, literally.
 //   kills                   §1.13's kill counter, which the upgrade thresholds are read off.
 //
@@ -39,7 +48,12 @@
 // WHAT IS NOT IN THE VIEW, and why each one is not on the screen
 // ---------------------------------------------------------------------------
 //   enemy hp / maxHp        no enemy hp bar is specified anywhere in §1; "this one is nearly
-//                           dead" is not a fact the player is handed.
+//                           dead" is not a fact the player is handed. Batch G's shell prints
+//                           none, and dropped v1's elite-hp readout on those grounds. The RENDER
+//                           snapshot does carry `hp01` for every body, which is not a bar: the
+//                           renderer scales its hit flash by how much a blow took and reads a
+//                           drop to zero as the death to topple. A policy still may not have it,
+//                           because a policy would use it to decide.
 //   enemy attackCooldown    the frame an enemy will fire on. Reading it buys a dodge no human
 //                           reaction time can produce, which is the defect this file exists for.
 //   enemy targetId,         §1.9's slot bookkeeping. It says who is about to be shot before the
@@ -143,20 +157,22 @@ export type PolicyView = {
   /**
    * §1.11's "후보 존재" — which body `Space` would pick up right now, or null.
    *
-   * THIS FIELD IS A DEBT, AND BATCH G IS WHERE IT IS SETTLED. It is a DERIVED id, not a reading:
+   * THE DEBT IS SETTLED, AND IT STAYS A NUMBER. It is a DERIVED id, not a reading:
    * `rescueCandidateId` breaks its tie on `state.originalCommanderId`, then `unit.downedTicks`,
-   * then `id` (`rescue.ts:86-94`), and the view exposes the last two — `downedTicks` as the
-   * bijection `downedTicksRemaining`. It is the FIRST key the view does not carry, and one
-   * missing key is all it takes: without it the ordering cannot be reproduced from the view. So
-   * it resolves an ordering the view otherwise hides, which the two lists above do not license
-   * on their own — the standard there
-   * is "is it on the screen", and whether this id is on the screen cannot be checked until a
-   * renderer exists.
+   * then `id` (`rescue.ts:86-94`), and the view exposes only the last two — so the ordering is
+   * not reproducible from the view alone, and the field resolves something the view otherwise
+   * hides. The standard for keeping it was "is it on the screen", and until a renderer existed
+   * that could not be checked. The rule written here for batch G was: if the pickup highlight is
+   * not actually drawn, reduce this to a boolean or delete it.
    *
-   * It is harmless today because its only consumer (`policies.ts` `rescueIntent`) reads it as a
-   * boolean. The rule for batch G: if the pickup highlight is not actually drawn, this field is
-   * reduced to a boolean or removed. Keeping a number nobody draws is how the projection stops
-   * being a projection.
+   * It is drawn. `core/battle-view/snapshot.ts` emits a `rescue-signal` effect at the candidate
+   * body — the diorama's gold pickup token — and `app/battle/battle-shell.ts` outlines that
+   * body's roster chip and prints "Space로 구조". The id, not merely its existence, is what
+   * selects which of several downed bodies gets the token, which is the fact a player needs and
+   * the reason a boolean would be a worse projection rather than a tighter one.
+   *
+   * Its only consumer in this directory (`policies.ts` `rescueIntent`) still reads it as a
+   * boolean; that is a fact about the policies, not a licence question.
    */
   rescueCandidateId: number | null
   pendingUpgrade: UpgradeChoiceView | null
