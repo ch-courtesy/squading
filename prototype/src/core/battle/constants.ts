@@ -14,6 +14,8 @@
 // are asserted at module load, so a tuning pass that violates one fails loudly at
 // import time instead of producing a subtly broken run.
 
+import { FORMATION_MAX_SLOT_RADIUS } from './formation'
+
 // ---------------------------------------------------------------------------
 // FIXED — §1.1 coordinates and clock
 // ---------------------------------------------------------------------------
@@ -95,6 +97,32 @@ export const SOLDIER_HP = 1.4
  * than left inert: an unused threshold is one a later batch re-gates something on.
  */
 export const ARRIVE_EPSILON = 0.004
+
+// ---------------------------------------------------------------------------
+// PLACEHOLDER — the leash (§1.4.1, §2 `LEASH_RADIUS`)
+// ---------------------------------------------------------------------------
+
+/**
+ * PLACEHOLDER — §1.4.1: how far from the COMMAND UNIT an enemy may be and still be
+ * something a soldier will leave its slot for.
+ *
+ * §2 boxes it on both sides and the asserts at the bottom of this file hold both edges:
+ *   `> FORMATION_MAX_SLOT_RADIUS` (2.460)     — below the formation's own radius the leash
+ *                                               cannot be told apart from standing in the slot.
+ *   `< SOLDIER_RANGE + ENGAGE_RADIUS` (15.0)  — above it the soldiers reach everything the
+ *                                               spawner puts on the board and where the player
+ *                                               stands stops deciding anything, which is the
+ *                                               agency-free auto-battle §1.4.1 exists to escape.
+ *
+ * WHY 8.0 INSIDE THAT BOX, and it is a starting point and not a measurement (§5 owns the
+ * number): it is 3.25x the formation radius, so a soldier that engages is unmistakably out of
+ * formation rather than a slot's width away from it; and it is BELOW `ENGAGE_RADIUS` (10.0), so
+ * a soldier only ever chases a body that §1.10 already counts against the live cap around the
+ * command unit. The furthest a body can then be pulled from the command unit is
+ * `LEASH_RADIUS + SHOOTER_RANGE` = 12.5 — a soldier backing off from a target sitting on the
+ * leash edge — which is the number §4.4(a)'s framing has to survive.
+ */
+export const LEASH_RADIUS = 8.0
 
 // ---------------------------------------------------------------------------
 // PLACEHOLDER — enemy classes (§1.9)
@@ -329,6 +357,20 @@ assertRule(RANGE_ADVANTAGE > 0, 'the range advantage must be positive (§1.6)')
 // §1.12: the same shape of argument for the elite — an elite that parked outside soldier
 // range would be unkillable by the 15 bodies that are supposed to kill it.
 assertRule(ELITE_APPROACH_RANGE < SOLDIER_RANGE, 'ELITE_APPROACH_RANGE must be < SOLDIER_RANGE (§1.12)')
+// §1.4.1/§2: both edges of the leash box, and each one is a different failure.
+// Under the formation radius, "the soldier left its slot to fight" is a statement no observer
+// can distinguish from "the soldier is in its slot" — the rule would exist and show nothing.
+assertRule(
+  LEASH_RADIUS > FORMATION_MAX_SLOT_RADIUS,
+  'LEASH_RADIUS must be > FORMATION_MAX_SLOT_RADIUS (§2)',
+)
+// Over `SOLDIER_RANGE + ENGAGE_RADIUS` the squad can answer anything inside the radius §1.10
+// spawns against, from wherever the command unit happens to be, and §4.5's third question
+// ("어디에 멈출지 고민했는가") has no mechanism behind it any more.
+assertRule(
+  LEASH_RADIUS < SOLDIER_RANGE + ENGAGE_RADIUS,
+  'LEASH_RADIUS must be < SOLDIER_RANGE + ENGAGE_RADIUS (§2)',
+)
 // §1.10: overlapping radii fill the cap with enemies still in transit.
 assertRule(SPAWN_RADIUS >= ENGAGE_RADIUS + 2.0, 'SPAWN_RADIUS must be >= ENGAGE_RADIUS + 2.0 (§1.10)')
 // §1.10: the pressure table is walked by tick and its ratio by a phase-local index, so a

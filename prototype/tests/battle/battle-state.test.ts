@@ -17,6 +17,7 @@ import {
   ELITE_APPROACH_RANGE,
   ENGAGE_RADIUS,
   FOLLOW_MAX_SPEED,
+  LEASH_RADIUS,
   FOLLOW_SPEED_MULTIPLIER,
   MAX_UPGRADES,
   MELEE_MOVE_SPEED,
@@ -51,6 +52,7 @@ import {
 } from '../../src/core/battle/state'
 import { canonicalizeBattleState, digestBattleState } from '../../src/core/battle/digest'
 import { FORMATION_SLOTS } from '../../src/core/gameplay/formation'
+import { FORMATION_MAX_SLOT_RADIUS } from '../../src/core/battle/formation'
 
 function countingPrng(inner: Prng): { prng: Prng; draws: () => number } {
   let draws = 0
@@ -111,6 +113,10 @@ describe('§1.2 anchors and §1.4 structural invariants', () => {
     expect(ELITE_APPROACH_RANGE).toBeLessThan(SOLDIER_RANGE)
     // §1.10: overlapping spawn and engage radii refill the cap with enemies in transit.
     expect(SPAWN_RADIUS).toBeGreaterThanOrEqual(ENGAGE_RADIUS + 2.0)
+    // §1.4.1/§2: the leash box. Under the formation radius the rule is invisible; over
+    // `SOLDIER_RANGE + ENGAGE_RADIUS` the command unit's position stops selecting anything.
+    expect(LEASH_RADIUS).toBeGreaterThan(FORMATION_MAX_SLOT_RADIUS)
+    expect(LEASH_RADIUS).toBeLessThan(SOLDIER_RANGE + ENGAGE_RADIUS)
   })
 
   it('keeps the upgrade kill thresholds strictly ascending (§1.13)', () => {
