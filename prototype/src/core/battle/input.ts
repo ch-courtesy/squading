@@ -111,7 +111,22 @@ export const PAUSE_KEY_CODE = 'Escape'
 export type PointerPhase = 'down' | 'move'
 
 /**
- * §1.15's 금지 상황, as one predicate.
+ * A movement vector the digest can tell apart from another one.
+ *
+ * §1.17 normalizes to 6 decimals and every non-finite number normalizes to `null`, so
+ * `{NaN, NaN}`, `{Infinity, Infinity}` and `{-Infinity, NaN}` are ONE digest — two states
+ * corrupted in different ways would hash the same, which is the collision the digest exists to
+ * rule out. The core never computes these numbers: `sumHeldKeys` adds table entries and
+ * `pointerDrag` is handed browser coordinates, and batch F builds `set-move` by hand from a
+ * serialized log. Refusing the command is where that stops, because past here the axis is held
+ * state and the next tick reads it as if the core had chosen it.
+ */
+function isFiniteVector(vector: Vec2): boolean {
+  return Number.isFinite(vector.x) && Number.isFinite(vector.y)
+}
+
+/**
+ * §1.15's 금지 상황, as one predicate — plus the one well-formedness check a command carries.
  *
  * Exported because the queue is not the only enqueuer — batch F's policy harness and batch G's
  * controller both build commands, and a second copy of this rule is a second place for it to
@@ -140,10 +155,16 @@ export type PointerPhase = 'down' | 'move'
  *   * `Escape` is refused while a card is waiting. §1.13 has already stopped the clock there,
  *     so a second stop adds nothing and would need a rule for which state Escape leaves —
  *     §1.15 does not write one. See the batch E report's §1 note.
+ *
+ * THE VECTOR CHECK IS NOT A MODE RULE and it lives here anyway, because this is the one gate all
+ * three public entry points already share (`isFiniteVector` says what it costs to skip it). A
+ * second home for it would be a second place for it to drift, which is the argument that put
+ * §1.15's 금지 상황 here in the first place.
  */
 export function commandIsAllowed(state: Readonly<BattleState>, command: BattleCommand): boolean {
   switch (command.kind) {
     case 'set-move':
+      if (!isFiniteVector(command.move)) return false
       return state.mode === 'running' || !command.keydown
     case 'set-rescue':
       return state.mode === 'running' || !command.held

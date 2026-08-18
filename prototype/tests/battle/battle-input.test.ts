@@ -568,6 +568,39 @@ describe('§1.15 the reducer enforces the same rule the queue does', () => {
     expect(application.discarded).toBe(0)
   })
 
+  it('refuses a movement vector that is not finite, instead of writing it into the axis', () => {
+    // §1.17's digest normalizes every non-finite number to `null`, so `{NaN, NaN}`,
+    // `{Infinity, Infinity}` and `{-Infinity, NaN}` all hash to the SAME state — two runs
+    // corrupted in different ways would agree on a digest, which is the one thing the digest
+    // exists to rule out. `moveVectorFor` closed the prototype-chain route into this, but that
+    // was one route: batch F builds commands by hand and nothing here was reading the numbers.
+    const state = running()
+    state.input.move = { x: 0, y: -1 }
+
+    const application = applyBattleCommands(state, [
+      { kind: 'set-move', move: { x: Number.NaN, y: Number.NaN }, keydown: true },
+      { kind: 'set-move', move: { x: Number.POSITIVE_INFINITY, y: 0 }, keydown: false },
+      { kind: 'set-move', move: { x: 0, y: Number.NEGATIVE_INFINITY }, keydown: true },
+    ])
+
+    expect(state.input.move).toEqual({ x: 0, y: -1 })
+    expect(application.discarded).toBe(3)
+    // A refused command is not an act either: §1.11's cancel must not fire on one.
+    expect(application.events.movementKeydown).toBe(false)
+  })
+
+  it('refuses a pointer offset that is not finite, at the queue as well', () => {
+    // `Math.hypot(NaN, 0)` is `NaN` and `NaN < ARRIVE_EPSILON` is false, so the clamp lets it
+    // through unchanged; the predicate is what stops it. This is the same rule read at the
+    // other end of the seam, which is the point of there being one predicate.
+    const state = running()
+    const queue = new BattleInputQueue()
+
+    expect(queue.pointerDrag(state, { x: Number.NaN, y: 0 }, 'down')).toBe(false)
+    expect(queue.pointerDrag(state, { x: 0, y: Number.POSITIVE_INFINITY }, 'down')).toBe(false)
+    expect(queue.size).toBe(0)
+  })
+
   it('refuses a card key that names no offered card, rather than throwing at the reducer', () => {
     const state = awaitingUpgrade()
 
