@@ -67,10 +67,6 @@
 // So the table names what has been dug, and this list names what has not. These are the
 // candidates batch G inherits, by name, each with the rule that would make it a decision:
 //
-//   * `eliteDodgeIntent`'s degenerate heading (`policies.ts:211`) — the `{x:1,y:0}` a body
-//     standing exactly on the frozen centre runs in. §1.12 does not say which way it should go.
-//   * `standoffIntent`'s degenerate heading (`policies.ts:257`) — the same `{x:1,y:0}` for a body
-//     standing on top of what it is measuring against.
 //   * `skilled`'s band UPPER edge (`policies.ts:303`) — `SOLDIER_RANGE`, because past it the
 //     squad stops shooting (§1.6). Only the lower edge's fraction is mutated today.
 //   * `conservativeStandoff` and `aggressiveStandoff`'s band fractions (`policies.ts:384`,
@@ -85,9 +81,21 @@
 //   * `projectPolicyView`'s command/roster split in `view.ts` — §1.5's command unit is the one row
 //     that must not also appear in `friendlies`.
 //
-// Four of those (`:211`, `:303`, `:351`, `:384`) were probed exactly once, by the batch F
-// re-reviewer, and were caught. A probe that is not in this table is not a standing check: it
-// does not run again, and nothing notices when the fixture behind it moves.
+// Three of those (`:303`, `:351`, `:384`) were probed once, by a batch F re-reviewer, and were
+// caught. A probe that is not in this table is not a standing check: it does not run again, and
+// nothing notices when the fixture behind it moves. An earlier version of this note claimed a
+// fourth, `:211`, had been probed and caught; it had not — the closing re-reviewer probed the
+// line this note actually named and it SURVIVED. See the next paragraph for why that is not a
+// gap, and treat the difference as the reason a probe belongs in the table or in prose, never in
+// a count.
+//
+// DELIBERATELY UNPINNED, which is not the same as undug. `eliteDodgeIntent`'s degenerate heading
+// (`policies.ts:211`) and `standoffIntent`'s (`policies.ts:257`) both hand back `{x:1,y:0}` for a
+// unit standing exactly on the point it is reacting to. Neither §1.12 nor §1.6 says which way it
+// should go, and both comments say so at the line: any heading leaves the blast, any heading
+// backs off. A fixture pinning `{x:1,y:0}` would assert an arbitrary choice, and the only thing
+// that actually binds — that the choice is the SAME every replay — is §1.17's, held by the seed
+// digests. Mutating these two is measuring the test suite, not the game.
 //
 // Usage, from `prototype/`:  node scripts/mutate.mjs [--filter <substring>]
 //
@@ -281,6 +289,17 @@ const MUTATIONS = [
     label: 'go for the first reachable body in id order, not the nearest',
     find: '    if (distance >= bestDistance) continue',
     replace: '    if (best !== null) continue',
+  },
+  {
+    // Closing re-review, and the one survivor it found that nobody had named. `>=` is what makes
+    // two EQUIDISTANT bodies resolve to the lower id: the view hands rows out in ascending id, so
+    // a strict-greater test lets the later row displace the earlier one. `nearestEnemy`'s docblock
+    // calls that ascending-id tie-break "the tie-break §1.5, §1.8 and §1.9 all use"; this function
+    // follows it and, until the fixture beside this entry, nothing held it there.
+    file: POLICIES,
+    label: 'break a nearest-body tie toward the higher id',
+    find: '    if (distance >= bestDistance) continue',
+    replace: '    if (distance > bestDistance) continue',
   },
   {
     // Review M5. §1.11: "취소 시 진행도는 0으로 되돌린다", and the candidate test is re-run every
