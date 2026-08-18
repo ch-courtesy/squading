@@ -10,9 +10,12 @@ import { describe, expect, it } from 'vitest'
 
 import {
   ARRIVE_EPSILON,
+  COMMANDER_MOVE_SPEED,
   DOWNED_TICKS,
   ELITE_BLAST_RADIUS,
   MELEE_RANGE,
+  RESCUE_RANGE,
+  RESCUE_TICKS,
   SHOOTER_RANGE,
 } from '../../src/core/battle/constants'
 import type { BattleCommand } from '../../src/core/battle/input'
@@ -97,16 +100,34 @@ describe('§4.1 `skilled` stops where the range advantage is', () => {
     expect(decideOnce('skilled', viewOf({ enemies: [shooterEast(4.8)] }))).toEqual([])
   })
 
-  it('measures against the nearest shooter even with a melee in its face', () => {
-    const view = viewOf({ enemies: [meleeEast(-1), shooterEast(6)] })
-    const move = moveIn(decideOnce('skilled', view))
-
-    // The melee sits 1.0 to the WEST. A policy positioning against the nearest body of any kind
-    // would run east away from it and also east toward the shooter — so the discriminating test
-    // is the melee-only board below, where the two answers point opposite ways.
+  it('takes the band from the nearest SHOOTER while a melee is closer, and walks past the melee', () => {
+    // §1.6's gap is a gap against a shooter and against nothing else — `SHOOTER_RANGE <
+    // SOLDIER_RANGE` is the whole of it, and a melee has no range for the gap to be a gap
+    // against. So WHICH body the band is measured from decides the SIGN of the step here.
+    //
+    // The melee is 0.95 east, inside every band, so a policy measuring against the nearest body
+    // of any kind backs WEST off it. The shooter is 5.1 east, outside [4.7, 5.0], so a policy
+    // measuring against the nearest shooter closes EAST on it. The magnitude names which body it
+    // used: the step is the whole offset to the goal.
+    const move = moveIn(
+      decideOnce('skilled', viewOf({ enemies: [meleeEast(0.95), shooterEast(5.1)] })),
+    )
     expect(move).not.toBeNull()
-    expect(move!.x).toBeGreaterThan(0)
+    expect(move!.x).toBeCloseTo(5.1, 9)
 
+    // The mirror, so this is not a board on which east was the only answer available: the same
+    // two distances on the other side, and the step comes out west.
+    const mirrored = moveIn(
+      decideOnce('skilled', viewOf({ enemies: [meleeEast(-0.95), shooterEast(-5.1)] })),
+    )
+    expect(mirrored).not.toBeNull()
+    expect(mirrored!.x).toBeCloseTo(-5.1, 9)
+  })
+
+  it('falls back to the nearest body of any kind when there is no shooter on the board', () => {
+    // The other branch of the same line. With no shooter there is no gap to hold, and the
+    // fallback still keeps a melee at arm's length rather than standing in the middle of the
+    // board — so this measures the `: view.enemies` fallback, not the filter above it.
     const meleeOnly = moveIn(decideOnce('skilled', viewOf({ enemies: [meleeEast(1)] })))
     expect(meleeOnly).not.toBeNull()
     expect(meleeOnly!.x).toBeLessThan(0)
@@ -139,6 +160,33 @@ describe('§1.12 `skilled` leaves the telegraph, ahead of everything else', () =
 
     expect(move).not.toBeNull()
     expect(move!.x).toBeLessThan(0)
+  })
+
+  it('drops a rescue to do it as well, and it is the rescue that gets dropped', () => {
+    // The priority §4.1's `skilled` asks its questions in, on the pair the order actually
+    // separates: §1.12's blast is the only thing on the board that can take the whole formation
+    // at once, so it is answered ahead of §1.11's countdown on a single body.
+    //
+    // The circle is centred 1.0 EAST of the command unit, so leaving it means walking west. The
+    // body `Space` would pick up is already a candidate, so the other ordering stands still
+    // inside the circle and holds the key instead.
+    const body = friendly(4, ORIGIN.x + 1, ORIGIN.y, {
+      life: 'downed',
+      downedTicksRemaining: DOWNED_TICKS,
+    })
+    const both = viewOf({
+      friendlies: [body],
+      rescueCandidateId: body.id,
+      eliteTelegraph: { center: { x: ORIGIN.x + 1, y: ORIGIN.y }, radius: ELITE_BLAST_RADIUS },
+    })
+    expect(decideOnce('skilled', both)).toEqual([
+      { kind: 'set-move', move: { x: -1, y: 0 }, keydown: true },
+    ])
+
+    // The same board with the telegraph taken away: the rescue is live and it fires. So the
+    // assertion above is the ordering deciding, not a board on which nothing wanted to rescue.
+    const rescueOnly = viewOf({ friendlies: [body], rescueCandidateId: body.id })
+    expect(decideOnce('skilled', rescueOnly)).toEqual([{ kind: 'set-rescue', held: true }])
   })
 
   it('keeps walking past the edge, because standing on the radius is not standing clear of it', () => {
@@ -260,6 +308,37 @@ describe('§1.11 `skilled` goes back for a body, and `abandons-downed` does not'
     expect(decideOnce('skilled', viewOf({ friendlies: [doomed] }))).toEqual([])
   })
 
+  it('budgets the lock at the end of the walk and not only the walk', () => {
+    // §1.11's countdown has to cover the WHOLE trip, and the lock is part of the trip: a body
+    // reached with fewer than `RESCUE_TICKS` left is a body that dies under the lock, so walking
+    // to it spends the run on nothing. The fixture above uses a distance where the walk alone
+    // already blows the countdown, which leaves that term untested.
+    //
+    // Here the two boards differ ONLY in the countdown, and the gap between the two counts is
+    // exactly `RESCUE_TICKS`. Derived from the constants rather than written out, so a sweep of
+    // §1.2's speed or §1.11's lock carries the fixture with it.
+    const distance = 5.5
+    const walkTicks = (distance - RESCUE_RANGE) / COMMANDER_MOVE_SPEED
+    const walkOnly = Math.ceil(walkTicks)
+    const walkAndLock = Math.ceil(walkTicks + RESCUE_TICKS)
+
+    // What makes `walkOnly` the discriminating count: it pays for the walk and not for the lock.
+    expect(walkOnly).toBeGreaterThanOrEqual(walkTicks)
+    expect(walkOnly).toBeLessThan(walkTicks + RESCUE_TICKS)
+
+    const tooLate = friendly(4, ORIGIN.x + distance, ORIGIN.y, {
+      life: 'downed',
+      downedTicksRemaining: walkOnly,
+    })
+    expect(decideOnce('skilled', viewOf({ friendlies: [tooLate] }))).toEqual([])
+
+    const inTime = friendly(4, ORIGIN.x + distance, ORIGIN.y, {
+      life: 'downed',
+      downedTicksRemaining: walkAndLock,
+    })
+    expect(moveIn(decideOnce('skilled', viewOf({ friendlies: [inTime] })))!.x).toBeGreaterThan(0)
+  })
+
   it('`abandons-downed` sends no `set-rescue` in the fixture where `skilled` sends one', () => {
     const view = viewOf({ friendlies: [downed], rescueCandidateId: downed.id, enemies: [shooterEast(4)] })
 
@@ -299,6 +378,22 @@ describe('§4.1 the four other variants, each against the fixture where `skilled
     const standoff = viewOf({ enemies: [shooterEast(4)] })
     expect(moveIn(decideOnce('skilled', standoff))).not.toBeNull()
     expect(decideOnce('camps-in-place', standoff)).toEqual([])
+
+    // §4.1's row names ONE reason, so the OTHER reason `skilled`'s intent can produce has to be
+    // refused too, or the camper walks across the board. The body is 3.5 east — past
+    // `RESCUE_RANGE`, so `Space` is not an option and only a walk would close it — and well
+    // inside the countdown, so `skilled` sets off and the camper stays put.
+    //
+    // That is both reasons `camps-in-place` can ever be handed. The fourth `MoveReason`, `flee`,
+    // comes from `flees-always`, which replaces `intent` instead of `allowsMove`, so no board
+    // puts it in front of this filter.
+    const body = friendly(4, ORIGIN.x + 3.5, ORIGIN.y, {
+      life: 'downed',
+      downedTicksRemaining: DOWNED_TICKS,
+    })
+    const approach = viewOf({ friendlies: [body], rescueCandidateId: null })
+    expect(moveIn(decideOnce('skilled', approach))!.x).toBeGreaterThan(0)
+    expect(decideOnce('camps-in-place', approach)).toEqual([])
 
     const blast = viewOf({
       enemies: [shooterEast(4)],
