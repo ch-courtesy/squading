@@ -15,7 +15,13 @@ export function createRenderer(): HybridGameRenderer {
       if (activeRenderer === renderer) activeRenderer = null
       disposeRenderer()
     }
-    window.__SQUADING_TEST__ = { rendererScene: () => activeRenderer?.getVisualState() ?? null }
+    // Merged rather than assigned: the v2 shell installs its own half of this bridge before
+    // the renderer chunk has even loaded, and a plain assignment here would erase it.
+    window.__SQUADING_TEST__ = {
+      ...(window.__SQUADING_TEST__ ?? {}),
+      rendererScene: () => activeRenderer?.getVisualState() ?? null,
+      projectGroundPoint: (x, y) => activeRenderer?.projectGroundPoint(x, y) ?? null,
+    }
   }
   return renderer
 }

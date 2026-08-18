@@ -415,3 +415,301 @@ select {
     grid-template-columns: 1fr;
   }
 }
+
+/* --- v2 commander battle (batch G) -------------------------------------------
+   The same staging as the v1 shell above — a full-bleed stage with overlays on
+   top of it — with one screen v1 has no equivalent of: the roster strip, which is
+   where §1.14's names and the hp bar the projection's licence rests on are drawn. */
+
+.battle-shell {
+  position: relative;
+  width: 100%;
+  min-height: 100vh;
+  overflow: hidden;
+}
+
+.bt-stage {
+  position: absolute;
+  inset: 0;
+  background: #201d16;
+}
+
+.bt-stage canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: crosshair;
+}
+
+.bt-error {
+  position: absolute;
+  top: 1rem;
+  left: 50%;
+  z-index: 20;
+  max-width: min(90%, 32rem);
+  margin: 0;
+  padding: 0.75rem 1.25rem;
+  border: 1px solid #e1725f;
+  border-radius: 0.5rem;
+  background: rgb(60 20 16 / 92%);
+  color: #ffd9d0;
+  text-align: center;
+  transform: translateX(-50%);
+}
+
+.bt-ready,
+.bt-overlay {
+  position: absolute;
+  inset: 0;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: safe center;
+  gap: 1rem;
+  padding: clamp(1.5rem, 5vw, 3rem);
+  overflow-y: auto;
+  text-align: center;
+  background: rgb(15 14 10 / 92%);
+}
+
+.bt-ready:not([hidden]),
+.bt-overlay:not([hidden]) {
+  display: flex;
+}
+
+[data-battle-pause] {
+  background: rgb(15 14 10 / 55%);
+  backdrop-filter: blur(2px);
+}
+
+.bt-eyebrow {
+  margin: 0;
+  color: #e1b55f;
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+}
+
+.bt-ready h1 {
+  margin: 0;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(2rem, 6vw, 3.5rem);
+  line-height: 1;
+}
+
+.bt-objective {
+  max-width: 34rem;
+  font-size: 1.15rem;
+}
+
+.bt-controls {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 1rem 1.5rem;
+  border: 1px solid #4c4638;
+  border-radius: 0.75rem;
+  background: rgb(28 26 21 / 88%);
+}
+
+.bt-controls div {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: space-between;
+}
+
+.bt-controls dt {
+  color: #bdb3a0;
+}
+
+.bt-controls dd {
+  margin: 0;
+  font-weight: 600;
+}
+
+.bt-start,
+[data-battle-resume],
+[data-battle-restart] {
+  min-height: 3rem;
+  padding: 0.75rem 2rem;
+  border: 1px solid #e1b55f;
+  border-radius: 0.5rem;
+  color: #171510;
+  background: #e1b55f;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.bt-hud {
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
+  display: none;
+  gap: 0.35rem;
+  width: 19rem;
+  max-height: calc(100vh - 2rem);
+  padding: 1rem;
+  border: 1px solid #4c4638;
+  border-radius: 0.75rem;
+  background: rgb(23 21 16 / 85%);
+  overflow-y: auto;
+}
+
+.bt-hud:not([hidden]) {
+  display: grid;
+}
+
+.bt-hud-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.bt-hud-label {
+  color: #bdb3a0;
+}
+
+.bt-roster {
+  display: grid;
+  gap: 0.2rem;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.bt-roster-entry {
+  display: grid;
+  grid-template-columns: 5.5rem 1fr 4.5rem;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.78rem;
+}
+
+.bt-roster-entry[data-command="true"] .bt-roster-name {
+  color: #ffd98a;
+  font-weight: 800;
+}
+
+.bt-roster-entry[data-rescue-candidate="true"] {
+  outline: 1px solid #ffb52e;
+  border-radius: 0.25rem;
+}
+
+.bt-roster-entry[data-life="dead"] {
+  opacity: 0.45;
+}
+
+.bt-roster-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bt-roster-bar {
+  display: block;
+  height: 0.4rem;
+  border: 1px solid #4c4638;
+  border-radius: 0.2rem;
+  background: #241f17;
+  overflow: hidden;
+}
+
+.bt-roster-fill {
+  display: block;
+  height: 100%;
+  background: #7fd6c4;
+}
+
+.bt-roster-entry[data-life="downed"] .bt-roster-fill {
+  background: #f4d66c;
+}
+
+.bt-roster-state {
+  color: #bdb3a0;
+  text-align: right;
+}
+
+.bt-overlay-title {
+  margin: 0;
+  font-size: 1.75rem;
+}
+
+.bt-cards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+  width: min(48rem, 100%);
+}
+
+.bt-card {
+  display: grid;
+  gap: 0.45rem;
+  padding: 1.25rem 1rem;
+  border: 1px solid #625b49;
+  border-radius: 0.75rem;
+  color: inherit;
+  background: #242119;
+  text-align: left;
+  cursor: pointer;
+}
+
+.bt-key {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 50%;
+  background: #e1b55f;
+  color: #171510;
+  font-weight: 800;
+}
+
+.bt-result-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+  width: min(40rem, 100%);
+  margin: 0;
+}
+
+.bt-result-stats div {
+  padding: 0.75rem;
+  border: 1px solid #4c4638;
+  border-radius: 0.5rem;
+  background: rgb(28 26 21 / 88%);
+}
+
+.bt-result-stats dt {
+  color: #bdb3a0;
+}
+
+.bt-result-stats dd {
+  margin: 0;
+  font-weight: 700;
+}
+
+.bt-terminal h3 {
+  margin: 0.5rem 0 0;
+  color: #e1b55f;
+  font-size: 0.95rem;
+}
+
+.bt-record {
+  margin: 0;
+  padding: 0;
+  color: #c9c0ae;
+  font-size: 0.9rem;
+  list-style: none;
+}
+
+@media (max-width: 42rem) {
+  .bt-cards,
+  .bt-result-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .bt-hud {
+    width: calc(100% - 2rem);
+  }
+}

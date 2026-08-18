@@ -21,7 +21,7 @@ import { expect, test, type Page } from '@playwright/test'
  * from hit points, life states and positions the snapshot already publishes.
  */
 async function scene(page: Page) {
-  return page.evaluate(() => window.__SQUADING_TEST__?.rendererScene() ?? null)
+  return page.evaluate(() => window.__SQUADING_TEST__?.rendererScene?.() ?? null)
 }
 
 /**
@@ -35,7 +35,7 @@ async function replaySeed47(page: Page) {
   return page.evaluate(async () => {
     const { createRenderer } = await (0, eval)('import("/src/renderers/three-hybrid/index.ts")')
     const { createGameplaySimulation } = await (0, eval)('import("/src/core/gameplay/simulation.ts")')
-    const bridge = () => window.__SQUADING_TEST__!.rendererScene()!
+    const bridge = () => window.__SQUADING_TEST__!.rendererScene!()!
 
     // A small viewport: this replay renders hundreds of frames back to back, and its
     // assertions are about animation state rather than about framing.
@@ -198,7 +198,7 @@ test('animates attacks, hits, deaths, the rescue token and the elite strike acro
 
 test('plays the same feedback through the live gameplay loop', async ({ page }) => {
   test.setTimeout(120_000)
-  await page.goto('?seed=47')
+  await page.goto('?lab=v1&seed=47')
   await page.getByRole('button', { name: '전투 시작' }).click()
   await expect(page.locator('.gp-stage canvas')).toHaveCount(1)
 

@@ -25,7 +25,7 @@ const KITE_ROUTE: readonly Segment[] = [
 ]
 
 async function startSeed47Battle(page: Page): Promise<void> {
-  await page.goto('?seed=47')
+  await page.goto('?lab=v1&seed=47')
   await page.getByRole('button', { name: '전투 시작' }).click()
   // Keyboard and pointer input only reach the simulation once the Three.js renderer
   // chunk has loaded and the controller has attached its adapter.
@@ -183,7 +183,7 @@ test('locks a real rescue while Space is held and drops it when Space is release
 })
 
 test('never ships the dev-only renderer test bridge in a production build', async ({ page }) => {
-  await page.goto('')
+  await page.goto('?lab=v1')
   await expect(page.locator('.gp-stage canvas')).toBeVisible()
   const servedByViteDevServer = await page.evaluate(() => Boolean(document.querySelector('script[src$="/@vite/client"]')))
   const bridgeInstalled = await page.evaluate(() => '__SQUADING_TEST__' in window)

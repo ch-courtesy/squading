@@ -6,6 +6,7 @@ import type { GameRenderer, QualityLevel, RendererMetrics } from '../contract'
 import { TEAM_TINTS, cardboardMaterial, createCardboardAssets, disposeObjectMaterials, flatMaterial, type CardboardAssets } from '../three-shared/scene-utils'
 import { DECAL_HEIGHT, FX_COSMETIC_SEED, createCombatFxAssets, createSurfaceDecals, surfaceDecalExtent, type CombatFxAssets, type SurfaceDecals } from './combat-fx'
 import { FIGURE_SCALE, cosmeticRandom, createDioramaAssets, type DioramaAssets, type MiniatureArchetype } from './diorama-assets'
+import { DIORAMA_PITCH_RADIANS } from './staging'
 import { createTerrainProps, type TerrainProps } from './terrain-props'
 
 /**
@@ -137,7 +138,7 @@ export type HybridVisualState = {
 export type HybridRendererDiagnostics = {
   readonly rendererType: 'webgl'; readonly objectCount: number; readonly actualObjectCount: number; readonly visualUnitCount: number; readonly visualEffectCount: number; readonly snapshotUnitIds: readonly number[]; readonly snapshotUnits: readonly { readonly id: number; readonly x: number; readonly y: number; readonly tint: number }[]; readonly teamTints: Readonly<Record<'teal' | 'scarlet' | 'enemy', number>>; readonly unitVisuals: readonly { readonly id: number; readonly x: number; readonly y: number; readonly tint: number; readonly billboard: boolean; readonly facesCamera: boolean; readonly screenY: number; readonly screenHeight: number; readonly kind: string; readonly state: string; readonly cardCenter: { readonly x: number; readonly y: number; readonly z: number }; readonly shadowNormalY: number; readonly markerNormalY: number; readonly shadowFootprint: { readonly x: number; readonly z: number } }[]; readonly worldBounds: { readonly width: number; readonly height: number; readonly centerX: number; readonly centerY: number }; readonly camera: { readonly projection: 'orthographic'; readonly left: number; readonly right: number; readonly top: number; readonly bottom: number }; readonly rescueSignalCount: number; readonly quality: { readonly particleCount: number; readonly shadowMapSize: number; readonly shadowTargetSize: { readonly width: number; readonly height: number } | null; readonly dpr: number }; readonly metrics: RendererMetrics
 }
-export interface HybridGameRenderer extends GameRenderer { getDiagnostics(): HybridRendererDiagnostics; getVisualState(): HybridVisualState }
+export interface HybridGameRenderer extends GameRenderer { getDiagnostics(): HybridRendererDiagnostics; getVisualState(): HybridVisualState; projectGroundPoint(x: number, y: number): { x: number; y: number } | null }
 
 const PARTICLE_COUNT = 12
 const WORLD_WIDTH = 40
@@ -164,13 +165,8 @@ const TELEGRAPH_SEGMENTS = 48
 // The gameplay route paints a sculpted diorama: sandy board with grid seams, a raised
 // wooden edge frame, warm key light plus a cool rim, and merged miniature bodies.
 // --- Camera staging --------------------------------------------------------------
-// The concept sheet is shot from a low oblique angle: the miniatures stand up against
-// the board, their bases read as ellipses rather than circles, and the key light rakes
-// long shadows across the sand. A near top-down view flattens all three away.
-//
-// 30 degrees is as low as the staging can go before the front rank starts hiding the
-// rank behind it, and it matches the base-ring ellipse of the concept art.
-const DIORAMA_PITCH_RADIANS = (30 * Math.PI) / 180
+// The pitch itself lives in `staging.ts`, without a `three` import, because the v2 shell has
+// to invert this staging to read a pointer drag back into world space (§1.15).
 // Orthographic, so the distance only has to clear the near plane and keep the whole
 // board (and the terrain belt behind it) inside the depth range.
 const DIORAMA_CAMERA_DISTANCE = 46
@@ -597,6 +593,20 @@ class ThreeHybridRenderer implements HybridGameRenderer {
       viewHalfWidth: (camera.right - camera.left) / 2,
       viewHalfHeight: (camera.top - camera.bottom) / 2,
     }
+  }
+
+  /**
+   * A point on the tabletop, in normalized device coordinates.
+   *
+   * §4.4's framing guarantee is about the WORLD REGION on screen, not about the units that
+   * happen to be standing in it — "지휘 유닛 중심 반경 ...의 월드 영역이 전부 뷰포트 안" names
+   * ground, and there is no body at most of it. Projecting through the live camera is the only
+   * way to assert that from the render result rather than from a re-derivation of the frustum.
+   */
+  projectGroundPoint(x: number, y: number): { x: number; y: number } | null {
+    if (!this.camera) return null
+    const projected = new THREE.Vector3(x, 0, y).project(this.camera)
+    return { x: projected.x, y: projected.y }
   }
 
   private describeTelegraph(): HybridVisualState['eliteTelegraph'] {

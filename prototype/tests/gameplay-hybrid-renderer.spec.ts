@@ -8,11 +8,11 @@ import { expect, test, type Page } from '@playwright/test'
 type RendererScene = NonNullable<Awaited<ReturnType<typeof rendererScene>>>
 
 async function rendererScene(page: Page) {
-  return page.evaluate(() => window.__SQUADING_TEST__?.rendererScene() ?? null)
+  return page.evaluate(() => window.__SQUADING_TEST__?.rendererScene?.() ?? null)
 }
 
 async function startSeed47Battle(page: Page): Promise<void> {
-  await page.goto('?seed=47')
+  await page.goto('?lab=v1&seed=47')
   await page.getByRole('button', { name: '전투 시작' }).click()
   await expect(page.locator('.gp-stage canvas')).toHaveCount(1)
 }

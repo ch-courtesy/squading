@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test'
 
 test('does not expose renderer or performance controls on the default route', async ({ page }) => {
-  await page.goto('')
+  await page.goto('?lab=v1')
   await expect(page.getByText('Phaser 2D')).toHaveCount(0)
   await expect(page.getByText(/FPS|드로우콜|JSON 내보내기/)).toHaveCount(0)
   // The design spec explicitly hides seed/enemy-count info from normal play.
@@ -22,7 +22,7 @@ test('never requests a Phaser or Three-3D module on the default route', async ({
     if (/phaser|three-3d/i.test(request.url())) labRequests.push(request.url())
   })
 
-  await page.goto('')
+  await page.goto('?lab=v1')
   // The gameplay renderer resolves through the same registry module, so waiting for its
   // canvas proves the dynamic-import path really ran before this assertion is made.
   await expect(page.locator('.gp-stage canvas')).toBeVisible()
@@ -33,7 +33,7 @@ test('never requests a Phaser or Three-3D module on the default route', async ({
 })
 
 test('shows the objective, controls and start button on the default route without scrolling', async ({ page }) => {
-  await page.goto('')
+  await page.goto('?lab=v1')
   await expect(page.getByText('30초 안에 정예 지휘관을 쓰러뜨리십시오.')).toBeVisible()
   await expect(page.getByText('WASD / 방향키 / 포인터 드래그')).toBeVisible()
   await expect(page.getByText('Q 또는 Tab')).toBeVisible()
@@ -58,7 +58,7 @@ test('shows the objective, controls and start button on the default route withou
 
 test('keeps the start button reachable by scrolling on a short viewport instead of clipping it', async ({ page }) => {
   await page.setViewportSize({ width: 640, height: 360 })
-  await page.goto('')
+  await page.goto('?lab=v1')
   const startButton = page.getByRole('button', { name: '전투 시작' })
   // Regression guard: with `overflow: hidden` on the shell and a centered flex
   // column with no `overflow-y` of its own, this content overflows a 360px-tall
@@ -70,21 +70,21 @@ test('keeps the start button reachable by scrolling on a short viewport instead 
 })
 
 test('starts the battle and shows the running HUD after clicking the start button', async ({ page }) => {
-  await page.goto('')
+  await page.goto('?lab=v1')
   await page.getByRole('button', { name: '전투 시작' }).click()
   await expect(page.locator('[data-hud]')).toBeVisible()
   await expect(page.locator('[data-ready]')).toBeHidden()
 })
 
 test('focuses the start button so Enter/Space can begin the battle without a mouse', async ({ page }) => {
-  await page.goto('')
+  await page.goto('?lab=v1')
   await expect(page.locator('[data-begin-battle]')).toBeFocused()
   await page.keyboard.press('Enter')
   await expect(page.locator('[data-hud]')).toBeVisible()
 })
 
 test('shows the pause overlay under real CSS, not just an unrendered hidden attribute', async ({ page }) => {
-  await page.goto('')
+  await page.goto('?lab=v1')
   await page.getByRole('button', { name: '전투 시작' }).click()
   await expect(page.locator('[data-hud]')).toBeVisible()
   // Escape is handled by the keyboard input adapter, which only attaches once
@@ -106,7 +106,7 @@ test('the upgrade and terminal overlays actually render once unhidden, guarding 
   // The shell re-asserts `hidden` from game state on every rendered frame, so the
   // with/without comparison has to happen inside one synchronous task rather than
   // across separate Playwright round trips that the render loop can interleave with.
-  await page.goto('')
+  await page.goto('?lab=v1')
 
   const upgrade = page.locator('[data-upgrade]')
   const terminal = page.locator('[data-terminal]')
@@ -142,6 +142,6 @@ test('shows a player-visible alert when the renderer fails to load', async ({ pa
   // `/src/renderers/three-hybrid/*.ts` modules and the built `assets/three-hybrid-*.js`
   // chunk alike — the production Pages artifact has to fail visibly too.
   await page.route(/three-hybrid/, (route) => route.abort())
-  await page.goto('')
+  await page.goto('?lab=v1')
   await expect(page.getByRole('alert')).toBeVisible()
 })

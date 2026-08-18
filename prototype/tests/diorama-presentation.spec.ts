@@ -6,11 +6,11 @@ import { expect, test, type Page } from '@playwright/test'
 // diorama. These tests pin both sides of that gate, because every lab assertion in
 // `hybrid-renderer.spec.ts` is written against the cardboard presentation.
 async function rendererScene(page: Page) {
-  return page.evaluate(() => window.__SQUADING_TEST__?.rendererScene() ?? null)
+  return page.evaluate(() => window.__SQUADING_TEST__?.rendererScene?.() ?? null)
 }
 
 test('paints the tabletop diorama on the gameplay route', async ({ page }) => {
-  await page.goto('?seed=47')
+  await page.goto('?lab=v1&seed=47')
   await page.getByRole('button', { name: '전투 시작' }).click()
   await expect(page.locator('.gp-stage canvas')).toHaveCount(1)
 
