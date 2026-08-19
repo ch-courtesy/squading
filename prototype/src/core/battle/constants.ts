@@ -14,7 +14,7 @@
 // are asserted at module load, so a tuning pass that violates one fails loudly at
 // import time instead of producing a subtly broken run.
 
-import { FORMATION_MAX_SLOT_RADIUS } from './formation'
+import { FORMATION_MAX_SLOT_RADIUS, FORMATION_SLOTS } from './formation'
 
 // ---------------------------------------------------------------------------
 // FIXED — §1.1 coordinates and clock
@@ -364,6 +364,18 @@ assertRule(
   LEASH_RADIUS > FORMATION_MAX_SLOT_RADIUS,
   'LEASH_RADIUS must be > FORMATION_MAX_SLOT_RADIUS (§2)',
 )
+// §1.4.1 (v11): every engaged soldier's BEARING is `normalize(슬롯 오프셋)`, so a slot at the
+// origin would have no direction and `engagementBearingOf` would have to invent one. The lattice
+// has no such slot — the origin is where the command unit stands — and this is the assertion that
+// makes "the zero-vector branch in `movement.ts` is unreachable" a checked fact rather than a
+// reading of the table. It is here rather than in `formation.ts` because this module is the one
+// every rule module imports, so the check runs before any battle object can be built.
+for (const slot of FORMATION_SLOTS) {
+  assertRule(
+    Math.hypot(slot.x, slot.y) > 0,
+    'no formation slot may be the zero vector — §1.4.1 derives each bearing from it (§1.4)',
+  )
+}
 // Over `SOLDIER_RANGE + ENGAGE_RADIUS` the squad can answer anything inside the radius §1.10
 // spawns against, from wherever the command unit happens to be, and §4.5's third question
 // ("어디에 멈출지 고민했는가") has no mechanism behind it any more.

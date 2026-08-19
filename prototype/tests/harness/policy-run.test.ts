@@ -26,7 +26,14 @@ describe('§1.17 the runner reproduces the digests batch H recorded', () => {
     // 2008/180/`a769c2fa`. §1.4.1 (batch H) MOVED ALL THREE, on purpose: the soldiers stopped
     // being pinned to slots, so every position in the digest is a different number from the tick
     // the first enemy came inside `LEASH_RADIUS`. The spec commit that introduced §1.4.1 said
-    // these would move; the values below are the measurement of where they moved to.
+    // these would move, and batch H measured 2018/164/16/`74e89375`, 2005/167/16/`a6d977a4` and
+    // 2295/206/15/`7a3382f0`.
+    //
+    // v11 (batch I) MOVED THEM AGAIN, for a narrower reason of the same kind: the engagement goal
+    // point gained a BEARING, so an engaged soldier stands somewhere batch H did not put it from
+    // the first tick anything is engaged at all. The values below are the measurement of where
+    // they moved to. This batch moves them a SECOND time when it changes `PRESSURE_PHASES`, and
+    // the lines below carry the later measurement — the ones quoted above are the history.
     //
     // WHAT THEY STILL PIN, and it is the reason they are here rather than deleted: no field was
     // added to `BattleState` and no draw to a stream. A moved digest cannot prove that on its
@@ -35,9 +42,9 @@ describe('§1.17 the runner reproduces the digests batch H recorded', () => {
     // those four pins was touched by this batch. These three lines are the OTHER half: they say
     // that whatever moved, it moved once and reproducibly.
     expect(THREE_SEEDS.map((seed) => runPolicySeed(policyFactory('tactical-no-input'), seed))).toEqual([
-      { seed: 'seed-a', outcome: 'won', endTick: 2018, kills: 164, standing: 16, digest: '74e89375' },
-      { seed: 'seed-b', outcome: 'won', endTick: 2005, kills: 167, standing: 16, digest: 'a6d977a4' },
-      { seed: 'seed-c', outcome: 'won', endTick: 2295, kills: 206, standing: 15, digest: '7a3382f0' },
+      { seed: 'seed-a', outcome: 'won', endTick: 2003, kills: 176, standing: 14, digest: '7fe29e15' },
+      { seed: 'seed-b', outcome: 'won', endTick: 2114, kills: 197, standing: 16, digest: 'b68bf65a' },
+      { seed: 'seed-c', outcome: 'won', endTick: 1976, kills: 176, standing: 15, digest: '9d56385e' },
     ])
   })
 })
@@ -69,11 +76,13 @@ describe('§4.1 `flees-always` on the three seeds', () => {
     // were 1932/170/15/`19a98b3b`, 1995/181/16/`d8406125` and 2040/185/16/`1a56f90a`; the
     // localization argument above is about the DELETED E0 loop and is untouched by the move —
     // it was already an argument about numbers this batch has now superseded, and nothing below
-    // re-derives it.
+    // re-derives it. Batch H's own values were 2069/161/9/`03d32a9b`, 1961/175/16/`7f093e81` and
+    // 1983/176/16/`e005f02e`; v11's bearing moved them again, for the reason recorded above the
+    // first block, and `PRESSURE_PHASES` moves them a second time inside the same batch.
     expect(THREE_SEEDS.map((seed) => runPolicySeed(policyFactory('flees-always'), seed))).toEqual([
-      { seed: 'seed-a', outcome: 'won', endTick: 2069, kills: 161, standing: 9, digest: '03d32a9b' },
-      { seed: 'seed-b', outcome: 'won', endTick: 1961, kills: 175, standing: 16, digest: '7f093e81' },
-      { seed: 'seed-c', outcome: 'won', endTick: 1983, kills: 176, standing: 16, digest: 'e005f02e' },
+      { seed: 'seed-a', outcome: 'won', endTick: 1996, kills: 178, standing: 14, digest: '2f25a62e' },
+      { seed: 'seed-b', outcome: 'won', endTick: 2071, kills: 187, standing: 15, digest: '0c388455' },
+      { seed: 'seed-c', outcome: 'won', endTick: 1999, kills: 178, standing: 12, digest: 'e2b8a0a3' },
     ])
   })
 

@@ -3,7 +3,10 @@
 // §1.6 removed cover, and with it most of what used to be in this file. What is left:
 //
 //   leash (§1.4.1) — a soldier with a standing enemy inside `LEASH_RADIUS` OF THE COMMAND
-//                      UNIT leaves its slot and moves to its own range band around that enemy;
+//                      UNIT leaves its slot and moves to ITS OWN POINT on its range band around
+//                      that enemy — the band gives the distance and the soldier's own slot
+//                      offset gives the bearing (v11), so fifteen soldiers on one target spread
+//                      around it instead of stacking on one spot;
 //                      one without goes back to the slot by the follow rule below. Through v9
 //                      every soldier was pinned to a slot and the sixteen bodies slid as one,
 //                      which is what the first person to play it read as "각개전투가 안 됨".
@@ -39,7 +42,7 @@ import {
   SHOOTER_RANGE,
   SOLDIER_MOVE_SPEED,
 } from './constants'
-import { findAssignment, slotPosition } from './formation'
+import { FORMATION_SLOTS, findAssignment, slotPosition } from './formation'
 import { enemiesById, findEnemy } from './state'
 import { attackRangeOf, selectRankedEnemyId } from './targeting'
 import { followSpeedMultiplierOf, moveSpeedMultiplierOf } from './upgrades'
@@ -219,45 +222,87 @@ function stepToward(unit: FriendlyUnit, target: Vec2, speed: number): void {
 }
 
 /**
- * §1.4.1: an engaged soldier moves to its BAND around its target — not to the target.
+ * §1.4.1 (v11): the unit direction this soldier approaches a target FROM — its own slot's.
  *
- * Outside the far edge it closes; inside the near edge it backs off; between them it does not
- * move at all, which is the same dead-band §1.4 uses for the slot and the same reason (a body
- * asymptotically approaching an edge vibrates forever). Walking onto the enemy instead would
- * hand the whole squad to the shooters it is supposed to outrange.
+ * WHY THE SLOT AND NOT SOMETHING ELSE. v10 gave the band a distance and never gave it an angle,
+ * so every soldier that picked the same target walked to the same point of the same ring. It was
+ * measured, not guessed: `tactical-no-input` on `seed-a` had all fifteen soldiers engaged against
+ * one or two reachable enemies, and the greatest distance from the command unit fell to 0.45 —
+ * TIGHTER than the 2.460 slot lattice the leash was supposed to break up. The bearing has to be
+ * deterministic, derivable from state that already exists, and free of any agreement between
+ * units, because all three are what it takes to add no `BattleState` field (§1.17's no-scratch
+ * rule, and the recorded key set). `slotAssignments` is the only table that satisfies all three,
+ * and it reads well besides: the soldier on the formation's left flank stands on the target's
+ * left.
  *
- * A soldier standing EXACTLY on its target has no direction to move in and does not move. §1.4.1
- * does not say which way it should go and neither does §1.6 — any heading leaves the band — so
- * this is deliberately unpinned rather than an arbitrary choice written into a fixture. What
- * does bind is that it is the same every replay, and §1.17's digests hold that.
+ * THE ZERO-VECTOR BRANCH IS UNREACHABLE, and this is not an assumption. `FORMATION_SLOTS` has no
+ * `(0, 0)` entry — that place in the lattice is where the command unit itself stands — and
+ * `constants.ts` asserts exactly that at module load ("no formation slot may be the zero vector"),
+ * with `assertRule` throwing before any battle object can exist. This module imports
+ * `constants.ts`, so a table edited to contain the origin cannot reach this function at all. The
+ * guard stays because a caller with an out-of-range `slotIndex` would otherwise read `undefined`
+ * silently, and because "unreachable" is a claim that should still have a defined answer under
+ * it: `null` here means the soldier holds position rather than walking onto the body.
+ */
+export function engagementBearingOf(slotIndex: number): Vec2 | null {
+  const slot = FORMATION_SLOTS[slotIndex]
+  if (!slot) return null
+  const length = Math.hypot(slot.x, slot.y)
+  if (length === 0) return null
+  return { x: slot.x / length, y: slot.y / length }
+}
+
+/**
+ * §1.4.1 (v11): the point an engaged soldier walks to — `표적 위치 + normalize(슬롯 오프셋) ×
+ * 밴드 far edge`.
+ *
+ * The far edge is the unit's own attack range, so the goal is the furthest place it can stand and
+ * still shoot; §1.6's gap is what makes that place safe, because `SHOOTER_RANGE < SOLDIER_RANGE`
+ * is asserted in `constants.ts` and therefore the goal is strictly outside a shooter's reach. The
+ * near edge of `engagementBandOf` is no longer a movement input — v10 used it to decide when to
+ * back off, and a single goal point has nothing to decide — but it is still the reason the far
+ * edge is the right place to stand, which is why the band is still read as a band here.
+ *
+ * The soldier CROSSES the target if its slot is on the far side of it. §1.6 removed terrain and
+ * this game has no unit collision, so passing through is not a special case — it is the same
+ * straight walk everything else does.
+ */
+export function engagementGoalOf(
+  state: BattleState,
+  unit: FriendlyUnit,
+  target: EnemyUnit,
+  slotIndex: number,
+): Vec2 | null {
+  const [, far] = engagementBandOf(state, unit)
+  const bearing = engagementBearingOf(slotIndex)
+  if (bearing === null) return null
+  return { x: target.position.x + bearing.x * far, y: target.position.y + bearing.y * far }
+}
+
+/**
+ * §1.4.1: an engaged soldier moves to its OWN POINT on the band around its target.
+ *
+ * Not to the target, and — since v11 — not merely to the ring. Walking onto the enemy would hand
+ * the whole squad to the shooters it is supposed to outrange; walking to the ring without an angle
+ * was measured to reassemble the squad into a knot tighter than the formation.
+ *
+ * The approach itself is §1.4's: capped at the follow speed, no overshoot, and exactly zero
+ * displacement inside `ARRIVE_EPSILON` of the goal — the same dead-band, for the same reason (a
+ * body asymptotically approaching a fixed point vibrates forever).
  */
 function advanceEngagement(
   state: BattleState,
   unit: FriendlyUnit,
   target: EnemyUnit,
+  slotIndex: number,
   followSpeed: number,
 ): void {
-  const [near, far] = engagementBandOf(state, unit)
-  const dx = target.position.x - unit.position.x
-  const dy = target.position.y - unit.position.y
-  const distance = Math.hypot(dx, dy)
-  if (distance === 0) {
+  const goal = engagementGoalOf(state, unit, target, slotIndex)
+  if (goal === null) {
     unit.lastDisplacement = 0
     return
   }
-
-  // Signed distance to the band: positive means close in, negative means back off, 0 means hold.
-  const toBand = distance > far ? distance - far : distance < near ? distance - near : 0
-  const step = Math.sign(toBand) * Math.min(Math.abs(toBand), followSpeed)
-  if (Math.abs(step) <= ARRIVE_EPSILON) {
-    unit.lastDisplacement = 0
-    return
-  }
-
-  const from = unit.position
-  const to = stepMove(from, (dx / distance) * step, (dy / distance) * step)
-  unit.position = to
-  unit.lastDisplacement = displacementOf(from, to)
+  stepToward(unit, goal, followSpeed)
 }
 
 /**
@@ -290,6 +335,12 @@ export function advanceFormationFollow(state: BattleState): void {
     // command) has nothing to follow. It is never left standing for more than the
     // tick in which §1.5 rule 1 returns command to it. §1.4.1 speaks of 병사 and every
     // soldier has a slot, so it does not engage either — "그 자리에 머문다" is still whole.
+    //
+    // v11 SHARPENS THE REASON RATHER THAN CHANGING THE BEHAVIOUR. A slotless body has no
+    // rest position AND now no bearing either: the two things a soldier needs to take part
+    // in this step are the same one table entry. "그 자리에 머문다" is therefore the whole
+    // answer for it, and it is the decision, not a gap — the alternative would be inventing
+    // an angle for a body the spec says stands still.
     if (!assignment) {
       unit.lastDisplacement = 0
       continue
@@ -298,7 +349,7 @@ export function advanceFormationFollow(state: BattleState): void {
     const engagementId = selectEngagementTargetIn(state, unit, enemies)
     const engagement = engagementId === null ? null : findEnemy(state, engagementId)
     if (engagement !== null) {
-      advanceEngagement(state, unit, engagement, followSpeed)
+      advanceEngagement(state, unit, engagement, assignment.slotIndex, followSpeed)
       continue
     }
 

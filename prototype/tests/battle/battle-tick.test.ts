@@ -455,16 +455,20 @@ describe('§1.16 the reducer runs a whole battle to a verdict', () => {
     // THE RANK-3 HALF IS TAKEN FROM A SECOND SEED, and §1.4.1 is why. While the fifteen were
     // pinned to slots the elite's impact caught twelve or thirteen bodies clumped inside the
     // frozen 2.4 circle, and one of `seed-a`'s two impacts shared its tick with a friendly
-    // volley. They scatter now — 4.5~5.0 from the elite instead of 2.46 from the command unit —
-    // so on `seed-a` each impact catches the command unit ALONE and neither impact tick has a
-    // second source on it. Measured over the eight band seeds: `seed-a` 0, `seed-g` 0, the other
-    // six between 1 and 5. `seed-b` is the nearest one that is not vacuous, so the check is
-    // taken there and `seed-a` keeps everything else. A run with `seed-b` at 0 would fail here
-    // rather than pass quietly, which is the point of the counter.
+    // volley. Batch H scattered them onto the band — 4.5~5.0 from the elite instead of 2.46 from
+    // the command unit — and on `seed-a` each impact then caught the command unit ALONE, so the
+    // check was moved to `seed-b`, the nearest seed that was not vacuous.
+    //
+    // v11 MOVED IT BACK, and the assertion below is the re-measurement rather than the old
+    // claim. The bearing rule spreads the fifteen AROUND the elite instead of onto one arc of
+    // its ring, so `seed-a`'s impacts now catch bodies again: `run.ticksOrderingBlastAgainstAnother`
+    // is 2 here where batch H measured 0. `seed-b` is kept as well — two seeds are a better
+    // rank-3 witness than one — and both are asserted non-vacuous rather than pinned to a count,
+    // because the count is a balance fact and §5 owns it.
     const blastRun = playToVerdict('seed-b')
     expect(blastRun.orderViolations).toEqual([])
     expect(blastRun.ticksOrderingBlastAgainstAnother).toBeGreaterThan(0)
-    expect(run.ticksOrderingBlastAgainstAnother).toBe(0)
+    expect(run.ticksOrderingBlastAgainstAnother).toBeGreaterThan(0)
 
     // HAZARD 4: both consumers read the transition row's return value.
     expect(run.killMismatches).toEqual([])

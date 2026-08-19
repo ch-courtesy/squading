@@ -196,44 +196,65 @@ describe('§1.4.1 leash engagement — the soldiers fight for themselves', () =>
     expect(LEASH_RADIUS).toBeLessThan(9)
   })
 
-  it('walks to its own range band and stops there, not onto the enemy (§1.6)', () => {
-    // Enemy at (31, 16): 3.0 from the command unit, so well inside the leash. The soldier
-    // starts 5.3 away from it, and the band's far edge is its own range, 5.0.
+  it('walks to its OWN POINT on the band and stops there, not onto the enemy (§1.6)', () => {
+    // Enemy at (31, 16): 3.0 from the command unit, so well inside the leash.
+    //
+    // v10 PINNED A DIFFERENT POINT HERE and this fixture is the edit that says so. It used to
+    // assert the soldier stopped 5.0 away ALONG THE LINE IT HAPPENED TO STAND ON, which is the
+    // rule that let fifteen soldiers stack on one spot. v11 gives the goal an angle as well as
+    // a distance, and the angle is this soldier's own slot offset.
+    //
+    // HAND-COMPUTED. Slot 0 is `(-2.2, -1.1) = 1.1 x (-2, -1)`, and `|(-2, -1)| = sqrt(5)`, so
+    // the bearing is `(-2/sqrt(5), -1/sqrt(5))` exactly. The far edge is `SOLDIER_RANGE 5.0`, so
+    // the goal is `(31, 16) + 5 x bearing = (31 - 2*sqrt(5), 16 - sqrt(5))`.
     const state = createInitialBattleState('seed-a')
     state.enemies = [createEnemy(101, 'melee', { x: 31, y: 16 })]
     const unit = findFriendly(state, SOLDIER)!
     unit.position = { x: 31 - 5.3, y: 16 }
 
-    // 5.3 -> 5.17 -> 5.04 (two full 0.13 steps) -> 5.00 (the 0.04 remainder, no overshoot).
-    advanceFormationFollow(state)
-    expect(unit.position.x).toBeCloseTo(25.83, 12)
-    advanceFormationFollow(state)
-    expect(unit.position.x).toBeCloseTo(25.96, 12)
-    advanceFormationFollow(state)
-    expect(unit.position.x).toBeCloseTo(26.0, 12)
+    const goal = { x: 31 - 2 * Math.sqrt(5), y: 16 - Math.sqrt(5) }
+    for (let tick = 0; tick < 100; tick += 1) advanceFormationFollow(state)
+    expect(unit.position.x).toBeCloseTo(goal.x, 12)
+    expect(unit.position.y).toBeCloseTo(goal.y, 12)
 
-    const distance = 31 - unit.position.x
+    // The distance is still the band's far edge — the angle changed, the radius did not.
+    const distance = Math.hypot(31 - unit.position.x, 16 - unit.position.y)
     expect(distance).toBeCloseTo(SOLDIER_RANGE, 12)
     // §1.6's gap, per unit: it shoots and a shooter at the same spot could not shoot back.
     expect(distance).toBeGreaterThan(SHOOTER_RANGE)
 
-    // And it holds: inside the band the displacement is exactly 0, not "small".
+    // And it holds: on its own point the displacement is exactly 0, not "small".
     advanceFormationFollow(state)
-    expect(unit.position.x).toBeCloseTo(26.0, 12)
+    expect(unit.position.x).toBeCloseTo(goal.x, 12)
+    expect(unit.position.y).toBeCloseTo(goal.y, 12)
     expect(unit.lastDisplacement).toBe(0)
   })
 
-  it('does not move at all while it is already inside the band', () => {
+  it('moves to its own bearing even when it is ALREADY inside the band (v11)', () => {
+    // v10 held still here — anywhere in `[4.5, 5.0]` was a resting place, whatever the angle.
+    // That is exactly the rule that produced the knot, so v11 must NOT hold: a soldier at the
+    // right distance and the wrong angle has somewhere to go.
     const state = createInitialBattleState('seed-a')
     state.enemies = [createEnemy(101, 'melee', { x: 31, y: 16 })]
     const unit = findFriendly(state, SOLDIER)!
-    // 4.7 is strictly between 4.5 and 5.0 — neither edge, so neither branch may fire.
+    // 4.7 is strictly between 4.5 and 5.0 — v10's dead-band, dead centre.
     const parked = { x: 31 - 4.7, y: 16 }
     unit.position = { ...parked }
 
-    for (let tick = 1; tick <= 100; tick += 1) {
+    advanceFormationFollow(state)
+    expect(unit.position).not.toEqual(parked)
+    expect(unit.lastDisplacement).toBeCloseTo(FOLLOW_MAX_SPEED, 12)
+
+    // And where it goes is its slot's bearing, not "somewhere else".
+    for (let tick = 0; tick < 100; tick += 1) advanceFormationFollow(state)
+    expect(unit.position.x).toBeCloseTo(31 - 2 * Math.sqrt(5), 12)
+    expect(unit.position.y).toBeCloseTo(16 - Math.sqrt(5), 12)
+
+    // THEN it holds, exactly. The dead-band did not disappear; it moved to the goal point.
+    for (let tick = 1; tick <= 50; tick += 1) {
+      const settled = { ...unit.position }
       advanceFormationFollow(state)
-      expect(unit.position, `tick ${tick}`).toEqual(parked)
+      expect(unit.position, `tick ${tick}`).toEqual(settled)
       expect(unit.lastDisplacement, `tick ${tick}`).toBe(0)
     }
   })
