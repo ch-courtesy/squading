@@ -5,7 +5,7 @@ import { qualityProfile } from '../../metrics/quality-ladder'
 import type { GameRenderer, QualityLevel, RendererMetrics } from '../contract'
 import { TEAM_TINTS, cardboardMaterial, createCardboardAssets, disposeObjectMaterials, flatMaterial, type CardboardAssets } from '../three-shared/scene-utils'
 import { DECAL_HEIGHT, FX_COSMETIC_SEED, createCombatFxAssets, createSurfaceDecals, surfaceDecalExtent, type CombatFxAssets, type SurfaceDecals } from './combat-fx'
-import { FIGURE_SCALE, cosmeticRandom, createDioramaAssets, type DioramaAssets, type MiniatureArchetype } from './diorama-assets'
+import { FIGURE_SCALE, cosmeticRandom, createDioramaAssets, createHealthGaugeGeometry, readHealthGaugeFill, setHealthGaugeColor, setHealthGaugeFill, type DioramaAssets, type MiniatureArchetype } from './diorama-assets'
 import { DIORAMA_PITCH_RADIANS } from './staging'
 import { createTerrainProps, type TerrainProps } from './terrain-props'
 
@@ -35,12 +35,19 @@ type UnitAnim = {
   hp01: number
   x: number
   y: number
+  /** The fill fraction currently written into the gauge geometry, or -1 for "never written". */
+  gaugeFill: number
 }
 type UnitVisual = {
   readonly root: THREE.Group
   readonly card: THREE.Mesh
   readonly shadow: THREE.Mesh
   readonly marker: THREE.Mesh
+  /**
+   * The health gauge, on the diorama only. Its geometry is per-unit — the fill is a vertex
+   * position, not a uniform — so `removeVisual` disposes it, unlike every shared geometry.
+   */
+  readonly gauge?: THREE.Mesh
   readonly anim: UnitAnim
 }
 type EffectVisual = {
@@ -91,6 +98,12 @@ export type HybridVisualState = {
     readonly baseRings: number
     readonly billboardedBodies: number
     readonly mergedBodyGeometries: number
+    /**
+     * Which sculpted bodies are actually on the board, by name, sorted. The spec asks for the
+     * CLASS to be readable from the silhouette, and a count of distinct geometries cannot tell
+     * "five classes, five bodies" from "five classes sharing two bodies and some paint".
+     */
+    readonly bodyArchetypes: readonly string[]
     /** Terrain surround: merged prop meshes on the board and how many props they carry. */
     readonly propMeshes: number
     readonly propItems: number
@@ -104,6 +117,30 @@ export type HybridVisualState = {
     readonly surfaceDecalFlat: boolean
     readonly surfaceDecalsWithinPlayArea: boolean
     readonly surfaceDecalCastsShadow: boolean
+  }
+  /**
+   * The health gauges, as counted off the live scene graph.
+   *
+   * A screenshot shows bars; these numbers show that the bars mean something — that every
+   * friendly has one, that an untouched hostile has none, that a downed body has none, and
+   * that the fill is the snapshot's `hp01` rather than a number of its own.
+   */
+  readonly healthGauges: {
+    readonly visible: number
+    /** Friendly bodies that are neither downed nor dead — the spec's "always shown" set. */
+    readonly friendlyStanding: number
+    readonly friendlyVisible: number
+    readonly hostileFull: number
+    readonly hostileFullVisible: number
+    readonly hostileDamaged: number
+    readonly hostileDamagedVisible: number
+    readonly downed: number
+    readonly downedVisible: number
+    readonly billboarded: number
+    /** Largest gap between a drawn fill and the `hp01` it claims to be. */
+    readonly maxFillError: number
+    /** Smallest clearance between a drawn bar and the top of the body under it. */
+    readonly minHeadroom: number
   }
   /**
    * Live action feedback. Every counter here is derived from snapshot deltas, and the
@@ -247,17 +284,37 @@ const SHAKE_TICKS = 10
 const SHAKE_AMPLITUDE = 0.26
 /** Local weapon muzzles, in pre-scale miniature space (the figure faces +Z). */
 const MUZZLE_OFFSETS: Readonly<Record<MiniatureArchetype, readonly [number, number, number]>> = {
-  friendly: [0.23, 0.64, 0.42],
-  enemy: [0.31, 0.9, 0.3],
+  command: [0.33, 0.63, 0.23],
+  soldier: [0.33, 0.63, 0.23],
+  // The melee class has no muzzle; the burst comes off the cleaver's edge instead.
+  melee: [0.46, 1.1, 0.06],
+  shooter: [0.06, 0.62, 1.0],
   elite: [0.32, 1.72, 0.1],
 }
 // Pooled particle tints, allocated once. `ParticlePool.spawn` copies out of them, so no
 // colour object is ever created per event.
 const SCRAP_TINTS: Readonly<Record<MiniatureArchetype, THREE.Color>> = {
-  friendly: new THREE.Color(0xf0e2c6),
-  enemy: new THREE.Color(0xc9aef0),
+  command: new THREE.Color(0xf0e2c6),
+  soldier: new THREE.Color(0xf0e2c6),
+  melee: new THREE.Color(0xc9aef0),
+  shooter: new THREE.Color(0xc9aef0),
   elite: new THREE.Color(0xe6cdff),
 }
+// --- Health gauge -------------------------------------------------------------------------
+// The fourth and last mesh a unit is allowed. §체력 게이지 of the visuals spec: friendlies are
+// always shown because the squad's state is the player's judgement material, hostiles only
+// once damaged so the opening board stays clean, and a downed body shows no gauge at all.
+/** How far above the body's own top the bar floats, in world units before the root scale. */
+const GAUGE_HEADROOM = 0.34
+const GAUGE_OPACITY = 0.94
+/** Fill ramps. Friendly and hostile end at different colours so a bar keeps its faction. */
+const GAUGE_FRIENDLY_FULL = 0x8fe06a
+const GAUGE_FRIENDLY_MID = 0xf2c14e
+const GAUGE_HOSTILE_FULL = 0xc3a0f5
+const GAUGE_HOSTILE_MID = 0xdd7ec8
+const GAUGE_LOW = 0xe0503c
+/** Scratch colour for the ramp, so no allocation happens per unit per frame. */
+const gaugeScratch = new THREE.Color()
 const TEAM_TRACERS: Readonly<Record<'teal' | 'scarlet' | 'enemy', THREE.Color>> = {
   teal: new THREE.Color(0x9ff2ea),
   scarlet: new THREE.Color(0xffc39a),
@@ -409,7 +466,7 @@ class ThreeHybridRenderer implements HybridGameRenderer {
   dispose(): void {
     if (this.disposed) return
     this.disposed = true
-    this.units.forEach((visual) => disposeObjectMaterials(visual.root)); this.effects.forEach((visual) => disposeObjectMaterials(visual.root)); this.particles.forEach((particle) => disposeObjectMaterials(particle))
+    this.units.forEach((visual) => { disposeObjectMaterials(visual.root); visual.gauge?.geometry.dispose() }); this.effects.forEach((visual) => disposeObjectMaterials(visual.root)); this.particles.forEach((particle) => disposeObjectMaterials(particle))
     this.scene?.traverse((object) => { if (object instanceof THREE.Mesh && object.name.startsWith('tabletop-')) disposeObjectMaterials(object) })
     this.units.clear(); this.effects.clear(); this.particles = []; this.frameRails = []
     this.telegraphGeometry?.dispose(); this.telegraphGeometry = null
@@ -467,8 +524,60 @@ class ThreeHybridRenderer implements HybridGameRenderer {
       activeSquadMarkers,
       framing: this.describeFraming(),
       presentation: this.describePresentation(),
+      healthGauges: this.describeGauges(),
       action: this.describeAction(),
     }
+  }
+
+  /** Reads the gauges back off the scene graph, against the snapshot they claim to show. */
+  private describeGauges(): HybridVisualState['healthGauges'] {
+    const units = this.snapshot?.units ?? []
+    const counts = {
+      visible: 0,
+      friendlyStanding: 0,
+      friendlyVisible: 0,
+      hostileFull: 0,
+      hostileFullVisible: 0,
+      hostileDamaged: 0,
+      hostileDamagedVisible: 0,
+      downed: 0,
+      downedVisible: 0,
+      billboarded: 0,
+      maxFillError: 0,
+      minHeadroom: Number.POSITIVE_INFINITY,
+    }
+    for (const unit of units) {
+      const visual = this.units.get(unit.id)
+      const gauge = visual?.gauge
+      const shown = gauge?.visible === true
+      const downed = unit.state === 'downed'
+      const hostile = unit.team === 'enemy'
+      // A body the authority has finished with is not drawn at all; counting it would make
+      // "every friendly has a bar" fail on a corpse that is mid-sweep.
+      const gone = visual ? visual.anim.dead || visual.anim.buried : true
+      if (downed) {
+        counts.downed += 1
+        if (shown) counts.downedVisible += 1
+      } else if (!hostile && !gone) {
+        counts.friendlyStanding += 1
+        if (shown) counts.friendlyVisible += 1
+      } else if (hostile && !gone) {
+        if (unit.hp01 >= 1 - 1e-6) {
+          counts.hostileFull += 1
+          if (shown) counts.hostileFullVisible += 1
+        } else {
+          counts.hostileDamaged += 1
+          if (shown) counts.hostileDamagedVisible += 1
+        }
+      }
+      if (!shown || !gauge) continue
+      counts.visible += 1
+      if (this.facesCamera(gauge)) counts.billboarded += 1
+      counts.maxFillError = Math.max(counts.maxFillError, Math.abs(readHealthGaugeFill(gauge.geometry) - clamp01(unit.hp01)))
+      counts.minHeadroom = Math.min(counts.minHeadroom, gauge.position.y - bodyTop(visual!.card.geometry))
+    }
+    if (counts.minHeadroom === Number.POSITIVE_INFINITY) counts.minHeadroom = 0
+    return counts
   }
 
   /**
@@ -525,6 +634,7 @@ class ThreeHybridRenderer implements HybridGameRenderer {
       baseRings: visuals.filter((visual) => visual.marker.visible).length,
       billboardedBodies: visuals.filter((visual) => this.facesCamera(visual.card)).length,
       mergedBodyGeometries: this.diorama ? new Set(visuals.map((visual) => visual.card.geometry.uuid)).size : 0,
+      bodyArchetypes: this.diorama ? [...new Set(visuals.map((visual) => visual.card.name))].sort() : [],
       propMeshes: (this.props?.meshes ?? []).filter((mesh) => mesh.parent !== null).length,
       propItems: this.props?.placements.length ?? 0,
       surfaceDecalMeshes: this.surfaceDecals?.mesh.parent ? 1 : 0,
@@ -842,6 +952,8 @@ class ThreeHybridRenderer implements HybridGameRenderer {
       ? RING_BASE_OPACITY + RING_PULSE_AMPLITUDE * Math.sin((snapshot.tick / RING_PULSE_TICKS) * Math.PI * 2)
       : RING_BASE_OPACITY - RING_PULSE_AMPLITUDE
     markerMaterial.opacity = ringOpacity * sweep
+
+    this.updateGauge(unit, visual, downed)
   }
 
   private beginDeath(unit: RenderUnit, visual: UnitVisual): void {
@@ -1022,11 +1134,12 @@ class ThreeHybridRenderer implements HybridGameRenderer {
   }
 
   /**
-   * One unit costs one merged body mesh, one base ring and one contact shadow — the
-   * same three meshes the cardboard card already cost. The body's primitives (base
-   * disc, legs, torso, pauldrons, head, weapon) are merged per archetype at mount time
-   * and the paint variation is baked into vertex colours, so a whole figure still
-   * renders in a single draw call with a single material.
+   * One unit costs four meshes and no more: the merged body, the base ring, the contact
+   * shadow, and the health gauge the spec's budget names as the fourth. The body's primitives
+   * (base disc, legs, torso, pauldrons, head, weapon, and whatever the class cue is) are
+   * merged per archetype at build time and the paint variation is baked into vertex colours,
+   * so a whole figure still renders in a single draw call with a single material — the extra
+   * detail batch J sculpted costs vertices, not draw calls.
    */
   private createMiniature(unit: RenderUnit): UnitVisual {
     const assets = this.diorama!
@@ -1048,14 +1161,53 @@ class ThreeHybridRenderer implements HybridGameRenderer {
     marker.rotation.x = -Math.PI / 2; marker.position.y = 0.03
     if (leader) marker.scale.setScalar(LEADER_RING_SCALE)
 
-    root.add(shadow, card, marker); this.scene!.add(root)
+    // The gauge hangs off the body's own bounding box rather than off a table of hand-copied
+    // head heights, so re-sculpting a figure can never leave its bar buried in its helmet.
+    const gauge = new THREE.Mesh(
+      createHealthGaugeGeometry(),
+      // `forceSinglePass`: a transparent double-sided material is drawn twice by default, and
+      // the gauge is one flat quad pair with nothing to sort against itself. Without it the
+      // bar costs two draw calls and the four-per-unit budget is broken by the thing the
+      // budget was widened to hold.
+      new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: GAUGE_OPACITY, depthWrite: false, side: THREE.DoubleSide, forceSinglePass: true }),
+    )
+    gauge.name = 'unit-health-gauge'
+    gauge.renderOrder = 4
+    gauge.position.y = bodyTop(assets.miniatures[archetype]) + GAUGE_HEADROOM
+    gauge.visible = false
+
+    root.add(shadow, card, marker, gauge); this.scene!.add(root)
     const anim = createUnitAnim(unit)
     // A unit that is already gone when its visual is built (a renderer remounted mid
     // battle) is adopted as buried rather than replayed as a fresh death.
     if (isUnitDead(unit)) { anim.dead = true; anim.deathStart = Number.NEGATIVE_INFINITY; anim.deathFromTopple = 1 }
-    const visual: UnitVisual = { root, card, shadow, marker, anim }
+    const visual: UnitVisual = { root, card, shadow, marker, gauge, anim }
     this.units.set(unit.id, visual)
     return visual
+  }
+
+  /**
+   * Points the gauge at the camera and fills it to `hp01`.
+   *
+   * The visibility rule is the spec's, verbatim: the sixteen friendlies are always shown,
+   * a hostile only once it has actually been hurt, and a downed body shows none — §1.11's
+   * countdown is what matters for that body, and it is on the roster strip in the HUD, not
+   * on the board. The fill is written into the geometry only on the frames where the value
+   * moved, so a full-health board writes nothing at all.
+   */
+  private updateGauge(unit: RenderUnit, visual: UnitVisual, downed: boolean): void {
+    const gauge = visual.gauge
+    if (!gauge || !this.camera) return
+    const anim = visual.anim
+    const hostile = unit.team === 'enemy'
+    const visible = !anim.buried && !anim.dead && !downed && (!hostile || unit.hp01 < 1 - 1e-6)
+    gauge.visible = visible
+    if (!visible) return
+    gauge.quaternion.copy(this.camera.quaternion)
+    if (Math.abs(anim.gaugeFill - unit.hp01) < 1e-4) return
+    anim.gaugeFill = unit.hp01
+    setHealthGaugeFill(gauge.geometry, unit.hp01)
+    setHealthGaugeColor(gauge.geometry, gaugeFillColor(hostile, unit.hp01))
   }
 
   private renderEffect(effect: RenderEffect): void {
@@ -1182,7 +1334,14 @@ class ThreeHybridRenderer implements HybridGameRenderer {
     return { id: unit.id, x: visual.root.position.x, y: visual.root.position.z, tint: (visual.card.material as THREE.MeshLambertMaterial).color.getHex(), billboard: !this.diorama, facesCamera: this.facesCamera(visual.card), screenY: (1 - center.y) * canvasHeight / 2, screenHeight: Math.abs(top.y - bottom.y) * canvasHeight / 2, kind: unit.kind, state: unit.state, cardCenter, shadowNormalY: shadowNormal.y, markerNormalY: markerNormal.y, shadowFootprint: { x: shadowFootprint.x, z: shadowFootprint.z } }
   }
 
-  private removeVisual<T extends { readonly root: THREE.Group }>(collection: Map<number, T>, id: number, visual: T): void { visual.root.removeFromParent(); disposeObjectMaterials(visual.root); collection.delete(id) }
+  private removeVisual<T extends { readonly root: THREE.Group; readonly gauge?: THREE.Mesh }>(collection: Map<number, T>, id: number, visual: T): void {
+    visual.root.removeFromParent()
+    disposeObjectMaterials(visual.root)
+    // Every other geometry in a unit is shared with the whole roster; the gauge's is not,
+    // because its fill lives in the vertex positions. It dies with the unit.
+    visual.gauge?.geometry.dispose()
+    collection.delete(id)
+  }
   private updateCameraBounds(snapshot: RenderSnapshot): void {
     if (!this.camera) return
     const { centerX, centerY, worldWidth, worldHeight } = snapshot.camera
@@ -1369,6 +1528,7 @@ function createUnitAnim(unit: RenderUnit): UnitAnim {
     hp01: unit.hp01,
     x: unit.x,
     y: unit.y,
+    gaugeFill: -1,
   }
 }
 
@@ -1412,9 +1572,22 @@ function markerColor(unit: RenderUnit, marksActiveSquad: boolean): number {
   return marksActiveSquad ? TEAM_TINTS[unit.team] : LEADER_MARKER_COLOR
 }
 
+/**
+ * One archetype per `UnitKind`, which is the only class signal the authority publishes.
+ *
+ * The two hostile names read oddly and are not this module's to rename: `core/battle-view`
+ * projects §1.9's melee class as `enemy` and its RANGED class as `enemy-commander`, a label
+ * left over from v1's roster. What the board shows is the class — a shield-and-cleaver brute
+ * against a hooded figure with a levelled rifle — not a chain of command.
+ */
 function miniatureArchetype(unit: RenderUnit): MiniatureArchetype {
-  if (unit.kind === 'elite') return 'elite'
-  return unit.team === 'enemy' ? 'enemy' : 'friendly'
+  switch (unit.kind) {
+    case 'elite': return 'elite'
+    case 'commander': return 'command'
+    case 'enemy': return 'melee'
+    case 'enemy-commander': return 'shooter'
+    default: return unit.team === 'enemy' ? 'melee' : 'soldier'
+  }
 }
 
 /**
@@ -1440,6 +1613,30 @@ function dioramaRingColor(unit: RenderUnit, marksActiveSquad: boolean): number {
   if (unit.team === 'enemy') return ENEMY_RING_COLOR
   if (marksActiveSquad) return TEAM_TINTS[unit.team]
   return mixHex(TEAM_TINTS[unit.team], IDLE_RING_FLOOR, IDLE_RING_MIX)
+}
+
+/**
+ * The top of a merged body, in the unit root's space. `merge()` computes the box after the
+ * figure scale is applied, so this is the height the gauge has to clear.
+ */
+function bodyTop(geometry: THREE.BufferGeometry): number {
+  return geometry.boundingBox?.max.y ?? 2
+}
+
+/**
+ * The fill's colour at a given health. Two stages through an amber middle, because a single
+ * lerp spends most of its range looking healthy and the drop that matters is the last third.
+ *
+ * The two ends differ by side: a wounded hostile must not read as a wounded friendly at a
+ * glance, and the bar is small enough that colour is the only thing carrying that.
+ */
+function gaugeFillColor(hostile: boolean, hp01: number): THREE.Color {
+  const full = hostile ? GAUGE_HOSTILE_FULL : GAUGE_FRIENDLY_FULL
+  const mid = hostile ? GAUGE_HOSTILE_MID : GAUGE_FRIENDLY_MID
+  const health = clamp01(hp01)
+  return health >= 0.5
+    ? gaugeScratch.setHex(mixHex(mid, full, (health - 0.5) * 2))
+    : gaugeScratch.setHex(mixHex(GAUGE_LOW, mid, health * 2))
 }
 
 function mixHex(from: number, to: number, amount: number): number {
