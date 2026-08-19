@@ -512,6 +512,10 @@ const MUTATIONS = [
   //
   // With `tests/harness` included all four are caught, and that is the digest block being a change
   // detector — it says the run is different, never which rule broke.
+  //
+  // RE-MEASURED WITH THE FIXTURES IN PLACE, digest block still EXCLUDED: all four are caught by
+  // `tests/battle/battle-movement.test.ts` alone, and so are batch H's four. That is the property
+  // worth having — the failure names the rule instead of naming a hash.
   {
     file: MOVEMENT,
     label: 'give every soldier one fixed bearing instead of its own slot (= the v10 knot)',

@@ -22,14 +22,21 @@ import {
   SOLDIER_MOVE_SPEED,
   SOLDIER_RANGE,
 } from '../../src/core/battle/constants'
-import { FORMATION_SLOTS, slotPosition } from '../../src/core/battle/formation'
+import { createBattle } from '../../src/core/battle/battle'
+import {
+  FORMATION_MAX_SLOT_RADIUS,
+  FORMATION_SLOTS,
+  slotPosition,
+} from '../../src/core/battle/formation'
 import {
   NO_ENEMY_MOVEMENT,
   advanceCommandUnit,
   advanceFormationFollow,
   advanceMovement,
   clampToArena,
+  engagementBearingOf,
   moveEnemyTowards,
+  selectEngagementTargetId,
   stepMove,
 } from '../../src/core/battle/movement'
 import { createEnemy, createInitialBattleState, findFriendly } from '../../src/core/battle/state'
@@ -347,6 +354,238 @@ describe('§1.4.1 leash engagement — the soldiers fight for themselves', () =>
     const afterSuccession = board(5)
     advanceFormationFollow(afterSuccession.state)
     expect(afterSuccession.unit.position.x).toBeGreaterThan(38)
+  })
+})
+
+describe('§1.4.1 v11 — the bearing is the slot`s, so the squad spreads around the target', () => {
+  // WHAT THESE ARE MEASURED AGAINST, all four numbers hand-carried from `constants.ts` and
+  // `formation.ts`: the band's far edge is `SOLDIER_RANGE 5.0`, the follow cap is 0.13, the
+  // command unit starts at (28, 16), and slots go to soldier ids in ascending order, so soldier
+  // `2 + k` holds `FORMATION_SLOTS[k]`.
+  //
+  //   soldier  2 -> slot  0 = (-2.2, -1.1) = 1.1 x (-2, -1),  bearing (-2, -1)/sqrt(5)
+  //   soldier  6 -> slot  4 = ( 2.2, -1.1) = 1.1 x ( 2, -1),  bearing ( 2, -1)/sqrt(5)
+  //   soldier 16 -> slot 14 = ( 0.0,  2.2),                   bearing ( 0,  1)
+  //
+  // Every goal below is `enemy + 5 x bearing` written out in that exact closed form, so a tuning
+  // pass that moves `SOLDIER_RANGE` or an edit that moves the lattice fails these loudly.
+
+  const ENEMY = { x: 31, y: 16 }
+  /** `enemy + 5 x (-2, -1)/sqrt(5)`. */
+  const GOAL_2 = { x: 31 - 2 * Math.sqrt(5), y: 16 - Math.sqrt(5) }
+  /** `enemy + 5 x ( 2, -1)/sqrt(5)`. */
+  const GOAL_6 = { x: 31 + 2 * Math.sqrt(5), y: 16 - Math.sqrt(5) }
+  /** `enemy + 5 x ( 0,  1)`. */
+  const GOAL_16 = { x: 31, y: 21 }
+
+  function boardWithOneEnemy() {
+    const state = createInitialBattleState('seed-a')
+    state.enemies = [createEnemy(101, 'melee', { ...ENEMY })]
+    return state
+  }
+
+  it('stands two soldiers biting the SAME target on two different points of its ring', () => {
+    // This is the defect, in one fixture. Under v10 both of these walked to the same place,
+    // because the band said 5.0 and said nothing about which 5.0.
+    const state = boardWithOneEnemy()
+    const left = findFriendly(state, 2)!
+    const north = findFriendly(state, 16)!
+
+    for (let tick = 0; tick < 200; tick += 1) advanceFormationFollow(state)
+
+    expect(left.position.x).toBeCloseTo(GOAL_2.x, 12)
+    expect(left.position.y).toBeCloseTo(GOAL_2.y, 12)
+    expect(north.position.x).toBeCloseTo(GOAL_16.x, 12)
+    expect(north.position.y).toBeCloseTo(GOAL_16.y, 12)
+
+    // Both on the ring, and NOT on each other. The separation is hand-checkable: the two
+    // bearings are `(-2,-1)/sqrt(5)` and `(0,1)`, 5.0 apart in bearing terms, so the chord is
+    // `5 x |(-2,-1)/sqrt(5) - (0,1)|`.
+    expect(Math.hypot(ENEMY.x - left.position.x, ENEMY.y - left.position.y)).toBeCloseTo(5, 12)
+    expect(Math.hypot(ENEMY.x - north.position.x, ENEMY.y - north.position.y)).toBeCloseTo(5, 12)
+    const chord = 5 * Math.hypot(-2 / Math.sqrt(5) - 0, -1 / Math.sqrt(5) - 1)
+    expect(Math.hypot(left.position.x - north.position.x, left.position.y - north.position.y)).toBeCloseTo(chord, 12)
+    expect(chord).toBeGreaterThan(SOLDIER_RANGE)
+  })
+
+  it('walks a soldier whose slot is on the FAR side straight through the target', () => {
+    // §1.6 removed terrain and this game has no unit collision, so "past the enemy" is not a
+    // special case — it is the same straight walk to a goal that happens to be on the other side.
+    const state = boardWithOneEnemy()
+    const unit = findFriendly(state, 6)!
+    unit.position = { x: 26, y: 16 }
+    expect(unit.position.x).toBeLessThan(ENEMY.x)
+
+    let closest = Infinity
+    for (let tick = 0; tick < 200; tick += 1) {
+      advanceFormationFollow(state)
+      closest = Math.min(closest, Math.hypot(ENEMY.x - unit.position.x, ENEMY.y - unit.position.y))
+    }
+
+    // It ended up on the other side of the body it was walking at.
+    expect(unit.position.x).toBeGreaterThan(ENEMY.x)
+    expect(unit.position.x).toBeCloseTo(GOAL_6.x, 12)
+    expect(unit.position.y).toBeCloseTo(GOAL_6.y, 12)
+    // And it went THROUGH rather than around: the straight line from (26, 16) to the goal passes
+    // within 1.2 of the enemy, well inside the near edge nothing is allowed to sit at.
+    expect(closest).toBeLessThan(SHOOTER_RANGE)
+  })
+
+  it('gives every slot a unit bearing — and only TWELVE of the fifteen are distinct', () => {
+    // THE SPEC'S PREMISE IS OFF BY THREE, and this fixture is where that is written down rather
+    // than assumed. §1.4.1 v11 says "슬롯 15개가 서로 다른 방향을 가지므로 병사들은 표적 주위에
+    // 자연히 퍼진다". Fifteen slots do not have fifteen different directions: three PAIRS of the
+    // lattice are collinear with the origin, so they normalise to the same bearing and the two
+    // soldiers in each pair walk to the SAME point when they share a target.
+    //
+    //   slots  5 (-2.2, 0.0) and  6 (-1.1, 0.0)  -> (-1, 0)
+    //   slots  7 ( 1.1, 0.0) and  8 ( 2.2, 0.0)  -> ( 1, 0)
+    //   slots 11 ( 0.0, 1.1) and 14 ( 0.0, 2.2)  -> ( 0, 1)
+    //
+    // Twelve points on the ring instead of fifteen is still the difference between a knot and a
+    // cordon, so this batch does not change the lattice for it — changing the lattice is a §1.4
+    // edit and this is a §1.4.1 batch. It is recorded, not hidden.
+    const bearings = FORMATION_SLOTS.map((_, index) => engagementBearingOf(index)!)
+    expect(bearings.every((bearing) => bearing !== null)).toBe(true)
+    for (const bearing of bearings) {
+      expect(Math.hypot(bearing.x, bearing.y)).toBeCloseTo(1, 12)
+    }
+
+    const distinct = new Set(bearings.map((b) => `${b.x.toFixed(12)},${b.y.toFixed(12)}`))
+    expect(distinct.size).toBe(12)
+    expect(engagementBearingOf(5)).toEqual(engagementBearingOf(6))
+    expect(engagementBearingOf(7)).toEqual(engagementBearingOf(8))
+    expect(engagementBearingOf(11)).toEqual(engagementBearingOf(14))
+
+    // THE ZERO-VECTOR BRANCH. `movement.ts` says it is unreachable and `constants.ts` asserts it
+    // at module load; this is the same fact from the other side. `null` comes back only for an
+    // index that is not a slot at all.
+    expect(FORMATION_SLOTS.every((slot) => Math.hypot(slot.x, slot.y) > 0)).toBe(true)
+    expect(engagementBearingOf(FORMATION_SLOTS.length)).toBeNull()
+    expect(engagementBearingOf(-1)).toBeNull()
+  })
+})
+
+describe('§1.4.1 v11 — measured on a real run, not on a board', () => {
+  /**
+   * §4.1's `tactical-no-input` driven through the facade, sampling what the defect was measured
+   * with: how many soldiers are engaged, how many live enemies are inside the leash, and how far
+   * the furthest standing soldier is from the command unit.
+   */
+  function sample(seed: string, untilTick: number) {
+    const battle = createBattle(seed)
+    battle.start()
+    const rows = new Map<number, { engaged: number; inLeash: number; maxDistance: number }>()
+    let leashTotal = 0
+    let ticks = 0
+    let minMaxWhileFullyEngaged = Infinity
+    let maxDistinctTargets = 0
+    let fullyEngagedTicks = 0
+    const ticksAtLattice: number[] = []
+    const ticksTighterThanLattice: number[] = []
+
+    while (battle.state().combatTick < untilTick) {
+      if (battle.mode() === 'won' || battle.mode() === 'lost') break
+      if (battle.mode() === 'awaiting-upgrade') battle.enqueue({ kind: 'choose-upgrade', slot: 1 })
+      battle.step()
+
+      const state = battle.state()
+      const command = findFriendly(state, state.commandUnitId)!
+      const targets = new Set<number>()
+      let engaged = 0
+      let maxDistance = 0
+      for (const unit of state.friendlies) {
+        if (unit.id === state.commandUnitId || unit.life !== 'standing') continue
+        const target = selectEngagementTargetId(state, unit)
+        if (target !== null) {
+          engaged += 1
+          targets.add(target)
+        }
+        maxDistance = Math.max(
+          maxDistance,
+          Math.hypot(unit.position.x - command.position.x, unit.position.y - command.position.y),
+        )
+      }
+      const inLeash = state.enemies.filter(
+        (enemy) =>
+          enemy.life === 'standing' &&
+          Math.hypot(enemy.position.x - command.position.x, enemy.position.y - command.position.y) <=
+            LEASH_RADIUS,
+      ).length
+
+      leashTotal += inLeash
+      ticks += 1
+      maxDistinctTargets = Math.max(maxDistinctTargets, targets.size)
+      if (engaged === 15) {
+        fullyEngagedTicks += 1
+        minMaxWhileFullyEngaged = Math.min(minMaxWhileFullyEngaged, maxDistance)
+        if (maxDistance < FORMATION_MAX_SLOT_RADIUS) ticksTighterThanLattice.push(state.combatTick)
+        else if (maxDistance === FORMATION_MAX_SLOT_RADIUS) ticksAtLattice.push(state.combatTick)
+      }
+      rows.set(state.combatTick, { engaged, inLeash, maxDistance })
+    }
+
+    return {
+      rows,
+      meanInLeash: leashTotal / ticks,
+      minMaxWhileFullyEngaged,
+      maxDistinctTargets,
+      fullyEngagedTicks,
+      ticksAtLattice,
+      ticksTighterThanLattice,
+    }
+  }
+
+  it('does NOT reassemble the squad into a knot tighter than the formation it replaced', () => {
+    // THE REGRESSION GUARD FOR THIS BATCH'S DEFECT, and the defect was exactly a number getting
+    // SMALLER. v10 measured, on this seed and this policy, a greatest-distance-from-the-command-
+    // unit of 1.87 / 2.53 / 3.02 / 0.45 / 2.75 at t100/200/300/500/600 — with all fifteen engaged
+    // from t200 on, and 0.45 at t500 INSIDE the 2.460 slot lattice.
+    //
+    // NOT VACUOUS, and the values are here so that can be checked rather than trusted: v11
+    // measures 7.87 / 9.07 / 8.39 / 9.27 / 8.95 at the same five ticks.
+    const run = sample('seed-a', 601)
+    const measured: number[] = []
+    for (const tick of [100, 200, 300, 500, 600]) {
+      const row = run.rows.get(tick)!
+      expect(row, `tick ${tick}`).toBeDefined()
+      expect(row.engaged, `tick ${tick}`).toBe(15)
+      expect(row.maxDistance, `tick ${tick}`).toBeGreaterThan(FORMATION_MAX_SLOT_RADIUS)
+      measured.push(Number(row.maxDistance.toFixed(2)))
+    }
+    expect(measured).toEqual([7.87, 9.07, 8.39, 9.27, 8.95])
+
+    // And it is not a spike at five sampled ticks. Over the first 600 ticks all fifteen are
+    // engaged on 492 of them, and on EXACTLY ONE of those — t38, the first tick anything is
+    // engaged at all, before anyone has taken a step toward a goal — is the squad still only as
+    // wide as the lattice. It is never NARROWER than the lattice, which is the shape the defect
+    // took, and from t39 on it is strictly wider on all 491.
+    expect(run.minMaxWhileFullyEngaged).toBeGreaterThanOrEqual(FORMATION_MAX_SLOT_RADIUS)
+    expect(run.ticksTighterThanLattice).toEqual([])
+    expect(run.ticksAtLattice).toEqual([38])
+    expect(run.fullyEngagedTicks).toBe(492)
+  })
+
+  it('supplies more than one target for the bearings to spread across (§1.10)', () => {
+    // THE OTHER HALF, and neither works alone: fifteen bodies and one reachable enemy is a ring
+    // of fifteen around one point whatever the angles are.
+    //
+    // MEASURED, AND SHORT OF WHAT WAS ASKED FOR. The batch aimed at a mean of 5 live enemies
+    // inside `LEASH_RADIUS`. Over a whole `tactical-no-input`/`seed-a` run it is 4.54 against
+    // batch H's 1.75; over the first 900 ticks — the window below, and roughly the one a player
+    // sees before the run decides anything — it is 1.61 against 1.15 measured on the same code
+    // with `requestInterval` put back to 12/9/7. `constants.ts` records why this axis cannot
+    // reach 5 on its own at §5 stage 0's HP and damage, and §5 stage 3 owns the rest.
+    //
+    // THE WINDOW IS WHERE THE GAIN IS SMALLEST, on purpose. An enemy has to cross from
+    // `SPAWN_RADIUS` to `LEASH_RADIUS` before it counts here, and the early game is the part of
+    // the run where the squad is at full strength and kills them on the way in.
+    const run = sample('seed-a', 901)
+    expect(run.meanInLeash).toBeCloseTo(1.608, 3)
+    expect(run.meanInLeash).toBeGreaterThan(1.4)
+    // What the bearings actually get to spread across: four distinct targets at the peak, where
+    // the same window with the old interval peaks at three.
+    expect(run.maxDistinctTargets).toBe(4)
   })
 })
 
