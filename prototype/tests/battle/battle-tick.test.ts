@@ -423,7 +423,19 @@ function playToVerdict(seed: string) {
 
 describe('§1.16 the reducer runs a whole battle to a verdict', () => {
   it('composes all sixteen rows, and holds the four the types do not', () => {
-    const run = playToVerdict('seed-a')
+    // THE SEED MOVED FROM `seed-a` TO `seed-b`, and batch I's balance change is why. This whole
+    // fixture needs a `tactical-no-input` run that WINS — hazard 4b's detector fires only on the
+    // tick the elite dies — and it needs the elite to live long enough to walk to its approach
+    // range. `PRESSURE_PHASES` at 9/7/5 ends `seed-a` at tick 1815, fifteen ticks after the elite
+    // arrives, with the elite never reaching approach range and never dying. Measured over the
+    // eight band seeds at these values: `seed-b` and `seed-h` win; `seed-b` also has every one of
+    // this fixture's four hazard counters non-zero (approach 238, blast 1, friendly-vs-enemy 448,
+    // all three damage sources), where `seed-h`'s blast counter is 0. So `seed-b` is the run.
+    //
+    // The comment at hazard 4b already said what to do the day `tactical-no-input` stops winning
+    // — replace the line, do not delete it — and this is that replacement, one seed over. §5
+    // stage 2 is where I3 makes EVERY seed lose and the alarm has to be rebuilt for real.
+    const run = playToVerdict('seed-b')
 
     // The run DECIDES. This fixture also prescribes WHICH verdict, in the last assertion of the
     // fixture (`toBe('won')`, at the very bottom), and
@@ -459,15 +471,13 @@ describe('§1.16 the reducer runs a whole battle to a verdict', () => {
     // the command unit — and on `seed-a` each impact then caught the command unit ALONE, so the
     // check was moved to `seed-b`, the nearest seed that was not vacuous.
     //
-    // v11 MOVED IT BACK, and the assertion below is the re-measurement rather than the old
-    // claim. The bearing rule spreads the fifteen AROUND the elite instead of onto one arc of
-    // its ring, so `seed-a`'s impacts now catch bodies again: `run.ticksOrderingBlastAgainstAnother`
-    // is 2 here where batch H measured 0. `seed-b` is kept as well — two seeds are a better
-    // rank-3 witness than one — and both are asserted non-vacuous rather than pinned to a count,
-    // because the count is a balance fact and §5 owns it.
-    const blastRun = playToVerdict('seed-b')
-    expect(blastRun.orderViolations).toEqual([])
-    expect(blastRun.ticksOrderingBlastAgainstAnother).toBeGreaterThan(0)
+    // BATCH I RETIRED THE BORROW, because the run itself is `seed-b` now — the seed the rank-3
+    // half used to be borrowed from. `run.ticksOrderingBlastAgainstAnother` is 1 on it, so the
+    // counter below is measured on the same run as everything else in this fixture and there is
+    // no second `playToVerdict` to keep in step with the first.
+    //
+    // Measured over the eight band seeds at 9/7/5, for whoever has to move this next: `seed-a`
+    // and `seed-h` are 0, the other six are 1~3.
     expect(run.ticksOrderingBlastAgainstAnother).toBeGreaterThan(0)
 
     // HAZARD 4: both consumers read the transition row's return value.

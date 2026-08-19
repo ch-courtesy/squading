@@ -219,11 +219,47 @@ export type PressurePhase = {
   meleeToShooter: readonly [number, number]
 }
 
-/** PLACEHOLDER — the whole pressure curve (§2 "구간별 상한·요청 간격·비율"). */
+/**
+ * PLACEHOLDER — the whole pressure curve (§2 "구간별 상한·요청 간격·비율").
+ *
+ * STILL A PLACEHOLDER, AND §5 STAGE 3 STILL OWNS THE FINAL VALUES. Every number in this table
+ * is §5 stage 0's arbitrary starting point, and the edit recorded below does not change that —
+ * it moves one axis because the value it had was hiding a core rule, not because it is right.
+ *
+ * WHAT CHANGED AND WHY (batch I). `requestInterval` went 12/9/7 -> 9/7/5. §1.4.1 v11 gives each
+ * soldier its own bearing around its target, and a bearing spreads fifteen bodies only if there
+ * is more than one body to spread them around: with the old intervals the number of LIVE enemies
+ * inside `LEASH_RADIUS` averaged 1.7 over a whole `tactical-no-input` run and 1.2 over the first
+ * 600 ticks, which is fifteen soldiers queueing at one or two targets whatever the angles are.
+ *
+ * `engagedCap` is deliberately NOT touched. It is not the binding constraint — the measured live
+ * enemy count was 4~6 against a cap of 14, so the kill rate was what limited supply, and raising
+ * a cap nothing reaches changes nothing.
+ *
+ * WHAT IT COST, measured rather than predicted (three seeds, eight policies):
+ *
+ *   * mean live enemies inside `LEASH_RADIUS`, `skilled`: 2.10 -> 3.81; `tactical-no-input`:
+ *     1.69 -> 3.80. Roughly doubled, and NOT the "5 or more" the batch aimed at.
+ *   * `skilled`, `ignores-range` stay 3/3; `tactical-no-input`, `flees-always`, `camps-in-place`
+ *     go 3/3 -> 1/3; `abandons-downed` and both §3 player models go 3/3 -> 2/3.
+ *
+ * The three that fell are I3, I8 and I10, all of which REQUIRE losing (`0/8`, `0/8`, `<=2/8`)
+ * and all of which were failing at 3/3. So this axis moves toward those invariants; it does not
+ * satisfy them, and it is not tuned to.
+ *
+ * THE 5-TARGET GOAL IS NOT REACHABLE ON THIS AXIS ALONE at these HP and damage placeholders, and
+ * the sweep says so arithmetically rather than by opinion. The standing count inside the leash is
+ * the arrival rate times the dwell time; dwell is set by how fast the squad kills, which is §5
+ * stage 2's numbers and not this table's. So an average of 5 needs an arrival rate well above the
+ * kill rate, which is a population that grows without bound. Every curve in the sweep that reached
+ * a mean of 5 on any policy — `8/6/5`, `7/6/5`, `6/5/4`, `4/3/2`, `3/2/2`, `2/2/2` — lost
+ * `tactical-no-input` on all three seeds and took `skilled` to 2/3 or worse. The batch report
+ * carries the whole sweep, and §5 stage 3 is where the two axes get moved together.
+ */
 export const PRESSURE_PHASES: readonly PressurePhase[] = [
-  { fromTick: 0, engagedCap: 14, requestInterval: 12, meleeToShooter: [5, 1] },
-  { fromTick: 900, engagedCap: 20, requestInterval: 9, meleeToShooter: [3, 1] },
-  { fromTick: 1800, engagedCap: 26, requestInterval: 7, meleeToShooter: [2, 1] },
+  { fromTick: 0, engagedCap: 14, requestInterval: 9, meleeToShooter: [5, 1] },
+  { fromTick: 900, engagedCap: 20, requestInterval: 7, meleeToShooter: [3, 1] },
+  { fromTick: 1800, engagedCap: 26, requestInterval: 5, meleeToShooter: [2, 1] },
 ]
 
 // ---------------------------------------------------------------------------

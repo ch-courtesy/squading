@@ -42,9 +42,9 @@ describe('§1.17 the runner reproduces the digests batch H recorded', () => {
     // those four pins was touched by this batch. These three lines are the OTHER half: they say
     // that whatever moved, it moved once and reproducibly.
     expect(THREE_SEEDS.map((seed) => runPolicySeed(policyFactory('tactical-no-input'), seed))).toEqual([
-      { seed: 'seed-a', outcome: 'won', endTick: 2003, kills: 176, standing: 14, digest: '7fe29e15' },
-      { seed: 'seed-b', outcome: 'won', endTick: 2114, kills: 197, standing: 16, digest: 'b68bf65a' },
-      { seed: 'seed-c', outcome: 'won', endTick: 1976, kills: 176, standing: 15, digest: '9d56385e' },
+      { seed: 'seed-a', outcome: 'lost', endTick: 1815, kills: 175, standing: 0, digest: '8bd3be0d' },
+      { seed: 'seed-b', outcome: 'won', endTick: 2123, kills: 234, standing: 8, digest: '756f5ef8' },
+      { seed: 'seed-c', outcome: 'lost', endTick: 2055, kills: 219, standing: 0, digest: '2d64fab2' },
     ])
   })
 })
@@ -80,20 +80,22 @@ describe('§4.1 `flees-always` on the three seeds', () => {
     // 1983/176/16/`e005f02e`; v11's bearing moved them again, for the reason recorded above the
     // first block, and `PRESSURE_PHASES` moves them a second time inside the same batch.
     expect(THREE_SEEDS.map((seed) => runPolicySeed(policyFactory('flees-always'), seed))).toEqual([
-      { seed: 'seed-a', outcome: 'won', endTick: 1996, kills: 178, standing: 14, digest: '2f25a62e' },
-      { seed: 'seed-b', outcome: 'won', endTick: 2071, kills: 187, standing: 15, digest: '0c388455' },
-      { seed: 'seed-c', outcome: 'won', endTick: 1999, kills: 178, standing: 12, digest: 'e2b8a0a3' },
+      { seed: 'seed-a', outcome: 'lost', endTick: 1903, kills: 177, standing: 0, digest: '8fa6ed8c' },
+      { seed: 'seed-b', outcome: 'won', endTick: 2027, kills: 233, standing: 13, digest: 'd475d5ee' },
+      { seed: 'seed-c', outcome: 'lost', endTick: 1987, kills: 210, standing: 0, digest: '18b531bb' },
     ])
   })
 
-  it('wins all three, which is I8 failing and is the tuning stage to fix, not this batch', () => {
-    // §3 I8: "순수 도망은 이기지 못한다 — 승리 `0/8`". It is 3/3 here. Batch F measures; §5
-    // stages 3 and 4 (spawn geometry and melee speed) are what close it, and E0 already wrote
-    // down why: the melee needs ~490 ticks to cross `SPAWN_RADIUS`, and the squad shoots for all
-    // of them.
+  it('still wins one of three, which is I8 failing by less and is §5 stage 3 to close', () => {
+    // §3 I8: "순수 도망은 이기지 못한다 — 승리 `0/8`". It was 3/3 through batch H. Batch I's
+    // `PRESSURE_PHASES` change — made for §1.4.1's sake, not for I8's — took it to 1/3, and this
+    // line is that measurement and not a target that was aimed at. §5 stages 3 and 4 (spawn
+    // geometry and melee speed) are what close it the rest of the way, and E0 already wrote down
+    // why it is open at all: the melee needs ~490 ticks to cross `SPAWN_RADIUS`, and the squad
+    // shoots for all of them.
     const band = runPolicyBand(policyFactory('flees-always'), THREE_SEEDS)
     expect(band.policyId).toBe('flees-always')
-    expect(band.wins).toBe(3)
+    expect(band.wins).toBe(1)
     expect(band.total).toBe(3)
   })
 })
