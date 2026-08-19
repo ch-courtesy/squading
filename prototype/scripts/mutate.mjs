@@ -125,6 +125,7 @@ const VIEW = 'src/core/harness/policy/view.ts'
 const POLICIES = 'src/core/harness/policy/policies.ts'
 const RUN = 'src/core/harness/policy/run.ts'
 const MOVEMENT = 'src/core/battle/movement.ts'
+const CONSTANTS = 'src/core/battle/constants.ts'
 
 /**
  * The mutation table. Hardcoded on purpose — a generated mutation set is a different tool, and
@@ -473,16 +474,67 @@ const MUTATIONS = [
   },
   {
     file: MOVEMENT,
-    label: 'walk onto the enemy instead of to the range band',
-    find:
-      '  const toBand = distance > far ? distance - far : distance < near ? distance - near : 0',
-    replace: '  const toBand = distance',
-  },
-  {
-    file: MOVEMENT,
     label: 'stand still instead of returning to the slot',
     find: '    stepToward(unit, slotPosition(center, assignment.slotIndex), followSpeed)',
     replace: '    unit.lastDisplacement = 0',
+  },
+
+  // --- movement.ts + constants.ts / §1.4.1 v11's bearing, and the supply it needs ------------
+  // Same rule as above: taken from the spec sentences, not from the fixtures.
+  //
+  //   "각 병사의 방위각은 자기 슬롯 오프셋의 방향이다"        -> give them all one fixed bearing
+  //   "normalize(슬롯 오프셋)"                                -> drop the normalisation
+  //   "× 밴드 far edge"                                       -> stand on the body instead
+  //   §1.10's 요청 간격, which is what makes a bearing visible -> put it back where it was
+  //
+  // THE FIRST ONE IS THE DEFECT THIS BATCH EXISTS FOR. v10 gave the band a distance and no angle,
+  // and every soldier on a shared target walked to the same point: `tactical-no-input`/`seed-a`
+  // had all fifteen engaged against one or two reachable enemies and the greatest distance from
+  // the command unit fell to 0.45, INSIDE the 2.460 slot lattice. A mutation that pins every
+  // soldier to one bearing is that defect exactly, and it has to be caught by a fixture that
+  // names the rule — not only by a digest that says "the run is different".
+  //
+  // MEASURED, IN THE COMMIT THAT ADDS THEM AND BEFORE THE FIXTURES THAT ANSWER THEM. Two of the
+  // four are already caught and two are not, and the split is worth reading rather than rounding:
+  //
+  //   against `tests/battle/battle-movement.test.ts` + the two guards, digest block EXCLUDED:
+  //     fixed bearing ................. MISSED
+  //     drop the normalisation ........ caught
+  //     stand on the body ............. caught
+  //     revert `requestInterval` ...... MISSED
+  //
+  // The two CAUGHTs are caught by the fixture the previous commit re-pointed at v11's goal, which
+  // pins the hand-computed `(31 - 2*sqrt(5), 16 - sqrt(5))` — a goal at the wrong radius fails it
+  // whether the radius came from an un-normalised offset or from a zeroed far edge. The two
+  // MISSEDs are the two this batch owes fixtures for: ONE soldier can be given every bearing in
+  // the table and land in the same place, so only a fixture with two soldiers on one target can
+  // see the first; and no fixture in that file runs a battle, so nothing there can see the fourth.
+  //
+  // With `tests/harness` included all four are caught, and that is the digest block being a change
+  // detector — it says the run is different, never which rule broke.
+  {
+    file: MOVEMENT,
+    label: 'give every soldier one fixed bearing instead of its own slot (= the v10 knot)',
+    find: '  const slot = FORMATION_SLOTS[slotIndex]',
+    replace: '  const slot = FORMATION_SLOTS[0]',
+  },
+  {
+    file: MOVEMENT,
+    label: "drop the bearing's normalisation, so slot DISTANCE leaks into the band",
+    find: '  const length = Math.hypot(slot.x, slot.y)',
+    replace: '  const length = 1',
+  },
+  {
+    file: MOVEMENT,
+    label: 'walk onto the enemy instead of standing off at the band far edge',
+    find: '  const [, far] = engagementBandOf(state, unit)',
+    replace: '  const far = 0',
+  },
+  {
+    file: CONSTANTS,
+    label: "put §1.10's phase-0 request interval back where batch H had it",
+    find: '  { fromTick: 0, engagedCap: 14, requestInterval: 9, meleeToShooter: [5, 1] },',
+    replace: '  { fromTick: 0, engagedCap: 14, requestInterval: 12, meleeToShooter: [5, 1] },',
   },
 
   // --- run.ts: the aggregation ---------------------------------------------------------------
