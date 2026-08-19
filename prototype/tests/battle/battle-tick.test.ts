@@ -15,16 +15,22 @@
 //     deaths, so the run never ends.
 //
 // The whole-battle run below fails on the first three, and the batch E report records the
-// mutation output that proves each one bites. THE FOURTH IS CONDITIONAL AND THAT CONDITION IS
-// WRITTEN DOWN TWICE. A second `resolveTransitions()` reports no deaths because the bodies are
-// already dead by then, so the only tick that can catch it is one where the ELITE dies — and §5
-// stage 2 has to tune `tactical-no-input` into a defeat, where no such tick exists. So the whole
-// battle asserts the precondition of its own detector (it fails, rather than going quiet, the
-// day the verdict flips), and a separate fixture kills the elite by hand so that row 16 keeps a
-// detector which does not depend on the VERDICT. It is NOT balance-free: it drives the run to
-// the elite's arrival and throws if the run decides first. Margin measured on all three seeds:
-// 16/16 standing, 0 downed, at tick 1801. Breaking it takes a wipe of the whole squad before
-// `ELITE_SPAWN_TICK`, and it would throw rather than pass quietly.
+// mutation output that proves each one bites. THE FOURTH IS CONDITIONAL AND THAT CONDITION HAS
+// NOW LAPSED. A second `resolveTransitions()` reports no deaths because the bodies are already
+// dead by then, so the only tick that can catch it is one where the ELITE dies — and that needs
+// a run `tactical-no-input` WINS. Every earlier version of this header said §5 stage 2 would take
+// that away and that the hand-killed fixture was written for the day it did.
+//
+// BATCH I IS THAT DAY, one stage early and for a different reason: `PRESSURE_PHASES` 9/7/5 and
+// `LEASH_RADIUS` 10.0 make the card-only run lose on all eight band seeds, so no run below has an
+// elite death in it and `unclaimedWins` is vacuous wherever it is pointed. The whole battle still
+// asserts the precondition of its own detector — it now asserts that the precondition is GONE,
+// with the measurement rather than a hope — and row 16's live detector is the hand-killed-elite
+// fixture alone. That one is NOT balance-free either: it drives the run to the elite's arrival
+// and throws if the run decides first. Margin re-measured at these values: `seed-a` and `seed-c`
+// are wiped at 1653 and 1719, before the arrival, so it runs on `seed-b`, which is at 11 standing
+// and 4 downed on tick 1801 with the elite on the board. `seed-h` (7 standing) is the only other
+// seed that gets there.
 
 import { describe, expect, it } from 'vitest'
 
@@ -307,10 +313,13 @@ describe('§1.16 the verdict reads the transition row that actually ran', () => 
     // through an elite death, and §5 stage 2 has to make `tactical-no-input` lose. This one
     // kills the elite by hand, so row 16 keeps a detector after that.
     //
-    // What it DOES depend on is the loop below reaching the arrival at all — measured margin,
-    // all three seeds: 16/16 standing and 0 downed at tick 1801. A tune that ends the run before
-    // `ELITE_SPAWN_TICK` breaks this fixture, and the `throw` two lines down is how it says so.
-    const state = running('seed-a')
+    // What it DOES depend on is the loop below reaching the arrival at all, and batch I is the
+    // tune the paragraph above was waiting for: at `PRESSURE_PHASES` 9/7/5 and `LEASH_RADIUS`
+    // 10.0 the card-only run is WIPED before tick 1800 on six of the eight band seeds. It still
+    // reaches the arrival on `seed-b` (ends 2190) and `seed-h` (ends 2013), so the seed moves to
+    // `seed-b`. A tune that ends that one early breaks this fixture, and the `throw` two lines
+    // down is how it says so rather than passing quietly.
+    const state = running('seed-b')
     while (state.elite.enemyId === null) {
       if (state.mode !== 'running' && state.mode !== 'awaiting-upgrade') {
         throw new Error(`the run ended at ${state.combatTick} before the elite arrived`)
@@ -423,24 +432,18 @@ function playToVerdict(seed: string) {
 
 describe('§1.16 the reducer runs a whole battle to a verdict', () => {
   it('composes all sixteen rows, and holds the four the types do not', () => {
-    // THE SEED MOVED FROM `seed-a` TO `seed-b`, and batch I's balance change is why. This whole
-    // fixture needs a `tactical-no-input` run that WINS — hazard 4b's detector fires only on the
-    // tick the elite dies — and it needs the elite to live long enough to walk to its approach
-    // range. `PRESSURE_PHASES` at 9/7/5 ends `seed-a` at tick 1815, fifteen ticks after the elite
-    // arrives, with the elite never reaching approach range and never dying. Measured over the
-    // eight band seeds at these values: `seed-b` and `seed-h` win; `seed-b` also has every one of
-    // this fixture's four hazard counters non-zero (approach 238, blast 1, friendly-vs-enemy 448,
-    // all three damage sources), where `seed-h`'s blast counter is 0. So `seed-b` is the run.
-    //
-    // The comment at hazard 4b already said what to do the day `tactical-no-input` stops winning
-    // — replace the line, do not delete it — and this is that replacement, one seed over. §5
-    // stage 2 is where I3 makes EVERY seed lose and the alarm has to be rebuilt for real.
+    // THE SEED MOVED FROM `seed-a` TO `seed-b`, and batch I's balance change is why. This fixture
+    // needs the elite to arrive and then live long enough to walk to its approach range, and at
+    // `PRESSURE_PHASES` 9/7/5 with `LEASH_RADIUS` 10.0 the card-only run is wiped before tick 1800
+    // on six of the eight band seeds — `seed-a` at 1653. Only `seed-b` (ends 2190) and `seed-h`
+    // (ends 2013) get there, and `seed-b` has every one of this fixture's four hazard counters
+    // non-zero: approach 306, blast 4, friendly-vs-enemy 471, all three damage sources.
     const run = playToVerdict('seed-b')
 
-    // The run DECIDES. This fixture also prescribes WHICH verdict, in the last assertion of the
-    // fixture (`toBe('won')`, at the very bottom), and
-    // that line is deliberate rather than an accident of what the balance happens to do today —
-    // hazard 4b's alarm below needs the win. §5 stage 2 owns the tune and owns that line with it.
+    // The run DECIDES, and this fixture prescribes WHICH verdict in the last block at the bottom.
+    // That line is deliberate rather than an accident of what the balance happens to do today:
+    // hazard 4b's alarm is now an alarm about the verdict having flipped, and an alarm that will
+    // not name what it is watching cannot ring. §5 stage 2 owns the tune and owns that line.
     expect(run.state.result).not.toBeNull()
     expect(run.state.combatTick).toBeLessThanOrEqual(COMBAT_TICK_LIMIT)
 
@@ -484,21 +487,23 @@ describe('§1.16 the reducer runs a whole battle to a verdict', () => {
     expect(run.killMismatches).toEqual([])
     expect(run.unclaimedWins).toEqual([])
 
-    // HAZARD 4b's SELF-ALARM, and it is the same shape as hazard 1's above. `unclaimedWins` is
-    // the only thing in this run that can see a verdict built from a SECOND `resolveTransitions`
-    // call, and it is filled in only on a tick where the elite dies. §5 stage 2 must make
-    // `tactical-no-input` lose (I3); the day it does, `eliteDeathTicks` empties, this fixture
-    // stops testing row 16, and every assertion above still passes.
+    // HAZARD 4b's SELF-ALARM HAS FIRED, and these three lines are the replacement it asked for
+    // rather than a deletion. `unclaimedWins` is the only thing in this run that can see a verdict
+    // built from a SECOND `resolveTransitions` call, and it is filled in only on a tick where the
+    // elite dies. Batch I's balance change makes `tactical-no-input` lose on all eight band seeds
+    // (which is what §3 I3 wants), so there is no such tick on any seed and `unclaimedWins` above
+    // is now VACUOUS — it passes because nothing could have filled it.
     //
-    // So it asserts the precondition of its own detector, and the second of the three lines
-    // below IS A BALANCE CLAIM: it pins today's verdict. That is the price of the alarm, paid on
-    // purpose — an alarm that will not name what it is watching cannot ring. §5 stage 2 must
-    // REPLACE that line when it tunes `tactical-no-input` into a defeat, not delete it, and the
-    // hand-killed-elite fixture above is what keeps row 16 covered while the replacement is
-    // written.
-    expect(run.eliteDeathTicks.length).toBeGreaterThan(0)
-    expect(run.state.result).toBe('won')
-    expect(run.eliteDeathTicks).toEqual([run.state.combatTick - 1])
+    // Saying that out loud is the whole point of the alarm, so the three lines below say it: the
+    // run loses, there is no elite death in it, and the elite is still standing when the squad is
+    // wiped. Row 16's live detector is `§1.16 the verdict reads the transition row that actually
+    // ran` above, which kills the elite by hand and does not depend on the verdict at all. If a
+    // later tune gives `tactical-no-input` a win back, these lines fail rather than going quiet,
+    // and the `toBe('lost')` in the middle is the balance claim that makes that possible.
+    expect(run.eliteDeathTicks).toEqual([])
+    expect(run.state.result).toBe('lost')
+    expect(run.state.failureReason).toBe('all-units-lost')
+    expect(run.state.enemies.find((enemy) => enemy.kind === 'elite')?.life).toBe('standing')
   })
 
   it('replays the same seed to the same digest, and two seeds apart', () => {

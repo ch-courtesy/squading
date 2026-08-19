@@ -114,15 +114,45 @@ export const ARRIVE_EPSILON = 0.004
  *                                               stands stops deciding anything, which is the
  *                                               agency-free auto-battle §1.4.1 exists to escape.
  *
- * WHY 8.0 INSIDE THAT BOX, and it is a starting point and not a measurement (§5 owns the
- * number): it is 3.25x the formation radius, so a soldier that engages is unmistakably out of
- * formation rather than a slot's width away from it; and it is BELOW `ENGAGE_RADIUS` (10.0), so
- * a soldier only ever chases a body that §1.10 already counts against the live cap around the
- * command unit. The furthest a body can then be pulled from the command unit is
- * `LEASH_RADIUS + SHOOTER_RANGE` = 12.5 — a soldier backing off from a target sitting on the
- * leash edge — which is the number §4.4(a)'s framing has to survive.
+ * WHY 10.0, AND WHERE IT CAME FROM. Batch H opened at 8.0 as an untested starting point. Batch I
+ * raised it because a person who played the build asked for the soldiers to roam further and more
+ * freely, and it was picked BY MEASUREMENT AGAINST THAT REQUEST — not off any §2 sweep axis, and
+ * §5 stage 3 still owns the final number. Four candidates, mean live enemies inside the leash
+ * averaged over the eight policies x three seeds, and the greatest distance any soldier reached
+ * from the command unit on `tactical-no-input`/`seed-a`:
+ *
+ *     8.0   mean 3.4~4.2    max 13.95   skilled 3/3   position probe: two stands, HALF the
+ *                                                     engaged set in common
+ *    10.0   mean 4.8~5.8    max 15.99   skilled 3/3   same probe: HALF in common
+ *    12.0   mean 6.9~7.7    max 17.96   skilled 1/3   same probe: ALL in common
+ *    14.0   mean 8.5~10.2   max 19.98   skilled 1/3   same probe: ALL in common
+ *
+ * 10.0 is the largest of the four that keeps both of the things the leash is for. §4.1 wants
+ * `skilled >= 6/8` and 12.0 takes it to 1/3. And §1.4.1 anchors the leash to the command unit so
+ * that WHERE THE PLAYER STANDS decides which fight happens (§4.5 question 3): the probe above
+ * puts 24 enemies on a fixed board, stands the command unit at two points 12.0 apart, and asks
+ * which enemies the fifteen engage. At 8.0 and 10.0 the two stands share half their engaged set;
+ * at 12.0 and 14.0 they share ALL of it — the position has stopped selecting anything, which is
+ * the free-roam behaviour the leash exists instead of.
+ *
+ * SO IT IS A STEP TOWARD FREE ROAM AND THE STEP IS DELIBERATE. At 10.0 the fraction of live
+ * enemies inside the leash rises from ~0.33 to ~0.46: the player's position still chooses, but it
+ * chooses among more of the board than it did.
+ *
+ * It is now EQUAL TO `ENGAGE_RADIUS` (10.0) rather than below it, so the set a soldier may chase
+ * is exactly the set §1.10 counts against the live cap around the command unit — the two radii
+ * name the same disc. §2 does not relate them and neither does §1.10; this is a coincidence of
+ * two placeholders and is written down so it is not mistaken for a rule.
+ *
+ * HOW FAR A BODY CAN BE PULLED, corrected for v11. The engagement goal is `target + bearing x
+ * attackRangeOf(unit)`, so with the command unit standing still the bound is
+ * `LEASH_RADIUS + SOLDIER_RANGE` = 15.0 — and above it once §1.13's `marksman` (+1.0, additive)
+ * is taken, which is why the measured maximum is 15.99 and not 15.0. §4.4(a)'s framing is what
+ * has to survive that; the camera widens to whatever body is furthest out
+ * (`core/battle-view/snapshot.ts`), so it does, at the cost of zooming further out than batch H's
+ * runs ever asked it to.
  */
-export const LEASH_RADIUS = 8.0
+export const LEASH_RADIUS = 10.0
 
 // ---------------------------------------------------------------------------
 // PLACEHOLDER — enemy classes (§1.9)
@@ -236,7 +266,9 @@ export type PressurePhase = {
  * enemy count was 4~6 against a cap of 14, so the kill rate was what limited supply, and raising
  * a cap nothing reaches changes nothing.
  *
- * WHAT IT COST, measured rather than predicted (three seeds, eight policies):
+ * WHAT IT COST, MEASURED AT `LEASH_RADIUS` 8.0, which is the value this edit was swept against
+ * (the same batch raised the leash afterwards; the combined numbers are two paragraphs down).
+ * Three seeds, eight policies:
  *
  *   * mean live enemies inside `LEASH_RADIUS`, `skilled`: 2.10 -> 3.81; `tactical-no-input`:
  *     1.69 -> 3.80. Roughly doubled, and NOT the "5 or more" the batch aimed at.
@@ -244,17 +276,21 @@ export type PressurePhase = {
  *     go 3/3 -> 1/3; `abandons-downed` and both §3 player models go 3/3 -> 2/3.
  *
  * The three that fell are I3, I8 and I10, all of which REQUIRE losing (`0/8`, `0/8`, `<=2/8`)
- * and all of which were failing at 3/3. So this axis moves toward those invariants; it does not
- * satisfy them, and it is not tuned to.
+ * and all of which were failing at 3/3. So this axis moves toward those invariants.
  *
- * THE 5-TARGET GOAL IS NOT REACHABLE ON THIS AXIS ALONE at these HP and damage placeholders, and
- * the sweep says so arithmetically rather than by opinion. The standing count inside the leash is
- * the arrival rate times the dwell time; dwell is set by how fast the squad kills, which is §5
- * stage 2's numbers and not this table's. So an average of 5 needs an arrival rate well above the
- * kill rate, which is a population that grows without bound. Every curve in the sweep that reached
- * a mean of 5 on any policy — `8/6/5`, `7/6/5`, `6/5/4`, `4/3/2`, `3/2/2`, `2/2/2` — lost
- * `tactical-no-input` on all three seeds and took `skilled` to 2/3 or worse. The batch report
- * carries the whole sweep, and §5 stage 3 is where the two axes get moved together.
+ * 5 IS NOT REACHABLE ON THIS AXIS ALONE at these HP and damage placeholders, and the sweep says
+ * so arithmetically rather than by opinion. The standing count inside the leash is the arrival
+ * rate times the dwell time; dwell is set by how fast the squad kills, which is §5 stage 2's
+ * numbers and not this table's. So an average of 5 needs an arrival rate well above the kill rate,
+ * which is a population that grows without bound. Every curve in the sweep that reached a mean of
+ * 5 on any policy at `LEASH_RADIUS` 8.0 — `8/6/5`, `7/6/5`, `6/5/4`, `4/3/2`, `3/2/2`, `2/2/2` —
+ * lost `tactical-no-input` on all three seeds and took `skilled` to 2/3 or worse.
+ *
+ * WHAT REACHED IT was the OTHER axis moving as well: at `LEASH_RADIUS` 10.0 with this table, the
+ * mean is 4.8~5.8 across all eight policies (`tactical-no-input` 5.64, `skilled` 5.10) with
+ * `skilled` still 3/3. Neither half gets there alone — 9/7/5 at leash 8.0 is 3.4~4.2, and leash
+ * 10.0 at the old 12/9/7 is 2.9~4.1. The batch report carries both sweeps, and §5 stage 3 is
+ * where all of it gets set properly.
  */
 export const PRESSURE_PHASES: readonly PressurePhase[] = [
   { fromTick: 0, engagedCap: 14, requestInterval: 9, meleeToShooter: [5, 1] },

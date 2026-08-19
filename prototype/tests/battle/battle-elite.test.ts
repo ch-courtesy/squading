@@ -626,14 +626,20 @@ describe('batch D adds no state and stays deterministic', () => {
       return state
     }
 
-    const first = play('seed-a')
-    const second = play('seed-a')
+    // THE SEED IS `seed-b` BECAUSE THE ARRIVAL HAS TO HAPPEN. This fixture asserts §1.12's
+    // arrival tick, which a run that ends before tick 1800 never reaches. Batch I's balance
+    // change (`PRESSURE_PHASES` 9/7/5, `LEASH_RADIUS` 10.0) wipes the card-only run at 1653 on
+    // `seed-a`; measured over the eight band seeds, only `seed-b` (ends 2190) and `seed-h`
+    // (ends 2013) still get to the arrival, and `seed-b` is the one the rest of this branch's
+    // fixtures moved to for the same reason. `seed-a` is kept below as the "a different seed is
+    // a different run" contrast, which does not care whether it reached the elite.
+    const first = play('seed-b')
+    const second = play('seed-b')
 
     // The run DECIDES — which verdict it reaches is a balance question and this fixture must not
-    // pretend to answer it. With today's PLACEHOLDER numbers a standing squad actually kills the
-    // elite, i.e. I3 ("정지 플레이는 전멸한다") does not hold yet; §5 stage 2 is where
-    // `tactical-no-input` sets friendly HP against enemy damage, and asserting the current
-    // outcome here would freeze a number the tuning stage owns.
+    // pretend to answer it. Through batch H a standing squad actually killed the elite, i.e. §3's
+    // I3 ("정지 플레이는 전멸한다") did not hold; at batch I's values this run is wiped instead.
+    // Either way §5 stage 2 owns the number and pinning the outcome here would freeze it.
     expect(first.result).not.toBeNull()
     expect(['won', 'lost']).toContain(first.mode)
     // §1.12: the elite arrived on its tick, on top of §1.10's live supply.
@@ -641,7 +647,7 @@ describe('batch D adds no state and stays deterministic', () => {
     expect(first.combatTick).toBeLessThanOrEqual(COMBAT_TICK_LIMIT)
     expect(digestBattleState(second)).toBe(digestBattleState(first))
     expect(second.combatTick).toBe(first.combatTick)
-    expect(digestBattleState(play('seed-b'))).not.toBe(digestBattleState(first))
+    expect(digestBattleState(play('seed-a'))).not.toBe(digestBattleState(first))
   })
 })
 

@@ -32,8 +32,14 @@ describe('§1.17 the runner reproduces the digests batch H recorded', () => {
     // v11 (batch I) MOVED THEM AGAIN, for a narrower reason of the same kind: the engagement goal
     // point gained a BEARING, so an engaged soldier stands somewhere batch H did not put it from
     // the first tick anything is engaged at all. The values below are the measurement of where
-    // they moved to. This batch moves them a SECOND time when it changes `PRESSURE_PHASES`, and
-    // the lines below carry the later measurement — the ones quoted above are the history.
+    // they moved to. This batch moves them TWICE more inside itself — once when it changes
+    // `PRESSURE_PHASES` (9/7/5) and once when it raises `LEASH_RADIUS` (8.0 -> 10.0) — and the
+    // lines below carry the last of the three. The ones quoted above are the history.
+    //
+    // THE OUTCOMES MOVED WITH THEM, and that is the balance change and not a reducer change:
+    // `tactical-no-input` now LOSES on all three seeds. §3 I3 requires exactly that ("정지 플레이는
+    // 전멸한다 — 승리 0/8") and it was 3/3 through batch H, so the direction is the spec's. It is
+    // 0/3 here, not 0/8, and this batch did not run the other five seeds for it.
     //
     // WHAT THEY STILL PIN, and it is the reason they are here rather than deleted: no field was
     // added to `BattleState` and no draw to a stream. A moved digest cannot prove that on its
@@ -42,9 +48,9 @@ describe('§1.17 the runner reproduces the digests batch H recorded', () => {
     // those four pins was touched by this batch. These three lines are the OTHER half: they say
     // that whatever moved, it moved once and reproducibly.
     expect(THREE_SEEDS.map((seed) => runPolicySeed(policyFactory('tactical-no-input'), seed))).toEqual([
-      { seed: 'seed-a', outcome: 'lost', endTick: 1815, kills: 175, standing: 0, digest: '8bd3be0d' },
-      { seed: 'seed-b', outcome: 'won', endTick: 2123, kills: 234, standing: 8, digest: '756f5ef8' },
-      { seed: 'seed-c', outcome: 'lost', endTick: 2055, kills: 219, standing: 0, digest: '2d64fab2' },
+      { seed: 'seed-a', outcome: 'lost', endTick: 1653, kills: 159, standing: 0, digest: '8f30c06d' },
+      { seed: 'seed-b', outcome: 'lost', endTick: 2190, kills: 228, standing: 0, digest: '91fc34fe' },
+      { seed: 'seed-c', outcome: 'lost', endTick: 1719, kills: 170, standing: 0, digest: '334b1763' },
     ])
   })
 })
@@ -78,25 +84,43 @@ describe('§4.1 `flees-always` on the three seeds', () => {
     // it was already an argument about numbers this batch has now superseded, and nothing below
     // re-derives it. Batch H's own values were 2069/161/9/`03d32a9b`, 1961/175/16/`7f093e81` and
     // 1983/176/16/`e005f02e`; v11's bearing moved them again, for the reason recorded above the
-    // first block, and `PRESSURE_PHASES` moves them a second time inside the same batch.
+    // first block, and `PRESSURE_PHASES` then `LEASH_RADIUS` moved them twice more inside the
+    // same batch.
     expect(THREE_SEEDS.map((seed) => runPolicySeed(policyFactory('flees-always'), seed))).toEqual([
-      { seed: 'seed-a', outcome: 'lost', endTick: 1903, kills: 177, standing: 0, digest: '8fa6ed8c' },
-      { seed: 'seed-b', outcome: 'won', endTick: 2027, kills: 233, standing: 13, digest: 'd475d5ee' },
-      { seed: 'seed-c', outcome: 'lost', endTick: 1987, kills: 210, standing: 0, digest: '18b531bb' },
+      { seed: 'seed-a', outcome: 'lost', endTick: 1563, kills: 147, standing: 0, digest: 'd8f816f6' },
+      { seed: 'seed-b', outcome: 'lost', endTick: 2204, kills: 225, standing: 0, digest: 'ffddc7d9' },
+      { seed: 'seed-c', outcome: 'lost', endTick: 2083, kills: 225, standing: 0, digest: 'e79eb3e9' },
     ])
   })
 
-  it('still wins one of three, which is I8 failing by less and is §5 stage 3 to close', () => {
-    // §3 I8: "순수 도망은 이기지 못한다 — 승리 `0/8`". It was 3/3 through batch H. Batch I's
-    // `PRESSURE_PHASES` change — made for §1.4.1's sake, not for I8's — took it to 1/3, and this
-    // line is that measurement and not a target that was aimed at. §5 stages 3 and 4 (spawn
-    // geometry and melee speed) are what close it the rest of the way, and E0 already wrote down
-    // why it is open at all: the melee needs ~490 ticks to cross `SPAWN_RADIUS`, and the squad
-    // shoots for all of them.
+  it('now wins NONE of the three, which is I8 holding on these three seeds', () => {
+    // §3 I8: "순수 도망은 이기지 못한다 — 승리 `0/8`". It was 3/3 through batch H. Batch I's two
+    // balance edits — `PRESSURE_PHASES` 12/9/7 -> 9/7/5, then `LEASH_RADIUS` 8.0 -> 10.0, both
+    // made for §1.4.1's sake and neither aimed at I8 — took it to 1/3 and then to 0/3.
+    //
+    // THAT IS NOT I8 SATISFIED. I8 is measured over EIGHT seeds and this runs three, and §5 stage
+    // 4 is the stage that owns it; three seeds cannot distinguish "the invariant holds" from "the
+    // three seeds this branch has always used happen to lose". What the line below is, is the
+    // measurement: on the seeds this file has records for, pure flight stopped winning.
     const band = runPolicyBand(policyFactory('flees-always'), THREE_SEEDS)
     expect(band.policyId).toBe('flees-always')
-    expect(band.wins).toBe(1)
+    expect(band.wins).toBe(0)
     expect(band.total).toBe(3)
+  })
+
+  it('counts wins by counting them, which a band of zero cannot show on its own', () => {
+    // A ZERO IS NOT A MEASUREMENT OF A COUNTER. While `flees-always` was 3/3 the assertion above
+    // was the only thing standing on `runPolicyBand`'s win arithmetic, and it pinned a non-zero.
+    // Now that it pins 0, `wins: results.filter(...).length -> wins: 0` passes it — measured, not
+    // reasoned: `scripts/mutate.mjs`'s "count no wins" went from caught to MISSED the moment the
+    // band above reached 0.
+    //
+    // So the non-vacuity comes from a second policy that still wins. `skilled` is 3/3 on these
+    // three seeds at batch I's values, which is also what §4.1 asks of it (`>= 6/8`).
+    const skilled = runPolicyBand(policyFactory('skilled'), THREE_SEEDS)
+    expect(skilled.policyId).toBe('skilled')
+    expect(skilled.wins).toBe(3)
+    expect(skilled.total).toBe(3)
   })
 })
 

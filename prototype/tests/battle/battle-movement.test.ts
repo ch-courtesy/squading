@@ -164,7 +164,7 @@ describe('§1.4 formation following', () => {
 })
 
 describe('§1.4.1 leash engagement — the soldiers fight for themselves', () => {
-  // WHAT THESE ARE MEASURED AGAINST. `LEASH_RADIUS` is 8.0, the band is
+  // WHAT THESE ARE MEASURED AGAINST. `LEASH_RADIUS` is 10.0, the band is
   // `[SHOOTER_RANGE 4.5, SOLDIER_RANGE 5.0]`, the follow cap is 0.13 and the command unit
   // starts at (28, 16). Every distance below is hand-computed off those four numbers, so a
   // tuning pass that moves any of them fails these loudly instead of quietly re-deriving.
@@ -178,7 +178,9 @@ describe('§1.4.1 leash engagement — the soldiers fight for themselves', () =>
 
   it('leaves its slot for an enemy inside the leash, and stays for one outside', () => {
     // The contrast IS the evidence that the leash exists: same board, same soldier, one
-    // enemy moved from 7.0 to 9.0 away from the command unit.
+    // enemy moved from 7.0 to 11.0 away from the command unit. Batch H used 9.0 for the far
+    // half; batch I raised `LEASH_RADIUS` to 10.0, so 9.0 is now INSIDE and the far case had to
+    // move out with it.
     const inside = createInitialBattleState('seed-a')
     inside.enemies = [createEnemy(101, 'melee', { x: COMMANDER_START.x + 7, y: 16 })]
     const engaged = findFriendly(inside, SOLDIER)!
@@ -191,16 +193,16 @@ describe('§1.4.1 leash engagement — the soldiers fight for themselves', () =>
     expect(engaged.lastDisplacement).toBeCloseTo(FOLLOW_MAX_SPEED, 12)
 
     const outside = createInitialBattleState('seed-a')
-    outside.enemies = [createEnemy(101, 'melee', { x: COMMANDER_START.x + 9, y: 16 })]
+    outside.enemies = [createEnemy(101, 'melee', { x: COMMANDER_START.x + 11, y: 16 })]
     const held = findFriendly(outside, SOLDIER)!
     const heldSlot = { ...held.position }
 
     advanceFormationFollow(outside)
     expect(held.position).toEqual(heldSlot)
     expect(held.lastDisplacement).toBe(0)
-    // Not a fluke of the epsilon: the enemy is 9.0 out and the leash is 8.0.
+    // Not a fluke of the epsilon: the enemy is 11.0 out and the leash is 10.0.
     expect(LEASH_RADIUS).toBeGreaterThan(7)
-    expect(LEASH_RADIUS).toBeLessThan(9)
+    expect(LEASH_RADIUS).toBeLessThan(11)
   })
 
   it('walks to its OWN POINT on the band and stops there, not onto the enemy (§1.6)', () => {
@@ -542,8 +544,10 @@ describe('§1.4.1 v11 — measured on a real run, not on a board', () => {
     // unit of 1.87 / 2.53 / 3.02 / 0.45 / 2.75 at t100/200/300/500/600 — with all fifteen engaged
     // from t200 on, and 0.45 at t500 INSIDE the 2.460 slot lattice.
     //
-    // NOT VACUOUS, and the values are here so that can be checked rather than trusted: v11
-    // measures 7.87 / 9.07 / 8.39 / 9.27 / 8.95 at the same five ticks.
+    // NOT VACUOUS, and the values are here so that can be checked rather than trusted: v11 with
+    // this batch's two balance edits measures 10.41 / 10.64 / 10.26 / 11.85 / 11.21 at the same
+    // five ticks. (With the bearing alone, before `LEASH_RADIUS` went to 10.0, it was
+    // 7.87 / 9.07 / 8.39 / 9.27 / 8.95 — already wider than the lattice everywhere.)
     const run = sample('seed-a', 601)
     const measured: number[] = []
     for (const tick of [100, 200, 300, 500, 600]) {
@@ -553,39 +557,41 @@ describe('§1.4.1 v11 — measured on a real run, not on a board', () => {
       expect(row.maxDistance, `tick ${tick}`).toBeGreaterThan(FORMATION_MAX_SLOT_RADIUS)
       measured.push(Number(row.maxDistance.toFixed(2)))
     }
-    expect(measured).toEqual([7.87, 9.07, 8.39, 9.27, 8.95])
+    expect(measured).toEqual([10.41, 10.64, 10.26, 11.85, 11.21])
 
     // And it is not a spike at five sampled ticks. Over the first 600 ticks all fifteen are
-    // engaged on 492 of them, and on EXACTLY ONE of those — t38, the first tick anything is
+    // engaged on 561 of them, and on EXACTLY ONE of those — t23, the first tick anything is
     // engaged at all, before anyone has taken a step toward a goal — is the squad still only as
     // wide as the lattice. It is never NARROWER than the lattice, which is the shape the defect
-    // took, and from t39 on it is strictly wider on all 491.
+    // took, and from t24 on it is strictly wider on all 560.
     expect(run.minMaxWhileFullyEngaged).toBeGreaterThanOrEqual(FORMATION_MAX_SLOT_RADIUS)
     expect(run.ticksTighterThanLattice).toEqual([])
-    expect(run.ticksAtLattice).toEqual([38])
-    expect(run.fullyEngagedTicks).toBe(492)
+    expect(run.ticksAtLattice).toEqual([23])
+    expect(run.fullyEngagedTicks).toBe(561)
   })
 
   it('supplies more than one target for the bearings to spread across (§1.10)', () => {
     // THE OTHER HALF, and neither works alone: fifteen bodies and one reachable enemy is a ring
     // of fifteen around one point whatever the angles are.
     //
-    // MEASURED, AND SHORT OF WHAT WAS ASKED FOR. The batch aimed at a mean of 5 live enemies
-    // inside `LEASH_RADIUS`. Over a whole `tactical-no-input`/`seed-a` run it is 4.54 against
-    // batch H's 1.75; over the first 900 ticks — the window below, and roughly the one a player
-    // sees before the run decides anything — it is 1.61 against 1.15 measured on the same code
-    // with `requestInterval` put back to 12/9/7. `constants.ts` records why this axis cannot
-    // reach 5 on its own at §5 stage 0's HP and damage, and §5 stage 3 owns the rest.
+    // MEASURED. The batch aimed at a mean of 5 live enemies inside `LEASH_RADIUS`, and over a
+    // whole `tactical-no-input`/`seed-a` run it is 5.14 against batch H's 1.75 — which reaches it,
+    // and reaches it on BOTH of this batch's balance edits together. Neither is enough alone:
+    // `requestInterval` 9/7/5 at `LEASH_RADIUS` 8.0 gives 4.54, and `LEASH_RADIUS` 10.0 at the old
+    // 12/9/7 gives 4.38. Averaged over the eight policies x three seeds the same two halves give
+    // 3.4~4.2 and 2.9~4.1, and only both together clear 5 on every policy (4.8~5.8).
     //
-    // THE WINDOW IS WHERE THE GAIN IS SMALLEST, on purpose. An enemy has to cross from
-    // `SPAWN_RADIUS` to `LEASH_RADIUS` before it counts here, and the early game is the part of
-    // the run where the squad is at full strength and kills them on the way in.
+    // THE WINDOW BELOW IS WHERE THE GAIN IS SMALLEST, on purpose, and it is where the number is
+    // still short: over the first 900 ticks it is 2.04, against 1.61 with the leash at 8.0 and
+    // 1.15 at batch H's values. An enemy has to cross from `SPAWN_RADIUS` inward before it counts
+    // here, and the early game is the part of the run where the squad is at full strength and
+    // kills them on the way in. §5 stage 3 owns the curve that would fix that.
     const run = sample('seed-a', 901)
-    expect(run.meanInLeash).toBeCloseTo(1.608, 3)
-    expect(run.meanInLeash).toBeGreaterThan(1.4)
-    // What the bearings actually get to spread across: four distinct targets at the peak, where
-    // the same window with the old interval peaks at three.
-    expect(run.maxDistinctTargets).toBe(4)
+    expect(run.meanInLeash).toBeCloseTo(2.044, 3)
+    expect(run.meanInLeash).toBeGreaterThan(1.8)
+    // What the bearings actually get to spread across: six distinct targets at the peak, where
+    // the same window at batch H's supply and leash peaks at three.
+    expect(run.maxDistinctTargets).toBe(6)
   })
 })
 
