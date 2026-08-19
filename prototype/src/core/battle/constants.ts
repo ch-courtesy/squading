@@ -287,7 +287,7 @@ export type PressurePhase = {
  * lost `tactical-no-input` on all three seeds and took `skilled` to 2/3 or worse.
  *
  * WHAT REACHED IT was the OTHER axis moving as well: at `LEASH_RADIUS` 10.0 with this table, the
- * mean is 4.8~5.8 across all eight policies (`tactical-no-input` 5.64, `skilled` 5.10) with
+ * mean is 4.75~5.81 across all eight policies (`tactical-no-input` 5.64, `skilled` 5.10) with
  * `skilled` still 3/3. Neither half gets there alone — 9/7/5 at leash 8.0 is 3.4~4.2, and leash
  * 10.0 at the old 12/9/7 is 2.9~4.1. The batch report carries both sweeps, and §5 stage 3 is
  * where all of it gets set properly.

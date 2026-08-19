@@ -14,10 +14,12 @@ import { VIEW_REQUIRED_RADIUS } from '../src/core/battle-view/snapshot'
 // that displayed nothing.
 //
 // THE BALANCE IS §5 STAGE 0's PLACEHOLDER and this file does not fix it. Two consequences show
-// up here and are named where they bite: almost every route wins, so the defeat below is
-// produced by a searched route on a specific seed; and no friendly goes down early enough in a
-// run for a COMPLETED rescue to be reachable from the browser, so what is asserted is that
-// `Space` reaches the battle at all.
+// up here and are named where they bite. The first has now INVERTED: through batch H almost every
+// route won and the defeat had to be searched for, and after batch I's two balance edits the
+// card-only route loses on all eight band seeds, so BOTH gates are searched routes on specific
+// seeds and each one says which sweep found it. The second is unchanged: no friendly goes down
+// early enough in a run for a COMPLETED rescue to be reachable from the browser, so what is
+// asserted is that `Space` reaches the battle at all.
 
 /** Where the v2 game lives now: the default route. */
 async function open(page: Page, seed: string): Promise<void> {
