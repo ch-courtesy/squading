@@ -500,16 +500,27 @@ test.describe('§4.3 frame budget', () => {
         window
           .__SQUADING_TEST__!.battle!.frameSamples()
           .filter((sample) => sample.tick >= from)
-          .map((sample) => sample.ms),
+          .map((sample) => ({ ...sample })),
       endTick - 300,
     )
     // The window has to actually be the window: two frames a tick at 60 Hz, so a few hundred.
     expect(samples.length).toBeGreaterThan(200)
 
-    const sorted = [...samples].sort((left, right) => left - right)
-    const p95 = sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * 0.95))]
-    const max = sorted[sorted.length - 1]
+    const sorted = [...samples].sort((left, right) => left.ms - right.ms)
+    const p95 = sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * 0.95))]!.ms
+    const max = sorted[sorted.length - 1]!.ms
     console.log(`[§4.3] frames=${samples.length} p95=${p95.toFixed(2)}ms max=${max.toFixed(2)}ms`)
+    // The maximum is not asserted (see the note above), so the only thing that makes it
+    // actionable is the phase split of the frames that produced it. Printed, not asserted:
+    // an attribution is a measurement, and a threshold on it would be a second criterion
+    // nobody wrote.
+    for (const sample of sorted.slice(-5).reverse()) {
+      console.log(
+        `[§4.3] worst tick=${sample.tick} ms=${sample.ms.toFixed(2)} steps=${sample.steps}` +
+          ` sim=${sample.sim.toFixed(2)} project=${sample.project.toFixed(2)}` +
+          ` draw=${sample.draw.toFixed(2)} hud=${sample.hud.toFixed(2)}`,
+      )
+    }
     expect(p95).toBeLessThanOrEqual(12)
   })
 })

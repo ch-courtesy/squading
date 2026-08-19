@@ -232,5 +232,26 @@ describe('the v2 controller drives §1.1 fixed steps', () => {
     expect(samples.length).toBeGreaterThan(0)
     expect(samples.every((sample) => Number.isFinite(sample.ms) && sample.ms >= 0)).toBe(true)
     expect(samples.at(-1)!.tick).toBe(test.controller.hud().tick)
+    // The phases are what makes a maximum actionable rather than a mystery (batch J).
+    expect(
+      samples.every(
+        (sample) =>
+          Number.isFinite(sample.sim) &&
+          Number.isFinite(sample.project) &&
+          Number.isFinite(sample.draw) &&
+          Number.isFinite(sample.hud) &&
+          sample.steps >= 0 &&
+          sample.steps <= MAX_STEPS_PER_FRAME,
+      ),
+    ).toBe(true)
+  })
+
+  it('draws once before the loop, so the first battle frame is not the asset build', async () => {
+    // The diorama renderer builds every procedural asset it owns on the FIRST snapshot it is
+    // handed, and batch J measured that call at 99-112 ms against §4.3's 20 ms ceiling. It is
+    // paid here, inside `start()`, where it is part of the load rather than a frame.
+    const test = await harness()
+    expect(test.renderer.renders).toBe(1)
+    expect(test.controller.frameSamples()).toHaveLength(0)
   })
 })

@@ -72,8 +72,30 @@ const STEP_THRESHOLD_MS = STEP_MS - STEP_EPSILON_MS
  */
 const FRAME_SAMPLE_LIMIT = 2000
 
-/** One frame's CPU cost, in milliseconds, against the tick it left the battle on. */
-export type FrameSample = { tick: number; ms: number }
+/**
+ * One frame's CPU cost, in milliseconds, against the tick it left the battle on.
+ *
+ * `ms` is the whole frame callback, which is the number §4.3 budgets. The four phase fields
+ * split it, because a bare maximum cannot be acted on: batch G measured a 181 ms worst frame
+ * and could not say whether it was simulation, projection, draw or HUD, and "add more geometry
+ * next to an unexplained number" is the one move that turns an unknown into a regression. The
+ * phases are measured with the same clock and sum to slightly less than `ms` (the sample push
+ * and the loop bookkeeping are outside them).
+ */
+export type FrameSample = {
+  tick: number
+  ms: number
+  /** How many `battle.step()` calls this frame ran — 0 to `MAX_STEPS_PER_FRAME`. */
+  steps: number
+  /** Time inside `battle.step()`: the authority's own tick cost. */
+  sim: number
+  /** Time building the `RenderSnapshot` the renderer is handed. */
+  project: number
+  /** Time inside `renderer.render()`. */
+  draw: number
+  /** Time inside `notify()`: the HUD projection and the DOM writes that follow it. */
+  hud: number
+}
 
 type FrameRequester = (callback: FrameRequestCallback) => number
 type FrameCanceller = (id: number) => void
@@ -226,22 +248,50 @@ export function createBattleController(options: BattleControllerOptions): Battle
     if (document.hidden) pauseIfRunning()
   }
 
+  /** The phase timings of the frame being drawn right now, reset at its head. */
+  let phase = { steps: 0, sim: 0, project: 0, draw: 0, hud: 0 }
+
   const recordFrame = (startedAt: number): void => {
-    frameSamples.push({ tick: battle.state().combatTick, ms: now() - startedAt })
+    frameSamples.push({
+      tick: battle.state().combatTick,
+      ms: now() - startedAt,
+      steps: phase.steps,
+      sim: phase.sim,
+      project: phase.project,
+      draw: phase.draw,
+      hud: phase.hud,
+    })
     if (frameSamples.length > FRAME_SAMPLE_LIMIT) frameSamples.shift()
+  }
+
+  /** `renderer.render(snapshot(), alpha)`, with the projection and the draw timed apart. */
+  const drawFrame = (alpha: number): void => {
+    const beforeProject = now()
+    const view = snapshot()
+    const beforeDraw = now()
+    phase.project = beforeDraw - beforeProject
+    renderer!.render(view, alpha)
+    phase.draw = now() - beforeDraw
+  }
+
+  const notifyTimed = (): void => {
+    const beforeHud = now()
+    notify()
+    phase.hud = now() - beforeHud
   }
 
   const renderFrame = (token: number, timestamp: number): void => {
     if (token !== generation || !renderer) return
     const startedAt = now()
+    phase = { steps: 0, sim: 0, project: 0, draw: 0, hud: 0 }
     try {
       // §1.15: hidden is not a mode, so the core cannot refuse this — not asking is the whole
       // enforcement. The accumulator is dropped with it, so nothing is owed on return.
       if (!isVisible()) {
         accumulatorMs = 0
         lastFrameAt = timestamp
-        renderer.render(snapshot(), 0)
-        notify()
+        drawFrame(0)
+        notifyTimed()
         recordFrame(startedAt)
         if (token === generation) frameId = requestFrame((next) => renderFrame(token, next))
         return
@@ -249,6 +299,7 @@ export function createBattleController(options: BattleControllerOptions): Battle
       if (lastFrameAt !== null) {
         accumulatorMs += timestamp - lastFrameAt
         let ran = 0
+        const beforeSim = now()
         while (accumulatorMs >= STEP_THRESHOLD_MS && ran < MAX_STEPS_PER_FRAME) {
           battle.step()
           steps += 1
@@ -256,10 +307,12 @@ export function createBattleController(options: BattleControllerOptions): Battle
           ran += 1
         }
         if (ran === MAX_STEPS_PER_FRAME && accumulatorMs >= STEP_THRESHOLD_MS) accumulatorMs = 0
+        phase.steps = ran
+        phase.sim = now() - beforeSim
       }
       lastFrameAt = timestamp
-      renderer.render(snapshot(), interpolationAlpha(accumulatorMs))
-      notify()
+      drawFrame(interpolationAlpha(accumulatorMs))
+      notifyTimed()
       recordFrame(startedAt)
       if (token === generation) frameId = requestFrame((next) => renderFrame(token, next))
     } catch (error) {
@@ -290,6 +343,20 @@ export function createBattleController(options: BattleControllerOptions): Battle
       if (token !== generation) return
       loaded.applyQuality('full')
       onResize()
+      if (token !== generation) return
+      // PRIME THE RENDERER BEFORE THE LOOP, and this is a measured fix rather than a
+      // precaution. The diorama renderer builds every procedural asset it owns — board and
+      // frame textures, the merged miniature bodies, the terrain surround, the board decals,
+      // the particle pools — on the FIRST snapshot it is handed, and the draw that follows is
+      // where every shader in the scene compiles and every texture uploads. Batch J measured
+      // that first call at 99-112 ms (41.8 ms of it construction, the rest the first draw)
+      // against §4.3's 20 ms frame ceiling. Inside the loop it was the battle's opening frame,
+      // and the sim then caught up three ticks at once. Here it is part of the load the player
+      // is already waiting through, and no frame carries it.
+      //
+      // It is not free — the wait before the first frame is the same length — but it is no
+      // longer a frame, and it is no longer a stutter after the battle has started.
+      loaded.render(snapshot(), 0)
       if (token !== generation) return
       window.addEventListener('resize', onResize)
       window.addEventListener('blur', onBlur)
