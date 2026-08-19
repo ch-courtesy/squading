@@ -495,21 +495,40 @@ test.describe('§4.3 frame budget', () => {
     await expect(terminal).toBeVisible({ timeout: 120_000 })
 
     const endTick = await tick(page)
-    const samples = await page.evaluate(
-      (from) =>
-        window
-          .__SQUADING_TEST__!.battle!.frameSamples()
-          .filter((sample) => sample.tick >= from)
-          .map((sample) => ({ ...sample })),
-      endTick - 300,
+    const all = await page.evaluate(() =>
+      window.__SQUADING_TEST__!.battle!.frameSamples().map((sample) => ({ ...sample })),
     )
-    // The window has to actually be the window: two frames a tick at 60 Hz, so a few hundred.
-    expect(samples.length).toBeGreaterThan(200)
+    const samples = all.filter((sample) => sample.tick >= endTick - 300)
+    // The window has to actually be the window — but "how many frames is that" is not a constant
+    // and an earlier version of this line assumed it was. It asserted more than 200 frames on the
+    // reasoning "two frames a tick at 60 Hz", which describes a battle watched in real time and
+    // not this one: `playTicks` drives the run faster than the clock, every retained sample here
+    // carries `steps: 3`, and 300 ticks therefore arrive in about 100 frames. Measured: 113.
+    //
+    // So the span is asserted instead of the count, because the span is what "the window" means.
+    // The count keeps a floor well under the measurement, to catch a buffer that returned almost
+    // nothing rather than to re-encode a frame rate.
+    expect(samples.length).toBeGreaterThan(60)
+    expect(samples[0]!.tick).toBeLessThanOrEqual(endTick - 250)
+    expect(samples.at(-1)!.tick).toBeGreaterThanOrEqual(endTick - 50)
 
     const sorted = [...samples].sort((left, right) => left.ms - right.ms)
     const p95 = sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * 0.95))]!.ms
     const max = sorted[sorted.length - 1]!.ms
     console.log(`[§4.3] frames=${samples.length} p95=${p95.toFixed(2)}ms max=${max.toFixed(2)}ms`)
+
+    // AND THE SAME NUMBERS OVER THE WHOLE RETAINED BUFFER, which is not §4.3's criterion and is
+    // not asserted. The reason it is printed: this route takes no movement input and, since
+    // batch I's balance edits, loses — so §4.3's "final 300 ticks" is a stretch in which most of
+    // the squad is already dead. Anything whose cost scales with the LIVING squad (the health
+    // gauges, sixteen of them at full strength) is barely exercised there. The buffer reaches
+    // roughly a thousand ticks further back, where the squad is still on the board.
+    const whole = [...all].sort((left, right) => left.ms - right.ms)
+    const wholeP95 = whole[Math.min(whole.length - 1, Math.floor(whole.length * 0.95))]!.ms
+    console.log(
+      `[§4.3+] retained frames=${whole.length} ticks=${all[0]!.tick}..${all.at(-1)!.tick}` +
+        ` p95=${wholeP95.toFixed(2)}ms max=${whole.at(-1)!.ms.toFixed(2)}ms`,
+    )
     // The maximum is not asserted (see the note above), so the only thing that makes it
     // actionable is the phase split of the frames that produced it. Printed, not asserted:
     // an attribution is a measurement, and a threshold on it would be a second criterion
