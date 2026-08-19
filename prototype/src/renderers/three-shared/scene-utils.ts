@@ -42,8 +42,17 @@ export function cardboardMaterial(team: Team, texture: THREE.Texture): THREE.Mes
   return new THREE.MeshLambertMaterial({ color: TEAM_TINTS[team], map: texture, transparent: true, alphaTest: 0.05, side: THREE.DoubleSide })
 }
 
+/**
+ * `forceSinglePass` is a DRAW CALL, not a style. Since three r151 a transparent double-sided
+ * material is rendered twice — back faces, then front faces — so that a closed shape sorts
+ * against itself correctly. Everything built with this helper is a single flat quad or ring
+ * with nothing behind itself to sort against, so the second pass draws the same pixels again
+ * and buys nothing. Batch J measured it: each base ring on the board was costing two GL draw
+ * calls, which put a unit over the four the visuals spec budgets it before its health gauge
+ * had been added at all.
+ */
 export function flatMaterial(color: number, opacity = 1): THREE.MeshBasicMaterial {
-  return new THREE.MeshBasicMaterial({ color, transparent: opacity < 1, opacity, side: THREE.DoubleSide, depthWrite: opacity >= 1 })
+  return new THREE.MeshBasicMaterial({ color, transparent: opacity < 1, opacity, side: THREE.DoubleSide, forceSinglePass: true, depthWrite: opacity >= 1 })
 }
 
 export function disposeObjectMaterials(object: THREE.Object3D): void {
