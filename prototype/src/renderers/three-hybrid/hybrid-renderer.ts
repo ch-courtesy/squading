@@ -6,6 +6,11 @@ import type { GameRenderer, QualityLevel, RendererMetrics } from '../contract'
 import { TEAM_TINTS, cardboardMaterial, createCardboardAssets, disposeObjectMaterials, flatMaterial, type CardboardAssets } from '../three-shared/scene-utils'
 import { DECAL_HEIGHT, FX_COSMETIC_SEED, createCombatFxAssets, createSurfaceDecals, surfaceDecalExtent, type CombatFxAssets, type SurfaceDecals } from './combat-fx'
 import { FIGURE_SCALE, GAUGE_HEIGHT, cosmeticRandom, createDioramaAssets, createHealthGaugeGeometry, readHealthGaugeFill, setHealthGaugeColor, setHealthGaugeFill, type DioramaAssets, type MiniatureArchetype } from './diorama-assets'
+import {
+  AIM_RAISE_TICKS, AIM_RELEASE_TICKS, RIG_ARM, RIG_JOINT_COUNT, STRIDE_CYCLE_DISTANCE,
+  STRIKE_FIRE_FRACTION, STRIKE_TICKS_MELEE, STRIKE_TICKS_RANGED, createRigMatrices, createRigPose,
+  poseFigure, restRigPose, rigMatrices, strideAmount, stridePhase,
+} from './figure-rig'
 import { DIORAMA_PITCH_RADIANS } from './staging'
 import { CLUTTER_FLAT_HEIGHT, CLUTTER_POLE_RADIUS, clutterExtent, clutterFootprintRadius, clutterShape, createTerrainProps, type TerrainProps } from './terrain-props'
 
@@ -37,6 +42,18 @@ type UnitAnim = {
   y: number
   /** The fill fraction currently written into the gauge geometry, or -1 for "never written". */
   gaugeFill: number
+  // --- Stride, all display-only and all derived from authority positions ------------------
+  /** The last authority tick this unit's movement was sampled on. */
+  strideTick: number
+  /** World distance the authority has moved this unit, summed over ticks. Drives the phase. */
+  travel: number
+  /** That distance per tick on the last sampled tick. `<= ARRIVE_EPSILON` means settled. */
+  step: number
+  /** When the current blow's animation began, and whether it was a shot or a blow by hand. */
+  strikeStart: number
+  strikeRanged: boolean
+  /** When the weapon started coming up. Paired with `aimUntil` into a closed-form blend. */
+  aimStart: number
 }
 type UnitVisual = {
   readonly root: THREE.Group
@@ -48,6 +65,13 @@ type UnitVisual = {
    * position, not a uniform — so `removeVisual` disposes it, unlike every shared geometry.
    */
   readonly gauge?: THREE.Mesh
+  /**
+   * The rig's joint matrices, on the diorama only. This array IS the `uJoint` uniform value —
+   * the body's material holds the same reference — so posing a figure is eight matrix writes
+   * and no allocation. `undefined` on the lab's cardboard cards, which have no rig.
+   */
+  readonly rig?: THREE.Matrix4[]
+  readonly archetype?: MiniatureArchetype
   readonly anim: UnitAnim
 }
 type EffectVisual = {
@@ -246,6 +270,17 @@ export type HybridVisualState = {
     readonly telegraphSigils: number
     readonly telegraphPulse: number
     readonly telegraphCountdown01: number
+    // --- The stride (batch M) ---------------------------------------------------------
+    /** Standing figures whose legs are swinging this frame. */
+    readonly stridingUnits: number
+    /** Standing figures inside §1.4's dead-band, legs at rest. */
+    readonly settledUnits: number
+    /** The fastest cadence on the board, in stride cycles per tick. */
+    readonly maxCadence: number
+    /** Live figures with a strike animation running: a raised rifle or a swung cleaver. */
+    readonly strikingUnits: number
+    /** How far the busiest weapon carriage is from its sculpted rest, in radians. */
+    readonly maxWeaponAngle: number
   }
 }
 
@@ -445,6 +480,45 @@ const DEATH_BURST_FRACTION = 0.5
 const DEATH_SWEEP_FRACTION = 0.72
 const SHAKE_TICKS = 10
 const SHAKE_AMPLITUDE = 0.26
+// --- The rig's shader ----------------------------------------------------------------------
+// The body is ONE merged geometry and the spec's per-unit budget (body, base ring, contact
+// shadow, health gauge) has no room for a fifth mesh — so a limb is not split off, it is moved
+// where it already is. Every vertex carries the joint that owns it (`aJoint`, baked in
+// `diorama-assets.ts`), and this patch transforms it by that joint's matrix. One geometry, one
+// material, one draw call, legs that swing.
+//
+// The patch is ONE shared function object, so `Material.customProgramCacheKey` — which is
+// `onBeforeCompile.toString()` — is identical for every unit and three.js compiles the program
+// ONCE for the whole board rather than once per figure. Batch L lost 5 ms a frame to exactly
+// that mistake with the telegraph outline; this is the same trap one layer down.
+const RIG_VERTEX_HEADER = `
+attribute float aJoint;
+uniform mat4 uJoint[ ${RIG_JOINT_COUNT} ];
+`
+const RIG_NORMAL_PATCH = `#include <beginnormal_vertex>
+objectNormal = mat3( uJoint[ int( aJoint ) ] ) * objectNormal;
+`
+const RIG_POSITION_PATCH = `#include <begin_vertex>
+transformed = ( uJoint[ int( aJoint ) ] * vec4( transformed, 1.0 ) ).xyz;
+`
+
+type RiggedMaterial = THREE.Material & { userData: { rig?: { value: THREE.Matrix4[] } } }
+
+function applyRigShader(this: RiggedMaterial, shader: { vertexShader: string; uniforms: Record<string, unknown> }): void {
+  const rig = this.userData.rig
+  if (!rig) return
+  shader.uniforms.uJoint = rig
+  shader.vertexShader = RIG_VERTEX_HEADER + shader.vertexShader
+  shader.vertexShader = shader.vertexShader.replace('#include <beginnormal_vertex>', RIG_NORMAL_PATCH)
+  shader.vertexShader = shader.vertexShader.replace('#include <begin_vertex>', RIG_POSITION_PATCH)
+}
+
+/** Scratch pose, reused for every unit on every frame so posing allocates nothing. */
+const rigPoseScratch = createRigPose()
+/** Scratch matrices for the muzzle placement, which has to agree with the drawn arm. */
+const muzzleRigScratch = createRigMatrices()
+const muzzleScratch = new THREE.Vector3()
+
 /** Local weapon muzzles, in pre-scale miniature space (the figure faces +Z). */
 const MUZZLE_OFFSETS: Readonly<Record<MiniatureArchetype, readonly [number, number, number]>> = {
   // The command unit's build is a head taller than the trooper's, so its rifle rides higher.
@@ -853,6 +927,7 @@ class ThreeHybridRenderer implements HybridGameRenderer {
    */
   private describeAction(): HybridVisualState['action'] {
     const visuals = [...this.units.values()]
+    const standing = visuals.filter((visual) => !visual.anim.dead && visual.card.rotation.z < 1e-4)
     const lunging = visuals.filter((visual) => visual.anim.lungeOffset > 1e-4)
     const flashing = visuals.filter((visual) => visual.anim.flash > 1e-4)
     const effects = [...this.effects.values()]
@@ -885,6 +960,22 @@ class ThreeHybridRenderer implements HybridGameRenderer {
       telegraphSigils: telegraphs.filter((visual) => visual.sigil !== undefined).length,
       telegraphPulse: sigil ? (sigil.material as THREE.MeshBasicMaterial).opacity : 0,
       telegraphCountdown01: track && track.longest > 0 ? clamp01(1 - track.remaining / track.longest) : 0,
+      // The stride, read off the same numbers the rig is posed from. `standing` excludes the
+      // toppled: a body on its side is neither walking nor settled, it is waiting for someone.
+      stridingUnits: standing.filter((visual) => strideAmount(visual.anim.step) > 0).length,
+      settledUnits: standing.filter((visual) => strideAmount(visual.anim.step) === 0).length,
+      maxCadence: standing.reduce((max, visual) => Math.max(max, visual.anim.step / STRIDE_CYCLE_DISTANCE), 0),
+      strikingUnits: standing.filter((visual) => this.clock - visual.anim.strikeStart
+        < (visual.anim.strikeRanged ? STRIKE_TICKS_RANGED : STRIKE_TICKS_MELEE)
+        && this.clock >= visual.anim.strikeStart).length,
+      maxWeaponAngle: standing.reduce((max, visual) => {
+        const rig = visual.rig
+        if (!rig) return max
+        // The weapon carriage's total rotation away from rest, read straight off the matrix the
+        // GPU was handed rather than off the inputs that built it.
+        const trace = rig[RIG_ARM]!.elements[0]! + rig[RIG_ARM]!.elements[5]! + rig[RIG_ARM]!.elements[10]!
+        return Math.max(max, Math.acos(Math.min(1, Math.max(-1, (trace - 1) / 2))))
+      }, 0),
     }
   }
 
@@ -1433,9 +1524,73 @@ class ThreeHybridRenderer implements HybridGameRenderer {
       const dz = unit.y - anim.y
       if (dx * dx + dz * dz > 4e-4) anim.yaw = approachAngle(anim.yaw, Math.atan2(dx, dz), 0.32)
     }
+    // THE STRIDE'S ONE INPUT, sampled per AUTHORITY TICK rather than per frame. A browser frame
+    // here regularly covers three ticks and just as regularly covers none of them (the position
+    // a snapshot publishes is the tick's, not an interpolation), so a per-frame difference would
+    // read zero on most frames and three ticks' worth on the rest — a cadence made of the frame
+    // rate instead of the movement. Summing per tick makes the phase a function of how far the
+    // AUTHORITY moved this unit and of nothing else.
+    if (snapshot.tick !== anim.strideTick) {
+      const elapsed = snapshot.tick - anim.strideTick
+      const distance = Math.hypot(unit.x - anim.x, unit.y - anim.y)
+      if (elapsed > 0 && elapsed <= EVENT_CATCHUP_TICKS) {
+        anim.step = distance / elapsed
+        anim.travel += distance
+      } else {
+        // A resume, a restart or a long stall: adopt the new position without crediting the
+        // gap as walking, exactly as the event diff above resyncs instead of detonating.
+        anim.step = 0
+      }
+      anim.strideTick = snapshot.tick
+    }
     anim.hp01 = unit.hp01
     anim.x = unit.x
     anim.y = unit.y
+  }
+
+  /**
+   * Poses one figure's rig for this frame and writes the eight matrices its material reads.
+   *
+   * COMPOSITION, which is the question an attack-while-moving game has to answer (§1.3 makes
+   * firing on the move the common case): the LOWER body is the stride and only the stride, the
+   * UPPER body is the stride's carry pose with the strike added on top of it, and the arm's
+   * counter-swing hands over to the aim as the weapon comes up. `figure-rig.ts` owns that rule;
+   * this method owns the timers it is fed.
+   *
+   * A toppled figure — downed, or dead and falling — is posed at rest instead. §4.5's fourth
+   * question is whether the player agonised over going back for someone, and a body on its side
+   * that is still jogging is not a body that reads as needing help.
+   */
+  private poseFigure(visual: UnitVisual, unit: RenderUnit, downed: boolean, topple: number): void {
+    const rig = visual.rig
+    const archetype = visual.archetype
+    if (!rig || !archetype) return
+    const anim = visual.anim
+    if (downed || topple > 0 || anim.dead) {
+      restRigPose(rigPoseScratch)
+      rigMatrices(rig, rigPoseScratch, archetype, FIGURE_SCALE)
+      return
+    }
+    // Sub-tick smoothing: `clock - tick` is the controller's own interpolation fraction, so the
+    // legs keep moving between ticks at the speed the last tick actually measured.
+    const fraction = clamp01(this.clock - anim.strideTick)
+    const stride = strideAmount(anim.step)
+    const phase = stridePhase(unit.id, anim.travel + anim.step * fraction)
+    const strikeTicks = anim.strikeRanged ? STRIKE_TICKS_RANGED : STRIKE_TICKS_MELEE
+    const strikeAge = this.clock - anim.strikeStart
+    const strike = strikeAge >= 0 && strikeAge < strikeTicks ? strikeAge / strikeTicks : -1
+    const aim = anim.strikeRanged ? aimBlend(this.clock, anim.aimStart, anim.aimUntil) : 0
+    poseFigure(rigPoseScratch, {
+      archetype,
+      phase,
+      stride,
+      strike,
+      strikeRanged: anim.strikeRanged,
+      aim,
+      hit: anim.flash,
+    })
+    rigMatrices(rig, rigPoseScratch, archetype, FIGURE_SCALE)
+    visual.card.position.y += rigPoseScratch.bounce * FIGURE_SCALE
   }
 
   /** Draws one miniature with its lunge, recoil, paint flash and topple applied. */
@@ -1486,6 +1641,8 @@ class ThreeHybridRenderer implements HybridGameRenderer {
       : RING_BASE_OPACITY - RING_PULSE_AMPLITUDE
     markerMaterial.opacity = ringOpacity * sweep
 
+    // Last, because it adds the stride's bounce to the height the topple just wrote.
+    this.poseFigure(visual, unit, downed, topple)
     this.updateGauge(unit, visual, downed)
   }
 
@@ -1611,16 +1768,54 @@ class ThreeHybridRenderer implements HybridGameRenderer {
     anim.lungeX = dirX
     anim.lungeZ = dirZ
     anim.yaw = Math.atan2(dirX, dirZ)
+    // THE ANIMATION IS ANCHORED TO THE EVENT, not to a free-running loop. `at` is `event.tick + 1`
+    // — the instant that tick's blow first existed — so a swing that resolved two ticks ago opens
+    // two ticks into its own curve, already past its peak. That is what keeps §1.4's volley
+    // rhythm on screen: sixteen rifles whose first shots scatter and then converge play as
+    // sixteen scattered raises converging into one, because each raise is dated by its own tick.
+    if (this.clock >= anim.aimUntil) anim.aimStart = at
     anim.aimUntil = at + AIM_HOLD_TICKS
+    anim.strikeStart = at
+    // The cleaver class swings whichever path put the blow here. `muzzle` is false on the
+    // authored path (`DamageEvent.cause` says `melee-contact`); the inferred path cannot tell a
+    // rifle from a fist and passes true, and the archetype closes that half of the gap.
+    anim.strikeRanged = muzzle && miniatureArchetype(attacker) !== 'melee'
     if (muzzle) this.spawnMuzzleBurst(attacker, target, dirX, dirZ, at)
     else this.spawnContactBurst(target, dirX, dirZ, at)
   }
 
-  /** A cotton puff at the weapon, plus three beads walking down the line of fire. */
+  /**
+   * A cotton puff at the weapon, plus three beads walking down the line of fire.
+   *
+   * THE PUFF COMES OFF THE BARREL AS IT IS ACTUALLY POSED. `MUZZLE_OFFSETS` is the barrel end in
+   * the SCULPTED pose, and batch L placed the puff there — against a rifle that, since this
+   * batch, has swung round to point down-range by the time the shot leaves it. So the offset is
+   * put through the same rig, with the same inputs, at the same instant the frame will draw it:
+   * the tick of the blow, with the weapon as far up as it has actually come and the kick at its
+   * peak (`STRIKE_FIRE_FRACTION` is 0). The FIRST shot of an engagement therefore flashes off a
+   * rifle still coming up, and every shot after it off a levelled one, which is what the figure
+   * is doing on those frames.
+   */
   private spawnMuzzleBurst(attacker: RenderUnit, target: RenderUnit, dirX: number, dirZ: number, at: number = this.clock): void {
     const fx = this.fx
     if (!fx) return
-    const [localX, localY, localZ] = MUZZLE_OFFSETS[miniatureArchetype(attacker)]
+    const archetype = miniatureArchetype(attacker)
+    const [restX, restY, restZ] = MUZZLE_OFFSETS[archetype]
+    const anim = this.units.get(attacker.id)?.anim
+    poseFigure(rigPoseScratch, {
+      archetype,
+      phase: anim ? stridePhase(attacker.id, anim.travel) : 0,
+      stride: anim ? strideAmount(anim.step) : 0,
+      strike: STRIKE_FIRE_FRACTION,
+      strikeRanged: true,
+      aim: anim ? aimBlend(at, anim.aimStart, anim.aimUntil) : 1,
+      hit: 0,
+    })
+    rigMatrices(muzzleRigScratch, rigPoseScratch, archetype, 1)
+    muzzleScratch.set(restX, restY, restZ).applyMatrix4(muzzleRigScratch[RIG_ARM]!)
+    const localX = muzzleScratch.x
+    const localY = muzzleScratch.y
+    const localZ = muzzleScratch.z
     const scale = cardScale(attacker) * FIGURE_SCALE
     const sin = dirX
     const cos = dirZ
@@ -1733,6 +1928,15 @@ class ThreeHybridRenderer implements HybridGameRenderer {
       visual.anim.lungeStart = Number.NEGATIVE_INFINITY
       visual.anim.hitStart = Number.NEGATIVE_INFINITY
       visual.anim.aimUntil = Number.NEGATIVE_INFINITY
+      visual.anim.aimStart = Number.NEGATIVE_INFINITY
+      visual.anim.strikeStart = Number.NEGATIVE_INFINITY
+      // The stride's phase is an accumulator, and a restart rewinds the clock it was
+      // accumulated against. Carrying it over would put the new battle's tick 0 at whatever
+      // phase the old battle's last tick reached, which is exactly the drift the rest of this
+      // method exists to prevent.
+      visual.anim.strideTick = Number.NEGATIVE_INFINITY
+      visual.anim.travel = 0
+      visual.anim.step = 0
     })
   }
 
@@ -1782,9 +1986,21 @@ class ThreeHybridRenderer implements HybridGameRenderer {
 
     // `emissive` is what a hit flash rides on: raising `emissiveIntensity` for a few
     // ticks brightens the figure without touching the faction paint underneath it.
-    const card = new THREE.Mesh(assets.miniatures[archetype], new THREE.MeshPhongMaterial({ color: miniaturePaint(unit), vertexColors: true, emissive: FLASH_COLOR, emissiveIntensity: 0, specular: MINIATURE_SPECULAR, shininess: MINIATURE_SHININESS }))
+    const material = new THREE.MeshPhongMaterial({ color: miniaturePaint(unit), vertexColors: true, emissive: FLASH_COLOR, emissiveIntensity: 0, specular: MINIATURE_SPECULAR, shininess: MINIATURE_SHININESS })
+    const card = new THREE.Mesh(assets.miniatures[archetype], material)
     card.name = `miniature:${archetype}`
     card.castShadow = true
+    // The rig, and the SECOND material that carries it. The shadow-map pass draws the body with
+    // its own depth material, and a depth material without the rig would cast the shadow of a
+    // figure standing still under one that is walking. It is not a fifth mesh — the shadow pass
+    // already drew this same body — so the four-per-unit budget is untouched.
+    const rig = { value: createRigMatrices() }
+    ;(material as RiggedMaterial).userData.rig = rig
+    material.onBeforeCompile = applyRigShader
+    const depthMaterial = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking })
+    ;(depthMaterial as RiggedMaterial).userData.rig = rig
+    depthMaterial.onBeforeCompile = applyRigShader
+    card.customDepthMaterial = depthMaterial
 
     const marker = new THREE.Mesh(assets.baseRingGeometry, flatMaterial(LEADER_MARKER_COLOR, RING_BASE_OPACITY))
     marker.rotation.x = -Math.PI / 2; marker.position.y = 0.03
@@ -1810,7 +2026,7 @@ class ThreeHybridRenderer implements HybridGameRenderer {
     // A unit that is already gone when its visual is built (a renderer remounted mid
     // battle) is adopted as buried rather than replayed as a fresh death.
     if (isUnitDead(unit)) { anim.dead = true; anim.deathStart = Number.NEGATIVE_INFINITY; anim.deathFromTopple = 1 }
-    const visual: UnitVisual = { root, card, shadow, marker, gauge, anim }
+    const visual: UnitVisual = { root, card, shadow, marker, gauge, rig: rig.value, archetype, anim }
     this.units.set(unit.id, visual)
     return visual
   }
@@ -2187,7 +2403,27 @@ function createUnitAnim(unit: RenderUnit): UnitAnim {
     x: unit.x,
     y: unit.y,
     gaugeFill: -1,
+    strideTick: Number.NEGATIVE_INFINITY,
+    travel: 0,
+    step: 0,
+    strikeStart: Number.NEGATIVE_INFINITY,
+    strikeRanged: true,
+    aimStart: Number.NEGATIVE_INFINITY,
   }
+}
+
+/**
+ * How far the weapon is up, in closed form.
+ *
+ * The value is a function of `(clock, aimStart, aimUntil)` and of nothing else — no smoothing
+ * against the previous frame — so the SAME TICK gives the SAME POSE however the frames fell
+ * around it, which is what makes the rig's determinism testable at all. It rises over
+ * `AIM_RAISE_TICKS` from the shot that armed it and falls over `AIM_RELEASE_TICKS` as the hold
+ * runs out; a unit that fires again mid-hold never lowers.
+ */
+function aimBlend(clock: number, aimStart: number, aimUntil: number): number {
+  if (!(aimUntil > clock)) return 0
+  return clamp01((clock - aimStart) / AIM_RAISE_TICKS) * clamp01((aimUntil - clock) / AIM_RELEASE_TICKS)
 }
 
 function isHostile(left: RenderUnit, right: RenderUnit): boolean {
