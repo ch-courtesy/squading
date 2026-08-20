@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { createBattle } from '../../src/core/battle/battle'
 import { digestBattleState } from '../../src/core/battle/digest'
+import { ELITE_SPAWN_TICK } from '../../src/core/battle/constants'
 import { COMMANDER_ID, createEnemy, createInitialBattleState } from '../../src/core/battle/state'
 import type { BattleState, DamageEvent } from '../../src/core/battle/types'
 import { projectBattleSnapshot, type BattleTickEvents } from '../../src/core/battle-view/snapshot'
@@ -234,6 +235,50 @@ describe('battle-view: this tick\'s blows, as display events (§액션 피드백
     expect(deaths).toBeGreaterThan(5)
     expect(actionsFromDamage).toBe(damageEvents)
     expect(actionsFromDeath).toBe(deaths)
+  })
+
+  it('reports §1.12 blast only when a body was standing in it, on a real run', () => {
+    // The `blast` branch is the one a fixture could leave permanently untested, so it is
+    // exercised against the authority twice on the SAME seed and the same route, differing only
+    // in whether the squad walks out of the circle. The kite that batch I's `seed-h` route uses
+    // produces no blast events at all — which is §4.5's dodging question answered in the data —
+    // so a test that only kited would have proved nothing about this branch.
+    const run = (standStill: boolean): number => {
+      const battle = createBattle('seed-h')
+      battle.start()
+      const circuit: [string, number][] = [['KeyD', 300], ['KeyS', 130], ['KeyA', 300], ['KeyW', 130]]
+      let held: string | null = null
+      let boundary = 0
+      let leg = 0
+      let blasts = 0
+      for (let step = 0; step < 4000; step += 1) {
+        const tick = battle.state().combatTick
+        if (standStill && tick === ELITE_SPAWN_TICK && held) {
+          battle.keyUp(held)
+          held = null
+        }
+        if ((!standStill || tick < ELITE_SPAWN_TICK) && tick >= boundary) {
+          if (held) battle.keyUp(held)
+          const [code, ticks] = circuit[leg % circuit.length]!
+          leg += 1
+          boundary += ticks
+          battle.keyDown(code)
+          held = code
+        }
+        const result = battle.step()
+        if (!result.ran) {
+          if (result.mode === 'awaiting-upgrade') battle.enqueue({ kind: 'choose-upgrade', slot: 1 })
+          else break
+          continue
+        }
+        blasts += projectBattleSnapshot(battle.state(), [result]).actionEvents!
+          .filter((action) => action.kind === 'blast').length
+      }
+      return blasts
+    }
+
+    expect(run(true)).toBeGreaterThan(0)
+    expect(run(false)).toBe(0)
   })
 
   it('leaves the digest of a stepped battle byte-identical to one that was never projected', () => {
