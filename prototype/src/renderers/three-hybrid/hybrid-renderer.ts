@@ -519,6 +519,16 @@ const rigPoseScratch = createRigPose()
 const muzzleRigScratch = createRigMatrices()
 const muzzleScratch = new THREE.Vector3()
 
+/** Where the warm-up parks its throwaway copies: far under the table, out of every shot. */
+const WARM_UP_DEPTH = -80
+/** Effect dressing built at mount rather than mid-battle. Both are pooled, never disposed. */
+const WARM_UP_EFFECTS: readonly RenderEffect['kind'][] = ['elite-telegraph', 'rescue-signal']
+/** Ids the authority can never publish, so a warm-up copy can never collide with a real effect. */
+const WARM_UP_EFFECT_ID = -1
+
+/** Every class of body the diorama can put on the board. */
+const MINIATURE_ARCHETYPES: readonly MiniatureArchetype[] = ['command', 'soldier', 'melee', 'shooter', 'elite']
+
 /** Local weapon muzzles, in pre-scale miniature space (the figure faces +Z). */
 const MUZZLE_OFFSETS: Readonly<Record<MiniatureArchetype, readonly [number, number, number]>> = {
   // The command unit's build is a head taller than the trooper's, so its rifle rides higher.
@@ -634,6 +644,12 @@ class ThreeHybridRenderer implements HybridGameRenderer {
   private snapshot: RenderSnapshot | null = null
   private readonly units = new Map<number, UnitVisual>()
   private readonly effects = new Map<number, EffectVisual>()
+  /**
+   * Dressing kept alive between effects of the same kind. §1.12's warning cycles every
+   * `ELITE_COOLDOWN_TICKS` and used to build four meshes and four materials inside `render` each
+   * time; these are the ones it has already built. Nothing in here is on the scene graph.
+   */
+  private readonly retiredEffects = new Map<RenderEffect['kind'], EffectVisual[]>()
   private particles: THREE.Mesh[] = []
   private viewportWidth = 1
   private viewportHeight = 1
@@ -712,7 +728,7 @@ class ThreeHybridRenderer implements HybridGameRenderer {
       // The strike's own shake does not ride on `spawnEvents`: an authored snapshot delivers
       // every tick in order, so a telegraph that has left the account really has landed.
       if (visual.kind === 'elite-telegraph') this.resolveTelegraphImpact(id, authored || spawnEvents)
-      this.removeVisual(this.effects, id, visual)
+      this.retireEffect(id, visual)
     })
     if (this.fx && this.camera) {
       this.fx.puffs.update(this.clock, this.camera.quaternion)
@@ -757,7 +773,8 @@ class ThreeHybridRenderer implements HybridGameRenderer {
     this.disposed = true
     this.units.forEach((visual) => { disposeObjectMaterials(visual.root); visual.gauge?.geometry.dispose() }); this.effects.forEach((visual) => disposeObjectMaterials(visual.root)); this.particles.forEach((particle) => disposeObjectMaterials(particle))
     this.scene?.traverse((object) => { if (object instanceof THREE.Mesh && object.name.startsWith('tabletop-')) disposeObjectMaterials(object) })
-    this.units.clear(); this.effects.clear(); this.particles = []; this.frameRails = []
+    this.retiredEffects.forEach((pool) => pool.forEach((visual) => disposeObjectMaterials(visual.root)))
+    this.units.clear(); this.effects.clear(); this.retiredEffects.clear(); this.particles = []; this.frameRails = []
     this.telegraphGeometry?.dispose(); this.telegraphGeometry = null
     this.telegraphOverlayGeometry?.dispose(); this.telegraphOverlayGeometry = null
     this.telegraphs.clear()
@@ -1456,6 +1473,73 @@ class ThreeHybridRenderer implements HybridGameRenderer {
     // Units created before the first gameplay snapshot would still be cards; there are
     // none in practice, but rebuilding keeps the invariant true either way.
     this.units.forEach((visual, id) => this.removeVisual(this.units, id, visual))
+    this.warmUpDressing()
+  }
+
+  /**
+   * Draws one of everything the board will ever need, once, far under the table.
+   *
+   * BATCH L LEFT AN UNATTRIBUTED SPIKE and this is the answer to it, measured rather than
+   * reasoned about. Probing `WebGLRenderer.info` across a whole `seed-h` run showed the frame
+   * §1.12's elite arrives on going `programs 12 -> 14, geometries 43 -> 46, textures 10 -> 11`:
+   * that frame is also the FIRST ELITE TELEGRAPH, and its dressing — the sigil disc with its
+   * additive-blended texture, the countdown disc, the two ring geometries — had never been drawn
+   * before. TWO SHADER PROGRAMS ARE LINKED INSIDE `render`, on a frame that is already drawing a
+   * full board. That, and not the elite's body, is where the 9-15 ms went; batch K had it too.
+   *
+   * Nothing about the work is avoidable. WHICH FRAME PAYS IT is a choice, and this makes it the
+   * mount frame — which is already building the board, the terrain, the decals and the particle
+   * pools, and which no one is watching.
+   *
+   * The effect dressing is RETIRED INTO THE POOL rather than disposed, because disposing a
+   * material releases its program: a warm-up that threw its materials away would recompile
+   * everything it had just compiled. The five bodies ARE thrown away — their materials are
+   * per-unit and cannot be reused — but their shared geometry buffers stay uploaded, which is
+   * the half of that cost that does carry over.
+   */
+  private warmUpDressing(): void {
+    const assets = this.diorama
+    if (!assets || !this.scene || !this.camera || !this.renderer) return
+    const warm = new THREE.Group()
+    warm.name = 'diorama-warmup'
+    const rig = { value: createRigMatrices() }
+    for (const archetype of MINIATURE_ARCHETYPES) {
+      const material = new THREE.MeshPhongMaterial({ color: 0xffffff, vertexColors: true, emissive: FLASH_COLOR, emissiveIntensity: 0, specular: MINIATURE_SPECULAR, shininess: MINIATURE_SHININESS })
+      ;(material as RiggedMaterial).userData.rig = rig
+      material.onBeforeCompile = applyRigShader
+      const mesh = new THREE.Mesh(assets.miniatures[archetype], material)
+      const depthMaterial = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking })
+      ;(depthMaterial as RiggedMaterial).userData.rig = rig
+      depthMaterial.onBeforeCompile = applyRigShader
+      mesh.customDepthMaterial = depthMaterial
+      mesh.castShadow = true
+      mesh.frustumCulled = false
+      mesh.position.set(0, WARM_UP_DEPTH, 0)
+      warm.add(mesh)
+    }
+    this.scene.add(warm)
+
+    // The two pieces of effect dressing, built through the REAL path so what gets warmed is
+    // exactly what gets used, then parked out of shot for the one frame that uploads it.
+    const dressed = WARM_UP_EFFECTS.map((kind, index) => {
+      const visual = this.createEffectVisual({
+        id: WARM_UP_EFFECT_ID - index, kind, team: null, x: 0, y: 0, radius: 1,
+        startedTick: 0, durationTicks: 1,
+      })
+      visual.root.position.y = WARM_UP_DEPTH
+      visual.root.traverse((object) => { object.frustumCulled = false })
+      return visual
+    })
+
+    this.renderer.render(this.scene, this.camera)
+
+    warm.removeFromParent()
+    disposeObjectMaterials(warm)
+    dressed.forEach((visual, index) => {
+      visual.root.position.y = 0
+      visual.root.traverse((object) => { object.frustumCulled = true })
+      this.retireEffect(WARM_UP_EFFECT_ID - index, visual)
+    })
   }
 
   private createParticles(): void {
@@ -2137,6 +2221,19 @@ class ThreeHybridRenderer implements HybridGameRenderer {
   }
 
   private createEffectVisual(effect: RenderEffect): EffectVisual {
+    // RETIRED VISUALS COME BACK RATHER THAN BEING REBUILT, and this is the other half of batch
+    // L's unattributed spike. §1.12's elite warns, strikes and warns again every
+    // `ELITE_COOLDOWN_TICKS`, and every cycle used to build four fresh meshes with four fresh
+    // materials INSIDE `render` — on the first frame of a warning, which is a frame that is
+    // already drawing a full board and a new ring. The dressing is identical between cycles, so
+    // the second warning is the first one put back on the board.
+    const retired = this.retiredEffects.get(effect.kind)?.pop()
+    if (retired) {
+      retired.root.name = `effect:${effect.kind}:${effect.id}`
+      this.scene!.add(retired.root)
+      this.effects.set(effect.id, retired)
+      return retired
+    }
     const root = new THREE.Group(); root.name = `effect:${effect.kind}:${effect.id}`
     const fx = this.fx
     let visual: EffectVisual
@@ -2215,6 +2312,19 @@ class ThreeHybridRenderer implements HybridGameRenderer {
     // because its fill lives in the vertex positions. It dies with the unit.
     visual.gauge?.geometry.dispose()
     collection.delete(id)
+  }
+
+  /**
+   * An effect has left the snapshot. Its dressing is kept for the next one of its kind rather
+   * than disposed — see `createEffectVisual`. It is off the scene graph the moment it retires, so
+   * it is neither drawn nor counted, and `dispose()` is what finally frees it.
+   */
+  private retireEffect(id: number, visual: EffectVisual): void {
+    visual.root.removeFromParent()
+    this.effects.delete(id)
+    const pool = this.retiredEffects.get(visual.kind)
+    if (pool) pool.push(visual)
+    else this.retiredEffects.set(visual.kind, [visual])
   }
   private updateCameraBounds(snapshot: RenderSnapshot): void {
     if (!this.camera) return
