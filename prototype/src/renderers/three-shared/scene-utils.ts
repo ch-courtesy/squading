@@ -66,5 +66,8 @@ export function disposeObjectMaterials(object: THREE.Object3D): void {
     if (!(child instanceof THREE.Mesh)) return
     const materials = Array.isArray(child.material) ? child.material : [child.material]
     materials.forEach((material) => material.dispose())
+    // A body that casts a rigged shadow carries its own depth material (see the rig in
+    // `hybrid-renderer.ts`); it is not reachable through `child.material` and would leak.
+    child.customDepthMaterial?.dispose()
   })
 }

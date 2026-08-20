@@ -1,6 +1,8 @@
 import * as THREE from 'three'
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 
+import { RIG_ARM, RIG_HIP_L, RIG_HIP_R, RIG_OFF, RIG_SHIN_L, RIG_SHIN_R, RIG_TORSO } from './figure-rig'
+
 /**
  * Code-generated tabletop-diorama assets: the sandy board texture, the wooden edge
  * frame, the soft contact shadow, and one *merged* geometry per miniature archetype.
@@ -231,11 +233,19 @@ type Placement = {
    * Kept mild on purpose: a hard skew turns a purple raider green.
    */
   readonly bias?: readonly [number, number, number]
+  /**
+   * Which rig joint carries this part (`figure-rig.ts`). Baked per vertex at build time and
+   * read by the body's own vertex shader, which is how a limb moves without becoming a second
+   * mesh — the spec budgets four meshes a unit and all four are already spoken for.
+   *
+   * Defaults to `RIG_ROOT`, which is identity forever: a base disc does not walk.
+   */
+  readonly joint?: number
 }
 
 /**
  * Bakes a flat paint value into the part as vertex colours, then places it. Every part
- * therefore carries the same attribute set (position, normal, uv, color) which is what
+ * therefore carries the same attribute set (position, normal, uv, color, aJoint) which is what
  * lets the whole figure merge into one buffer with a single material.
  */
 function part(geometry: THREE.BufferGeometry, placement: Placement): THREE.BufferGeometry {
@@ -248,6 +258,9 @@ function part(geometry: THREE.BufferGeometry, placement: Placement): THREE.Buffe
     colors[index * 3 + 2] = placement.value * biasB
   }
   geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3))
+  const joints = new Float32Array(count)
+  if (placement.joint) joints.fill(placement.joint)
+  geometry.setAttribute('aJoint', new THREE.BufferAttribute(joints, 1))
   if (placement.scale) geometry.scale(placement.scale[0], placement.scale[1], placement.scale[2])
   const [rx, ry, rz] = placement.rotate ?? [0, 0, 0]
   if (rx) geometry.rotateX(rx)
@@ -367,15 +380,16 @@ function createCommandMiniature(): THREE.BufferGeometry {
     ...trooperRifleAcross(1.06),
     // A pale sash across the chest — the front-facing half of the officer read, now that the
     // camera shows a chest at all.
-    part(new THREE.BoxGeometry(0.42, 0.1, 0.29), { at: [0, 0.62, 0.01], rotate: [0, 0, 0.5], value: PAINT.edge }),
-    // The standard: pole, crossbar, flag panel, and a pennant tail below it.
-    part(new THREE.CylinderGeometry(0.03, 0.03, 1.6, 6), { at: [-0.21, 1.08, -0.21], value: PAINT.leather, bias: WARM }),
-    part(new THREE.BoxGeometry(0.06, 0.045, 0.34), { at: [-0.21, 1.82, -0.09], value: PAINT.weapon }),
-    part(new THREE.BoxGeometry(0.03, 0.44, 0.52), { at: [-0.21, 1.59, -0.04], value: PAINT.armour }),
-    part(new THREE.BoxGeometry(0.03, 0.17, 0.25), { at: [-0.21, 1.29, 0.09], value: PAINT.edge }),
-    part(new THREE.ConeGeometry(0.06, 0.17, 6), { at: [-0.21, 1.96, -0.21], value: PAINT.edge }),
+    part(new THREE.BoxGeometry(0.42, 0.1, 0.29), { at: [0, 0.62, 0.01], rotate: [0, 0, 0.5], value: PAINT.edge, joint: RIG_TORSO }),
+    // The standard: pole, crossbar, flag panel, and a pennant tail below it. Strapped to the
+    // back, so it rides the torso — it sways with the walk and never with the rifle.
+    part(new THREE.CylinderGeometry(0.03, 0.03, 1.6, 6), { at: [-0.21, 1.08, -0.21], value: PAINT.leather, bias: WARM, joint: RIG_TORSO }),
+    part(new THREE.BoxGeometry(0.06, 0.045, 0.34), { at: [-0.21, 1.82, -0.09], value: PAINT.weapon, joint: RIG_TORSO }),
+    part(new THREE.BoxGeometry(0.03, 0.44, 0.52), { at: [-0.21, 1.59, -0.04], value: PAINT.armour, joint: RIG_TORSO }),
+    part(new THREE.BoxGeometry(0.03, 0.17, 0.25), { at: [-0.21, 1.29, 0.09], value: PAINT.edge, joint: RIG_TORSO }),
+    part(new THREE.ConeGeometry(0.06, 0.17, 6), { at: [-0.21, 1.96, -0.21], value: PAINT.edge, joint: RIG_TORSO }),
     // A crest along the helmet, so the head reads as the officer's head from directly above.
-    part(new THREE.BoxGeometry(0.045, 0.14, 0.31), { at: [0, 1.12, 0], value: PAINT.edge }),
+    part(new THREE.BoxGeometry(0.045, 0.14, 0.31), { at: [0, 1.12, 0], value: PAINT.edge, joint: RIG_TORSO }),
   ], 'miniature:command')
 }
 
@@ -393,43 +407,56 @@ function trooperParts(options: { height?: number } = {}): THREE.BufferGeometry[]
     part(new THREE.CylinderGeometry(0.3, 0.33, 0.03, 18), { at: [0, 0.068, 0], value: PAINT.edge }),
     // Two legs in a braced stance, which is what makes the figure read as standing rather than
     // as a cylinder — the gap between them is visible now that the camera is low.
-    part(new THREE.BoxGeometry(0.13, 0.3, 0.16), { at: at(0.11, 0.24, 0.01), rotate: [0, 0, -0.07], value: PAINT.leg }),
-    part(new THREE.BoxGeometry(0.13, 0.3, 0.16), { at: at(-0.11, 0.24, 0.01), rotate: [0, 0, 0.07], value: PAINT.leg }),
-    part(new THREE.BoxGeometry(0.16, 0.09, 0.22), { at: at(0.12, 0.06, 0.03), value: PAINT.boot, bias: WARM }),
-    part(new THREE.BoxGeometry(0.16, 0.09, 0.22), { at: at(-0.12, 0.06, 0.03), value: PAINT.boot, bias: WARM }),
-    part(new THREE.BoxGeometry(0.32, 0.07, 0.24), { at: at(0, 0.4, 0), value: PAINT.belt, bias: WARM }),
+    //
+    // SPLIT AT THE KNEE in batch M, because a rigid leg swinging from the hip reads as a plank
+    // and the lift is what makes a stride a stride. Thigh and shin overlap by ~0.02 so the joint
+    // never opens a gap when the knee flexes, and the boot rides the shin.
+    part(new THREE.BoxGeometry(0.13, 0.16, 0.16), { at: at(0.11, 0.315, 0.01), rotate: [0, 0, -0.07], value: PAINT.leg, joint: RIG_HIP_L }),
+    part(new THREE.BoxGeometry(0.13, 0.16, 0.16), { at: at(-0.11, 0.315, 0.01), rotate: [0, 0, 0.07], value: PAINT.leg, joint: RIG_HIP_R }),
+    part(new THREE.BoxGeometry(0.125, 0.19, 0.155), { at: at(0.115, 0.165, 0.01), rotate: [0, 0, -0.07], value: PAINT.leg, joint: RIG_SHIN_L }),
+    part(new THREE.BoxGeometry(0.125, 0.19, 0.155), { at: at(-0.115, 0.165, 0.01), rotate: [0, 0, 0.07], value: PAINT.leg, joint: RIG_SHIN_R }),
+    part(new THREE.BoxGeometry(0.16, 0.09, 0.22), { at: at(0.12, 0.06, 0.03), value: PAINT.boot, bias: WARM, joint: RIG_SHIN_L }),
+    part(new THREE.BoxGeometry(0.16, 0.09, 0.22), { at: at(-0.12, 0.06, 0.03), value: PAINT.boot, bias: WARM, joint: RIG_SHIN_R }),
+    part(new THREE.BoxGeometry(0.32, 0.07, 0.24), { at: at(0, 0.4, 0), value: PAINT.belt, bias: WARM, joint: RIG_TORSO }),
     // The torso leans into the fight rather than standing to attention.
-    part(new THREE.BoxGeometry(0.36, 0.36, 0.25), { at: at(0, 0.6, 0.015), rotate: [0.1, 0, 0], value: PAINT.armour }),
+    part(new THREE.BoxGeometry(0.36, 0.36, 0.25), { at: at(0, 0.6, 0.015), rotate: [0.1, 0, 0], value: PAINT.armour, joint: RIG_TORSO }),
     // Breastplate: the lit face the front read hangs off.
-    part(new THREE.BoxGeometry(0.26, 0.24, 0.07), { at: at(0, 0.63, 0.14), rotate: [0.1, 0, 0], value: PAINT.edge }),
-    part(new THREE.BoxGeometry(0.56, 0.14, 0.3), { at: at(0, 0.78, 0), value: PAINT.armour }),
+    part(new THREE.BoxGeometry(0.26, 0.24, 0.07), { at: at(0, 0.63, 0.14), rotate: [0.1, 0, 0], value: PAINT.edge, joint: RIG_TORSO }),
+    part(new THREE.BoxGeometry(0.56, 0.14, 0.3), { at: at(0, 0.78, 0), value: PAINT.armour, joint: RIG_TORSO }),
     // Pauldron caps, angled so each one catches the key differently from the shoulder under it.
-    part(new THREE.BoxGeometry(0.2, 0.1, 0.26), { at: at(0.23, 0.83, 0), rotate: [0, 0, 0.32], value: PAINT.edge }),
-    part(new THREE.BoxGeometry(0.2, 0.1, 0.26), { at: at(-0.23, 0.83, 0), rotate: [0, 0, -0.32], value: PAINT.edge }),
-    part(new THREE.BoxGeometry(0.24, 0.26, 0.12), { at: at(0, 0.63, -0.19), value: PAINT.pack, bias: WARM }),
-    part(new THREE.CylinderGeometry(0.07, 0.07, 0.06, 8), { at: at(0, 0.94, 0), value: PAINT.visor }),
+    part(new THREE.BoxGeometry(0.2, 0.1, 0.26), { at: at(0.23, 0.83, 0), rotate: [0, 0, 0.32], value: PAINT.edge, joint: RIG_TORSO }),
+    part(new THREE.BoxGeometry(0.2, 0.1, 0.26), { at: at(-0.23, 0.83, 0), rotate: [0, 0, -0.32], value: PAINT.edge, joint: RIG_TORSO }),
+    part(new THREE.BoxGeometry(0.24, 0.26, 0.12), { at: at(0, 0.63, -0.19), value: PAINT.pack, bias: WARM, joint: RIG_TORSO }),
+    part(new THREE.CylinderGeometry(0.07, 0.07, 0.06, 8), { at: at(0, 0.94, 0), value: PAINT.visor, joint: RIG_TORSO }),
     // A HELMET, not a ball. The skull is a squashed dome, the brim rings it all the way round,
     // and a neck guard hangs off the back — so the head still reads as armoured when the figure
     // has turned away from the camera, which at this elevation happens constantly.
-    part(new THREE.SphereGeometry(0.15, 10, 7), { at: at(0, 1.01, -0.01), scale: [1, 0.86, 1.04], value: PAINT.helmet, bias: COLD }),
-    part(new THREE.CylinderGeometry(0.175, 0.185, 0.05, 12), { at: at(0, 0.96, -0.01), value: PAINT.edge }),
-    part(new THREE.BoxGeometry(0.22, 0.12, 0.06), { at: at(0, 0.96, -0.15), rotate: [-0.5, 0, 0], value: PAINT.helmet, bias: COLD }),
+    part(new THREE.SphereGeometry(0.15, 10, 7), { at: at(0, 1.01, -0.01), scale: [1, 0.86, 1.04], value: PAINT.helmet, bias: COLD, joint: RIG_TORSO }),
+    part(new THREE.CylinderGeometry(0.175, 0.185, 0.05, 12), { at: at(0, 0.96, -0.01), value: PAINT.edge, joint: RIG_TORSO }),
+    part(new THREE.BoxGeometry(0.22, 0.12, 0.06), { at: at(0, 0.96, -0.15), rotate: [-0.5, 0, 0], value: PAINT.helmet, bias: COLD, joint: RIG_TORSO }),
     // Brow and visor slit: two horizontal bars, and the dark one is the face.
-    part(new THREE.BoxGeometry(0.26, 0.05, 0.1), { at: at(0, 1.06, 0.08), value: PAINT.edge }),
-    part(new THREE.BoxGeometry(0.2, 0.07, 0.09), { at: at(0, 0.99, 0.12), value: PAINT.visor }),
+    part(new THREE.BoxGeometry(0.26, 0.05, 0.1), { at: at(0, 1.06, 0.08), value: PAINT.edge, joint: RIG_TORSO }),
+    part(new THREE.BoxGeometry(0.2, 0.07, 0.09), { at: at(0, 0.99, 0.12), value: PAINT.visor, joint: RIG_TORSO }),
   ]
 }
 
-/** Both arms up, rifle held level across the chest: a short bar over a compact outline. */
+/**
+ * Both arms up, rifle held level across the chest: a short bar over a compact outline.
+ *
+ * The whole assembly is ONE joint (`RIG_ARM`), pivoting at the middle of the chest rather than
+ * at either shoulder, so the aim rotates the weapon and both arms together instead of tearing
+ * the off arm away from its socket. From the overhead camera the cue is unmistakable: the bar
+ * across the body swings round to point down-range.
+ */
 function trooperRifleAcross(height = 1): THREE.BufferGeometry[] {
   const y = (value: number) => value * height
   return [
-    part(new THREE.BoxGeometry(0.11, 0.28, 0.13), { at: [0.24, y(0.62), 0.07], value: PAINT.leg }),
-    part(new THREE.BoxGeometry(0.11, 0.28, 0.13), { at: [-0.24, y(0.62), 0.07], value: PAINT.leg }),
-    part(new THREE.BoxGeometry(0.66, 0.07, 0.08), { at: [0.02, y(0.66), 0.2], value: PAINT.weapon }),
-    part(new THREE.BoxGeometry(0.19, 0.11, 0.08), { at: [-0.17, y(0.63), 0.2], value: PAINT.leather, bias: WARM }),
+    part(new THREE.BoxGeometry(0.11, 0.28, 0.13), { at: [0.24, y(0.62), 0.07], value: PAINT.leg, joint: RIG_ARM }),
+    part(new THREE.BoxGeometry(0.11, 0.28, 0.13), { at: [-0.24, y(0.62), 0.07], value: PAINT.leg, joint: RIG_ARM }),
+    part(new THREE.BoxGeometry(0.66, 0.07, 0.08), { at: [0.02, y(0.66), 0.2], value: PAINT.weapon, joint: RIG_ARM }),
+    part(new THREE.BoxGeometry(0.19, 0.11, 0.08), { at: [-0.17, y(0.63), 0.2], value: PAINT.leather, bias: WARM, joint: RIG_ARM }),
     // Muzzle, forward of the hands, so the weapon has an end from the front as well as above.
-    part(new THREE.CylinderGeometry(0.028, 0.028, 0.16, 6), { at: [0.34, y(0.66), 0.2], rotate: [0, 0, Math.PI / 2], value: PAINT.weapon }),
+    part(new THREE.CylinderGeometry(0.028, 0.028, 0.16, 6), { at: [0.34, y(0.66), 0.2], rotate: [0, 0, Math.PI / 2], value: PAINT.weapon, joint: RIG_ARM }),
   ]
 }
 
@@ -439,29 +466,34 @@ function createMeleeMiniature(): THREE.BufferGeometry {
     part(new THREE.CylinderGeometry(0.34, 0.38, 0.055, 16), { at: [0, 0.027, 0], value: PAINT.base }),
     part(new THREE.CylinderGeometry(0.3, 0.33, 0.03, 16), { at: [0, 0.068, 0], value: PAINT.edge }),
     // A wide crouched stance — legs splayed, weight forward. The gap between the legs and the
-    // lean are both front-read cues the melee has and the shooter does not.
-    part(new THREE.BoxGeometry(0.15, 0.26, 0.17), { at: [0.16, 0.21, -0.02], rotate: [0, 0, -0.22], value: PAINT.leg }),
-    part(new THREE.BoxGeometry(0.15, 0.26, 0.17), { at: [-0.16, 0.21, -0.02], rotate: [0, 0, 0.22], value: PAINT.leg }),
-    part(new THREE.BoxGeometry(0.18, 0.09, 0.24), { at: [0.2, 0.06, 0.01], value: PAINT.boot, bias: WARM }),
-    part(new THREE.BoxGeometry(0.18, 0.09, 0.24), { at: [-0.2, 0.06, 0.01], value: PAINT.boot, bias: WARM }),
-    part(new THREE.BoxGeometry(0.46, 0.38, 0.34), { at: [0, 0.53, 0.05], rotate: [0.3, 0, 0], value: PAINT.armour }),
-    part(new THREE.BoxGeometry(0.3, 0.24, 0.08), { at: [0, 0.55, 0.21], rotate: [0.3, 0, 0], value: PAINT.edge }),
-    part(new THREE.BoxGeometry(0.7, 0.17, 0.36), { at: [0, 0.72, 0.03], value: PAINT.armour }),
-    part(new THREE.BoxGeometry(0.24, 0.11, 0.3), { at: [0.29, 0.78, 0.03], rotate: [0, 0, 0.36], value: PAINT.edge }),
-    part(new THREE.BoxGeometry(0.24, 0.11, 0.3), { at: [-0.29, 0.78, 0.03], rotate: [0, 0, -0.36], value: PAINT.edge }),
-    part(new THREE.SphereGeometry(0.16, 8, 6), { at: [0, 0.87, 0.08], value: PAINT.helmet, bias: COLD }),
-    part(new THREE.BoxGeometry(0.24, 0.07, 0.1), { at: [0, 0.85, 0.19], value: PAINT.visor }),
-    part(new THREE.ConeGeometry(0.055, 0.24, 6), { at: [0.13, 1, 0.05], rotate: [0, 0, -0.7], value: PAINT.edge }),
-    part(new THREE.ConeGeometry(0.055, 0.24, 6), { at: [-0.13, 1, 0.05], rotate: [0, 0, 0.7], value: PAINT.edge }),
+    // lean are both front-read cues the melee has and the shooter does not. Split at the knee
+    // in batch M, like the trooper's.
+    part(new THREE.BoxGeometry(0.15, 0.14, 0.17), { at: [0.16, 0.275, -0.02], rotate: [0, 0, -0.22], value: PAINT.leg, joint: RIG_HIP_L }),
+    part(new THREE.BoxGeometry(0.15, 0.14, 0.17), { at: [-0.16, 0.275, -0.02], rotate: [0, 0, 0.22], value: PAINT.leg, joint: RIG_HIP_R }),
+    part(new THREE.BoxGeometry(0.145, 0.16, 0.165), { at: [0.16, 0.15, -0.02], rotate: [0, 0, -0.22], value: PAINT.leg, joint: RIG_SHIN_L }),
+    part(new THREE.BoxGeometry(0.145, 0.16, 0.165), { at: [-0.16, 0.15, -0.02], rotate: [0, 0, 0.22], value: PAINT.leg, joint: RIG_SHIN_R }),
+    part(new THREE.BoxGeometry(0.18, 0.09, 0.24), { at: [0.2, 0.06, 0.01], value: PAINT.boot, bias: WARM, joint: RIG_SHIN_L }),
+    part(new THREE.BoxGeometry(0.18, 0.09, 0.24), { at: [-0.2, 0.06, 0.01], value: PAINT.boot, bias: WARM, joint: RIG_SHIN_R }),
+    part(new THREE.BoxGeometry(0.46, 0.38, 0.34), { at: [0, 0.53, 0.05], rotate: [0.3, 0, 0], value: PAINT.armour, joint: RIG_TORSO }),
+    part(new THREE.BoxGeometry(0.3, 0.24, 0.08), { at: [0, 0.55, 0.21], rotate: [0.3, 0, 0], value: PAINT.edge, joint: RIG_TORSO }),
+    part(new THREE.BoxGeometry(0.7, 0.17, 0.36), { at: [0, 0.72, 0.03], value: PAINT.armour, joint: RIG_TORSO }),
+    part(new THREE.BoxGeometry(0.24, 0.11, 0.3), { at: [0.29, 0.78, 0.03], rotate: [0, 0, 0.36], value: PAINT.edge, joint: RIG_TORSO }),
+    part(new THREE.BoxGeometry(0.24, 0.11, 0.3), { at: [-0.29, 0.78, 0.03], rotate: [0, 0, -0.36], value: PAINT.edge, joint: RIG_TORSO }),
+    part(new THREE.SphereGeometry(0.16, 8, 6), { at: [0, 0.87, 0.08], value: PAINT.helmet, bias: COLD, joint: RIG_TORSO }),
+    part(new THREE.BoxGeometry(0.24, 0.07, 0.1), { at: [0, 0.85, 0.19], value: PAINT.visor, joint: RIG_TORSO }),
+    part(new THREE.ConeGeometry(0.055, 0.24, 6), { at: [0.13, 1, 0.05], rotate: [0, 0, -0.7], value: PAINT.edge, joint: RIG_TORSO }),
+    part(new THREE.ConeGeometry(0.055, 0.24, 6), { at: [-0.13, 1, 0.05], rotate: [0, 0, 0.7], value: PAINT.edge, joint: RIG_TORSO }),
     // The shield: a wide disc carried flat-on to the front, which is what makes the outline
-    // read broad from above instead of merely chunky.
-    part(new THREE.CylinderGeometry(0.33, 0.33, 0.06, 14), { at: [-0.31, 0.56, 0.24], rotate: [Math.PI / 2, 0, 0.2], value: PAINT.leather, bias: WARM }),
-    part(new THREE.TorusGeometry(0.28, 0.035, 6, 14), { at: [-0.31, 0.56, 0.28], rotate: [0, 0, 0], value: PAINT.edge }),
-    part(new THREE.SphereGeometry(0.085, 8, 6), { at: [-0.31, 0.56, 0.3], value: PAINT.edge }),
-    // The cleaver: a short haft and a broad flat blade held up and out to the side.
-    part(new THREE.CylinderGeometry(0.035, 0.035, 0.44, 6), { at: [0.36, 0.74, -0.04], rotate: [0, 0, -0.3], value: PAINT.leather, bias: WARM }),
-    part(new THREE.BoxGeometry(0.3, 0.36, 0.05), { at: [0.49, 1.05, -0.04], rotate: [0, 0, -0.3], value: PAINT.weapon, bias: COLD }),
-    part(new THREE.BoxGeometry(0.07, 0.34, 0.055), { at: [0.61, 1.09, -0.04], rotate: [0, 0, -0.3], value: PAINT.edge }),
+    // read broad from above instead of merely chunky. It is the off hand, and it comes up
+    // across the body while the cleaver is committed.
+    part(new THREE.CylinderGeometry(0.33, 0.33, 0.06, 14), { at: [-0.31, 0.56, 0.24], rotate: [Math.PI / 2, 0, 0.2], value: PAINT.leather, bias: WARM, joint: RIG_OFF }),
+    part(new THREE.TorusGeometry(0.28, 0.035, 6, 14), { at: [-0.31, 0.56, 0.28], rotate: [0, 0, 0], value: PAINT.edge, joint: RIG_OFF }),
+    part(new THREE.SphereGeometry(0.085, 8, 6), { at: [-0.31, 0.56, 0.3], value: PAINT.edge, joint: RIG_OFF }),
+    // The cleaver: a short haft and a broad flat blade held up and out to the side. Haft, blade
+    // and edge all ride `RIG_ARM`, which is what swings.
+    part(new THREE.CylinderGeometry(0.035, 0.035, 0.44, 6), { at: [0.36, 0.74, -0.04], rotate: [0, 0, -0.3], value: PAINT.leather, bias: WARM, joint: RIG_ARM }),
+    part(new THREE.BoxGeometry(0.3, 0.36, 0.05), { at: [0.49, 1.05, -0.04], rotate: [0, 0, -0.3], value: PAINT.weapon, bias: COLD, joint: RIG_ARM }),
+    part(new THREE.BoxGeometry(0.07, 0.34, 0.055), { at: [0.61, 1.09, -0.04], rotate: [0, 0, -0.3], value: PAINT.edge, joint: RIG_ARM }),
   ], 'miniature:melee')
 }
 
@@ -471,25 +503,28 @@ function createShooterMiniature(): THREE.BufferGeometry {
     part(new THREE.CylinderGeometry(0.31, 0.35, 0.055, 16), { at: [0, 0.027, 0], value: PAINT.base }),
     part(new THREE.CylinderGeometry(0.27, 0.3, 0.03, 16), { at: [0, 0.068, 0], value: PAINT.edge }),
     // Narrow, upright, feet close together — the opposite stance to the melee's crouch.
-    part(new THREE.BoxGeometry(0.11, 0.34, 0.14), { at: [0.08, 0.24, 0], value: PAINT.leg }),
-    part(new THREE.BoxGeometry(0.11, 0.34, 0.14), { at: [-0.08, 0.24, 0], value: PAINT.leg }),
-    part(new THREE.BoxGeometry(0.13, 0.08, 0.2), { at: [0.08, 0.05, 0.02], value: PAINT.boot, bias: WARM }),
-    part(new THREE.BoxGeometry(0.13, 0.08, 0.2), { at: [-0.08, 0.05, 0.02], value: PAINT.boot, bias: WARM }),
-    part(new THREE.BoxGeometry(0.3, 0.4, 0.22), { at: [0, 0.6, 0], value: PAINT.armour }),
-    part(new THREE.BoxGeometry(0.2, 0.24, 0.07), { at: [0, 0.62, 0.13], value: PAINT.edge }),
-    part(new THREE.BoxGeometry(0.44, 0.14, 0.24), { at: [0, 0.8, 0], value: PAINT.armour }),
+    part(new THREE.BoxGeometry(0.11, 0.18, 0.14), { at: [0.08, 0.325, 0], value: PAINT.leg, joint: RIG_HIP_L }),
+    part(new THREE.BoxGeometry(0.11, 0.18, 0.14), { at: [-0.08, 0.325, 0], value: PAINT.leg, joint: RIG_HIP_R }),
+    part(new THREE.BoxGeometry(0.105, 0.2, 0.135), { at: [0.08, 0.16, 0], value: PAINT.leg, joint: RIG_SHIN_L }),
+    part(new THREE.BoxGeometry(0.105, 0.2, 0.135), { at: [-0.08, 0.16, 0], value: PAINT.leg, joint: RIG_SHIN_R }),
+    part(new THREE.BoxGeometry(0.13, 0.08, 0.2), { at: [0.08, 0.05, 0.02], value: PAINT.boot, bias: WARM, joint: RIG_SHIN_L }),
+    part(new THREE.BoxGeometry(0.13, 0.08, 0.2), { at: [-0.08, 0.05, 0.02], value: PAINT.boot, bias: WARM, joint: RIG_SHIN_R }),
+    part(new THREE.BoxGeometry(0.3, 0.4, 0.22), { at: [0, 0.6, 0], value: PAINT.armour, joint: RIG_TORSO }),
+    part(new THREE.BoxGeometry(0.2, 0.24, 0.07), { at: [0, 0.62, 0.13], value: PAINT.edge, joint: RIG_TORSO }),
+    part(new THREE.BoxGeometry(0.44, 0.14, 0.24), { at: [0, 0.8, 0], value: PAINT.armour, joint: RIG_TORSO }),
     // A hood rather than a helmet: the head is a cone, not a ball, so the class is told apart
     // from the melee even where the weapon is hidden behind another figure.
-    part(new THREE.ConeGeometry(0.17, 0.34, 8), { at: [0, 1.02, -0.02], value: PAINT.helmet, bias: COLD }),
-    part(new THREE.BoxGeometry(0.17, 0.08, 0.09), { at: [0, 0.94, 0.12], value: PAINT.visor }),
+    part(new THREE.ConeGeometry(0.17, 0.34, 8), { at: [0, 1.02, -0.02], value: PAINT.helmet, bias: COLD, joint: RIG_TORSO }),
+    part(new THREE.BoxGeometry(0.17, 0.08, 0.09), { at: [0, 0.94, 0.12], value: PAINT.visor, joint: RIG_TORSO }),
     // The quiver on the back, angled so it reads as a second line from above.
-    part(new THREE.CylinderGeometry(0.05, 0.05, 0.38, 6), { at: [-0.17, 0.72, -0.17], rotate: [0.3, 0, 0.25], value: PAINT.leather, bias: WARM }),
-    // Arms and the long barrel: the needle that no melee body has.
-    part(new THREE.BoxGeometry(0.1, 0.1, 0.32), { at: [0.2, 0.64, 0.13], value: PAINT.leg }),
-    part(new THREE.BoxGeometry(0.1, 0.1, 0.17), { at: [-0.17, 0.64, 0.21], value: PAINT.leg }),
-    part(new THREE.CylinderGeometry(0.032, 0.032, 1, 6), { at: [0.06, 0.66, 0.47], rotate: [Math.PI / 2, 0, 0], value: PAINT.weapon }),
-    part(new THREE.BoxGeometry(0.1, 0.13, 0.24), { at: [0.06, 0.61, 0.09], value: PAINT.leather, bias: WARM }),
-    part(new THREE.ConeGeometry(0.05, 0.13, 6), { at: [0.06, 0.66, 1], rotate: [Math.PI / 2, 0, 0], value: PAINT.edge }),
+    part(new THREE.CylinderGeometry(0.05, 0.05, 0.38, 6), { at: [-0.17, 0.72, -0.17], rotate: [0.3, 0, 0.25], value: PAINT.leather, bias: WARM, joint: RIG_TORSO }),
+    // Arms and the long barrel: the needle that no melee body has. The whole assembly is the
+    // weapon carriage, so the rest pose is a LOWERED barrel and the aim brings it level.
+    part(new THREE.BoxGeometry(0.1, 0.1, 0.32), { at: [0.2, 0.64, 0.13], value: PAINT.leg, joint: RIG_ARM }),
+    part(new THREE.BoxGeometry(0.1, 0.1, 0.17), { at: [-0.17, 0.64, 0.21], value: PAINT.leg, joint: RIG_ARM }),
+    part(new THREE.CylinderGeometry(0.032, 0.032, 1, 6), { at: [0.06, 0.66, 0.47], rotate: [Math.PI / 2, 0, 0], value: PAINT.weapon, joint: RIG_ARM }),
+    part(new THREE.BoxGeometry(0.1, 0.13, 0.24), { at: [0.06, 0.61, 0.09], value: PAINT.leather, bias: WARM, joint: RIG_ARM }),
+    part(new THREE.ConeGeometry(0.05, 0.13, 6), { at: [0.06, 0.66, 1], rotate: [Math.PI / 2, 0, 0], value: PAINT.edge, joint: RIG_ARM }),
   ], 'miniature:shooter')
 }
 
@@ -504,25 +539,27 @@ function createEliteMiniature(): THREE.BufferGeometry {
     part(new THREE.CylinderGeometry(0.44, 0.5, 0.18, 18), { at: [0, 0.09, 0], value: PAINT.base }),
     part(new THREE.CylinderGeometry(0.36, 0.4, 0.06, 18), { at: [0, 0.21, 0], value: PAINT.trim }),
     part(new THREE.CylinderGeometry(0.26, 0.29, 0.06, 14), { at: [0, 0.27, 0], value: PAINT.base }),
-    part(new THREE.BoxGeometry(0.16, 0.28, 0.18), { at: [0.11, 0.43, 0], value: PAINT.leg }),
-    part(new THREE.BoxGeometry(0.16, 0.28, 0.18), { at: [-0.11, 0.43, 0], value: PAINT.leg }),
-    part(new THREE.BoxGeometry(0.36, 0.4, 0.26), { at: [0, 0.68, 0], value: PAINT.armour }),
-    part(new THREE.BoxGeometry(0.28, 0.3, 0.08), { at: [0, 0.7, 0.15], value: PAINT.trim }),
+    part(new THREE.BoxGeometry(0.16, 0.14, 0.18), { at: [0.11, 0.505, 0], value: PAINT.leg, joint: RIG_HIP_L }),
+    part(new THREE.BoxGeometry(0.16, 0.14, 0.18), { at: [-0.11, 0.505, 0], value: PAINT.leg, joint: RIG_HIP_R }),
+    part(new THREE.BoxGeometry(0.155, 0.16, 0.175), { at: [0.11, 0.365, 0], value: PAINT.leg, joint: RIG_SHIN_L }),
+    part(new THREE.BoxGeometry(0.155, 0.16, 0.175), { at: [-0.11, 0.365, 0], value: PAINT.leg, joint: RIG_SHIN_R }),
+    part(new THREE.BoxGeometry(0.36, 0.4, 0.26), { at: [0, 0.68, 0], value: PAINT.armour, joint: RIG_TORSO }),
+    part(new THREE.BoxGeometry(0.28, 0.3, 0.08), { at: [0, 0.7, 0.15], value: PAINT.trim, joint: RIG_TORSO }),
     // The cape.
-    part(new THREE.BoxGeometry(0.5, 0.72, 0.06), { at: [0, 0.86, -0.22], rotate: [-0.12, 0, 0], value: PAINT.leather, bias: WARM }),
-    part(new THREE.BoxGeometry(0.46, 0.42, 0.3), { at: [0, 0.99, 0], value: PAINT.armour }),
-    part(new THREE.BoxGeometry(0.7, 0.18, 0.34), { at: [0, 1.22, 0], value: PAINT.armour }),
+    part(new THREE.BoxGeometry(0.5, 0.72, 0.06), { at: [0, 0.86, -0.22], rotate: [-0.12, 0, 0], value: PAINT.leather, bias: WARM, joint: RIG_TORSO }),
+    part(new THREE.BoxGeometry(0.46, 0.42, 0.3), { at: [0, 0.99, 0], value: PAINT.armour, joint: RIG_TORSO }),
+    part(new THREE.BoxGeometry(0.7, 0.18, 0.34), { at: [0, 1.22, 0], value: PAINT.armour, joint: RIG_TORSO }),
     // The mantle: two swept plates off the pauldrons. At this elevation the cape on its back is
     // nearly edge-on, and these are what carry that width into the top-down read.
-    part(new THREE.BoxGeometry(0.36, 0.1, 0.42), { at: [0.44, 1.16, -0.06], rotate: [0, 0, 0.3], value: PAINT.trim }),
-    part(new THREE.BoxGeometry(0.36, 0.1, 0.42), { at: [-0.44, 1.16, -0.06], rotate: [0, 0, -0.3], value: PAINT.trim }),
-    part(new THREE.SphereGeometry(0.17, 10, 8), { at: [0, 1.4, 0], value: PAINT.helmet, bias: COLD }),
-    part(new THREE.BoxGeometry(0.22, 0.09, 0.1), { at: [0, 1.38, 0.14], value: PAINT.visor }),
-    part(new THREE.ConeGeometry(0.06, 0.28, 6), { at: [0.14, 1.56, 0], rotate: [0, 0, -0.55], value: PAINT.edge }),
-    part(new THREE.ConeGeometry(0.06, 0.28, 6), { at: [-0.14, 1.56, 0], rotate: [0, 0, 0.55], value: PAINT.edge }),
-    part(new THREE.CylinderGeometry(0.045, 0.045, 1.55, 6), { at: [0.33, 1.08, 0.02], value: PAINT.leather, bias: WARM }),
-    part(new THREE.TorusGeometry(0.13, 0.032, 6, 12), { at: [0.33, 1.9, 0.02], value: PAINT.edge }),
-    part(new THREE.ConeGeometry(0.1, 0.24, 6), { at: [0.33, 2.06, 0.02], value: PAINT.edge }),
+    part(new THREE.BoxGeometry(0.36, 0.1, 0.42), { at: [0.44, 1.16, -0.06], rotate: [0, 0, 0.3], value: PAINT.trim, joint: RIG_TORSO }),
+    part(new THREE.BoxGeometry(0.36, 0.1, 0.42), { at: [-0.44, 1.16, -0.06], rotate: [0, 0, -0.3], value: PAINT.trim, joint: RIG_TORSO }),
+    part(new THREE.SphereGeometry(0.17, 10, 8), { at: [0, 1.4, 0], value: PAINT.helmet, bias: COLD, joint: RIG_TORSO }),
+    part(new THREE.BoxGeometry(0.22, 0.09, 0.1), { at: [0, 1.38, 0.14], value: PAINT.visor, joint: RIG_TORSO }),
+    part(new THREE.ConeGeometry(0.06, 0.28, 6), { at: [0.14, 1.56, 0], rotate: [0, 0, -0.55], value: PAINT.edge, joint: RIG_TORSO }),
+    part(new THREE.ConeGeometry(0.06, 0.28, 6), { at: [-0.14, 1.56, 0], rotate: [0, 0, 0.55], value: PAINT.edge, joint: RIG_TORSO }),
+    part(new THREE.CylinderGeometry(0.045, 0.045, 1.55, 6), { at: [0.33, 1.08, 0.02], value: PAINT.leather, bias: WARM, joint: RIG_ARM }),
+    part(new THREE.TorusGeometry(0.13, 0.032, 6, 12), { at: [0.33, 1.9, 0.02], value: PAINT.edge, joint: RIG_ARM }),
+    part(new THREE.ConeGeometry(0.1, 0.24, 6), { at: [0.33, 2.06, 0.02], value: PAINT.edge, joint: RIG_ARM }),
   ], 'miniature:elite')
 }
 
@@ -604,17 +641,28 @@ export function setHealthGaugeColor(geometry: THREE.BufferGeometry, color: THREE
   attribute.needsUpdate = true
 }
 
-export function createDioramaAssets(): DioramaAssets {
-  const boardTexture = createBoardTexture()
-  const frameTexture = createFrameTexture()
-  const contactShadowTexture = createContactShadowTexture()
-  const miniatures = {
+/**
+ * The five merged bodies, and nothing else.
+ *
+ * Split out of `createDioramaAssets` so the geometry can be built where there is no canvas: the
+ * textures need a 2D context and a headless test has none, but what the rig is baked into is
+ * pure `BufferGeometry`. `tests/figure-rig.test.ts` checks the joint attribute through this.
+ */
+export function createMiniatureGeometries(): Readonly<Record<MiniatureArchetype, THREE.BufferGeometry>> {
+  return {
     command: createCommandMiniature(),
     soldier: createSoldierMiniature(),
     melee: createMeleeMiniature(),
     shooter: createShooterMiniature(),
     elite: createEliteMiniature(),
-  } as const
+  }
+}
+
+export function createDioramaAssets(): DioramaAssets {
+  const boardTexture = createBoardTexture()
+  const frameTexture = createFrameTexture()
+  const contactShadowTexture = createContactShadowTexture()
+  const miniatures = createMiniatureGeometries()
   const baseRingGeometry = new THREE.RingGeometry(0.49, 0.62, 32)
   // Tightened in batch K. This is the soft AMBIENT-OCCLUSION patch directly under a figure, not
   // its cast shadow — the key light throws the real one, and now that the key runs a much higher
