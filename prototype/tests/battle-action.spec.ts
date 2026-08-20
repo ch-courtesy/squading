@@ -246,12 +246,16 @@ test('keeps the elite warning readable through the bodies standing inside it', a
       playArea: { centerX: 0, centerY: 0, worldWidth: 56, worldHeight: 32 },
       activeSquad: 'teal',
     }
+    // The board without a warning first, so the warning's own draw calls can be counted.
+    for (let frame = 0; frame < 3; frame += 1) renderer.render({ ...snapshot, tick: 4 + frame, effects: [] }, 0)
+    const drawCallsBare = renderer.collectMetrics().drawCalls
     for (let frame = 0; frame < 4; frame += 1) renderer.render({ ...snapshot, tick: 10 + frame }, 0)
+    const drawCallsWarned = renderer.collectMetrics().drawCalls
     const telegraph = window.__SQUADING_TEST__!.rendererScene!()!.eliteTelegraph
     const legibility = window.__SQUADING_TEST__!.telegraphLegibility!()!
     renderer.dispose()
     host.remove()
-    return { ...telegraph, ...legibility }
+    return { ...telegraph, ...legibility, drawCallsBare, drawCallsWarned }
   })
 
   expect(reading.visible).toBe(true)
@@ -276,11 +280,15 @@ test('keeps the elite warning readable through the bodies standing inside it', a
   expect(reading.overlayDepthTested).toBe(false)
   expect(reading.overlayRenderOrder).toBeGreaterThan(4)
 
+  // What the whole warning costs: the ground band, the countdown disc, the sigil and the
+  // over-body outline are four meshes, and the outline is one of the four.
   console.log(
     `[§정예 예고] samples=${reading.samples} bodiesInside=${reading.bodiesInside}`
     + ` occluded=${reading.occludedSamples} groundOnlyPainted=${reading.groundOnlyPaintedSamples}`
-    + ` painted=${reading.paintedSamples}`,
+    + ` painted=${reading.paintedSamples}`
+    + ` drawCalls ${reading.drawCallsBare}->${reading.drawCallsWarned}`,
   )
+  expect(reading.drawCallsWarned! - reading.drawCallsBare!).toBeLessThanOrEqual(4)
 })
 
 test('keeps the renderer-comparison lab on the inferred path, with no account and no outline', async ({ page }) => {
