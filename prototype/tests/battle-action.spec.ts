@@ -412,3 +412,76 @@ test('puts one muzzle burst on the board per shot, so a volley reads as a volley
   )
   expect(readings.drawCallsBusy! - readings.drawCallsQuiet!).toBeLessThanOrEqual(2)
 })
+
+/**
+ * §액션 피드백's last line: "정예 범위 공격: 착탄 순간 화면이 짧게 흔들린다".
+ *
+ * The strike is the one action that has NO damage event to hang on, and deliberately so. On
+ * `seed-h`'s winning route the elite's blast lands zero blows across the whole run — the squad
+ * kites out of every circle, which is §4.5's dodging question answered in the authority's own
+ * numbers — and a shake driven by damage would then never fire on the route a player actually
+ * wins with. So it is driven by the WARNING CLEARING with its countdown run out, which is the
+ * moment the strike lands whether or not anybody was standing there.
+ *
+ * A cancelled warning (the elite died mid-countdown, so the ring vanishes with time still on it)
+ * must NOT shake, and that is the other half of what is pinned here.
+ */
+test('shakes the table when the elite strike lands, and not when it was called off', async ({ page }) => {
+  await fixture(page)
+  const readings = await page.evaluate(async () => {
+    const { createRenderer } = await (0, eval)('import("/src/renderers/three-hybrid/index.ts")')
+    const bridge = () => window.__SQUADING_TEST__!.rendererScene!()!.action
+    const host = document.createElement('div')
+    host.style.cssText = 'width:800px;height:500px'
+    document.body.append(host)
+    const renderer = createRenderer()
+    await renderer.mount(host)
+
+    const base = {
+      elapsedMs: 0,
+      units: [{
+        id: 1, kind: 'commander', team: 'scarlet', squad: 'scarlet',
+        x: 0, y: 0, facingRadians: 0, radius: 0.55, hp01: 1, fatigue01: 0, morale01: 1, state: 'idle',
+      }],
+      projectiles: [],
+      actionEvents: [],
+      camera: { centerX: 0, centerY: 0, worldWidth: 20, worldHeight: 12 },
+      playArea: { centerX: 0, centerY: 0, worldWidth: 56, worldHeight: 32 },
+      activeSquad: 'teal',
+    }
+    const warning = (durationTicks: number) => [{
+      id: 1000, kind: 'elite-telegraph', team: 'enemy',
+      x: 3, y: 0, radius: 2, startedTick: 1, durationTicks,
+    }]
+
+    // A warning that runs its countdown out, then clears: the strike landed.
+    let tick = 1
+    for (const remaining of [30, 20, 10, 4, 1]) {
+      renderer.render({ ...base, tick: tick++, effects: warning(remaining) }, 0)
+    }
+    const beforeStrike = bridge().cameraShakes
+    renderer.render({ ...base, tick: tick++, effects: [] }, 0)
+    const struckOn = bridge().cameraShakes
+    // The camera offset is applied at the head of the NEXT frame — the shake is armed after the
+    // camera has already been placed for this one — so the displacement is read one frame on.
+    renderer.render({ ...base, tick: tick++, effects: [] }, 0)
+    const afterStrike = { shakes: struckOn, offset: bridge().cameraShakeOffset }
+
+    // A warning called off with time still on its clock: the elite fell mid-countdown.
+    for (const remaining of [30, 22, 16]) {
+      renderer.render({ ...base, tick: tick++, effects: warning(remaining) }, 0)
+    }
+    renderer.render({ ...base, tick: tick++, effects: [] }, 0)
+    const afterCancel = bridge().cameraShakes
+
+    const readings = { beforeStrike, afterStrike, afterCancel }
+    renderer.dispose()
+    host.remove()
+    return readings
+  })
+
+  expect(readings.beforeStrike).toBe(0)
+  expect(readings.afterStrike.shakes).toBe(1)
+  expect(readings.afterStrike.offset).toBeGreaterThan(0)
+  expect(readings.afterCancel).toBe(1)
+})
