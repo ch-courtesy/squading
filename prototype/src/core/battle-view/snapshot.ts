@@ -54,12 +54,22 @@ import { rescueCandidateId } from '../battle/rescue'
 import { enemiesById, friendliesById } from '../battle/state'
 import type {
   BattleState,
+  DamageCause,
+  DamageEvent,
   EnemyKind,
   EnemyUnit,
   FriendlyUnit,
   Vec2,
 } from '../battle/types'
-import type { RenderEffect, RenderSnapshot, RenderUnit, Squad, UnitKind } from '../types'
+import type {
+  RenderActionEvent,
+  RenderActionEventKind,
+  RenderEffect,
+  RenderSnapshot,
+  RenderUnit,
+  Squad,
+  UnitKind,
+} from '../types'
 
 /**
  * §1.1's rate, written down on the DISPLAY side because that is the only side that needs
@@ -189,8 +199,139 @@ function frameAround(center: Vec2, bodies: readonly Vec2[]): {
 
 const ARENA_CENTER: Vec2 = { x: ARENA_WIDTH / 2, y: ARENA_HEIGHT / 2 }
 
-/** The whole display state of one tick, for the renderer and nothing else. */
-export function projectBattleSnapshot(state: Readonly<BattleState>): RenderSnapshot {
+// ---------------------------------------------------------------------------
+// THE PER-TICK CHANNEL (§액션 피드백)
+// ---------------------------------------------------------------------------
+// A blow is an EVENT, and `BattleState` holds no events: §1.17's no-scratch rule reserves the
+// state for what a later tick reads, and one "attacks this tick" field would walk into all three
+// seed digests and every recorded band. `advanceBattleTick` already hands its whole derived tick
+// back as a `ResolvedTick`, so the channel is:
+//
+//     advanceBattleTick -> ResolvedTick -> the controller holds this frame's -> here
+//
+// which is why this function takes a SECOND ARGUMENT rather than reading anything new off the
+// state. It is a display path: nothing here is authority, and `git diff -- src/core/battle` is
+// empty for the whole of batch L.
+//
+// It is deliberately a STRUCTURAL type and not `ResolvedTick` itself. A `ResolvedTick` satisfies
+// it — the controller passes one straight in, with no converter to drift — while this file stays
+// honest about the three fields it actually reads, and a test can build one by hand.
+
+/** What one resolved tick contributes to the screen. A `ResolvedTick` is one of these. */
+export type BattleTickEvents = {
+  readonly tick: number
+  readonly damageEvents: readonly DamageEvent[]
+  readonly transitions: {
+    readonly enemyDeaths: readonly { readonly id: number }[]
+    readonly friendlyDeaths: readonly number[]
+    /**
+     * §1.11's casualties, and they are NOT deaths. Read here only so that this comment can say
+     * they were considered and left out: a downed body is the one §4.5 asks the player whether
+     * to run for, and a body that has just burst into paper scraps is not a body anyone runs
+     * for. The renderer already lays a downed figure on its side off `RenderUnit.state`.
+     */
+    readonly friendlyDowns: readonly number[]
+  }
+}
+
+/**
+ * §액션 피드백 asks for a muzzle puff and it means a MUZZLE. The four authority causes carry the
+ * distinction already, so the renderer never has to guess a weapon from a distance.
+ */
+const ACTION_KIND_BY_CAUSE: Readonly<Record<DamageCause, RenderActionEventKind>> = {
+  'friendly-attack': 'shot',
+  'shooter-shot': 'shot',
+  'melee-contact': 'melee',
+  'elite-blast': 'blast',
+}
+
+type BodyPoint = { readonly position: Vec2; readonly maxHp: number }
+
+function bodyIndex(state: Readonly<BattleState>): Map<number, BodyPoint> {
+  const index = new Map<number, BodyPoint>()
+  for (const unit of state.friendlies) index.set(unit.id, unit)
+  // Friendly ids run from 1 and enemy ids from `FIRST_ENEMY_ID`, so nothing is overwritten here.
+  for (const enemy of state.enemies) index.set(enemy.id, enemy)
+  return index
+}
+
+/**
+ * The blows and the deaths of the ticks this frame ran, as display events.
+ *
+ * EVERY tick contributes and every event within it survives, in the authority's own order. That
+ * is a choice, and the alternatives are worse: a browser frame regularly covers three ticks
+ * (measured `steps: 3`), so "last tick only" would silently delete two thirds of every volley
+ * and "merge per target" would turn three blows into one flash. Each event keeps its own `tick`,
+ * which is what lets the renderer start a three-tick-old animation three ticks in rather than
+ * restarting all of them at the frame edge.
+ *
+ * Positions are read from the state as it stands NOW — the end of the frame — not from where the
+ * body was on the tick it fired. Sub-tick displacement is far below a figure's own width, and the
+ * alternative is a lunge that starts somewhere the miniature visibly is not.
+ */
+function projectActionEvents(
+  state: Readonly<BattleState>,
+  ticks: readonly BattleTickEvents[],
+): RenderActionEvent[] {
+  if (ticks.length === 0) return []
+  const events: RenderActionEvent[] = []
+  const bodies = bodyIndex(state)
+
+  const death = (tick: number, id: number): void => {
+    const body = bodies.get(id)
+    if (!body) return
+    events.push({
+      kind: 'death',
+      tick,
+      sourceId: null,
+      sourceX: body.position.x,
+      sourceY: body.position.y,
+      targetId: id,
+      targetX: body.position.x,
+      targetY: body.position.y,
+      strength01: 0,
+    })
+  }
+
+  for (const resolved of ticks) {
+    for (const blow of resolved.damageEvents) {
+      const attacker = bodies.get(blow.attackerId)
+      const target = bodies.get(blow.targetId)
+      // Nothing is ever removed from `state.friendlies` or `state.enemies` — a corpse keeps its
+      // slot for §1.14's `deathTick` — so within one run both lookups hold, and the guard is
+      // here for a caller that mixed a tick from one battle with the state of another.
+      if (!attacker || !target) continue
+      events.push({
+        kind: ACTION_KIND_BY_CAUSE[blow.cause],
+        tick: resolved.tick,
+        sourceId: blow.attackerId,
+        sourceX: attacker.position.x,
+        sourceY: attacker.position.y,
+        targetId: blow.targetId,
+        targetX: target.position.x,
+        targetY: target.position.y,
+        // Overkill is real in the authority and unpaintable: a flash cannot be 400% bright.
+        strength01: target.maxHp > 0 ? clamp01(blow.amount / target.maxHp) : 0,
+      })
+    }
+    for (const fallen of resolved.transitions.enemyDeaths) death(resolved.tick, fallen.id)
+    for (const fallen of resolved.transitions.friendlyDeaths) death(resolved.tick, fallen)
+  }
+  return events
+}
+
+/**
+ * The whole display state of one tick, for the renderer and nothing else.
+ *
+ * `ticks` is what the ticks THIS FRAME RAN resolved (see `projectActionEvents`). It defaults to
+ * empty rather than to absent, so `actionEvents` is always published: the renderer reads the
+ * presence of the array as "this projection accounts for every blow", and would otherwise fall
+ * back to guessing hits out of `hp01` deltas and play each one twice.
+ */
+export function projectBattleSnapshot(
+  state: Readonly<BattleState>,
+  ticks: readonly BattleTickEvents[] = [],
+): RenderSnapshot {
   const tick = state.combatTick
   const units: RenderUnit[] = []
   const framedBodies: Vec2[] = []
@@ -252,6 +393,7 @@ export function projectBattleSnapshot(state: Readonly<BattleState>): RenderSnaps
     units,
     projectiles: [],
     effects,
+    actionEvents: projectActionEvents(state, ticks),
     camera: { centerX: center.x, centerY: center.y, ...frameAround(center, framedBodies) },
     // §1.7's arena, which is where play is confined and where the board's rail belongs. It is
     // NOT the camera rectangle: that follows the command unit, and a board drawn at its extent

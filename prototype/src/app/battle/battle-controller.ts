@@ -33,6 +33,7 @@
 import { createBattle, type Battle } from '../../core/battle/battle'
 import type { PointerPhase } from '../../core/battle/input'
 import type { Vec2 } from '../../core/battle/types'
+import type { ResolvedTick } from '../../core/battle/tick'
 import { projectBattleHud, type BattleHud } from '../../core/battle-view/hud'
 import { BATTLE_TICKS_PER_SECOND, projectBattleSnapshot } from '../../core/battle-view/snapshot'
 import type { RenderSnapshot } from '../../core/types'
@@ -173,9 +174,29 @@ export function createBattleController(options: BattleControllerOptions): Battle
   let frameSamples: FrameSample[] = []
   const listeners = new Set<(hud: BattleHud) => void>()
 
+  /**
+   * The ticks THIS FRAME ran, waiting to be projected (§액션 피드백).
+   *
+   * A blow is an event and `BattleState` holds no events — §1.17's no-scratch rule reserves the
+   * state for what a later tick reads, and one "attacks this tick" field would invalidate all
+   * three seed digests. `battle.step()` already hands its whole derived tick back, so the frame
+   * loop keeps them here and the projection turns them into `RenderActionEvent`s. This is a
+   * DISPLAY path: nothing is written back, and `src/core/battle` is untouched by all of it.
+   *
+   * It is DRAINED by `snapshot()` rather than merely overwritten, and that is the difference
+   * between an animation and a repeat. A frame's events belong to that frame's draw; a snapshot
+   * read from outside the loop — a test, the capture harness, a shell reading the board — is a
+   * read of where things ARE, and handing it a backlog of blows would play each of them twice.
+   */
+  let pendingTicks: ResolvedTick[] = []
+
   // The one place the authoritative state is read, and it is read only to project it.
   const hud = (): BattleHud => projectBattleHud(battle.state())
-  const snapshot = (): RenderSnapshot => projectBattleSnapshot(battle.state())
+  const snapshot = (): RenderSnapshot => {
+    const ticks = pendingTicks
+    pendingTicks = []
+    return projectBattleSnapshot(battle.state(), ticks)
+  }
 
   const notify = (): void => {
     const view = hud()
@@ -290,6 +311,9 @@ export function createBattleController(options: BattleControllerOptions): Battle
       if (!isVisible()) {
         accumulatorMs = 0
         lastFrameAt = timestamp
+        // Nothing was stepped, so nothing happened to report — and the last visible frame's
+        // blows must not be replayed into this one.
+        pendingTicks = []
         drawFrame(0)
         notifyTimed()
         recordFrame(startedAt)
@@ -301,7 +325,11 @@ export function createBattleController(options: BattleControllerOptions): Battle
         let ran = 0
         const beforeSim = now()
         while (accumulatorMs >= STEP_THRESHOLD_MS && ran < MAX_STEPS_PER_FRAME) {
-          battle.step()
+          // EVERY tick that ran contributes, in the order it ran. Three ticks in one frame is
+          // the measured normal here, and keeping only the last would delete two thirds of a
+          // volley — every one of them a shot the player fired and never saw.
+          const result = battle.step()
+          if (result.ran) pendingTicks.push(result)
           steps += 1
           accumulatorMs -= STEP_MS
           ran += 1
@@ -382,6 +410,8 @@ export function createBattleController(options: BattleControllerOptions): Battle
       steps = 0
       inputLog = []
       frameSamples = []
+      // The finished run's last frame must not animate on the new run's first one.
+      pendingTicks = []
       lastFrameAt = null
       accumulatorMs = 0
       notify()
