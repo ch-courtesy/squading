@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { ARENA_HEIGHT, ARENA_WIDTH } from '../src/core/gameplay/constants'
+import { DIORAMA_PITCH_RADIANS } from '../src/renderers/three-hybrid/staging'
 import {
   PROP_KEEP_OUT,
   planTerrainProps,
@@ -8,17 +9,21 @@ import {
   type TerrainPropKind,
 } from '../src/renderers/three-hybrid/terrain-props'
 
-// The terrain surround is decoration, so the properties worth pinning are the ones that
-// keep it decoration: it never enters the play area, it never hides a unit standing on
-// the board, and it is reproducible from its own cosmetic seed rather than from anything
-// the authority owns.
+// The terrain SURROUND — the belt of crates, conifers and banners outside the rail — is
+// decoration, so the properties worth pinning are the ones that keep it decoration: it never
+// enters the play area, it never hides a unit standing on the board, and it is reproducible from
+// its own cosmetic seed rather than from anything the authority owns.
+//
+// The clutter that DOES lie inside the play area is a different planner with a different
+// contract (§판 안 지형 소품) and is covered in `field-clutter.test.ts`. Splitting them is what
+// keeps this file's guarantee — no surround prop on the board — literally true.
 const BOUNDS = { centerX: ARENA_WIDTH / 2, centerY: ARENA_HEIGHT / 2, worldWidth: ARENA_WIDTH, worldHeight: ARENA_HEIGHT }
-// The staged camera pitch is 30 degrees, so a prop hides cot(30) of board per unit of
-// its own height. The renderer passes the same number.
-const SIGHTLINE_SLOPE = 1.05 / Math.tan((30 * Math.PI) / 180)
+// A prop hides cot(pitch) of board per unit of its own height, so this rides the staged pitch
+// rather than a copy of it. The renderer passes the same number.
+const SIGHTLINE_SLOPE = 1.05 / Math.tan(DIORAMA_PITCH_RADIANS)
 
 describe('terrain prop placement', () => {
-  it('places every prop outside the play area', () => {
+  it('places every surround prop outside the play area', () => {
     const placements = planTerrainProps(BOUNDS, { sightlineSlope: SIGHTLINE_SLOPE })
 
     expect(placements.length).toBeGreaterThan(80)

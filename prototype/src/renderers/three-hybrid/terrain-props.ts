@@ -4,14 +4,25 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import { cosmeticRandom } from './diorama-assets'
 
 /**
- * The terrain that surrounds the play area: wooden crate stacks, plank barricades,
- * painted conifers, faction banners, sandbag piles and scattered debris.
+ * The scenery of the diorama, in two sets with two different contracts.
  *
- * Everything here is decoration. The placement runs off its own cosmetic seed, is
- * evaluated once when the diorama presentation is applied, and never reaches the
- * authority state: it reads only the arena bounds the snapshot already publishes and
- * writes nothing back. No prop is ever placed inside the play area, so a prop can not
- * be mistaken for cover the simulation does not model.
+ * THE SURROUND (`planTerrainProps`) is everything OUTSIDE the play area: wooden crate stacks,
+ * plank barricades, painted conifers, faction banners, sandbag piles and scattered debris. It is
+ * free to be tall, because nobody can stand behind it — no unit can leave the arena. Its
+ * placement rule is `PROP_KEEP_OUT`, and `terrain-props.test.ts` holds it.
+ *
+ * THE FIELD CLUTTER (`planFieldClutter`) is INSIDE the play area, which the concept sheet fills
+ * and this board left bare. That is a far more dangerous place to put a prop, and §판 안 지형
+ * 소품 of the visuals spec says why: §1.6 removed cover after five review rounds, so anything on
+ * the board that LOOKS like it could shelter a body is a promise the simulation will not keep.
+ * The clutter therefore obeys a shape rule with teeth (`CLUTTER_FLAT_HEIGHT`,
+ * `CLUTTER_POLE_RADIUS`) and `field-clutter.test.ts` holds it: a piece is either low enough to
+ * step over or thin enough to see straight past, never both tall and wide.
+ *
+ * Everything here is decoration. Both placements run off cosmetic seeds, are evaluated once when
+ * the diorama presentation is applied, and never reach the authority state: they read only the
+ * arena bounds the snapshot already publishes and write nothing back. `core/` does not know the
+ * scenery exists, and the three seed digests are the proof of it.
  *
  * Geometry-wise every prop is built from Three.js primitives, has its UVs remapped
  * into one code-generated canvas atlas and its paint baked into vertex colours, so the
@@ -48,7 +59,10 @@ export type PropPlacement = {
 
 export type TerrainProps = {
   readonly meshes: readonly THREE.Mesh[]
+  /** The SURROUND, outside the rail. Never inside the play area. */
   readonly placements: readonly PropPlacement[]
+  /** The clutter ON the board. Walk-through by construction — see the shape rule below. */
+  readonly fieldClutter: readonly ClutterPlacement[]
   dispose(): void
 }
 
@@ -93,6 +107,9 @@ export type TerrainPlanOptions = {
   readonly seed?: number
   readonly count?: number
   readonly sightlineSlope?: number
+  /** The field clutter's own stream, kept separate so the two sets cannot shift each other. */
+  readonly clutterSeed?: number
+  readonly clutterCount?: number
 }
 
 /**
@@ -151,6 +168,250 @@ function pickKind(roll: number, heightLimit: number, scale: number): KindSpec | 
 /** Height the placement rule promises this prop will not exceed. */
 export function propMaxHeight(kind: TerrainPropKind, scale: number): number {
   return KIND_SPECS.find((spec) => spec.kind === kind)!.maxHeight * scale
+}
+
+// --- Field clutter: scenery INSIDE the play area ------------------------------------
+//
+// §판 단 지형 소품, and the whole design is one rule.
+//
+// §1.6 deleted cover from the game after five rounds of review, and the reason a crate wall on
+// the board is a bug rather than a decoration is that a player will stand behind it, nothing
+// will happen, and the game will read as broken. So the clutter is not "cover, but small". Every
+// piece is one of two shapes, and NEITHER can shelter a miniature:
+//
+//   FLAT   — no taller than `CLUTTER_FLAT_HEIGHT`, which is under a trooper's knee. Wheel ruts,
+//            spilled pebbles, a board lying face down, a scrub tuft, spent brass. A body walks
+//            over it and is drawn in front of it, which is the whole message.
+//   POLE   — may stand up, but its footprint radius is at most `CLUTTER_POLE_RADIUS`: a range
+//            stake, a pennant on a dowel. Thinner than a rifle barrel, so there is visibly no
+//            body-width of anything to hide behind.
+//
+// `pieceExtent` below is what makes that checkable rather than aspirational: it reports the real
+// height and radius the builder produces, and `field-clutter.test.ts` walks every kind at every
+// scale the planner can pick and asserts the rule against the built geometry's own numbers.
+
+export type FieldClutterKind = 'pebbles' | 'plank' | 'tuft' | 'brass' | 'stake'
+
+export type ClutterPlacement = {
+  readonly kind: FieldClutterKind
+  readonly x: number
+  readonly z: number
+  readonly rotation: number
+  readonly scale: number
+  readonly variant: number
+}
+
+/** Tall enough to see, low enough to step over. A trooper's knee is about 0.55 world units. */
+export const CLUTTER_FLAT_HEIGHT = 0.22
+/** A standing piece may be no wider than this, so it shelters nothing. */
+export const CLUTTER_POLE_RADIUS = 0.1
+
+type ClutterSpec = {
+  readonly kind: FieldClutterKind
+  readonly weight: number
+  /** `flat` obeys the height rule; `pole` obeys the radius rule. */
+  readonly shape: 'flat' | 'pole'
+  /**
+   * Footprint radius at `scale` 1. It is the spacing the planner keeps between pieces AND the
+   * circle a unit has to step into to count as standing on this piece, so it is deliberately at
+   * least as large as the built geometry — `field-clutter.test.ts` asserts that direction.
+   */
+  readonly radius: number
+}
+
+const CLUTTER_SPECS: readonly ClutterSpec[] = [
+  { kind: 'pebbles', weight: 26, shape: 'flat', radius: 0.5 },
+  { kind: 'plank', weight: 20, shape: 'flat', radius: 0.75 },
+  { kind: 'tuft', weight: 24, shape: 'flat', radius: 0.34 },
+  { kind: 'brass', weight: 18, shape: 'flat', radius: 0.28 },
+  { kind: 'stake', weight: 12, shape: 'pole', radius: 0.075 },
+]
+
+/** Cosmetic-only, and deliberately a different stream from the surround's. */
+export const FIELD_CLUTTER_SEED = 0x4c1a77b
+const CLUTTER_COUNT = 190
+/** Keeps a piece off the rail, which the surround owns. */
+const CLUTTER_EDGE_INSET = 1.1
+
+export type FieldClutterOptions = {
+  readonly seed?: number
+  readonly count?: number
+}
+
+/**
+ * Deterministic placement inside the play area. Pure — no canvas, no WebGL, no authority state —
+ * which is what lets a unit test prove the shape rule and the determinism without a browser.
+ */
+export function planFieldClutter(bounds: TerrainBounds, options: FieldClutterOptions = {}): readonly ClutterPlacement[] {
+  const random = cosmeticRandom(options.seed ?? FIELD_CLUTTER_SEED)
+  const count = options.count ?? CLUTTER_COUNT
+  const halfWidth = bounds.worldWidth / 2 - CLUTTER_EDGE_INSET
+  const halfHeight = bounds.worldHeight / 2 - CLUTTER_EDGE_INSET
+  const placements: ClutterPlacement[] = []
+  const total = CLUTTER_SPECS.reduce((sum, spec) => sum + spec.weight, 0)
+
+  for (let attempt = 0; attempt < count * 8 && placements.length < count; attempt += 1) {
+    const x = bounds.centerX + (random() * 2 - 1) * halfWidth
+    const z = bounds.centerY + (random() * 2 - 1) * halfHeight
+    const roll = random() * total
+    const rotation = random() * Math.PI * 2
+    const variant = random()
+    const scale = 0.8 + random() * 0.55
+    let cursor = roll
+    const spec = CLUTTER_SPECS.find((candidate) => (cursor -= candidate.weight) <= 0) ?? CLUTTER_SPECS[CLUTTER_SPECS.length - 1]!
+    const radius = spec.radius * scale
+    // Spaced apart so the clutter never piles into something with a silhouette. Two boards
+    // stacked on each other would start to read as a shape a body could get behind.
+    const crowded = placements.some((other) => {
+      const separation = radius + clutterSpec(other.kind).radius * other.scale
+      const dx = other.x - x
+      const dz = other.z - z
+      return dx * dx + dz * dz < separation * separation
+    })
+    if (crowded) continue
+    placements.push({ kind: spec.kind, x, z, rotation, scale, variant })
+  }
+
+  return placements
+}
+
+function clutterSpec(kind: FieldClutterKind): ClutterSpec {
+  return CLUTTER_SPECS.find((spec) => spec.kind === kind)!
+}
+
+/** Which of the two shape rules a kind is held to. */
+export function clutterShape(kind: FieldClutterKind): 'flat' | 'pole' {
+  return clutterSpec(kind).shape
+}
+
+/** The footprint a unit has to walk into to be standing on this piece. */
+export function clutterFootprintRadius(placement: ClutterPlacement): number {
+  return clutterSpec(placement.kind).radius * placement.scale
+}
+
+/**
+ * The real height and footprint radius of a BUILT piece, read off its geometry.
+ *
+ * The declared numbers in `CLUTTER_SPECS` are what the planner reasons with; this is what the
+ * builder actually produced. The test asserts the second against the rule, so a builder that
+ * quietly grows past its own declaration fails instead of shipping.
+ */
+export function clutterExtent(placement: ClutterPlacement): { height: number; radius: number } {
+  const box = new THREE.Box3()
+  const parts = buildClutter(placement)
+  for (const geometry of parts) {
+    geometry.scale(placement.scale, placement.scale, placement.scale)
+    geometry.computeBoundingBox()
+    if (geometry.boundingBox) box.union(geometry.boundingBox)
+    geometry.dispose()
+  }
+  if (box.isEmpty()) return { height: 0, radius: 0 }
+  return {
+    height: box.max.y,
+    radius: Math.max(Math.abs(box.min.x), Math.abs(box.max.x), Math.abs(box.min.z), Math.abs(box.max.z)),
+  }
+}
+
+function buildPebbles(variant: number): THREE.BufferGeometry[] {
+  const count = 3 + Math.floor(variant * 3)
+  return Array.from({ length: count }, (_, index) => {
+    const angle = (index / count) * Math.PI * 2 + variant * 2.2
+    const spread = 0.14 + variant * 0.19
+    return piece(new THREE.SphereGeometry(0.09 + (index % 3) * 0.022, 6, 5), {
+      cell: CELL_CRATE,
+      color: STONE_PAINT,
+      shade: 0.86 + (index % 3) * 0.09,
+      at: [Math.cos(angle) * spread, 0.045, Math.sin(angle) * spread],
+      scale: [1.25, 0.6, 1.1],
+      rotate: [0, angle, 0],
+    })
+  })
+}
+
+function buildPlank(variant: number): THREE.BufferGeometry[] {
+  const pieces = [
+    piece(new THREE.BoxGeometry(1.05 + variant * 0.42, 0.06, 0.19), {
+      cell: CELL_PLANK,
+      color: PLANK_PAINT,
+      shade: 0.82,
+      at: [0, 0.03, 0],
+      rotate: [0, variant * 0.5, 0],
+    }),
+  ]
+  if (variant > 0.4) {
+    pieces.push(piece(new THREE.BoxGeometry(0.72 + variant * 0.3, 0.055, 0.16), {
+      cell: CELL_PLANK,
+      color: PLANK_PAINT,
+      shade: 1.02,
+      at: [0.12, 0.085, 0.2],
+      rotate: [0, -0.7 - variant, 0],
+    }))
+  }
+  return pieces
+}
+
+function buildTuft(variant: number): THREE.BufferGeometry[] {
+  const paint = FOLIAGE_PAINTS[Math.floor(variant * FOLIAGE_PAINTS.length) % FOLIAGE_PAINTS.length]!
+  const blades = 4 + Math.floor(variant * 3)
+  return Array.from({ length: blades }, (_, index) => {
+    const angle = (index / blades) * Math.PI * 2 + variant
+    const lean = 0.3 + (index % 3) * 0.1
+    return piece(new THREE.ConeGeometry(0.048, 0.15, 4), {
+      cell: CELL_FOLIAGE,
+      color: paint,
+      shade: 0.82 + (index % 3) * 0.12,
+      at: [Math.cos(angle) * 0.1, 0.068, Math.sin(angle) * 0.1],
+      rotate: [Math.sin(angle) * lean, angle, Math.cos(angle) * -lean],
+    })
+  })
+}
+
+function buildBrass(variant: number): THREE.BufferGeometry[] {
+  const count = 3 + Math.floor(variant * 4)
+  return Array.from({ length: count }, (_, index) => {
+    const angle = variant * 6.2 + index * 1.9
+    return piece(new THREE.CylinderGeometry(0.026, 0.026, 0.1, 5), {
+      cell: CELL_CRATE,
+      color: BRASS_PAINT,
+      shade: 0.9 + (index % 2) * 0.2,
+      at: [Math.cos(angle) * 0.16, 0.026, Math.sin(angle) * 0.16],
+      rotate: [Math.PI / 2, 0, angle],
+    })
+  })
+}
+
+/**
+ * A surveyor's range stake: a dowel with a small pennant and a painted band. It is allowed to
+ * stand up precisely because it is `CLUTTER_POLE_RADIUS` thin — the eye reads straight past it,
+ * and a miniature standing behind one is fully visible with a line drawn across it.
+ */
+function buildStake(variant: number): THREE.BufferGeometry[] {
+  const height = 0.78 + variant * 0.24
+  const paint = BANNER_PAINTS[Math.floor(variant * BANNER_PAINTS.length) % BANNER_PAINTS.length]!
+  return [
+    piece(new THREE.CylinderGeometry(0.026, 0.032, height, 5), { cell: CELL_PLANK, color: TRUNK_PAINT, at: [0, height / 2, 0] }),
+    piece(new THREE.BoxGeometry(0.055, 0.07, 0.055), { cell: CELL_PLANK, color: PLANK_PAINT, shade: 1.2, at: [0, height * 0.55, 0] }),
+    // The pennant is a TAB, not a flag: it straddles the dowel rather than hanging off one side,
+    // so the whole piece stays inside `CLUTTER_POLE_RADIUS` at the largest scale the planner can
+    // roll. A pennant with a real span would be the first thing on this board a player tried to
+    // stand behind.
+    piece(new THREE.BoxGeometry(0.012, 0.15, 0.11), {
+      cell: CELL_CLOTH,
+      color: paint,
+      at: [0, height - 0.1, 0],
+      rotate: [0, 0, 0],
+    }),
+  ]
+}
+
+function buildClutter(placement: ClutterPlacement): THREE.BufferGeometry[] {
+  switch (placement.kind) {
+    case 'pebbles': return buildPebbles(placement.variant)
+    case 'plank': return buildPlank(placement.variant)
+    case 'tuft': return buildTuft(placement.variant)
+    case 'brass': return buildBrass(placement.variant)
+    case 'stake': return buildStake(placement.variant)
+  }
 }
 
 // --- Painted atlas ---------------------------------------------------------------
@@ -359,7 +620,9 @@ function createApronTexture(seed: number): THREE.CanvasTexture {
   const size = 512
   const context = context2d(size, size)
   const random = cosmeticRandom(seed ^ 0x27d4eb2f)
-  context.fillStyle = '#7d6142'
+  // Lifted in batch K: at the previous value the apron was several stops under the ruled board
+  // beside it, so the diorama read as a lit mat floating in a dark room rather than as one table.
+  context.fillStyle = '#a8875e'
   context.fillRect(0, 0, size, size)
 
   // Every feature is drawn nine times, once per wrap offset, so the tile repeats without
@@ -488,6 +751,8 @@ const PLANK_PAINT = 0xc99a63
 const CRATE_PAINT = 0xd0a06a
 const SANDBAG_PAINT = 0xbda471
 const STONE_PAINT = 0x9c8f7c
+/** Spent brass on the board. Warm and bright, so a scatter of it reads at a glance. */
+const BRASS_PAINT = 0xd8a94e
 const FOLIAGE_PAINTS = [0x4f8a55, 0x3f7048, 0x5d9a54, 0x35603f] as const
 const BANNER_PAINTS = [0x4bc6bd, 0xd45d52, 0x8158c4] as const
 
@@ -654,6 +919,19 @@ export function createTerrainProps(bounds: TerrainBounds, options: TerrainPlanOp
     }
   }
 
+  // The board clutter merges into the SAME buffer as the surround, so filling the play area
+  // costs no extra draw call: the whole diorama's scenery is still one mesh plus the apron,
+  // which is what `diorama-presentation.spec.ts` pins at `propMeshes: 2`.
+  const fieldClutter = planFieldClutter(bounds, { seed: options.clutterSeed, count: options.clutterCount })
+  for (const placement of fieldClutter) {
+    for (const geometry of buildClutter(placement)) {
+      geometry.scale(placement.scale, placement.scale, placement.scale)
+      geometry.rotateY(placement.rotation)
+      geometry.translate(placement.x, 0, placement.z)
+      parts.push(geometry)
+    }
+  }
+
   const seed = options.seed ?? TERRAIN_PROP_SEED
   const atlas = createPropAtlas(seed)
   const merged = mergeGeometries(parts)
@@ -678,7 +956,9 @@ export function createTerrainProps(bounds: TerrainBounds, options: TerrainPlanOp
   const apronTexture = createApronTexture(seed)
   apronTexture.repeat.set(apronWidth / APRON_TILE, apronDepth / APRON_TILE)
   const apronGeometry = new THREE.PlaneGeometry(apronWidth, apronDepth)
-  const apronMaterial = new THREE.MeshLambertMaterial({ map: apronTexture, color: 0xdcc6a4 })
+  // Brightened in batch K alongside the board. The apron is unlit by the shadow pass (below) and
+  // was reading as a dark moat around a sunlit board rather than as the table the board sits on.
+  const apronMaterial = new THREE.MeshLambertMaterial({ map: apronTexture, color: 0xf0d9b4 })
   const apron = new THREE.Mesh(apronGeometry, apronMaterial)
   apron.name = 'diorama-terrain-apron'
   apron.rotation.x = -Math.PI / 2
@@ -695,6 +975,7 @@ export function createTerrainProps(bounds: TerrainBounds, options: TerrainPlanOp
   return {
     meshes: [apron, mesh],
     placements,
+    fieldClutter,
     dispose: () => {
       mesh.removeFromParent()
       apron.removeFromParent()
