@@ -96,6 +96,14 @@ export type FrameSample = {
   draw: number
   /** Time inside `notify()`: the HUD projection and the DOM writes that follow it. */
   hud: number
+  /**
+   * How many `RenderActionEvent`s this frame handed the renderer.
+   *
+   * Recorded because the cost of the action feedback is the one thing in this frame that is not
+   * proportional to the roster: a quiet frame carries none and a volley tick carries dozens, and
+   * "the worst frame" stops being the same question as "the average frame" once that is true.
+   */
+  events: number
 }
 
 type FrameRequester = (callback: FrameRequestCallback) => number
@@ -270,7 +278,7 @@ export function createBattleController(options: BattleControllerOptions): Battle
   }
 
   /** The phase timings of the frame being drawn right now, reset at its head. */
-  let phase = { steps: 0, sim: 0, project: 0, draw: 0, hud: 0 }
+  let phase = { steps: 0, sim: 0, project: 0, draw: 0, hud: 0, events: 0 }
 
   const recordFrame = (startedAt: number): void => {
     frameSamples.push({
@@ -281,6 +289,7 @@ export function createBattleController(options: BattleControllerOptions): Battle
       project: phase.project,
       draw: phase.draw,
       hud: phase.hud,
+      events: phase.events,
     })
     if (frameSamples.length > FRAME_SAMPLE_LIMIT) frameSamples.shift()
   }
@@ -291,6 +300,7 @@ export function createBattleController(options: BattleControllerOptions): Battle
     const view = snapshot()
     const beforeDraw = now()
     phase.project = beforeDraw - beforeProject
+    phase.events = view.actionEvents?.length ?? 0
     renderer!.render(view, alpha)
     phase.draw = now() - beforeDraw
   }
@@ -304,7 +314,7 @@ export function createBattleController(options: BattleControllerOptions): Battle
   const renderFrame = (token: number, timestamp: number): void => {
     if (token !== generation || !renderer) return
     const startedAt = now()
-    phase = { steps: 0, sim: 0, project: 0, draw: 0, hud: 0 }
+    phase = { steps: 0, sim: 0, project: 0, draw: 0, hud: 0, events: 0 }
     try {
       // §1.15: hidden is not a mode, so the core cannot refuse this — not asking is the whole
       // enforcement. The accumulator is dropped with it, so nothing is owed on return.

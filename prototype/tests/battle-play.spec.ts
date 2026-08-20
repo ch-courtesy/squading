@@ -533,10 +533,81 @@ test.describe('§4.3 frame budget', () => {
     // actionable is the phase split of the frames that produced it. Printed, not asserted:
     // an attribution is a measurement, and a threshold on it would be a second criterion
     // nobody wrote.
-    for (const sample of sorted.slice(-5).reverse()) {
+    const describe = (label: string, sample: (typeof all)[number]) =>
       console.log(
-        `[§4.3] worst tick=${sample.tick} ms=${sample.ms.toFixed(2)} steps=${sample.steps}` +
+        `[§4.3] ${label} tick=${sample.tick} ms=${sample.ms.toFixed(2)} steps=${sample.steps}` +
+          ` events=${sample.events}` +
           ` sim=${sample.sim.toFixed(2)} project=${sample.project.toFixed(2)}` +
+          ` draw=${sample.draw.toFixed(2)} hud=${sample.hud.toFixed(2)}`,
+      )
+    for (const sample of sorted.slice(-5).reverse()) describe('worst', sample)
+
+    // AND THE WORST MOMENTS BY WORK RATHER THAN BY TIME (§액션 피드백, batch L). Every other cost
+    // in this frame scales with the roster; the action feedback scales with what HAPPENED, so a
+    // volley tick and an elite strike tick are frames the slowest-five list can miss entirely.
+    // Printed, not asserted, for the same reason the maximum is not: an attribution is a
+    // measurement, and a threshold on it would be a criterion nobody wrote.
+    const busiest = [...all].sort((left, right) => right.events - left.events)
+    for (const sample of busiest.slice(0, 5)) describe('busiest', sample)
+    const withEvents = all.filter((sample) => sample.events > 0)
+    const eventFrames = [...withEvents].sort((left, right) => left.ms - right.ms)
+    if (eventFrames.length > 0) {
+      const eventP95 = eventFrames[Math.min(eventFrames.length - 1, Math.floor(eventFrames.length * 0.95))]!.ms
+      console.log(
+        `[§4.3] frames carrying action events=${withEvents.length}/${all.length}` +
+          ` maxEvents=${busiest[0]!.events} p95=${eventP95.toFixed(2)}ms` +
+          ` max=${eventFrames.at(-1)!.ms.toFixed(2)}ms`,
+      )
+    }
+    expect(p95).toBeLessThanOrEqual(12)
+  })
+
+  /**
+   * THE ELITE'S WINDOW, which the run above never reaches (§액션 피드백, batch L).
+   *
+   * `seed 47` with no input loses around tick 1600, and §1.12's elite arrives at
+   * `ELITE_SPAWN_TICK`. So the frames that carry the most action feedback in the whole game — the
+   * strike ticks, where one blast damages several bodies at once and the table shakes — are not
+   * in the measurement above at all. This drives `seed-h`'s winning circuit past the elite and
+   * measures the window around it.
+   *
+   * It asserts the SAME criterion as its sibling and prints the same attribution; what it adds is
+   * the part of the run where the per-frame work is highest.
+   */
+  test('holds the frame CPU p95 through §1.12 elite window on seed-h', async ({ page }) => {
+    test.skip(!process.env.BATTLE_PERF, 'headless software rasterization cannot measure this')
+    test.setTimeout(420_000)
+    await start(page, 'seed-h')
+    const terminal = await driveCircuit(page, WIN_CIRCUIT)
+    await expect(terminal).toBeVisible({ timeout: 120_000 })
+    const endTick = await tick(page)
+    expect(endTick).toBeGreaterThan(ELITE_SPAWN_TICK)
+
+    const all = await page.evaluate(() =>
+      window.__SQUADING_TEST__!.battle!.frameSamples().map((sample) => ({ ...sample })),
+    )
+    const elite = all.filter((sample) => sample.tick >= ELITE_SPAWN_TICK)
+    expect(elite.length).toBeGreaterThan(20)
+
+    const sorted = [...elite].sort((left, right) => left.ms - right.ms)
+    const p95 = sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * 0.95))]!.ms
+    const busiest = [...elite].sort((left, right) => right.events - left.events)
+    console.log(
+      `[§4.3 elite] frames=${elite.length} ticks=${elite[0]!.tick}..${elite.at(-1)!.tick}` +
+        ` p95=${p95.toFixed(2)}ms max=${sorted.at(-1)!.ms.toFixed(2)}ms` +
+        ` maxEvents=${busiest[0]!.events}`,
+    )
+    for (const sample of busiest.slice(0, 5)) {
+      console.log(
+        `[§4.3 elite] busiest tick=${sample.tick} ms=${sample.ms.toFixed(2)} steps=${sample.steps}` +
+          ` events=${sample.events} sim=${sample.sim.toFixed(2)} project=${sample.project.toFixed(2)}` +
+          ` draw=${sample.draw.toFixed(2)} hud=${sample.hud.toFixed(2)}`,
+      )
+    }
+    for (const sample of sorted.slice(-3).reverse()) {
+      console.log(
+        `[§4.3 elite] worst tick=${sample.tick} ms=${sample.ms.toFixed(2)} steps=${sample.steps}` +
+          ` events=${sample.events} sim=${sample.sim.toFixed(2)} project=${sample.project.toFixed(2)}` +
           ` draw=${sample.draw.toFixed(2)} hud=${sample.hud.toFixed(2)}`,
       )
     }

@@ -1910,14 +1910,15 @@ class ThreeHybridRenderer implements HybridGameRenderer {
       // radius as the band under it, so the two can never disagree about the strike's footprint.
       let overlay: THREE.Mesh | undefined
       if (this.diorama) {
-        overlay = new THREE.Mesh(this.telegraphOverlayGeometry!, new THREE.MeshBasicMaterial({
-          color: TELEGRAPH_SIGIL_COLOR,
-          transparent: true,
-          opacity: TELEGRAPH_OVERLAY_BASE_OPACITY,
-          depthTest: false,
-          depthWrite: false,
-          side: THREE.DoubleSide,
-        }))
+        // `flatMaterial` rather than a hand-rolled `MeshBasicMaterial`, for two measured
+        // reasons. It is the SAME material recipe as the ground band, so the outline wears the
+        // same colour under the tone curve instead of a tone-mapped version of it — and it is
+        // the same shader program, so building it costs no compile. A hand-rolled variant
+        // differed in `side` and `toneMapped`, which are both program parameters in three.js,
+        // and the compile it forced added 6-9 ms to the draw of every telegraph frame.
+        const overlayMaterial = flatMaterial(TELEGRAPH_SIGIL_COLOR, TELEGRAPH_OVERLAY_BASE_OPACITY)
+        overlayMaterial.depthTest = false
+        overlay = new THREE.Mesh(this.telegraphOverlayGeometry!, overlayMaterial)
         overlay.rotation.x = -Math.PI / 2
         overlay.position.y = 0.03
         overlay.renderOrder = TELEGRAPH_OVERLAY_RENDER_ORDER
