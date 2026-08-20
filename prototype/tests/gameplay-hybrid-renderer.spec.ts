@@ -90,7 +90,13 @@ test('frames the gameplay arena so every unit is actually on screen', async ({ p
   // which is what gives the miniatures a silhouette and a long shadow. The framing
   // above is the constraint that angle has to live inside: the arena is 48 wide and
   // enemies spawn on its boundary, so the view can never be tightened past it.
-  expect(framing.cameraPitchDegrees).toBeGreaterThan(24)
+  //
+  // The window is a SANITY BAND, not the staged value — `staging.ts` owns the angle and
+  // `diorama-presentation.spec.ts` pins it to the degree. What this catches is the failure the
+  // v1 route can still produce on its own: a camera that has drifted back to looking straight
+  // down (the arena becomes a board game again) or flopped over towards the horizon (the far
+  // rank disappears). Batch K moved the staged angle from 30 to 23 and the band moved with it.
+  expect(framing.cameraPitchDegrees).toBeGreaterThan(18)
   expect(framing.cameraPitchDegrees).toBeLessThan(36)
   expect(framing.viewHalfWidth).toBeLessThan(27)
   expect(framing.viewHalfWidth).toBeGreaterThanOrEqual(24)

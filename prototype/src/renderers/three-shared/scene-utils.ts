@@ -50,9 +50,15 @@ export function cardboardMaterial(team: Team, texture: THREE.Texture): THREE.Mes
  * and buys nothing. Batch J measured it: each base ring on the board was costing two GL draw
  * calls, which put a unit over the four the visuals spec budgets it before its health gauge
  * had been added at all.
+ *
+ * `toneMapped: false` because everything built with this helper is a READ-OUT — a base ring, a
+ * hazard band, a rescue token — whose colour *is* its information. The diorama presentation runs
+ * an ACES curve so its lit surfaces can be keyed hard without clipping, and a marker pushed
+ * through that curve comes out as a colour nobody chose. It is a no-op on the lab route, which
+ * does no tone mapping at all.
  */
 export function flatMaterial(color: number, opacity = 1): THREE.MeshBasicMaterial {
-  return new THREE.MeshBasicMaterial({ color, transparent: opacity < 1, opacity, side: THREE.DoubleSide, forceSinglePass: true, depthWrite: opacity >= 1 })
+  return new THREE.MeshBasicMaterial({ color, transparent: opacity < 1, opacity, side: THREE.DoubleSide, forceSinglePass: true, depthWrite: opacity >= 1, toneMapped: false })
 }
 
 export function disposeObjectMaterials(object: THREE.Object3D): void {

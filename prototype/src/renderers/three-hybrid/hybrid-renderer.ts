@@ -5,9 +5,9 @@ import { qualityProfile } from '../../metrics/quality-ladder'
 import type { GameRenderer, QualityLevel, RendererMetrics } from '../contract'
 import { TEAM_TINTS, cardboardMaterial, createCardboardAssets, disposeObjectMaterials, flatMaterial, type CardboardAssets } from '../three-shared/scene-utils'
 import { DECAL_HEIGHT, FX_COSMETIC_SEED, createCombatFxAssets, createSurfaceDecals, surfaceDecalExtent, type CombatFxAssets, type SurfaceDecals } from './combat-fx'
-import { FIGURE_SCALE, cosmeticRandom, createDioramaAssets, createHealthGaugeGeometry, readHealthGaugeFill, setHealthGaugeColor, setHealthGaugeFill, type DioramaAssets, type MiniatureArchetype } from './diorama-assets'
+import { FIGURE_SCALE, GAUGE_HEIGHT, cosmeticRandom, createDioramaAssets, createHealthGaugeGeometry, readHealthGaugeFill, setHealthGaugeColor, setHealthGaugeFill, type DioramaAssets, type MiniatureArchetype } from './diorama-assets'
 import { DIORAMA_PITCH_RADIANS } from './staging'
-import { createTerrainProps, type TerrainProps } from './terrain-props'
+import { CLUTTER_FLAT_HEIGHT, CLUTTER_POLE_RADIUS, clutterExtent, clutterFootprintRadius, clutterShape, createTerrainProps, type TerrainProps } from './terrain-props'
 
 /**
  * Per-unit action-feedback state. It is *display-only*: nothing in here is ever read
@@ -61,6 +61,13 @@ type EffectVisual = {
   readonly halo?: THREE.Mesh
 }
 type TelegraphTrack = { remaining: number; longest: number; x: number; z: number; radius: number }
+/**
+ * The body's material, whichever presentation built it: the lab route paints a flat cardboard
+ * card (Lambert), the diorama a sculpted miniature with a specular lobe (Phong). Both carry the
+ * faction tint on `color` and the hit flash on `emissiveIntensity`, which is all the shared code
+ * below touches.
+ */
+type TintedBodyMaterial = THREE.MeshLambertMaterial | THREE.MeshPhongMaterial
 
 /**
  * Gameplay-facing view of the live scene graph, read straight off the Three objects.
@@ -83,6 +90,24 @@ export type HybridVisualState = {
     readonly cameraPitchDegrees: number
     readonly viewHalfWidth: number
     readonly viewHalfHeight: number
+    /**
+     * How much the miniatures hide each other, measured rather than assumed.
+     *
+     * Lowering the camera (§카메라) buys the figures their sides back and costs occlusion: a body
+     * of height `h` hides `h / tan(pitch)` of board behind it. This samples each drawn body's own
+     * screen footprint and reports what fraction of it bodies NEARER THE CAMERA cover, so "the
+     * back rank is still visible" is a number the suite can hold a ceiling on instead of a claim.
+     */
+    readonly occlusion: {
+      /** Bodies measured — standing, drawn, and inside the frustum. */
+      readonly bodies: number
+      readonly maxHiddenFraction: number
+      readonly meanHiddenFraction: number
+      /** Bodies with more than half their footprint behind another body. */
+      readonly mostlyHidden: number
+      /** Bodies with essentially nothing left on screen (>= 95% covered). */
+      readonly fullyHidden: number
+    }
   }
   /**
    * Which presentation the scene is wearing. The renderer is shared with the
@@ -117,6 +142,26 @@ export type HybridVisualState = {
     readonly surfaceDecalFlat: boolean
     readonly surfaceDecalsWithinPlayArea: boolean
     readonly surfaceDecalCastsShadow: boolean
+  }
+  /**
+   * §판 안 지형 소품, as facts rather than as a screenshot.
+   *
+   * The board clutter is the one thing in this batch that could actively mislead a player: §1.6
+   * removed cover, and a prop on the board that looks like it shelters a body is a promise the
+   * simulation will break. Three numbers carry the answer — every piece is inside the play area
+   * (it is board dressing, not a second surround), every piece obeys the shape rule that makes
+   * it walk-through, and units are ACTUALLY SEEN standing inside a piece's footprint, which is
+   * the fastest way a player learns it is not cover.
+   */
+  readonly fieldClutter: {
+    readonly items: number
+    readonly allInsidePlayArea: boolean
+    /** Pieces whose built geometry breaks the flat-or-thin rule. Zero, or the rule is a lie. */
+    readonly shapeViolations: number
+    readonly tallestFlatPiece: number
+    readonly widestPole: number
+    /** Live units whose centre is inside some piece's footprint right now. */
+    readonly unitsOverlappingClutter: number
   }
   /**
    * The health gauges, as counted off the live scene graph.
@@ -211,9 +256,11 @@ const DIORAMA_CAMERA_DISTANCE = 46
 // the board stands on. Anything more is wasted magnification — the 48-wide arena is
 // what caps the zoom, and every extra unit of margin shrinks the miniatures.
 const DIORAMA_EDGE_MARGIN = 2
-// Vertical allowance for a standing miniature: the elite is the tallest, roughly four
-// world units from its plinth to the tip of its staff. It never binds at a normal
-// viewport aspect, but it is what keeps a very tall window from clipping heads.
+// Vertical allowance for a standing miniature, used before any body has been built. Once the
+// diorama's geometry exists the real number is MEASURED off the tallest merged body
+// (`measureFigureHeadroom`) instead of copied here, because a hand-written height is exactly the
+// kind of constant a re-sculpt leaves behind: batch K grew the elite's staff and this number
+// would have been wrong the moment it did.
 const DIORAMA_FIGURE_HEADROOM = 4.4
 // The ruled board stops just outside its own rail; past that the terrain apron takes
 // over. That edge is what makes the play area read as a board rather than as a fence
@@ -226,13 +273,36 @@ const FRAME_RAIL_THICKNESS = 1.2
 const FRAME_RAIL_HEIGHT = 0.6
 const FRAME_RAIL_NAME = 'tabletop-frame-rail'
 const RIM_LIGHT_NAME = 'tabletop-rim-light'
-const BOARD_COLOR = 0xd6c0a0
+const BOARD_COLOR = 0xe8d0a6
 const CONTACT_SHADOW_COLOR = 0x1d1408
+/** The grounding patch under a base. Kept light: the key light's cast shadow is the real one. */
+const CONTACT_SHADOW_OPACITY = 0.38
+
+// --- Lighting -----------------------------------------------------------------------
+// A high key-to-fill ratio is what gives a sculpted miniature its form; the previous values
+// sat near 3:1 and read as ambient-lit plastic. These sit near 6:1 and are exposed through the
+// ACES curve, which is what keeps the bright side of a helmet from clipping to flat white.
+const DIORAMA_KEY_INTENSITY = 3.35
+const DIORAMA_FILL_INTENSITY = 0.55
+/** The cool counter-light that separates a purple raider from the sand it stands on. */
+const DIORAMA_RIM_INTENSITY = 1.15
+const DIORAMA_EXPOSURE = 1.18
+/**
+ * Painted-plastic sheen for the miniatures. Low and broad: a miniature is matte acrylic with a
+ * slight gloss on the raised edges, not a mirror. Diffuse shading alone gives a box face one
+ * uniform value however it is turned; the specular lobe is what puts a moving highlight on the
+ * lit edge of a pauldron and lets a helmet separate from the shoulder under it.
+ */
+const MINIATURE_SHININESS = 22
+const MINIATURE_SPECULAR = 0x35302a
 // Faction paint. The concept sheet fields teal and scarlet painted friendlies against a
 // purple horde, so the enemy miniature leaves the shared cardboard tint behind.
 const ENEMY_PAINT = 0x8158c4
 const ENEMY_COMMANDER_PAINT = 0x6d3fb5
-const ELITE_PAINT = 0xa274e6
+// Darkened in batch K. The sculpt's lit plates multiply the faction paint by `PAINT.edge`, and
+// on a tint this light every plate on the elite came out white — the one body on the board that
+// most needs to stay recognisably purple was the one losing its colour.
+const ELITE_PAINT = 0x7d4fc9
 const ENEMY_RING_COLOR = 0x8a5fd0
 const HOSTILE_LEADER_RING_COLOR = 0xba8ef5
 // An idle friendly still wears a ring, just a muted one, so the active squad's full
@@ -269,7 +339,11 @@ const FLASH_COLOR = 0xfff0cf
  * that scaling the elite — which is chipped by every friendly, every few ticks, for 24
  * hit points — would sit permanently white and lose its silhouette entirely.
  */
-const FLASH_PEAK = 0.55
+// Lowered in batch K, because the tone curve changed what this number means. Emissive is added
+// before the ACES curve, and at 0.55 a body being chipped every few ticks — the elite, always —
+// sat at the top of the curve and came out white. The scaling below already keeps the flash
+// proportional to the damage; this keeps the peak of it under the faction paint rather than over it.
+const FLASH_PEAK = 0.4
 const FLASH_FLOOR = 0.35
 /** How far a damaged unit will look for the hostile that plausibly shot it. The longest
  * authority attack range is well inside this, and it is only ever used to aim a lunge. */
@@ -284,12 +358,13 @@ const SHAKE_TICKS = 10
 const SHAKE_AMPLITUDE = 0.26
 /** Local weapon muzzles, in pre-scale miniature space (the figure faces +Z). */
 const MUZZLE_OFFSETS: Readonly<Record<MiniatureArchetype, readonly [number, number, number]>> = {
-  command: [0.33, 0.63, 0.23],
-  soldier: [0.33, 0.63, 0.23],
+  // The command unit's build is a head taller than the trooper's, so its rifle rides higher.
+  command: [0.42, 0.7, 0.21],
+  soldier: [0.42, 0.66, 0.21],
   // The melee class has no muzzle; the burst comes off the cleaver's edge instead.
-  melee: [0.46, 1.1, 0.06],
-  shooter: [0.06, 0.62, 1.0],
-  elite: [0.32, 1.72, 0.1],
+  melee: [0.6, 1.12, -0.04],
+  shooter: [0.06, 0.66, 1.02],
+  elite: [0.33, 2.06, 0.02],
 }
 // Pooled particle tints, allocated once. `ParticlePool.spawn` copies out of them, so no
 // colour object is ever created per event.
@@ -305,8 +380,8 @@ const SCRAP_TINTS: Readonly<Record<MiniatureArchetype, THREE.Color>> = {
 // always shown because the squad's state is the player's judgement material, hostiles only
 // once damaged so the opening board stays clean, and a downed body shows no gauge at all.
 /** How far above the body's own top the bar floats, in world units before the root scale. */
-const GAUGE_HEADROOM = 0.34
-const GAUGE_OPACITY = 0.94
+const GAUGE_HEADROOM = 0.15
+const GAUGE_OPACITY = 0.86
 /** Fill ramps. Friendly and hostile end at different colours so a bar keeps its faction. */
 const GAUGE_FRIENDLY_FULL = 0x8fe06a
 const GAUGE_FRIENDLY_MID = 0xf2c14e
@@ -332,6 +407,11 @@ const RESCUE_GOLD = 0xffb52e
 const RESCUE_PILLAR_RADIUS = 0.34
 const RESCUE_PILLAR_HEIGHT = 2.8
 
+/** No bodies to measure — an empty board hides nothing. */
+const EMPTY_OCCLUSION: HybridVisualState['framing']['occlusion'] = {
+  bodies: 0, maxHiddenFraction: 0, meanHiddenFraction: 0, mostlyHidden: 0, fullyHidden: 0,
+}
+
 export function createHybridRenderer(): HybridGameRenderer { return new ThreeHybridRenderer() }
 
 class ThreeHybridRenderer implements HybridGameRenderer {
@@ -343,6 +423,8 @@ class ThreeHybridRenderer implements HybridGameRenderer {
   private props: TerrainProps | null = null
   private fx: CombatFxAssets | null = null
   private surfaceDecals: SurfaceDecals | null = null
+  /** Tallest thing a unit can put on the board, measured off the built bodies once they exist. */
+  private figureHeadroom = DIORAMA_FIGURE_HEADROOM
   private frameRails: THREE.Mesh[] = []
   /** Animation clock in ticks. Monotonic within a battle, frozen while the sim is. */
   private clock = 0
@@ -486,7 +568,7 @@ class ThreeHybridRenderer implements HybridGameRenderer {
     return {
       rendererType: 'webgl', objectCount: objects.length, actualObjectCount: objects.length, visualUnitCount: this.units.size, visualEffectCount: this.effects.size, snapshotUnitIds: snapshot?.units.map((unit) => unit.id) ?? [], snapshotUnits: snapshot?.units.flatMap((unit) => {
         const visual = this.units.get(unit.id)
-        return visual ? [{ id: unit.id, x: unit.x, y: unit.y, tint: (visual.card.material as THREE.MeshLambertMaterial).color.getHex() }] : []
+        return visual ? [{ id: unit.id, x: unit.x, y: unit.y, tint: (visual.card.material as TintedBodyMaterial).color.getHex() }] : []
       }) ?? [], teamTints: TEAM_TINTS,
       unitVisuals: snapshot?.units.map((unit) => this.describeUnit(unit, this.units.get(unit.id))) ?? [],
       worldBounds: { width: snapshot?.camera.worldWidth ?? WORLD_WIDTH, height: snapshot?.camera.worldHeight ?? WORLD_HEIGHT, centerX: snapshot?.camera.centerX ?? 0, centerY: snapshot?.camera.centerY ?? 0 },
@@ -524,8 +606,57 @@ class ThreeHybridRenderer implements HybridGameRenderer {
       activeSquadMarkers,
       framing: this.describeFraming(),
       presentation: this.describePresentation(),
+      fieldClutter: this.describeFieldClutter(),
       healthGauges: this.describeGauges(),
       action: this.describeAction(),
+    }
+  }
+
+  /**
+   * The board clutter, measured against its own rule.
+   *
+   * `shapeViolations` re-derives the extents from the BUILT geometry rather than from the
+   * planner's declared numbers, so a builder that grew past its declaration is caught here and
+   * not only in the unit test — this runs against the clutter the player is actually looking at.
+   */
+  private describeFieldClutter(): HybridVisualState['fieldClutter'] {
+    const clutter = this.props?.fieldClutter ?? []
+    const area = this.snapshot?.playArea ?? this.snapshot?.camera
+    let violations = 0
+    let tallestFlat = 0
+    let widestPole = 0
+    for (const placement of clutter) {
+      const extent = clutterExtent(placement)
+      if (clutterShape(placement.kind) === 'pole') {
+        widestPole = Math.max(widestPole, extent.radius)
+        if (extent.radius > CLUTTER_POLE_RADIUS + 1e-6) violations += 1
+      } else {
+        tallestFlat = Math.max(tallestFlat, extent.height)
+        if (extent.height > CLUTTER_FLAT_HEIGHT + 1e-6) violations += 1
+      }
+    }
+    const allInsidePlayArea = area !== undefined && clutter.every((placement) => {
+      const radius = clutterFootprintRadius(placement)
+      return Math.abs(placement.x - area.centerX) + radius <= area.worldWidth / 2 + 1e-6
+        && Math.abs(placement.z - area.centerY) + radius <= area.worldHeight / 2 + 1e-6
+    })
+    let overlapping = 0
+    for (const unit of this.snapshot?.units ?? []) {
+      if (unit.state === 'dead') continue
+      if (clutter.some((placement) => {
+        const radius = clutterFootprintRadius(placement)
+        const dx = unit.x - placement.x
+        const dz = unit.y - placement.z
+        return dx * dx + dz * dz <= radius * radius
+      })) overlapping += 1
+    }
+    return {
+      items: clutter.length,
+      allInsidePlayArea: clutter.length > 0 && allInsidePlayArea,
+      shapeViolations: violations,
+      tallestFlatPiece: tallestFlat,
+      widestPole,
+      unitsOverlappingClutter: overlapping,
     }
   }
 
@@ -683,7 +814,7 @@ class ThreeHybridRenderer implements HybridGameRenderer {
   // This projects what is actually on screen.
   private describeFraming(): HybridVisualState['framing'] {
     const units = this.snapshot?.units ?? []
-    if (!this.camera) return { units: units.length, unitsInView: 0, groundCoversViewCentre: false, cameraPitchDegrees: 0, viewHalfWidth: 0, viewHalfHeight: 0 }
+    if (!this.camera) return { units: units.length, unitsInView: 0, groundCoversViewCentre: false, cameraPitchDegrees: 0, viewHalfWidth: 0, viewHalfHeight: 0, occlusion: EMPTY_OCCLUSION }
     const camera = this.camera
     const unitsInView = units.filter((unit) => {
       const visual = this.units.get(unit.id)
@@ -702,6 +833,89 @@ class ThreeHybridRenderer implements HybridGameRenderer {
       cameraPitchDegrees: THREE.MathUtils.radToDeg(Math.asin(-camera.getWorldDirection(new THREE.Vector3()).y)),
       viewHalfWidth: (camera.right - camera.left) / 2,
       viewHalfHeight: (camera.top - camera.bottom) / 2,
+      occlusion: this.measureOcclusion(),
+    }
+  }
+
+  /**
+   * What the lowered camera costs, in the only currency that matters: board information.
+   *
+   * Each standing body is reduced to the screen rectangle it actually covers (its own bounding
+   * box, transformed by the live camera), and its footprint is sampled on a coarse grid against
+   * every body that is NEARER the camera. Nearer is depth in camera space, which is exactly the
+   * order the depth buffer resolves, so a sample counted as hidden really is behind something.
+   *
+   * It is an UPPER BOUND, deliberately. A miniature does not fill its own bounding box — a
+   * levelled rifle or a standard makes the box far wider than the body — so a sample counted as
+   * hidden may in truth be looking past the occluder. A ceiling held against an over-estimate
+   * still holds against the truth; a floor would not, which is why nothing here asserts a
+   * minimum.
+   *
+   * It is a diagnostic: it runs when a test reads the visual state, never inside `render`.
+   */
+  private measureOcclusion(): HybridVisualState['framing']['occlusion'] {
+    const camera = this.camera
+    if (!camera) return EMPTY_OCCLUSION
+    const boxes: { minX: number; maxX: number; minY: number; maxY: number; depth: number }[] = []
+    for (const unit of this.snapshot?.units ?? []) {
+      const visual = this.units.get(unit.id)
+      // A toppled or swept body is not information the player is owed, and a downed one is
+      // lying flat; the claim is about STANDING miniatures hiding each other.
+      if (!visual || !visual.card.visible || visual.anim.dead || unit.state === 'downed') continue
+      const world = new THREE.Box3().setFromObject(visual.card)
+      if (world.isEmpty()) continue
+      let minX = Infinity
+      let maxX = -Infinity
+      let minY = Infinity
+      let maxY = -Infinity
+      const corner = new THREE.Vector3()
+      for (let index = 0; index < 8; index += 1) {
+        corner.set(
+          index & 1 ? world.max.x : world.min.x,
+          index & 2 ? world.max.y : world.min.y,
+          index & 4 ? world.max.z : world.min.z,
+        ).project(camera)
+        minX = Math.min(minX, corner.x); maxX = Math.max(maxX, corner.x)
+        minY = Math.min(minY, corner.y); maxY = Math.max(maxY, corner.y)
+      }
+      // Off-screen bodies are a framing question (`unitsInView`), not an occlusion one.
+      if (maxX < -1 || minX > 1 || maxY < -1 || minY > 1) continue
+      const centre = visual.root.getWorldPosition(new THREE.Vector3()).applyMatrix4(camera.matrixWorldInverse)
+      boxes.push({ minX, maxX, minY, maxY, depth: -centre.z })
+    }
+    if (boxes.length === 0) return EMPTY_OCCLUSION
+    let maxHidden = 0
+    let totalHidden = 0
+    let mostlyHidden = 0
+    let fullyHidden = 0
+    const STEPS = 5
+    for (const box of boxes) {
+      const nearer = boxes.filter((other) => other !== box
+        && other.depth < box.depth
+        && other.maxX > box.minX && other.minX < box.maxX
+        && other.maxY > box.minY && other.minY < box.maxY)
+      let hidden = 0
+      if (nearer.length > 0) {
+        for (let ix = 0; ix < STEPS; ix += 1) {
+          const x = box.minX + ((ix + 0.5) / STEPS) * (box.maxX - box.minX)
+          for (let iy = 0; iy < STEPS; iy += 1) {
+            const y = box.minY + ((iy + 0.5) / STEPS) * (box.maxY - box.minY)
+            if (nearer.some((other) => x >= other.minX && x <= other.maxX && y >= other.minY && y <= other.maxY)) hidden += 1
+          }
+        }
+      }
+      const fraction = hidden / (STEPS * STEPS)
+      maxHidden = Math.max(maxHidden, fraction)
+      totalHidden += fraction
+      if (fraction > 0.5) mostlyHidden += 1
+      if (fraction >= 0.95) fullyHidden += 1
+    }
+    return {
+      bodies: boxes.length,
+      maxHiddenFraction: maxHidden,
+      meanHiddenFraction: totalHidden / boxes.length,
+      mostlyHidden,
+      fullyHidden,
     }
   }
 
@@ -764,7 +978,25 @@ class ThreeHybridRenderer implements HybridGameRenderer {
     if (!this.scene || !this.renderer || this.diorama) return
     const assets = createDioramaAssets()
     this.diorama = assets
+    this.figureHeadroom = measureFigureHeadroom(assets)
     this.renderer.setClearColor(0x171208)
+
+    // THE TONE CURVE, and it is the difference between "flat" and "lit". The scene is lit far
+    // above 1.0 on purpose — a warm key at 3.3 plus a cool rim — and a linear output clips all of
+    // that to white, which is what washed the sculpted forms out into single-value silhouettes.
+    // ACES rolls the highlights off instead, so the key can be strong enough to carve a helmet
+    // out of a shoulder while the sand keeps its paint. Applied only here: the `?lab=renderers`
+    // comparison keeps the flat cardboard output it measures renderers against.
+    //
+    // Rings, gauges and telegraphs opt OUT of it (`toneMapped: false`) — they are read-outs, not
+    // lit surfaces, and their colour is the information.
+    this.renderer.toneMapping = THREE.ACESFilmicToneMapping
+    this.renderer.toneMappingExposure = DIORAMA_EXPOSURE
+    // Percentage-closer *soft* filtering: at this camera the raking key throws a shadow nearly
+    // twice a figure's own length, and a hard 1-tap edge on something that long reads as a
+    // painted stripe rather than as a shadow.
+    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap
+    this.renderer.shadowMap.needsUpdate = true
 
     const ground = this.scene.getObjectByName('tabletop-ground')
     if (ground instanceof THREE.Mesh) {
@@ -789,11 +1021,11 @@ class ThreeHybridRenderer implements HybridGameRenderer {
     // separates the miniatures from the sandy board, and the hemisphere fill drops so
     // the sculpted forms keep their shading instead of washing flat.
     const ambient = this.scene.children.find((child): child is THREE.HemisphereLight => child instanceof THREE.HemisphereLight)
-    if (ambient) { ambient.intensity = 0.85; ambient.color.setHex(0xf7e2bf); ambient.groundColor.setHex(0x2f2114) }
+    if (ambient) { ambient.intensity = DIORAMA_FILL_INTENSITY; ambient.color.setHex(0xffeec6); ambient.groundColor.setHex(0x38271a) }
     const key = this.scene.getObjectByName('tabletop-key-light') as THREE.DirectionalLight | undefined
     if (key) {
-      key.color.setHex(0xffdda2)
-      key.intensity = 2.9
+      key.color.setHex(0xffe6b4)
+      key.intensity = DIORAMA_KEY_INTENSITY
       // Wide enough to keep the terrain belt in the shadow pass, and pushed far enough
       // out that props on the camera side of the board are still in front of the light.
       key.shadow.camera.left = -40; key.shadow.camera.right = 40; key.shadow.camera.top = 36; key.shadow.camera.bottom = -36
@@ -802,7 +1034,7 @@ class ThreeHybridRenderer implements HybridGameRenderer {
       key.shadow.normalBias = 0.03
       key.shadow.camera.updateProjectionMatrix()
     }
-    const rim = new THREE.DirectionalLight(0x93bcff, 1.4)
+    const rim = new THREE.DirectionalLight(0x8fb6ff, DIORAMA_RIM_INTENSITY)
     rim.name = RIM_LIGHT_NAME
     this.scene.add(rim, rim.target)
 
@@ -937,11 +1169,11 @@ class ThreeHybridRenderer implements HybridGameRenderer {
     visual.card.scale.setScalar(sweep)
     visual.card.visible = !anim.buried
     visual.shadow.visible = !downed && !anim.buried
-    ;(visual.shadow.material as THREE.MeshBasicMaterial).opacity = 0.5 * sweep
+    ;(visual.shadow.material as THREE.MeshBasicMaterial).opacity = CONTACT_SHADOW_OPACITY * sweep
 
     // A struck figure flashes bright rather than changing paint, so the faction read
     // never wobbles: the tint stays exactly what `miniaturePaint` chose.
-    const material = visual.card.material as THREE.MeshLambertMaterial
+    const material = visual.card.material as TintedBodyMaterial
     material.emissiveIntensity = hit * FLASH_PEAK * anim.flashScale
 
     // Every unit wears a base ring in the diorama; the colour is what carries the read.
@@ -1147,13 +1379,13 @@ class ThreeHybridRenderer implements HybridGameRenderer {
     const leader = isLeader(unit)
     const root = new THREE.Group(); root.name = `unit:${unit.id}`
 
-    const shadow = new THREE.Mesh(assets.contactShadowGeometry, new THREE.MeshBasicMaterial({ map: assets.contactShadowTexture, color: CONTACT_SHADOW_COLOR, transparent: true, opacity: 0.5, depthWrite: false }))
+    const shadow = new THREE.Mesh(assets.contactShadowGeometry, new THREE.MeshBasicMaterial({ map: assets.contactShadowTexture, color: CONTACT_SHADOW_COLOR, transparent: true, opacity: CONTACT_SHADOW_OPACITY, depthWrite: false, toneMapped: false }))
     shadow.rotation.x = -Math.PI / 2; shadow.position.set(0, 0.012, 0)
     if (leader) shadow.scale.setScalar(1.5)
 
     // `emissive` is what a hit flash rides on: raising `emissiveIntensity` for a few
     // ticks brightens the figure without touching the faction paint underneath it.
-    const card = new THREE.Mesh(assets.miniatures[archetype], new THREE.MeshLambertMaterial({ color: miniaturePaint(unit), vertexColors: true, emissive: FLASH_COLOR, emissiveIntensity: 0 }))
+    const card = new THREE.Mesh(assets.miniatures[archetype], new THREE.MeshPhongMaterial({ color: miniaturePaint(unit), vertexColors: true, emissive: FLASH_COLOR, emissiveIntensity: 0, specular: MINIATURE_SPECULAR, shininess: MINIATURE_SHININESS }))
     card.name = `miniature:${archetype}`
     card.castShadow = true
 
@@ -1169,7 +1401,7 @@ class ThreeHybridRenderer implements HybridGameRenderer {
       // the gauge is one flat quad pair with nothing to sort against itself. Without it the
       // bar costs two draw calls and the four-per-unit budget is broken by the thing the
       // budget was widened to hold.
-      new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: GAUGE_OPACITY, depthWrite: false, side: THREE.DoubleSide, forceSinglePass: true }),
+      new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: GAUGE_OPACITY, depthWrite: false, side: THREE.DoubleSide, forceSinglePass: true, toneMapped: false }),
     )
     gauge.name = 'unit-health-gauge'
     gauge.renderOrder = 4
@@ -1331,7 +1563,7 @@ class ThreeHybridRenderer implements HybridGameRenderer {
     const shadowFootprint = visual.shadow.getWorldPosition(new THREE.Vector3())
     const shadowNormal = new THREE.Vector3(0, 0, 1).applyQuaternion(visual.shadow.getWorldQuaternion(new THREE.Quaternion()))
     const markerNormal = new THREE.Vector3(0, 0, 1).applyQuaternion(visual.marker.getWorldQuaternion(new THREE.Quaternion()))
-    return { id: unit.id, x: visual.root.position.x, y: visual.root.position.z, tint: (visual.card.material as THREE.MeshLambertMaterial).color.getHex(), billboard: !this.diorama, facesCamera: this.facesCamera(visual.card), screenY: (1 - center.y) * canvasHeight / 2, screenHeight: Math.abs(top.y - bottom.y) * canvasHeight / 2, kind: unit.kind, state: unit.state, cardCenter, shadowNormalY: shadowNormal.y, markerNormalY: markerNormal.y, shadowFootprint: { x: shadowFootprint.x, z: shadowFootprint.z } }
+    return { id: unit.id, x: visual.root.position.x, y: visual.root.position.z, tint: (visual.card.material as TintedBodyMaterial).color.getHex(), billboard: !this.diorama, facesCamera: this.facesCamera(visual.card), screenY: (1 - center.y) * canvasHeight / 2, screenHeight: Math.abs(top.y - bottom.y) * canvasHeight / 2, kind: unit.kind, state: unit.state, cardCenter, shadowNormalY: shadowNormal.y, markerNormalY: markerNormal.y, shadowFootprint: { x: shadowFootprint.x, z: shadowFootprint.z } }
   }
 
   private removeVisual<T extends { readonly root: THREE.Group; readonly gauge?: THREE.Mesh }>(collection: Map<number, T>, id: number, visual: T): void {
@@ -1376,7 +1608,7 @@ class ThreeHybridRenderer implements HybridGameRenderer {
     const pitch = DIORAMA_PITCH_RADIANS
     const aspect = this.viewportWidth / this.viewportHeight
     const requiredHalfWidth = worldWidth / 2 + DIORAMA_EDGE_MARGIN
-    const requiredHalfHeight = (worldHeight / 2 + DIORAMA_EDGE_MARGIN) * Math.sin(pitch) + DIORAMA_FIGURE_HEADROOM * Math.cos(pitch)
+    const requiredHalfHeight = (worldHeight / 2 + DIORAMA_EDGE_MARGIN) * Math.sin(pitch) + this.figureHeadroom * Math.cos(pitch)
     const halfWidth = Math.max(requiredHalfWidth, requiredHalfHeight * aspect)
     const halfHeight = halfWidth / aspect
     this.camera.left = -halfWidth
@@ -1561,8 +1793,11 @@ function nearestAttacker(target: RenderUnit, units: readonly RenderUnit[]): Rend
   return best
 }
 
+/** Leaders and the elite are drawn larger; this is the largest scale any unit is ever given. */
+const LEADER_CARD_SCALE = 1.25
+
 function cardScale(unit: RenderUnit): number {
-  if (isLeader(unit)) return 1.25
+  if (isLeader(unit)) return LEADER_CARD_SCALE
   return unit.state === 'downed' ? 0.85 : 1
 }
 
@@ -1621,6 +1856,19 @@ function dioramaRingColor(unit: RenderUnit, marksActiveSquad: boolean): number {
  */
 function bodyTop(geometry: THREE.BufferGeometry): number {
   return geometry.boundingBox?.max.y ?? 2
+}
+
+/**
+ * The tallest point any unit can put on the board: the tallest merged body, grown by the
+ * largest root scale a unit is ever drawn at, plus the gauge that floats over its head.
+ *
+ * §4.4's framing is what this feeds, and the alternative — a hand-written constant — is a
+ * silent liability: the elite's staff was re-sculpted in this batch and grew past the number
+ * that was written down for it.
+ */
+function measureFigureHeadroom(assets: DioramaAssets): number {
+  const tallest = Math.max(...Object.values(assets.miniatures).map((geometry) => bodyTop(geometry)))
+  return tallest * LEADER_CARD_SCALE + GAUGE_HEADROOM + GAUGE_HEIGHT
 }
 
 /**

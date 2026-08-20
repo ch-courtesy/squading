@@ -101,4 +101,130 @@ test('keeps the renderer-comparison lab on its cardboard cards', async ({ page }
   expect(scene.presentation.baseRings).toBeLessThan(scene.framing.units)
   // No health gauge is built at all on this route.
   expect(scene.healthGauges.visible).toBe(0)
+  // And no board clutter: the lab has no play area to dress.
+  expect(scene.fieldClutter.items).toBe(0)
+})
+
+/**
+ * §카메라 and §판 안 지형 소품, taken against a LIVE v2 battle rather than a hand-built board.
+ *
+ * Both claims in this batch are about what happens when bodies and scenery are on the same mat
+ * at the same time, and neither can be read off a static fixture: occlusion needs units that
+ * have walked into each other, and "the clutter is walk-through" needs a unit to have actually
+ * walked onto a piece. So this steps the authority itself, at full speed, and reads the renderer
+ * afterwards. It touches no authority state — `projectBattleSnapshot` is the same projection the
+ * shell uses, and the renderer only ever reads it.
+ */
+test('keeps the lowered camera honest and proves the board clutter is walk-through', async ({ page }) => {
+  test.setTimeout(180_000)
+  await page.goto('?lab=renderers')
+  await page.waitForTimeout(400)
+
+  const result = await page.evaluate(async () => {
+    const { createRenderer } = await (0, eval)('import("/src/renderers/three-hybrid/index.ts")')
+    const { createBattle } = await (0, eval)('import("/src/core/battle/battle.ts")')
+    const { projectBattleSnapshot } = await (0, eval)('import("/src/core/battle-view/snapshot.ts")')
+
+    const host = document.createElement('div')
+    host.style.width = '1280px'
+    host.style.height = '800px'
+    document.body.append(host)
+    const renderer = createRenderer()
+    await renderer.mount(host)
+    renderer.resize(1280, 800, 1)
+
+    const battle = createBattle('seed-h')
+    battle.start()
+    // A kiting circuit, so the squad both spreads out and walks across a lot of board — which is
+    // what puts a body on top of a piece of clutter and what packs a melee together.
+    const circuit = ['KeyD', 'KeyS', 'KeyA', 'KeyW']
+    let held: string | null = null
+    const worst = { mean: 0, max: 0, mostly: 0, fully: 0, bodies: 0 }
+    let everOverlapped = 0
+    let clutter = { items: 0, allInsidePlayArea: false, shapeViolations: 0, tallestFlatPiece: 0, widestPole: 0 }
+    for (let tick = 0; tick < 600; tick += 1) {
+      if (tick % 150 === 0) {
+        if (held) battle.keyUp(held)
+        held = circuit[(tick / 150) % circuit.length]!
+        battle.keyDown(held)
+      }
+      const state = battle.state()
+      if (state.mode === 'awaiting-upgrade') {
+        battle.enqueue({ applyTick: state.combatTick, sequence: tick, kind: 'choose-upgrade', slot: 1 })
+      }
+      battle.step()
+      renderer.render(projectBattleSnapshot(battle.state()), 0)
+      const view = window.__SQUADING_TEST__!.rendererScene!()!
+      if (view.framing.occlusion.meanHiddenFraction > worst.mean) {
+        worst.mean = view.framing.occlusion.meanHiddenFraction
+        worst.max = view.framing.occlusion.maxHiddenFraction
+        worst.mostly = view.framing.occlusion.mostlyHidden
+        worst.fully = view.framing.occlusion.fullyHidden
+        worst.bodies = view.framing.occlusion.bodies
+      }
+      everOverlapped = Math.max(everOverlapped, view.fieldClutter.unitsOverlappingClutter)
+      clutter = {
+        items: view.fieldClutter.items,
+        allInsidePlayArea: view.fieldClutter.allInsidePlayArea,
+        shapeViolations: view.fieldClutter.shapeViolations,
+        tallestFlatPiece: view.fieldClutter.tallestFlatPiece,
+        widestPole: view.fieldClutter.widestPole,
+      }
+    }
+    const finalView = window.__SQUADING_TEST__!.rendererScene!()!
+    const out = {
+      worst,
+      everOverlapped,
+      clutter,
+      pitch: finalView.framing.cameraPitchDegrees,
+      propMeshes: finalView.presentation.propMeshes,
+      propItems: finalView.presentation.propItems,
+      unitsInView: finalView.framing.unitsInView,
+      units: finalView.framing.units,
+    }
+    renderer.dispose()
+    host.remove()
+    return out
+  })
+
+  // Printed, not only asserted: §카메라 asks for the cost of the lowered camera to be measured
+  // and reported, and this run is where the number in the batch report comes from.
+  console.log(
+    `[§카메라] worst frame of 600: bodies=${result.worst.bodies}`
+    + ` mean=${result.worst.mean.toFixed(3)} max=${result.worst.max.toFixed(2)}`
+    + ` >half=${result.worst.mostly} ~full=${result.worst.fully}`
+    + ` | clutter items=${result.clutter.items} peak units standing on it=${result.everOverlapped}`,
+  )
+
+  // The staged angle, read off the live camera rather than off the constant.
+  expect(result.pitch).toBeCloseTo(23, 1)
+
+  // §4.4(a) is asserted for real, against real keyboard input, in `battle-play.spec.ts`. Here it
+  // is the cheap invariant that would catch a camera that stopped following: nobody leaves frame.
+  expect(result.units).toBeGreaterThan(10)
+  expect(result.unitsInView).toBe(result.units)
+
+  // THE OCCLUSION CEILING. `staging.ts` chose 23 degrees off this measurement and wrote the
+  // numbers down; this is what stops a later change from drifting past them. The bound is an
+  // upper bound on an upper bound — the metric boxes every body, so it over-reports — and it is
+  // held on the WORST frame of a 600-tick kiting run, not on an average one.
+  expect(result.worst.bodies).toBeGreaterThan(8)
+  expect(result.worst.mean).toBeLessThan(0.62)
+  expect(result.worst.fully / result.worst.bodies).toBeLessThan(0.3)
+
+  // §판 안 지형 소품. The board is dressed, everything on it is on the board, and not one piece
+  // breaks the shape rule that makes it walk-through.
+  expect(result.clutter.items).toBeGreaterThan(120)
+  expect(result.clutter.allInsidePlayArea).toBe(true)
+  expect(result.clutter.shapeViolations).toBe(0)
+  expect(result.clutter.tallestFlatPiece).toBeLessThanOrEqual(0.22)
+  expect(result.clutter.widestPole).toBeLessThanOrEqual(0.1)
+
+  // And the thing a player actually reads it off: bodies stood inside the clutter's footprint
+  // during the run. Nothing stopped them, because `core/` has never heard of it.
+  expect(result.everOverlapped).toBeGreaterThan(0)
+
+  // Dressing the board cost no draw call: the clutter merged into the surround's single mesh.
+  expect(result.propMeshes).toBe(2)
+  expect(result.propItems).toBe(150)
 })
