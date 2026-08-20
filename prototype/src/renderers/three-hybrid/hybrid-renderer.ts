@@ -302,7 +302,7 @@ const ENEMY_COMMANDER_PAINT = 0x6d3fb5
 // Darkened in batch K. The sculpt's lit plates multiply the faction paint by `PAINT.edge`, and
 // on a tint this light every plate on the elite came out white — the one body on the board that
 // most needs to stay recognisably purple was the one losing its colour.
-const ELITE_PAINT = 0x7d4fc9
+const ELITE_PAINT = 0x6d3ab8
 const ENEMY_RING_COLOR = 0x8a5fd0
 const HOSTILE_LEADER_RING_COLOR = 0xba8ef5
 // An idle friendly still wears a ring, just a muted one, so the active squad's full
@@ -340,11 +340,22 @@ const FLASH_COLOR = 0xfff0cf
  * hit points — would sit permanently white and lose its silhouette entirely.
  */
 // Lowered in batch K, because the tone curve changed what this number means. Emissive is added
-// before the ACES curve, and at 0.55 a body being chipped every few ticks — the elite, always —
-// sat at the top of the curve and came out white. The scaling below already keeps the flash
-// proportional to the damage; this keeps the peak of it under the faction paint rather than over it.
-const FLASH_PEAK = 0.4
+// before the ACES curve, so a body that is struck on almost every tick sits at the top of the
+// curve permanently and comes out white — and the body that happens to is the elite, the one a
+// player must never lose track of. Measured on a live board rather than reasoned about: at 0.55
+// and at 0.4 the elite was still white through the whole engagement.
+const FLASH_PEAK = 0.3
 const FLASH_FLOOR = 0.35
+/**
+ * How fast the flash saturates with the size of the hit.
+ *
+ * The renderer sees ONE hp delta per tick, not one per shot, so a body under fire from fifteen
+ * rifles at once reports a single large drop and saturated this instantly at the old rate of 5.
+ * At 2.5 a squadmate taking a real hit still flashes near the peak while a chipped elite sits
+ * around a third of it, which is the difference the scaling was supposed to make in the first
+ * place.
+ */
+const FLASH_DAMAGE_GAIN = 2.5
 /** How far a damaged unit will look for the hostile that plausibly shot it. The longest
  * authority attack range is well inside this, and it is only ever used to aim a lunge. */
 const ATTRIBUTION_RANGE = 7.5
@@ -1208,7 +1219,7 @@ class ThreeHybridRenderer implements HybridGameRenderer {
   private registerDamage(unit: RenderUnit, visual: UnitVisual, snapshot: RenderSnapshot, damage01: number): void {
     this.hitsObserved += 1
     const anim = visual.anim
-    anim.flashScale = FLASH_FLOOR + (1 - FLASH_FLOOR) * clamp01(damage01 * 5)
+    anim.flashScale = FLASH_FLOOR + (1 - FLASH_FLOOR) * clamp01(damage01 * FLASH_DAMAGE_GAIN)
     const attacker = nearestAttacker(unit, snapshot.units)
     let awayX = 0
     let awayZ = 1

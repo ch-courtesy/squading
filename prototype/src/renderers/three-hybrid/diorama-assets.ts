@@ -332,6 +332,12 @@ const PAINT = {
    * like. The tone curve rolls the top of this off rather than clipping it.
    */
   edge: 1.75,
+  /**
+   * A gentler lift, for a LARGE surface or for a body whose faction tint is already light.
+   * `edge` is sized for a small accent on a saturated paint; spread across a plinth or a mantle
+   * on the elite's lavender it clips to white and the body loses its faction with it.
+   */
+  trim: 1.18,
   belt: 0.2,
   pack: 0.24,
   helmet: 0.5,
@@ -490,21 +496,26 @@ function createShooterMiniature(): THREE.BufferGeometry {
 /** The elite: a taller champion standing on a raised stone plinth, caped, staff in hand. */
 function createEliteMiniature(): THREE.BufferGeometry {
   return merge([
+    // THE ELITE IS PAINTED DOWN, not up. It is the largest body on the board, it wears the
+    // lightest faction tint, and it is under fire from fifteen rifles at once — so it carries
+    // the same lit-plate rhythm as everything else at `trim` rather than `edge`, and keeps
+    // `edge` for the four small accents that have to punch. At `edge` throughout, every broad
+    // surface on it clipped and the one body a player must never lose track of came out white.
     part(new THREE.CylinderGeometry(0.44, 0.5, 0.18, 18), { at: [0, 0.09, 0], value: PAINT.base }),
-    part(new THREE.CylinderGeometry(0.36, 0.4, 0.06, 18), { at: [0, 0.21, 0], value: PAINT.edge }),
+    part(new THREE.CylinderGeometry(0.36, 0.4, 0.06, 18), { at: [0, 0.21, 0], value: PAINT.trim }),
     part(new THREE.CylinderGeometry(0.26, 0.29, 0.06, 14), { at: [0, 0.27, 0], value: PAINT.base }),
     part(new THREE.BoxGeometry(0.16, 0.28, 0.18), { at: [0.11, 0.43, 0], value: PAINT.leg }),
     part(new THREE.BoxGeometry(0.16, 0.28, 0.18), { at: [-0.11, 0.43, 0], value: PAINT.leg }),
     part(new THREE.BoxGeometry(0.36, 0.4, 0.26), { at: [0, 0.68, 0], value: PAINT.armour }),
-    part(new THREE.BoxGeometry(0.28, 0.3, 0.08), { at: [0, 0.7, 0.15], value: PAINT.edge }),
+    part(new THREE.BoxGeometry(0.28, 0.3, 0.08), { at: [0, 0.7, 0.15], value: PAINT.trim }),
     // The cape.
     part(new THREE.BoxGeometry(0.5, 0.72, 0.06), { at: [0, 0.86, -0.22], rotate: [-0.12, 0, 0], value: PAINT.leather, bias: WARM }),
     part(new THREE.BoxGeometry(0.46, 0.42, 0.3), { at: [0, 0.99, 0], value: PAINT.armour }),
     part(new THREE.BoxGeometry(0.7, 0.18, 0.34), { at: [0, 1.22, 0], value: PAINT.armour }),
     // The mantle: two swept plates off the pauldrons. At this elevation the cape on its back is
     // nearly edge-on, and these are what carry that width into the top-down read.
-    part(new THREE.BoxGeometry(0.36, 0.1, 0.42), { at: [0.44, 1.16, -0.06], rotate: [0, 0, 0.3], value: PAINT.edge }),
-    part(new THREE.BoxGeometry(0.36, 0.1, 0.42), { at: [-0.44, 1.16, -0.06], rotate: [0, 0, -0.3], value: PAINT.edge }),
+    part(new THREE.BoxGeometry(0.36, 0.1, 0.42), { at: [0.44, 1.16, -0.06], rotate: [0, 0, 0.3], value: PAINT.trim }),
+    part(new THREE.BoxGeometry(0.36, 0.1, 0.42), { at: [-0.44, 1.16, -0.06], rotate: [0, 0, -0.3], value: PAINT.trim }),
     part(new THREE.SphereGeometry(0.17, 10, 8), { at: [0, 1.4, 0], value: PAINT.helmet, bias: COLD }),
     part(new THREE.BoxGeometry(0.22, 0.09, 0.1), { at: [0, 1.38, 0.14], value: PAINT.visor }),
     part(new THREE.ConeGeometry(0.06, 0.28, 6), { at: [0.14, 1.56, 0], rotate: [0, 0, -0.55], value: PAINT.edge }),
