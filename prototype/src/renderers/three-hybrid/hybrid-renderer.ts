@@ -93,17 +93,6 @@ export type HybridVisualState = {
     readonly normalY: number
     /** Standing bodies whose base is inside the warned circle right now. */
     readonly bodiesInside: number
-    /** Points taken evenly around the circumference, in view, that the readings below cover. */
-    readonly samples: number
-    /**
-     * Sample points a body NEARER the camera covers. This is batch K's gap as a number: every
-     * one of these is a piece of the warning's edge that a ground-painted ring loses.
-     */
-    readonly occludedSamples: number
-    /** Sample points where the ground band ALONE paints pixels — the ring as batch K shipped it. */
-    readonly groundOnlyPaintedSamples: number
-    /** Sample points where the warning paints pixels as it ships now. */
-    readonly paintedSamples: number
     /** Whether the over-body outline exists and asks the depth buffer. It must not. */
     readonly overlayDepthTested: boolean | null
     readonly overlayRenderOrder: number | null
@@ -260,10 +249,35 @@ export type HybridVisualState = {
   }
 }
 
+/**
+ * How much of the elite's warning survives the bodies standing on it, measured off PIXELS.
+ *
+ * A SEPARATE CALL from `getVisualState`, and the separation is not tidiness: the reading is taken
+ * by rendering the scene three times into an offscreen target and reading the framebuffer back,
+ * which costs tens of milliseconds. `getVisualState` is polled in loops by half the browser
+ * suite, and burying this inside it would have made every one of those loops pay for it on every
+ * frame a warning happened to be up.
+ */
+export type TelegraphLegibility = {
+  /** Points taken evenly around the circumference that were in view. */
+  readonly samples: number
+  /** Standing bodies whose base is inside the warned circle. */
+  readonly bodiesInside: number
+  /**
+   * Sample points a body NEARER the camera covers. This is batch K's gap as a number: every one
+   * of these is a piece of the warning's edge that a ground-painted ring loses.
+   */
+  readonly occludedSamples: number
+  /** Sample points where the ground band ALONE paints pixels — the ring as batch K shipped it. */
+  readonly groundOnlyPaintedSamples: number
+  /** Sample points where the warning paints pixels as it ships now. */
+  readonly paintedSamples: number
+}
+
 export type HybridRendererDiagnostics = {
   readonly rendererType: 'webgl'; readonly objectCount: number; readonly actualObjectCount: number; readonly visualUnitCount: number; readonly visualEffectCount: number; readonly snapshotUnitIds: readonly number[]; readonly snapshotUnits: readonly { readonly id: number; readonly x: number; readonly y: number; readonly tint: number }[]; readonly teamTints: Readonly<Record<'teal' | 'scarlet' | 'enemy', number>>; readonly unitVisuals: readonly { readonly id: number; readonly x: number; readonly y: number; readonly tint: number; readonly billboard: boolean; readonly facesCamera: boolean; readonly screenY: number; readonly screenHeight: number; readonly kind: string; readonly state: string; readonly cardCenter: { readonly x: number; readonly y: number; readonly z: number }; readonly shadowNormalY: number; readonly markerNormalY: number; readonly shadowFootprint: { readonly x: number; readonly z: number } }[]; readonly worldBounds: { readonly width: number; readonly height: number; readonly centerX: number; readonly centerY: number }; readonly camera: { readonly projection: 'orthographic'; readonly left: number; readonly right: number; readonly top: number; readonly bottom: number }; readonly rescueSignalCount: number; readonly quality: { readonly particleCount: number; readonly shadowMapSize: number; readonly shadowTargetSize: { readonly width: number; readonly height: number } | null; readonly dpr: number }; readonly metrics: RendererMetrics
 }
-export interface HybridGameRenderer extends GameRenderer { getDiagnostics(): HybridRendererDiagnostics; getVisualState(): HybridVisualState; projectGroundPoint(x: number, y: number): { x: number; y: number } | null }
+export interface HybridGameRenderer extends GameRenderer { getDiagnostics(): HybridRendererDiagnostics; getVisualState(): HybridVisualState; measureTelegraph(): TelegraphLegibility | null; projectGroundPoint(x: number, y: number): { x: number; y: number } | null }
 
 const PARTICLE_COUNT = 12
 const WORLD_WIDTH = 40
@@ -496,8 +510,7 @@ const DECAL_PROBE_HEIGHT = 0.03
 
 /** No warning on the board. */
 const EMPTY_TELEGRAPH: HybridVisualState['eliteTelegraph'] = {
-  visible: false, radius: 0, normalY: 0, bodiesInside: 0, samples: 0,
-  occludedSamples: 0, groundOnlyPaintedSamples: 0, paintedSamples: 0,
+  visible: false, radius: 0, normalY: 0, bodiesInside: 0,
   overlayDepthTested: null, overlayRenderOrder: null,
 }
 
@@ -1070,10 +1083,29 @@ class ThreeHybridRenderer implements HybridGameRenderer {
       visible: true,
       radius,
       normalY: normal.y,
+      bodiesInside: this.bodiesInsideTelegraph(telegraph, radius),
       overlayDepthTested: overlayMaterial ? overlayMaterial.depthTest : null,
       overlayRenderOrder: overlay ? overlay.renderOrder : null,
-      ...this.measureTelegraphLegibility(telegraph, radius),
     }
+  }
+
+  private bodiesInsideTelegraph(telegraph: EffectVisual, radius: number): number {
+    const centreX = telegraph.root.position.x
+    const centreZ = telegraph.root.position.z
+    return (this.snapshot?.units ?? []).filter((unit) => {
+      const visual = this.units.get(unit.id)
+      if (!visual || visual.anim.dead || unit.state === 'downed' || unit.state === 'dead') return false
+      return Math.hypot(unit.x - centreX, unit.y - centreZ) <= radius
+    }).length
+  }
+
+  /** The public face of the probe: the warning that is up, or `null` when there is none. */
+  measureTelegraph(): TelegraphLegibility | null {
+    const telegraph = [...this.effects.values()].find((visual) => visual.kind === 'elite-telegraph')
+    const area = telegraph?.root.children.find((child): child is THREE.Mesh => child instanceof THREE.Mesh)
+    if (!telegraph || !area) return null
+    const radius = (area.geometry as THREE.RingGeometry).parameters.outerRadius * area.scale.x
+    return this.measureTelegraphLegibility(telegraph, radius)
   }
 
   /**
@@ -1093,10 +1125,7 @@ class ThreeHybridRenderer implements HybridGameRenderer {
    * It is a DIAGNOSTIC. It renders, so it must never be called from `render`, and it is not: the
    * only caller is `getVisualState`, which exists for the dev-only test bridge.
    */
-  private measureTelegraphLegibility(
-    telegraph: EffectVisual,
-    radius: number,
-  ): Pick<HybridVisualState['eliteTelegraph'], 'bodiesInside' | 'samples' | 'occludedSamples' | 'groundOnlyPaintedSamples' | 'paintedSamples'> {
+  private measureTelegraphLegibility(telegraph: EffectVisual, radius: number): TelegraphLegibility {
     const camera = this.camera
     const renderer = this.renderer
     const scene = this.scene
@@ -1105,11 +1134,7 @@ class ThreeHybridRenderer implements HybridGameRenderer {
 
     const centreX = telegraph.root.position.x
     const centreZ = telegraph.root.position.z
-    const bodiesInside = (this.snapshot?.units ?? []).filter((unit) => {
-      const visual = this.units.get(unit.id)
-      if (!visual || visual.anim.dead || unit.state === 'downed' || unit.state === 'dead') return false
-      return Math.hypot(unit.x - centreX, unit.y - centreZ) <= radius
-    }).length
+    const bodiesInside = this.bodiesInsideTelegraph(telegraph, radius)
 
     const size = renderer.getDrawingBufferSize(new THREE.Vector2())
     const width = Math.max(1, Math.min(TELEGRAPH_PROBE_MAX_WIDTH, Math.round(size.x)))

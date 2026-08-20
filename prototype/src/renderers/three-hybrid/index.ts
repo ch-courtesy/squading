@@ -20,6 +20,10 @@ export function createRenderer(): HybridGameRenderer {
     window.__SQUADING_TEST__ = {
       ...(window.__SQUADING_TEST__ ?? {}),
       rendererScene: () => activeRenderer?.getVisualState() ?? null,
+      // Its own entry rather than a field of `rendererScene`, because it RENDERS: three
+      // offscreen passes and three framebuffer reads. Half the browser suite polls
+      // `rendererScene` in a loop, and none of those loops should pay for this.
+      telegraphLegibility: () => activeRenderer?.measureTelegraph() ?? null,
       projectGroundPoint: (x, y) => activeRenderer?.projectGroundPoint(x, y) ?? null,
     }
   }

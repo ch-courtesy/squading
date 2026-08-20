@@ -4,7 +4,7 @@ import type { FrameSample } from './app/battle/battle-controller'
 import type { RecordedInput } from './app/battle/battle-replay'
 import type { BattleHud } from './core/battle-view/hud'
 import type { RenderSnapshot } from './core/types'
-import type { HybridVisualState } from './renderers/three-hybrid/hybrid-renderer'
+import type { HybridVisualState, TelegraphLegibility } from './renderers/three-hybrid/hybrid-renderer'
 
 /**
  * What the v2 shell publishes for §4.3 and §4.4, and nothing a player-facing screen could
@@ -36,6 +36,14 @@ declare global {
      */
     __SQUADING_TEST__?: {
       rendererScene?(): HybridVisualState | null
+      /**
+       * §정예 예고's readability, measured off rendered pixels — `null` when no warning is up.
+       *
+       * Separate from `rendererScene` because it renders three offscreen passes and reads the
+       * framebuffer back three times. It is far too expensive to sit inside a state reader that
+       * browser tests poll every frame.
+       */
+      telegraphLegibility?(): TelegraphLegibility | null
       /**
        * Project a point on the tabletop through the live camera, in NDC — `null` when no
        * scene is mounted. §4.4's framing is a claim about what is ON SCREEN, and a scene-graph

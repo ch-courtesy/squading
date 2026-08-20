@@ -301,3 +301,206 @@ test('captures the five class silhouettes lined up', async ({ page }) => {
   mkdirSync(ARTIFACTS, { recursive: true })
   await page.locator('#silhouette-host canvas').screenshot({ path: `${ARTIFACTS}shot-class-silhouettes.png` })
 })
+
+// ---------------------------------------------------------------------------
+// §액션 피드백 — the four moments batch L is answerable for
+// ---------------------------------------------------------------------------
+// These are captured from an OFFLINE run of the real v2 battle rather than from the live route,
+// and the reason is the shutter. A lunge lasts 7 ticks and a hit flash 5 — about 230 and 170
+// milliseconds — and a Playwright screenshot takes longer than that to arrange. A live capture
+// would be polling for a moment that is already over by the time the shutter opens.
+//
+// So the same three calls the controller makes (`battle.step()`, `projectBattleSnapshot`,
+// `renderer.render`) are driven by the test, one tick at a time, and the loop STOPS on the frame
+// where the renderer's own counters say the animation is at its peak. The pixels are the
+// renderer's, the events are the authority's, and the frame is chosen by measurement.
+//
+// The route is `seed-h` with `battle-play.spec.ts`'s winning circuit, because the elite arrives
+// at tick 1800 and a squad that took no input is long dead by then.
+
+const ACTION_CIRCUIT: readonly (readonly [string, number])[] = [
+  ['KeyD', 300], ['KeyS', 130], ['KeyA', 300], ['KeyW', 130],
+]
+
+type ActionMoment = {
+  tick: number
+  maxLungeOffset: number
+  maxFlash: number
+  topplingUnits: number
+  livePuffs: number
+  liveScraps: number
+  eventsPlayed: number
+  bodiesInside: number
+  /** Where on the board the moment happened, so a detail crop can be aimed at it. */
+  focusX: number
+  focusY: number
+} | null
+
+/** Nothing is shot before this tick: the opening second is two bodies meeting, not a fight. */
+const ACTION_SHOT_MIN_TICK = 150
+
+/** Installs the offline board and `window.__actionShot(want, maxTicks)` over it. */
+async function openActionBoard(page: Page, seed: string): Promise<void> {
+  await page.goto('?lab=renderers')
+  await page.waitForTimeout(400)
+  await page.evaluate(async ({ seed, circuit }) => {
+    const { createRenderer } = await (0, eval)('import("/src/renderers/three-hybrid/index.ts")')
+    const { createBattle } = await (0, eval)('import("/src/core/battle/battle.ts")')
+    const { projectBattleSnapshot } = await (0, eval)('import("/src/core/battle-view/snapshot.ts")')
+    document.body.style.margin = '0'
+    const host = document.createElement('div')
+    host.id = 'action-shot-host'
+    host.style.cssText = 'position:fixed;inset:0;width:1600px;height:1000px;z-index:9999'
+    document.body.append(host)
+    const renderer = createRenderer()
+    await renderer.mount(host)
+    renderer.resize(1600, 1000, 1)
+    const battle = createBattle(seed)
+    battle.start()
+
+    let held: string | null = null
+    let boundary = 0
+    let leg = 0
+    const bridge = () => window.__SQUADING_TEST__!.rendererScene!()!
+
+    ;(window as unknown as { __actionShot?: unknown }).__actionShot = (want: string, maxTicks: number, minTick: number) => {
+      for (let step = 0; step < maxTicks; step += 1) {
+        if (battle.state().combatTick >= boundary) {
+          if (held) battle.keyUp(held)
+          const leom = circuit[leg % circuit.length]!
+          leg += 1
+          boundary += leom[1]
+          battle.keyDown(leom[0])
+          held = leom[0]
+        }
+        const result = battle.step()
+        if (!result.ran) {
+          if (result.mode === 'awaiting-upgrade') {
+            battle.enqueue({ kind: 'choose-upgrade', slot: 1 })
+            continue
+          }
+          return null
+        }
+        const snapshot = projectBattleSnapshot(battle.state(), [result])
+        renderer.render(snapshot, 0)
+        if (result.tick < minTick) continue
+        const view = bridge()
+        const action = view.action
+        // Where to aim the detail crop: the authority's own coordinates for the event that made
+        // this frame the one worth photographing.
+        const events = snapshot.actionEvents
+        const attacker = events.find((event: { kind: string }) => event.kind === 'shot' || event.kind === 'melee')
+        const death = events.find((event: { kind: string }) => event.kind === 'death')
+        const telegraphEffect = snapshot.effects.find((effect: { kind: string }) => effect.kind === 'elite-telegraph')
+        const found = want === 'attack'
+          ? action.maxLungeOffset > 0.30 && action.livePuffs > 4 && attacker !== undefined
+          : want === 'hit'
+            ? action.maxFlash > 0.7 && action.flashingUnits >= 2 && attacker !== undefined
+            : want === 'death'
+              ? action.topplingUnits > 0 && action.liveScraps > 20 && death !== undefined
+              : view.eliteTelegraph.visible && view.eliteTelegraph.bodiesInside >= 2
+        if (!found) continue
+        const focus = want === 'attack'
+          ? { x: attacker!.sourceX, y: attacker!.sourceY }
+          : want === 'hit'
+            ? { x: attacker!.targetX, y: attacker!.targetY }
+            : want === 'death'
+              ? { x: death!.targetX, y: death!.targetY }
+              : { x: telegraphEffect!.x, y: telegraphEffect!.y }
+        return {
+          tick: result.tick,
+          maxLungeOffset: action.maxLungeOffset,
+          maxFlash: action.maxFlash,
+          topplingUnits: action.topplingUnits,
+          livePuffs: action.livePuffs,
+          liveScraps: action.liveScraps,
+          eventsPlayed: action.eventsPlayed,
+          bodiesInside: view.eliteTelegraph.bodiesInside,
+          focusX: focus.x,
+          focusY: focus.y,
+        }
+      }
+      return null
+    }
+  }, { seed, circuit: ACTION_CIRCUIT.map((leg) => [leg[0], leg[1]] as [string, number]) })
+}
+
+async function runToMoment(page: Page, want: string, maxTicks: number): Promise<ActionMoment> {
+  return page.evaluate(
+    ({ want, maxTicks, minTick }) =>
+      (window as unknown as { __actionShot: (w: string, m: number, t: number) => ActionMoment })
+        .__actionShot(want, maxTicks, minTick),
+    { want, maxTicks, minTick: ACTION_SHOT_MIN_TICK },
+  ) as Promise<ActionMoment>
+}
+
+const SHOT_WIDTH = 1600
+const SHOT_HEIGHT = 1000
+/** The detail crop, in pixels. Wide enough to hold two bodies and the ground between them. */
+const DETAIL_WIDTH = 620
+const DETAIL_HEIGHT = 420
+
+/**
+ * The whole board, and a crop of the moment inside it.
+ *
+ * A miniature is a small thing in a 1600-wide board shot, and a puff of smoke at its weapon is
+ * smaller. The full frame is what a player sees; the crop is what a reader can judge. The crop is
+ * aimed by projecting the AUTHORITY'S OWN coordinates for the event through the live camera, so
+ * it is centred on the thing the shot is evidence of rather than on a guess.
+ */
+async function snapAction(page: Page, name: string, moment: ActionMoment): Promise<void> {
+  mkdirSync(ARTIFACTS, { recursive: true })
+  await page.locator('#action-shot-host canvas').screenshot({ path: `${ARTIFACTS}${name}.png` })
+  if (!moment) return
+  const point = await page.evaluate(
+    ({ x, y }) => window.__SQUADING_TEST__!.projectGroundPoint!(x, y),
+    { x: moment.focusX, y: moment.focusY },
+  )
+  if (!point) return
+  const centreX = ((point.x + 1) / 2) * SHOT_WIDTH
+  const centreY = ((1 - point.y) / 2) * SHOT_HEIGHT
+  await page.screenshot({
+    path: `${ARTIFACTS}${name}-detail.png`,
+    clip: {
+      x: Math.max(0, Math.min(SHOT_WIDTH - DETAIL_WIDTH, centreX - DETAIL_WIDTH / 2)),
+      y: Math.max(0, Math.min(SHOT_HEIGHT - DETAIL_HEIGHT, centreY - DETAIL_HEIGHT / 2)),
+      width: DETAIL_WIDTH,
+      height: DETAIL_HEIGHT,
+    },
+  })
+}
+
+test('captures the attack, the hit, the death and the warning with bodies in it', async ({ page }) => {
+  test.setTimeout(420_000)
+  await openActionBoard(page, 'seed-h')
+
+  const attack = await runToMoment(page, 'attack', 900)
+  expect(attack, 'no frame reached a full lunge with smoke in the air').not.toBeNull()
+  await snapAction(page, 'shot-action-attack', attack)
+  console.log(`[shot] shot-action-attack tick=${attack!.tick} lunge=${attack!.maxLungeOffset.toFixed(3)} puffs=${attack!.livePuffs} events=${attack!.eventsPlayed}`)
+
+  const hit = await runToMoment(page, 'hit', 900)
+  expect(hit, 'no frame caught two bodies flashing at once').not.toBeNull()
+  await snapAction(page, 'shot-action-hit', hit)
+  console.log(`[shot] shot-action-hit tick=${hit!.tick} flash=${hit!.maxFlash.toFixed(3)} events=${hit!.eventsPlayed}`)
+
+  const death = await runToMoment(page, 'death', 1500)
+  expect(death, 'no frame caught a figure toppling in a shower of scraps').not.toBeNull()
+  await snapAction(page, 'shot-action-death', death)
+  console.log(`[shot] shot-action-death tick=${death!.tick} toppling=${death!.topplingUnits} scraps=${death!.liveScraps}`)
+
+  // §정예 예고. The run has to survive to tick 1800 for this one, which is what the circuit is for.
+  const telegraph = await runToMoment(page, 'telegraph', 3000)
+  expect(telegraph, 'the elite never telegraphed a strike with bodies standing in it').not.toBeNull()
+  await snapAction(page, 'shot-elite-telegraph-bodies', telegraph)
+  const legibility = await page.evaluate(() => window.__SQUADING_TEST__!.telegraphLegibility!())
+  expect(legibility).not.toBeNull()
+  console.log(
+    `[shot] shot-elite-telegraph-bodies tick=${telegraph!.tick} bodiesInside=${telegraph!.bodiesInside}`
+    + ` samples=${legibility!.samples} occluded=${legibility!.occludedSamples}`
+    + ` groundOnlyPainted=${legibility!.groundOnlyPaintedSamples} painted=${legibility!.paintedSamples}`,
+  )
+  // The picture is only evidence if the ring in it really is behind bodies and really is whole.
+  expect(telegraph!.bodiesInside).toBeGreaterThanOrEqual(2)
+  expect(legibility!.paintedSamples).toBe(legibility!.samples)
+})

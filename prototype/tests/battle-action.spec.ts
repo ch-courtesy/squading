@@ -248,9 +248,10 @@ test('keeps the elite warning readable through the bodies standing inside it', a
     }
     for (let frame = 0; frame < 4; frame += 1) renderer.render({ ...snapshot, tick: 10 + frame }, 0)
     const telegraph = window.__SQUADING_TEST__!.rendererScene!()!.eliteTelegraph
+    const legibility = window.__SQUADING_TEST__!.telegraphLegibility!()!
     renderer.dispose()
     host.remove()
-    return telegraph
+    return { ...telegraph, ...legibility }
   })
 
   expect(reading.visible).toBe(true)
@@ -327,4 +328,87 @@ test('carries the account through the live v2 loop, not only through an offline 
   expect(peakLunge).toBeGreaterThan(0.05)
   expect(sawPuff).toBe(true)
   expect(sawFlash).toBe(true)
+})
+
+/**
+ * §1.4's rhythm, and what the renderer can and cannot promise about it.
+ *
+ * The spec asks the renderer to "reveal this rhythm visually": after the squad stops, each unit
+ * fires on its own leftover cooldown and the shots are scattered, then the phases align and the
+ * squad fires together. The rhythm IS in the data — measured over 700 ticks of `seed-h`, most
+ * ticks carry one or two friendly shots and 31 of them carry four or more, peaking at eight —
+ * and what this pins is the renderer's half of it: one shot, one muzzle burst, so a tick that
+ * fired eight puts eight puffs on the board and a tick that fired one puts one.
+ *
+ * WHAT IS NOT ASSERTED, because it was not tested: that a player watching at 30 ticks a second
+ * PERCEIVES the alternation as scattered-then-together. That is a judgement about a person, and
+ * nothing here or in the screenshots establishes it.
+ */
+test('puts one muzzle burst on the board per shot, so a volley reads as a volley', async ({ page }) => {
+  await fixture(page)
+  const readings = await page.evaluate(async () => {
+    const { createRenderer } = await (0, eval)('import("/src/renderers/three-hybrid/index.ts")')
+    const bridge = () => window.__SQUADING_TEST__!.rendererScene!()!.action
+    const host = document.createElement('div')
+    host.style.cssText = 'width:900px;height:560px'
+    document.body.append(host)
+    const renderer = createRenderer()
+    await renderer.mount(host)
+
+    const shooters = [1, 2, 3, 4, 5, 6]
+    const body = (id: number, kind: string, team: string, x: number, y: number) => ({
+      id, kind, team, squad: team === 'enemy' ? null : team,
+      x, y, facingRadians: 0, radius: 0.45, hp01: 1, fatigue01: 0, morale01: 1, state: 'idle',
+    })
+    const base = {
+      elapsedMs: 0,
+      units: [
+        ...shooters.map((id, index) => body(id, id === 1 ? 'commander' : 'soldier', id === 1 ? 'scarlet' : 'teal', -3 + index * 0.9, 0)),
+        body(101, 'enemy-commander', 'enemy', 2, 3),
+      ],
+      projectiles: [], effects: [],
+      camera: { centerX: 0, centerY: 0, worldWidth: 24, worldHeight: 15 },
+      playArea: { centerX: 0, centerY: 0, worldWidth: 56, worldHeight: 32 },
+      activeSquad: 'teal',
+    }
+    const shot = (sourceId: number, tick: number) => ({
+      kind: 'shot', tick, sourceId, sourceX: -3 + (sourceId - 1) * 0.9, sourceY: 0,
+      targetId: 101, targetX: 2, targetY: 3, strength01: 0.2,
+    })
+
+    renderer.render({ ...base, tick: 1, actionEvents: [] }, 0)
+    renderer.render({ ...base, tick: 2, actionEvents: [] }, 0)
+    const drawCallsQuiet = renderer.collectMetrics().drawCalls
+    const burstsQuiet = bridge().muzzleBursts
+
+    // A scattered tick: one body fires.
+    renderer.render({ ...base, tick: 3, actionEvents: [shot(1, 2)] }, 0)
+    const afterOne = bridge().muzzleBursts
+
+    // A synchronised volley: all six on the same tick.
+    renderer.render({ ...base, tick: 4, actionEvents: shooters.map((id) => shot(id, 3)) }, 0)
+    const afterVolley = bridge().muzzleBursts
+    const drawCallsBusy = renderer.collectMetrics().drawCalls
+    const livePuffs = bridge().livePuffs
+
+    const readings = { drawCallsQuiet, drawCallsBusy, burstsQuiet, afterOne, afterVolley, livePuffs }
+    renderer.dispose()
+    host.remove()
+    return readings
+  })
+
+  expect(readings.burstsQuiet).toBe(0)
+  expect(readings.afterOne).toBe(1)
+  // Six shots on one tick, six bursts. A renderer that merged a frame's blows would answer 2.
+  expect(readings.afterVolley).toBe(7)
+  expect(readings.livePuffs).toBeGreaterThanOrEqual(6)
+
+  // --- What the whole action feedback costs in draw calls -----------------------------
+  // Both particle pools are one `InstancedMesh` each, so a burst of any size is one call and
+  // twenty-eight live puffs cost exactly what one does. The unit lunge, the recoil, the flash
+  // and the topple are transforms and material fields on meshes that were being drawn anyway.
+  console.log(
+    `[draw calls] quiet=${readings.drawCallsQuiet} with ${readings.livePuffs} live puffs=${readings.drawCallsBusy}`,
+  )
+  expect(readings.drawCallsBusy! - readings.drawCallsQuiet!).toBeLessThanOrEqual(2)
 })
