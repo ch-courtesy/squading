@@ -59,6 +59,8 @@ type EffectVisual = {
   readonly ring?: THREE.Mesh
   readonly pillar?: THREE.Mesh
   readonly halo?: THREE.Mesh
+  /** §정예 예고: the same circle again, painted over whatever is standing on it. */
+  readonly overlay?: THREE.Mesh
 }
 type TelegraphTrack = { remaining: number; longest: number; x: number; z: number; radius: number }
 /**
@@ -76,7 +78,36 @@ type TintedBodyMaterial = THREE.MeshLambertMaterial | THREE.MeshPhongMaterial
  * flat on the tabletop, and which squad currently carries the active marker.
  */
 export type HybridVisualState = {
-  readonly eliteTelegraph: { readonly visible: boolean; readonly radius: number; readonly normalY: number }
+  /**
+   * The elite's warning, and how much of it a player can actually read (§정예 예고).
+   *
+   * Batch K lowered the camera to 23 degrees and reported the ring "substantially covered by the
+   * bodies standing inside it, with only its left and right arcs readable". That is a PLAY
+   * defect: §4.5 asks whether the strike can be dodged, and a warning whose edge cannot be seen
+   * cannot be dodged on purpose. The three sample counts below are the measurement of it, taken
+   * off rendered pixels rather than off an intention.
+   */
+  readonly eliteTelegraph: {
+    readonly visible: boolean
+    readonly radius: number
+    readonly normalY: number
+    /** Standing bodies whose base is inside the warned circle right now. */
+    readonly bodiesInside: number
+    /** Points taken evenly around the circumference, in view, that the readings below cover. */
+    readonly samples: number
+    /**
+     * Sample points a body NEARER the camera covers. This is batch K's gap as a number: every
+     * one of these is a piece of the warning's edge that a ground-painted ring loses.
+     */
+    readonly occludedSamples: number
+    /** Sample points where the ground band ALONE paints pixels — the ring as batch K shipped it. */
+    readonly groundOnlyPaintedSamples: number
+    /** Sample points where the warning paints pixels as it ships now. */
+    readonly paintedSamples: number
+    /** Whether the over-body outline exists and asks the depth buffer. It must not. */
+    readonly overlayDepthTested: boolean | null
+    readonly overlayRenderOrder: number | null
+  }
   readonly eliteCards: readonly { readonly scale: number; readonly facesCamera: boolean }[]
   readonly downedCards: number
   readonly downedTiltRadians: readonly number[]
@@ -204,6 +235,18 @@ export type HybridVisualState = {
     readonly attacksObserved: number
     readonly hitsObserved: number
     readonly deathsObserved: number
+    /**
+     * Whether the last snapshot carried the authority's own account of the tick
+     * (`RenderSnapshot.actionEvents`), or the renderer had to infer blows from `hp01` deltas.
+     * `false` on the v1 gameplay route and in the `?lab=renderers` fixture, by construction.
+     */
+    readonly authoredEvents: boolean
+    /** Action events consumed since mount. Zero while the account is absent. */
+    readonly eventsPlayed: number
+    /** Gun bursts fired. §액션 피드백's 솜뭉치 퍼프 — a melee blow must never add to this. */
+    readonly muzzleBursts: number
+    /** Dust at the point of a melee contact, which is what a fist gets instead of a muzzle. */
+    readonly contactBursts: number
     readonly livePuffs: number
     readonly liveScraps: number
     readonly particleCapacity: number
@@ -242,6 +285,27 @@ const TELEGRAPH_COLOR = 0xe1725f
 // painted circle always matches the area the simulation will actually damage.
 const TELEGRAPH_INNER_RADIUS = 0.78
 const TELEGRAPH_SEGMENTS = 48
+// ---------------------------------------------------------------------------
+// §정예 예고 — READING THE WARNING THROUGH THE BODIES STANDING IN IT
+// ---------------------------------------------------------------------------
+// Batch K dropped the camera to 23 degrees, which bought the miniatures their fronts back and
+// cost the board behind them: a body of height `h` now hides `h / tan(23deg)` — about 2.4 times
+// its own height — of ground behind it. The elite's warning ring is painted on that ground, and
+// it is painted around the squad, so the bodies standing inside it cover the far arc and leave
+// the left and right ones. A player who can only see two arcs cannot judge where the edge is,
+// and §4.5's "정예 범위 공격을 피할 수 있는가" is a question about exactly that edge.
+//
+// The fix is the ring TWICE. The ground band stays as it was — depth-tested, lying on the
+// tabletop, sized to the authoritative footprint, and still the thing that says "this ground" —
+// and a thin outline of the same circle at the same radius is drawn with DEPTH TESTING OFF, so
+// no body can be in front of it. It reads as a chalk line seen through the figures rather than
+// as a second object: same colour, thin, and never opaque.
+//
+// It is drawn ABOVE the particle pools' render order so a burst cannot bury it either.
+const TELEGRAPH_OVERLAY_INNER_RADIUS = 0.93
+const TELEGRAPH_OVERLAY_RENDER_ORDER = 6
+const TELEGRAPH_OVERLAY_BASE_OPACITY = 0.34
+const TELEGRAPH_OVERLAY_PULSE_OPACITY = 0.42
 
 // --- Tabletop diorama presentation -----------------------------------------------
 // The gameplay route paints a sculpted diorama: sandy board with grid seams, a raised
@@ -410,6 +474,8 @@ const MUZZLE_SMOKE = new THREE.Color(0xfff2d8)
 const MUZZLE_FLASH = new THREE.Color(0xffe08a)
 const DEATH_DUST = new THREE.Color(0xd8c39a)
 const IMPACT_EMBER = new THREE.Color(0xff8a52)
+/** Dust kicked up where a melee blow lands. Dimmer than a muzzle, and nowhere near a weapon. */
+const CONTACT_DUST = new THREE.Color(0xe8d3b0)
 const IMPACT_SCRAP = new THREE.Color(0xf3d8b6)
 const TELEGRAPH_SIGIL_COLOR = 0xff6a48
 const RESCUE_GOLD = 0xffb52e
@@ -417,6 +483,23 @@ const RESCUE_GOLD = 0xffb52e
 // the carry, not stand in front of them.
 const RESCUE_PILLAR_RADIUS = 0.34
 const RESCUE_PILLAR_HEIGHT = 2.8
+
+// The legibility probe (`measureTelegraphLegibility`). Diagnostic-only constants.
+/** Points taken around the warning's circumference. 64 puts one every 5.6 degrees. */
+const TELEGRAPH_PROBE_SAMPLES = 64
+/** The offscreen probe is capped rather than matching a 4K drawing buffer pixel for pixel. */
+const TELEGRAPH_PROBE_MAX_WIDTH = 1280
+/** Summed RGB distance from the bare board at which a pixel counts as painted, out of 765. */
+const TELEGRAPH_PROBE_DELTA = 12
+/** The height the ring is sampled at: the outline's own plane. */
+const DECAL_PROBE_HEIGHT = 0.03
+
+/** No warning on the board. */
+const EMPTY_TELEGRAPH: HybridVisualState['eliteTelegraph'] = {
+  visible: false, radius: 0, normalY: 0, bodiesInside: 0, samples: 0,
+  occludedSamples: 0, groundOnlyPaintedSamples: 0, paintedSamples: 0,
+  overlayDepthTested: null, overlayRenderOrder: null,
+}
 
 /** No bodies to measure — an empty board hides nothing. */
 const EMPTY_OCCLUSION: HybridVisualState['framing']['occlusion'] = {
@@ -448,6 +531,10 @@ class ThreeHybridRenderer implements HybridGameRenderer {
   private attacksObserved = 0
   private hitsObserved = 0
   private deathsObserved = 0
+  private authoredEvents = false
+  private eventsPlayed = 0
+  private muzzleBursts = 0
+  private contactBursts = 0
   private readonly telegraphs = new Map<number, TelegraphTrack>()
   /**
    * Cosmetic-only jitter for burst directions and sizes. Its own renderer-side seed —
@@ -456,6 +543,7 @@ class ThreeHybridRenderer implements HybridGameRenderer {
    */
   private readonly fxRandom = cosmeticRandom(FX_COSMETIC_SEED ^ 0x632be5ab)
   private telegraphGeometry: THREE.RingGeometry | null = null
+  private telegraphOverlayGeometry: THREE.RingGeometry | null = null
   private snapshot: RenderSnapshot | null = null
   private readonly units = new Map<number, UnitVisual>()
   private readonly effects = new Map<number, EffectVisual>()
@@ -484,6 +572,7 @@ class ThreeHybridRenderer implements HybridGameRenderer {
     camera.lookAt(0, 0, 0)
     this.renderer = renderer; this.scene = scene; this.camera = camera; this.assets = createCardboardAssets()
     this.telegraphGeometry = new THREE.RingGeometry(TELEGRAPH_INNER_RADIUS, 1, TELEGRAPH_SEGMENTS)
+    this.telegraphOverlayGeometry = new THREE.RingGeometry(TELEGRAPH_OVERLAY_INNER_RADIUS, 1, TELEGRAPH_SEGMENTS)
     this.createTabletop(); this.createParticles(); host.append(renderer.domElement); this.applyResolution(); this.renderScene()
   }
 
@@ -500,14 +589,32 @@ class ThreeHybridRenderer implements HybridGameRenderer {
     // backlog while the tab is hidden.
     this.clock = snapshot.tick + clamp01(alpha)
     const elapsedTicks = snapshot.tick - this.lastEventTick
+    // WHERE THE ACTION COMES FROM, and there are two answers.
+    //
+    // The v2 battle publishes `actionEvents`: the authority's own account of every blow the
+    // ticks behind this frame resolved, with its own attacker, target and cause. When the field
+    // is THERE it is the whole truth, and the renderer must not also guess — a guess on top
+    // would play every blow twice.
+    //
+    // v1's gameplay snapshot and the `?lab=renderers` fixture publish no such field, and for
+    // those the renderer still infers a hit from a drop in `hp01` and blames the nearest hostile
+    // that is attacking. That path is lossy in ways the account is not — one flash per frame
+    // however many blows landed, no killing blow at all (a body that dies is never seen to lose
+    // health), a muzzle puff on a melee attacker — which is why batch L built the account. It is
+    // kept because those two callers have no events to give.
+    const authored = snapshot.actionEvents !== undefined
+    this.authoredEvents = authored
     // A resume, a restart or a long stall lands many ticks at once. Those frames resync
     // the diff state silently instead of detonating every event that was skipped.
-    const spawnEvents = this.diorama !== null && elapsedTicks > 0 && elapsedTicks <= EVENT_CATCHUP_TICKS
+    const spawnEvents = !authored && this.diorama !== null && elapsedTicks > 0 && elapsedTicks <= EVENT_CATCHUP_TICKS
     // A restart rewinds the authority clock. Everything the renderer scheduled against
     // the old clock — bursts, the shake, the telegraph countdown — has to go with it,
     // or a burst born at tick 500 reappears when the new battle reaches tick 500.
     if (snapshot.tick < this.lastEventTick) this.resetActionState()
     this.updateCameraBounds(snapshot)
+    // Before the bodies are drawn, so the lunge of whoever fired and the flash of whoever was
+    // hit both land on the frame the blow belongs to instead of the one after it.
+    if (authored && this.diorama) this.playActionEvents(snapshot)
     const unitIds = new Set(snapshot.units.map((unit) => unit.id))
     snapshot.units.forEach((unit) => this.renderUnit(unit, snapshot, spawnEvents))
     this.units.forEach((visual, id) => { if (!unitIds.has(id)) this.removeVisual(this.units, id, visual) })
@@ -515,7 +622,9 @@ class ThreeHybridRenderer implements HybridGameRenderer {
     snapshot.effects.forEach((effect) => this.renderEffect(effect))
     this.effects.forEach((visual, id) => {
       if (effectIds.has(id)) return
-      if (visual.kind === 'elite-telegraph') this.resolveTelegraphImpact(id, spawnEvents)
+      // The strike's own shake does not ride on `spawnEvents`: an authored snapshot delivers
+      // every tick in order, so a telegraph that has left the account really has landed.
+      if (visual.kind === 'elite-telegraph') this.resolveTelegraphImpact(id, authored || spawnEvents)
       this.removeVisual(this.effects, id, visual)
     })
     if (this.fx && this.camera) {
@@ -563,6 +672,7 @@ class ThreeHybridRenderer implements HybridGameRenderer {
     this.scene?.traverse((object) => { if (object instanceof THREE.Mesh && object.name.startsWith('tabletop-')) disposeObjectMaterials(object) })
     this.units.clear(); this.effects.clear(); this.particles = []; this.frameRails = []
     this.telegraphGeometry?.dispose(); this.telegraphGeometry = null
+    this.telegraphOverlayGeometry?.dispose(); this.telegraphOverlayGeometry = null
     this.telegraphs.clear()
     this.surfaceDecals?.dispose(); this.surfaceDecals = null
     this.props?.dispose(); this.props = null
@@ -748,6 +858,10 @@ class ThreeHybridRenderer implements HybridGameRenderer {
       attacksObserved: this.attacksObserved,
       hitsObserved: this.hitsObserved,
       deathsObserved: this.deathsObserved,
+      authoredEvents: this.authoredEvents,
+      eventsPlayed: this.eventsPlayed,
+      muzzleBursts: this.muzzleBursts,
+      contactBursts: this.contactBursts,
       livePuffs: this.fx?.puffs.live ?? 0,
       liveScraps: this.fx?.scraps.live ?? 0,
       particleCapacity: (this.fx?.puffs.capacity ?? 0) + (this.fx?.scraps.capacity ?? 0),
@@ -945,17 +1059,169 @@ class ThreeHybridRenderer implements HybridGameRenderer {
   }
 
   private describeTelegraph(): HybridVisualState['eliteTelegraph'] {
-    const area = [...this.effects.values()]
-      .filter((visual) => visual.kind === 'elite-telegraph')
-      .map((visual) => visual.root.children[0])
-      .find((child): child is THREE.Mesh => child instanceof THREE.Mesh)
-    if (!area) return { visible: false, radius: 0, normalY: 0 }
+    const telegraph = [...this.effects.values()].find((visual) => visual.kind === 'elite-telegraph')
+    const area = telegraph?.root.children.find((child): child is THREE.Mesh => child instanceof THREE.Mesh)
+    if (!telegraph || !area) return EMPTY_TELEGRAPH
     const normal = new THREE.Vector3(0, 0, 1).applyQuaternion(area.getWorldQuaternion(new THREE.Quaternion())).normalize()
+    const radius = (area.geometry as THREE.RingGeometry).parameters.outerRadius * area.scale.x
+    const overlay = telegraph.overlay
+    const overlayMaterial = overlay?.material as THREE.MeshBasicMaterial | undefined
     return {
       visible: true,
-      radius: (area.geometry as THREE.RingGeometry).parameters.outerRadius * area.scale.x,
+      radius,
       normalY: normal.y,
+      overlayDepthTested: overlayMaterial ? overlayMaterial.depthTest : null,
+      overlayRenderOrder: overlay ? overlay.renderOrder : null,
+      ...this.measureTelegraphLegibility(telegraph, radius),
     }
+  }
+
+  /**
+   * How much of the warning's edge survives the bodies standing on it — measured off PIXELS.
+   *
+   * The scene is rendered three times into an offscreen target: as it ships, with the over-body
+   * outline hidden (which is the ring batch K shipped), and with the whole warning hidden (the
+   * board underneath). A sample point counts as PAINTED when its pixel differs from the bare
+   * board, so nothing here depends on guessing the warning's colour after it has been blended
+   * over sand, a scorch decal or a purple miniature.
+   *
+   * `occludedSamples` is the geometric half of the same question, computed the way
+   * `measureOcclusion` computes its own: a sample is occluded when a body NEARER THE CAMERA
+   * covers its screen position. It is an upper bound for the same reason that one is — a
+   * miniature does not fill its own bounding box.
+   *
+   * It is a DIAGNOSTIC. It renders, so it must never be called from `render`, and it is not: the
+   * only caller is `getVisualState`, which exists for the dev-only test bridge.
+   */
+  private measureTelegraphLegibility(
+    telegraph: EffectVisual,
+    radius: number,
+  ): Pick<HybridVisualState['eliteTelegraph'], 'bodiesInside' | 'samples' | 'occludedSamples' | 'groundOnlyPaintedSamples' | 'paintedSamples'> {
+    const camera = this.camera
+    const renderer = this.renderer
+    const scene = this.scene
+    const blank = { bodiesInside: 0, samples: 0, occludedSamples: 0, groundOnlyPaintedSamples: 0, paintedSamples: 0 }
+    if (!camera || !renderer || !scene || radius <= 0) return blank
+
+    const centreX = telegraph.root.position.x
+    const centreZ = telegraph.root.position.z
+    const bodiesInside = (this.snapshot?.units ?? []).filter((unit) => {
+      const visual = this.units.get(unit.id)
+      if (!visual || visual.anim.dead || unit.state === 'downed' || unit.state === 'dead') return false
+      return Math.hypot(unit.x - centreX, unit.y - centreZ) <= radius
+    }).length
+
+    const size = renderer.getDrawingBufferSize(new THREE.Vector2())
+    const width = Math.max(1, Math.min(TELEGRAPH_PROBE_MAX_WIDTH, Math.round(size.x)))
+    const height = Math.max(1, Math.round((size.y / Math.max(1, size.x)) * width))
+
+    // Sample points on the circle, in screen pixels, plus their camera depth for the occlusion
+    // half. The probe radius is the MIDDLE of the outline's band, not its outer edge: the edge
+    // is one antialiased pixel wide and a reading taken there measures rounding, not paint.
+    const probeRadius = radius * (1 + TELEGRAPH_OVERLAY_INNER_RADIUS) / 2
+    const points: { px: number; py: number; depth: number }[] = []
+    const world = new THREE.Vector3()
+    for (let index = 0; index < TELEGRAPH_PROBE_SAMPLES; index += 1) {
+      const angle = (index / TELEGRAPH_PROBE_SAMPLES) * Math.PI * 2
+      world.set(centreX + Math.cos(angle) * probeRadius, DECAL_PROBE_HEIGHT, centreZ + Math.sin(angle) * probeRadius)
+      const depth = -world.clone().applyMatrix4(camera.matrixWorldInverse).z
+      const ndc = world.project(camera)
+      if (Math.abs(ndc.x) > 1 || Math.abs(ndc.y) > 1) continue
+      points.push({
+        px: Math.min(width - 1, Math.max(0, Math.round(((ndc.x + 1) / 2) * width))),
+        py: Math.min(height - 1, Math.max(0, Math.round(((ndc.y + 1) / 2) * height))),
+        depth,
+      })
+    }
+    if (points.length === 0) return { ...blank, bodiesInside }
+
+    const occludedSamples = this.countOccludedSamples(points, width, height)
+
+    const overlay = telegraph.overlay
+    const overlayWas = overlay?.visible ?? false
+    const rootWas = telegraph.root.visible
+    const target = new THREE.WebGLRenderTarget(width, height)
+    const shipped = new Uint8Array(width * height * 4)
+    const groundOnly = new Uint8Array(width * height * 4)
+    const bare = new Uint8Array(width * height * 4)
+    const previousTarget = renderer.getRenderTarget()
+    try {
+      renderer.setRenderTarget(target)
+      renderer.render(scene, camera)
+      renderer.readRenderTargetPixels(target, 0, 0, width, height, shipped)
+      if (overlay) overlay.visible = false
+      renderer.render(scene, camera)
+      renderer.readRenderTargetPixels(target, 0, 0, width, height, groundOnly)
+      telegraph.root.visible = false
+      renderer.render(scene, camera)
+      renderer.readRenderTargetPixels(target, 0, 0, width, height, bare)
+    } finally {
+      if (overlay) overlay.visible = overlayWas
+      telegraph.root.visible = rootWas
+      renderer.setRenderTarget(previousTarget)
+      target.dispose()
+      // Put back on screen exactly what was there before the probe.
+      this.renderScene()
+    }
+
+    // A 3x3 neighbourhood, because a sample is a mathematical point and a pixel is not: a band
+    // a couple of pixels wide can fall between two sample coordinates after rounding.
+    const painted = (buffer: Uint8Array, point: { px: number; py: number }): boolean => {
+      for (let dy = -1; dy <= 1; dy += 1) {
+        for (let dx = -1; dx <= 1; dx += 1) {
+          const px = point.px + dx
+          const py = point.py + dy
+          if (px < 0 || py < 0 || px >= width || py >= height) continue
+          const offset = (py * width + px) * 4
+          const delta = Math.abs(buffer[offset]! - bare[offset]!)
+            + Math.abs(buffer[offset + 1]! - bare[offset + 1]!)
+            + Math.abs(buffer[offset + 2]! - bare[offset + 2]!)
+          if (delta > TELEGRAPH_PROBE_DELTA) return true
+        }
+      }
+      return false
+    }
+
+    return {
+      bodiesInside,
+      samples: points.length,
+      occludedSamples,
+      groundOnlyPaintedSamples: points.filter((point) => painted(groundOnly, point)).length,
+      paintedSamples: points.filter((point) => painted(shipped, point)).length,
+    }
+  }
+
+  /** Sample points with a standing body between them and the camera, in pixel space. */
+  private countOccludedSamples(
+    points: readonly { px: number; py: number; depth: number }[],
+    width: number,
+    height: number,
+  ): number {
+    const camera = this.camera
+    if (!camera) return 0
+    const boxes: { minX: number; maxX: number; minY: number; maxY: number; depth: number }[] = []
+    for (const unit of this.snapshot?.units ?? []) {
+      const visual = this.units.get(unit.id)
+      if (!visual || !visual.card.visible || visual.anim.dead || unit.state === 'downed') continue
+      const world = new THREE.Box3().setFromObject(visual.card)
+      if (world.isEmpty()) continue
+      let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity
+      const corner = new THREE.Vector3()
+      for (let index = 0; index < 8; index += 1) {
+        corner.set(
+          index & 1 ? world.max.x : world.min.x,
+          index & 2 ? world.max.y : world.min.y,
+          index & 4 ? world.max.z : world.min.z,
+        ).project(camera)
+        minX = Math.min(minX, ((corner.x + 1) / 2) * width); maxX = Math.max(maxX, ((corner.x + 1) / 2) * width)
+        minY = Math.min(minY, ((corner.y + 1) / 2) * height); maxY = Math.max(maxY, ((corner.y + 1) / 2) * height)
+      }
+      const centre = visual.root.getWorldPosition(new THREE.Vector3()).applyMatrix4(camera.matrixWorldInverse)
+      boxes.push({ minX, maxX, minY, maxY, depth: -centre.z })
+    }
+    return points.filter((point) => boxes.some((box) => box.depth < point.depth
+      && point.px >= box.minX && point.px <= box.maxX
+      && point.py >= box.minY && point.py <= box.maxY)).length
   }
 
   private rescueSignalCount(): number {
@@ -1087,8 +1353,7 @@ class ThreeHybridRenderer implements HybridGameRenderer {
   private renderUnit(unit: RenderUnit, snapshot: RenderSnapshot, spawnEvents: boolean): void {
     if (!this.scene || !this.camera || !this.assets) return
     const activeSquad = snapshot.activeSquad
-    let visual = this.units.get(unit.id)
-    if (!visual) visual = this.diorama ? this.createMiniature(unit) : this.createCard(unit)
+    const visual = this.ensureUnitVisual(unit)
     const downed = unit.state === 'downed'
     const marksActiveSquad = activeSquad !== undefined && unit.squad === activeSquad
     visual.root.position.set(unit.x, 0, unit.y); visual.root.scale.setScalar(cardScale(unit))
@@ -1199,16 +1464,69 @@ class ThreeHybridRenderer implements HybridGameRenderer {
     this.updateGauge(unit, visual, downed)
   }
 
-  private beginDeath(unit: RenderUnit, visual: UnitVisual): void {
+  /**
+   * The authority's own account of the ticks behind this frame, turned into motion.
+   *
+   * EACH EVENT IS SCHEDULED AT ITS OWN TICK, not at the frame edge, and that is the whole answer
+   * to the frame/tick mismatch. A browser frame here regularly covers three ticks; starting all
+   * three ticks' animations at the same instant would collapse a staggered volley into one
+   * simultaneous flash and hide exactly the rhythm §1.4 is about. `event.tick + 1` is the moment
+   * that tick's result first existed, so a blow from two ticks back opens two ticks into its own
+   * curve — already past its peak, on its way out, which is where it should be.
+   *
+   * Nothing here reads or writes an authoritative value: the events are numbers copied out of a
+   * projection, and every field they touch lives in `UnitAnim` or in a particle pool.
+   */
+  /** The figure for a unit, built on first sight. Both callers need it before they draw. */
+  private ensureUnitVisual(unit: RenderUnit): UnitVisual {
+    return this.units.get(unit.id) ?? (this.diorama ? this.createMiniature(unit) : this.createCard(unit))
+  }
+
+  private playActionEvents(snapshot: RenderSnapshot): void {
+    const events = snapshot.actionEvents
+    if (!events || events.length === 0) return
+    this.eventsPlayed += events.length
+    const units = new Map(snapshot.units.map((unit) => [unit.id, unit] as const))
+    for (const event of events) {
+      // Never ahead of the frame's own clock: a particle born in the future would sit at zero
+      // scale, and an animation started in the future would freeze at its first frame.
+      const at = Math.min(this.clock, event.tick + 1)
+      const target = units.get(event.targetId)
+      // The figure is BUILT HERE if this is the first the renderer has heard of the body, and
+      // that is not a nicety: an enemy composed on tick N can be shot on tick N, and its first
+      // frame is this one. Skipping the event instead lost 17 blows across a measured run.
+      const visual = target ? this.ensureUnitVisual(target) : undefined
+      // A target the snapshot does not carry at all has nothing on screen to move.
+      if (!target || !visual) continue
+      if (event.kind === 'death') {
+        if (!visual.anim.dead) this.beginDeath(target, visual, at)
+        continue
+      }
+      const dx = event.targetX - event.sourceX
+      const dz = event.targetY - event.sourceY
+      const length = Math.hypot(dx, dz)
+      const towardsX = length > 1e-6 ? dx / length : 0
+      const towardsZ = length > 1e-6 ? dz / length : 1
+      const attacker = event.sourceId === null ? undefined : units.get(event.sourceId)
+      // The elite's area strike has no striker at the point of impact — its whole telegraph is
+      // the warning and its shake is the blow — so nothing lunges for it.
+      if (attacker && event.kind !== 'blast') {
+        this.beginAttack(attacker, target, towardsX, towardsZ, at, event.kind === 'shot')
+      }
+      this.applyHit(visual, event.strength01, -towardsX, -towardsZ, at)
+    }
+  }
+
+  private beginDeath(unit: RenderUnit, visual: UnitVisual, at: number = this.clock): void {
     const anim = visual.anim
     anim.dead = true
-    anim.deathStart = this.clock
+    anim.deathStart = at
     // A friendly that bleeds out is already lying on its side; an enemy shot on its feet
     // starts upright. Reading the tilt back off the figure covers both without a flag.
     anim.deathFromTopple = clamp01(visual.card.rotation.z / (Math.PI / 2))
     anim.lungeStart = Number.NEGATIVE_INFINITY
     this.deathsObserved += 1
-    this.spawnDeathBurst(unit, DEATH_TICKS * DEATH_BURST_FRACTION)
+    this.spawnDeathBurst(unit, DEATH_TICKS * DEATH_BURST_FRACTION, at)
   }
 
   /**
@@ -1217,9 +1535,6 @@ class ThreeHybridRenderer implements HybridGameRenderer {
    * `attacking` state — which is enough to aim the lunge, the muzzle and the recoil.
    */
   private registerDamage(unit: RenderUnit, visual: UnitVisual, snapshot: RenderSnapshot, damage01: number): void {
-    this.hitsObserved += 1
-    const anim = visual.anim
-    anim.flashScale = FLASH_FLOOR + (1 - FLASH_FLOOR) * clamp01(damage01 * FLASH_DAMAGE_GAIN)
     const attacker = nearestAttacker(unit, snapshot.units)
     let awayX = 0
     let awayZ = 1
@@ -1229,28 +1544,55 @@ class ThreeHybridRenderer implements HybridGameRenderer {
       const length = Math.hypot(dx, dz) || 1
       awayX = dx / length
       awayZ = dz / length
-      this.beginAttack(attacker, unit, -awayX, -awayZ)
+      // The inferred path cannot tell a rifle from a fist, so it keeps the muzzle burst it has
+      // always had. §액션 피드백's "근접형이 총구 퍼프를 뿜으면 안 된다" is answered on the
+      // AUTHORED path, where the cause says which it was.
+      this.beginAttack(attacker, unit, -awayX, -awayZ, this.clock, true)
     }
-    anim.hitStart = this.clock
+    this.applyHit(visual, damage01, awayX, awayZ, this.clock)
+  }
+
+  /**
+   * The struck end of one blow: the paint flashes bright and the figure is shoved back inside
+   * its own base. Both are display-only — the base never moves, so the authoritative position
+   * this unit occupies is the same before and after.
+   */
+  private applyHit(visual: UnitVisual, damage01: number, awayX: number, awayZ: number, at: number): void {
+    this.hitsObserved += 1
+    const anim = visual.anim
+    // §액션 피드백 does not say the flash should scale, and it is scaled anyway: an elite chipped
+    // for 2% and a squadmate taking a third of its health are different events, and a flash of
+    // one fixed size makes them the same one. The floor keeps the smallest blow visible.
+    anim.flashScale = FLASH_FLOOR + (1 - FLASH_FLOOR) * clamp01(damage01 * FLASH_DAMAGE_GAIN)
+    anim.hitStart = at
     anim.hitX = awayX
     anim.hitZ = awayZ
   }
 
-  private beginAttack(attacker: RenderUnit, target: RenderUnit, dirX: number, dirZ: number): void {
+  /** `muzzle` is false for a blow landed by hand: a fist must not emit gun smoke. */
+  private beginAttack(
+    attacker: RenderUnit,
+    target: RenderUnit,
+    dirX: number,
+    dirZ: number,
+    at: number = this.clock,
+    muzzle = true,
+  ): void {
     const visual = this.units.get(attacker.id)
     if (!visual || visual.anim.dead) return
     const anim = visual.anim
     this.attacksObserved += 1
-    anim.lungeStart = this.clock
+    anim.lungeStart = at
     anim.lungeX = dirX
     anim.lungeZ = dirZ
     anim.yaw = Math.atan2(dirX, dirZ)
-    anim.aimUntil = this.clock + AIM_HOLD_TICKS
-    this.spawnMuzzleBurst(attacker, target, dirX, dirZ)
+    anim.aimUntil = at + AIM_HOLD_TICKS
+    if (muzzle) this.spawnMuzzleBurst(attacker, target, dirX, dirZ, at)
+    else this.spawnContactBurst(target, dirX, dirZ, at)
   }
 
   /** A cotton puff at the weapon, plus three beads walking down the line of fire. */
-  private spawnMuzzleBurst(attacker: RenderUnit, target: RenderUnit, dirX: number, dirZ: number): void {
+  private spawnMuzzleBurst(attacker: RenderUnit, target: RenderUnit, dirX: number, dirZ: number, at: number = this.clock): void {
     const fx = this.fx
     if (!fx) return
     const [localX, localY, localZ] = MUZZLE_OFFSETS[miniatureArchetype(attacker)]
@@ -1259,8 +1601,9 @@ class ThreeHybridRenderer implements HybridGameRenderer {
     const cos = dirZ
     const muzzleX = attacker.x + (localX * cos + localZ * sin) * scale
     const muzzleZ = attacker.y + (-localX * sin + localZ * cos) * scale
+    this.muzzleBursts += 1
     const muzzleY = localY * scale
-    const now = this.clock
+    const now = at
     fx.puffs.spawn(now, { x: muzzleX, y: muzzleY, z: muzzleZ, vx: dirX * 0.03, vy: 0.014, vz: dirZ * 0.03, life: 8, startSize: 0.5, endSize: 1.3, color: MUZZLE_SMOKE })
     fx.puffs.spawn(now, { x: muzzleX + dirX * 0.2, y: muzzleY + 0.04, z: muzzleZ + dirZ * 0.2, vx: dirX * 0.05, vy: 0.02, vz: dirZ * 0.05, life: 4, startSize: 0.9, endSize: 0.24, color: MUZZLE_FLASH })
     const dx = target.x - muzzleX
@@ -1276,13 +1619,31 @@ class ThreeHybridRenderer implements HybridGameRenderer {
     }
   }
 
+  /**
+   * A blow landed by hand. Dust at the point of contact and nothing at the attacker's weapon:
+   * §액션 피드백's 솜뭉치 퍼프 is a MUZZLE puff, and a melee figure that emitted one would be
+   * telling the player it shoots — which is the one thing §4.5's "어디에 멈출지" hangs on.
+   */
+  private spawnContactBurst(target: RenderUnit, dirX: number, dirZ: number, at: number): void {
+    const fx = this.fx
+    if (!fx) return
+    this.contactBursts += 1
+    const contactX = target.x - dirX * target.radius
+    const contactZ = target.y - dirZ * target.radius
+    fx.puffs.spawn(at, {
+      x: contactX, y: 0.55, z: contactZ,
+      vx: dirX * 0.02, vy: 0.012, vz: dirZ * 0.02,
+      life: 5, startSize: 0.34, endSize: 0.78, color: CONTACT_DUST,
+    })
+  }
+
   /** Paper scraps, delayed so the figure gets to topple before it comes apart. */
-  private spawnDeathBurst(unit: RenderUnit, delayTicks: number): void {
+  private spawnDeathBurst(unit: RenderUnit, delayTicks: number, at: number = this.clock): void {
     const fx = this.fx
     if (!fx) return
     const archetype = miniatureArchetype(unit)
     const tint = SCRAP_TINTS[archetype]
-    const burstAt = this.clock + delayTicks
+    const burstAt = at + delayTicks
     const count = unit.kind === 'elite' ? 22 : 14
     for (let index = 0; index < count; index += 1) {
       const angle = (index / count) * Math.PI * 2 + this.fxRandom() * 0.7
@@ -1495,6 +1856,14 @@ class ThreeHybridRenderer implements HybridGameRenderer {
     const pulse = 0.5 + 0.5 * Math.sin(this.clock * (0.35 + countdown01 * 0.55))
     const area = visual.root.children[0] as THREE.Mesh | undefined
     if (area) (area.material as THREE.MeshBasicMaterial).opacity = 0.4 + pulse * 0.45
+    if (visual.overlay) {
+      // Same radius as the band under it, so the outline is the footprint and not a decoration
+      // near it. It brightens with the same countdown, and its floor is what keeps it readable
+      // at the darkest part of the pulse — an outline that faded out is not an outline.
+      visual.overlay.scale.setScalar(radius)
+      ;(visual.overlay.material as THREE.MeshBasicMaterial).opacity =
+        TELEGRAPH_OVERLAY_BASE_OPACITY + pulse * TELEGRAPH_OVERLAY_PULSE_OPACITY
+    }
     if (visual.sigil) {
       visual.sigil.scale.setScalar(radius)
       visual.sigil.rotation.z = -this.clock * 0.035
@@ -1534,15 +1903,35 @@ class ThreeHybridRenderer implements HybridGameRenderer {
       const area = new THREE.Mesh(this.telegraphGeometry!, flatMaterial(this.diorama ? TELEGRAPH_SIGIL_COLOR : TELEGRAPH_COLOR, 0.42))
       area.rotation.x = -Math.PI / 2; area.position.y = 0.02
       root.add(area)
+      // The over-body outline, and it is diorama-only: the `?lab=renderers` comparison keeps
+      // exactly the flat cardboard telegraph `hybrid-renderer.spec.ts` pins. `depthTest: false`
+      // is the whole mechanism — the bodies are still drawn in front of it in space, and the
+      // fragment shader simply does not ask. It is the SAME circle at the SAME authoritative
+      // radius as the band under it, so the two can never disagree about the strike's footprint.
+      let overlay: THREE.Mesh | undefined
+      if (this.diorama) {
+        overlay = new THREE.Mesh(this.telegraphOverlayGeometry!, new THREE.MeshBasicMaterial({
+          color: TELEGRAPH_SIGIL_COLOR,
+          transparent: true,
+          opacity: TELEGRAPH_OVERLAY_BASE_OPACITY,
+          depthTest: false,
+          depthWrite: false,
+          side: THREE.DoubleSide,
+        }))
+        overlay.rotation.x = -Math.PI / 2
+        overlay.position.y = 0.03
+        overlay.renderOrder = TELEGRAPH_OVERLAY_RENDER_ORDER
+        root.add(overlay)
+      }
       if (fx) {
         const countdown = new THREE.Mesh(fx.discGeometry, new THREE.MeshBasicMaterial({ color: 0xb01f16, transparent: true, opacity: 0.2, depthWrite: false }))
         countdown.rotation.x = -Math.PI / 2; countdown.position.y = 0.014; countdown.renderOrder = 1
         const sigil = new THREE.Mesh(fx.discGeometry, new THREE.MeshBasicMaterial({ map: fx.sigilTexture, color: TELEGRAPH_SIGIL_COLOR, transparent: true, opacity: 0.6, depthWrite: false, blending: THREE.AdditiveBlending }))
         sigil.rotation.x = -Math.PI / 2; sigil.position.y = 0.024; sigil.renderOrder = 2
         root.add(countdown, sigil)
-        visual = { root, kind: effect.kind, sigil, countdown }
+        visual = { root, kind: effect.kind, sigil, countdown, overlay }
       } else {
-        visual = { root, kind: effect.kind }
+        visual = { root, kind: effect.kind, overlay }
       }
     } else if (effect.kind === 'rescue-signal' && fx) {
       const ring = new THREE.Mesh(fx.quadGeometry, new THREE.MeshBasicMaterial({ map: fx.rescueRingTexture, color: RESCUE_GOLD, transparent: true, opacity: 0.95, depthWrite: false, blending: THREE.AdditiveBlending }))
