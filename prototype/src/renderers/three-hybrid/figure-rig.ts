@@ -187,6 +187,19 @@ export const STRIKE_TICKS_RANGED = 8
 /** A swing: wind up, chop through, recover. Shorter than `MELEE_ATTACK_INTERVAL` (15 ticks). */
 export const STRIKE_TICKS_MELEE = 12
 /**
+ * The COMMAND UNIT's swing (§1.4.2), which is a different length because its weapon is faster.
+ *
+ * `COMMANDER_MELEE_INTERVAL` is 8 and §1.13's `연사` card takes it to `round(8 x 0.85) = 7`, so a
+ * 12-tick curve would still be winding up when the next blow landed and every swing after the
+ * first would restart from its own middle. That is the one failure mode an event-driven
+ * animation has that a free-running loop does not, and the fix is a shorter curve rather than a
+ * blend: at 6 ticks the swing finishes inside the fastest interval the rules can produce.
+ * `tests/figure-rig.test.ts` pins the relation against the authority constants rather than
+ * against the literal, so a tuning pass that shortens the interval fails there instead of
+ * quietly producing a figure that never completes a swing.
+ */
+export const STRIKE_TICKS_COMMAND_MELEE = 6
+/**
  * Where in the ranged strike the round leaves the barrel: at the very start.
  *
  * THE SHOT IS THE EVENT, and the event is a tick the authority already resolved. Firing part-way
@@ -230,8 +243,20 @@ const SWING_WIND = 0.55
 const SWING_CHOP = 1.55
 /** How far the shield comes up across the body during a swing, radians. */
 const SWING_GUARD = 0.5
-/** Flinch a blow puts through the torso of whoever took it, radians. */
+/**
+ * Flinch a blow puts through the torso of whoever took it, radians — the PITCH component.
+ *
+ * Scaled by `cos(hitBearing)`: a blow from dead ahead tips the body straight back, and one from
+ * directly behind tips it forward by the same amount. Batch M applied this unscaled, so every
+ * figure recoiled backwards in its own frame no matter which side the blow came from — which on
+ * a body that is also being SHOVED by `HIT_RECOIL` in the world direction of the blow read as
+ * the torso leaning into the shove on roughly half of them.
+ */
 const FLINCH_TORSO = 0.3
+/** The roll component, scaled by `sin(hitBearing)`: a blow from the side rolls the body off it. */
+const FLINCH_ROLL = 0.22
+/** How far the weapon carriage drops on a blow taken. Positive pitch puts a barrel down. */
+const FLINCH_ARM = 0.26
 
 /**
  * What a pose is computed from. Mutable and meant to be REUSED: this is filled in once per unit
@@ -247,12 +272,26 @@ export type RigInput = {
   stride: number
   /** Progress through a strike, 0..1, or a negative number when no blow is in flight. */
   strike: number
-  /** True for a shot, false for a blow landed by hand. */
+  /**
+   * True for a shot, false for a blow landed by hand.
+   *
+   * THIS, NOT THE ARCHETYPE, IS WHAT DECIDES WHETHER THE FIGURE SWINGS. It used to be the
+   * archetype, which was the same answer while only the cleaver class had a melee at all;
+   * §1.4.2 (v12) gave the COMMAND UNIT one, and a command figure is sculpted as a rifleman —
+   * so on the old test it played a rifle's recoil for a blow it landed by hand. The authority's
+   * `cause` already separates `friendly-melee` from `friendly-attack`, so nothing is guessed.
+   */
   strikeRanged: boolean
   /** 0..1 weapon-raised blend, held between shots. */
   aim: number
   /** 0..1 flinch from a blow just taken. */
   hit: number
+  /**
+   * Where the blow came FROM, in the figure's own frame: `0` dead ahead, `+PI/2` to its right,
+   * `PI` from behind. Frozen at the instant of the blow — the figure may turn afterwards, and a
+   * flinch that swung round with the turn would read as the body chasing the hit.
+   */
+  hitBearing: number
 }
 
 /**
@@ -266,7 +305,16 @@ export type RigPose = {
 }
 
 export function createRigInput(): RigInput {
-  return { archetype: 'soldier', phase: 0, stride: 0, strike: -1, strikeRanged: true, aim: 0, hit: 0 }
+  return {
+    archetype: 'soldier',
+    phase: 0,
+    stride: 0,
+    strike: -1,
+    strikeRanged: true,
+    aim: 0,
+    hit: 0,
+    hitBearing: 0,
+  }
 }
 
 export function createRigPose(): RigPose {
@@ -283,14 +331,26 @@ export function restRigPose(pose: RigPose): void {
  * WHAT MOVES WHAT, and the answer to "an attack that plays while the figure is walking must not
  * fight the walk" (§1.3 makes attack-while-moving the common case, not an edge case):
  *
- *   lower body  — hips and shins — comes ENTIRELY from the stride. A strike never touches them.
- *   upper body  — torso, weapon arm, off hand — is the stride's carry pose PLUS the strike,
- *                 added on top of it rather than replacing it. A soldier firing on the move
- *                 keeps its legs, its lean and its bounce, and the arms stop counter-swinging
- *                 in proportion to how far the weapon has come up (`aim`).
+ *   lower body  — hips and shins — comes ENTIRELY from the stride. A strike never touches them,
+ *                 and neither does a flinch: a figure that stopped walking because it was shot
+ *                 would be the authority's business, and the authority does not stop it (§1.3).
+ *   upper body  — torso, weapon arm, off hand — is the stride's carry pose PLUS the strike PLUS
+ *                 the flinch, all three added on top of one another rather than replacing one
+ *                 another. A soldier firing on the move keeps its legs, its lean and its bounce,
+ *                 and the arms stop counter-swinging in proportion to how far the weapon has
+ *                 come up (`aim`).
  *
  * So the two compose by owning different halves of the body, with one blend — the arm swing —
- * handing over to the aim as the weapon rises.
+ * handing over to the aim as the weapon rises. §1.3 makes attack-while-moving the ORDINARY
+ * frame rather than an edge case, so this is the composition almost every posed figure uses,
+ * and `tests/figure-rig.test.ts` asserts the lower-body half of it over every class and every
+ * point of the cycle rather than leaving it as prose.
+ *
+ * THREE THINGS CAN BE IN FLIGHT AT ONCE and the order they are written in below is the order
+ * they compose: the carry pose (where the weapon is held), then the strike (what it is doing),
+ * then the flinch (what was just done to it). The flinch is folded into the torso and arm
+ * BEFORE the strike so that a body hit mid-swing still completes the swing — the alternative,
+ * letting the flinch win, produces a figure that stutters every time the volley lands on it.
  */
 export function poseFigure(pose: RigPose, input: RigInput): void {
   const angles = pose.angles
@@ -312,47 +372,65 @@ export function poseFigure(pose: RigPose, input: RigInput): void {
 
   // --- Upper body: the carry pose, then the strike on top of it ---------------------------
   const aim = clamp01(input.aim)
-  let torsoX = STRIDE_LEAN * stride - FLINCH_TORSO * input.hit
+  const hit = input.hit
+  const hitAhead = Math.cos(input.hitBearing)
+  const hitSide = Math.sin(input.hitBearing)
+  let torsoX = STRIDE_LEAN * stride - FLINCH_TORSO * hit * hitAhead
   let torsoY = -STRIDE_TWIST * stride * swing
-  const torsoZ = STRIDE_ROLL * stride * swing
+  let torsoZ = STRIDE_ROLL * stride * swing + FLINCH_ROLL * hit * hitSide
 
   // The arms stop counter-swinging as the weapon comes up: at a full aim the carriage is held
   // steady on the target while the legs keep running underneath it.
-  let armX = STRIDE_ARM * stride * swing * (1 - aim)
+  let armX = STRIDE_ARM * stride * swing * (1 - aim) + FLINCH_ARM * hit
   let armY = 0
   let armZ = 0
   let offX = -STRIDE_ARM * stride * swing * (1 - aim)
   const strike = input.strike
+  const striking = strike >= 0 && strike < 1
 
-  if (input.archetype === 'melee') {
+  // THE CARRY POSE COMES FIRST AND IS THE SAME IN BOTH BRANCHES. Where the weapon is held is a
+  // fact about the figure, not about which blow it is throwing, so a command unit that walks
+  // from rifle range into melee range does not pop: `aim` goes on decaying through
+  // `AIM_RELEASE_TICKS` underneath the swing instead of being cut to zero at the branch.
+  if (input.archetype === 'soldier' || input.archetype === 'command') {
+    // The rifle starts held across the chest, so the aim is a YAW that swings it down-range.
+    // From directly overhead — the camera this game is actually read from — that is the bar
+    // over the body rotating to point at the target, which is the clearest possible cue.
+    armY += AIM_TROOPER_YAW * aim
+  } else if (input.archetype === 'shooter') {
+    armX += AIM_SHOOTER_REST_PITCH * (1 - aim)
+  } else if (input.archetype === 'elite') {
+    armX += AIM_ELITE_REST_PITCH * (1 - aim)
+  }
+
+  // WHICH BLOW THIS IS comes from `strikeRanged`, which is the authority's `cause` and not a
+  // guess off the sculpt (see `RigInput.strikeRanged`). The cleaver class is folded in by
+  // archetype as well, because it has no ranged attack at all and nothing should be able to
+  // hand it one.
+  if (input.archetype === 'melee' || !input.strikeRanged) {
     // A swing, not a nudge: the arm is drawn back, chops through the facing direction, and
-    // recovers. The shield comes up across the body while the weapon is committed.
-    if (strike >= 0 && strike < 1) {
+    // recovers. The shield comes up across the body while the weapon is committed — on a
+    // trooper's rig the off hand carries no geometry, so that term is inert there rather than
+    // producing a shield nobody sculpted.
+    if (striking) {
       const swingAngle = meleeSwing(strike)
       armX += swingAngle
       armZ += -0.35 * Math.max(0, swingAngle) / SWING_CHOP
       offX += SWING_GUARD * guardCurve(strike)
       torsoX += 0.22 * Math.max(0, swingAngle) / SWING_CHOP
       torsoY += -0.18 * Math.max(0, swingAngle) / SWING_CHOP
+      // The whole body turns into the blow. A trooper swinging a rifle it is still half-aiming
+      // has to unwind that yaw or the strike happens across its own chest; the chop rides the
+      // carriage round to the target instead.
+      armY += -AIM_TROOPER_YAW * aim * Math.max(0, swingAngle) / SWING_CHOP
+      torsoZ += 0.12 * Math.max(0, swingAngle) / SWING_CHOP
     }
-  } else {
+  } else if (striking) {
     // Ranged. `aim` is the weapon coming up to a level hold; `strike` is the shot that goes
     // through it. Both ride on top of whatever the stride left in the arms.
-    if (input.archetype === 'soldier' || input.archetype === 'command') {
-      // The rifle starts held across the chest, so the aim is a YAW that swings it down-range.
-      // From directly overhead — the camera this game is actually read from — that is the bar
-      // over the body rotating to point at the target, which is the clearest possible cue.
-      armY += AIM_TROOPER_YAW * aim
-    } else if (input.archetype === 'shooter') {
-      armX += AIM_SHOOTER_REST_PITCH * (1 - aim)
-    } else {
-      armX += AIM_ELITE_REST_PITCH * (1 - aim)
-    }
-    if (strike >= 0 && strike < 1) {
-      const kick = recoilCurve(strike)
-      armX += RECOIL_PITCH * kick
-      torsoX += -RECOIL_TORSO * kick
-    }
+    const kick = recoilCurve(strike)
+    armX += RECOIL_PITCH * kick
+    torsoX += -RECOIL_TORSO * kick
   }
 
   angles[RIG_TORSO * 3] = torsoX

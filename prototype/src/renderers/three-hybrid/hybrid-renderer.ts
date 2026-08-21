@@ -8,7 +8,8 @@ import { DECAL_HEIGHT, FX_COSMETIC_SEED, createCombatFxAssets, createSurfaceDeca
 import { FIGURE_SCALE, GAUGE_HEIGHT, cosmeticRandom, createDioramaAssets, createHealthGaugeGeometry, readHealthGaugeFill, setHealthGaugeColor, setHealthGaugeFill, type DioramaAssets, type MiniatureArchetype } from './diorama-assets'
 import {
   AIM_RAISE_TICKS, AIM_RELEASE_TICKS, RIG_ARM, RIG_JOINT_COUNT, STRIDE_CYCLE_DISTANCE,
-  STRIKE_FIRE_FRACTION, STRIKE_TICKS_MELEE, STRIKE_TICKS_RANGED, createRigInput, createRigMatrices, createRigPose,
+  STRIKE_FIRE_FRACTION, STRIKE_TICKS_COMMAND_MELEE, STRIKE_TICKS_MELEE, STRIKE_TICKS_RANGED,
+  createRigInput, createRigMatrices, createRigPose,
   poseFigure, restRigPose, rigMatrices, strideAmount, stridePhase,
 } from './figure-rig'
 import { DIORAMA_PITCH_RADIANS } from './staging'
@@ -30,6 +31,11 @@ type UnitAnim = {
   hitStart: number
   hitX: number
   hitZ: number
+  /**
+   * Where the blow came FROM, in the figure's own frame, frozen at the instant it landed.
+   * `figure-rig.ts` splits the flinch into a pitch and a roll off it.
+   */
+  hitBearing: number
   flash: number
   flashScale: number
   deathStart: number
@@ -985,7 +991,7 @@ class ThreeHybridRenderer implements HybridGameRenderer {
       settledUnits: standing.filter((visual) => strideAmount(visual.anim.step) === 0).length,
       maxCadence: standing.reduce((max, visual) => Math.max(max, visual.anim.step / STRIDE_CYCLE_DISTANCE), 0),
       strikingUnits: standing.filter((visual) => this.clock - visual.anim.strikeStart
-        < (visual.anim.strikeRanged ? STRIKE_TICKS_RANGED : STRIKE_TICKS_MELEE)
+        < strikeTicksFor(visual.archetype, visual.anim.strikeRanged)
         && this.clock >= visual.anim.strikeStart).length,
       maxWeaponAngle: standing.reduce((max, visual) => {
         const rig = visual.rig
@@ -1662,10 +1668,13 @@ class ThreeHybridRenderer implements HybridGameRenderer {
     const fraction = clamp01(this.clock - anim.strideTick)
     const stride = strideAmount(anim.step)
     const phase = stridePhase(unit.id, anim.travel + anim.step * fraction)
-    const strikeTicks = anim.strikeRanged ? STRIKE_TICKS_RANGED : STRIKE_TICKS_MELEE
+    const strikeTicks = strikeTicksFor(archetype, anim.strikeRanged)
     const strikeAge = this.clock - anim.strikeStart
     const strike = strikeAge >= 0 && strikeAge < strikeTicks ? strikeAge / strikeTicks : -1
-    const aim = anim.strikeRanged ? aimBlend(this.clock, anim.aimStart, anim.aimUntil) : 0
+    // The aim blend runs whichever weapon the last blow was. `figure-rig.ts` uses it as the CARRY
+    // pose in both branches, so a command unit crossing from rifle range into melee range lowers
+    // its weapon over `AIM_RELEASE_TICKS` instead of snapping to rest on the branch.
+    const aim = aimBlend(this.clock, anim.aimStart, anim.aimUntil)
     rigInputScratch.archetype = archetype
     rigInputScratch.phase = phase
     rigInputScratch.stride = stride
@@ -1673,6 +1682,7 @@ class ThreeHybridRenderer implements HybridGameRenderer {
     rigInputScratch.strikeRanged = anim.strikeRanged
     rigInputScratch.aim = aim
     rigInputScratch.hit = anim.flash
+    rigInputScratch.hitBearing = anim.hitBearing
     poseFigure(rigPoseScratch, rigInputScratch)
     rigMatrices(rig, rigPoseScratch, archetype, FIGURE_SCALE)
     visual.card.position.y += rigPoseScratch.bounce * FIGURE_SCALE
@@ -1834,6 +1844,11 @@ class ThreeHybridRenderer implements HybridGameRenderer {
     anim.hitStart = at
     anim.hitX = awayX
     anim.hitZ = awayZ
+    // `awayX/awayZ` points from the attacker to this body, so the attacker is the other way.
+    // Subtracting the figure's own yaw puts that direction in the figure's frame, and it is
+    // frozen HERE rather than recomputed per frame: the body turns while it flinches (it is
+    // still fighting), and a flinch that turned with it would read as chasing the blow.
+    anim.hitBearing = Math.atan2(-awayX, -awayZ) - anim.yaw
   }
 
   /** `muzzle` is false for a blow landed by hand: a fist must not emit gun smoke. */
@@ -1894,6 +1909,7 @@ class ThreeHybridRenderer implements HybridGameRenderer {
     rigInputScratch.strikeRanged = true
     rigInputScratch.aim = anim ? aimBlend(at, anim.aimStart, anim.aimUntil) : 1
     rigInputScratch.hit = 0
+    rigInputScratch.hitBearing = 0
     poseFigure(rigPoseScratch, rigInputScratch)
     rigMatrices(muzzleRigScratch, rigPoseScratch, archetype, 1)
     muzzleScratch.set(restX, restY, restZ).applyMatrix4(muzzleRigScratch[RIG_ARM]!)
@@ -2503,6 +2519,7 @@ function createUnitAnim(unit: RenderUnit): UnitAnim {
     hitStart: Number.NEGATIVE_INFINITY,
     hitX: 0,
     hitZ: 1,
+    hitBearing: 0,
     flash: 0,
     flashScale: 1,
     deathStart: Number.NEGATIVE_INFINITY,
@@ -2531,6 +2548,24 @@ function createUnitAnim(unit: RenderUnit): UnitAnim {
  * `AIM_RAISE_TICKS` from the shot that armed it and falls over `AIM_RELEASE_TICKS` as the hold
  * runs out; a unit that fires again mid-hold never lowers.
  */
+/**
+ * How long the curve for THIS blow runs, in ticks.
+ *
+ * Three lengths, one per weapon that exists, and each is shorter than the shortest interval the
+ * authority can produce for it — a curve longer than its own interval restarts from its middle
+ * every time and never reads as a completed action:
+ *
+ *   ranged        8  <  SOLDIER_ATTACK_INTERVAL 12, COMMANDER_ATTACK_INTERVAL 10
+ *   cleaver      12  <  MELEE_ATTACK_INTERVAL 15
+ *   trooper swing 6  <  COMMANDER_MELEE_INTERVAL 8, and under the 7 that §1.13's `연사` makes it
+ *
+ * `tests/figure-rig.test.ts` pins all three against the authority constants.
+ */
+function strikeTicksFor(archetype: MiniatureArchetype | undefined, ranged: boolean): number {
+  if (ranged) return STRIKE_TICKS_RANGED
+  return archetype === 'melee' ? STRIKE_TICKS_MELEE : STRIKE_TICKS_COMMAND_MELEE
+}
+
 function aimBlend(clock: number, aimStart: number, aimUntil: number): number {
   if (!(aimUntil > clock)) return 0
   return clamp01((clock - aimStart) / AIM_RAISE_TICKS) * clamp01((aimUntil - clock) / AIM_RELEASE_TICKS)

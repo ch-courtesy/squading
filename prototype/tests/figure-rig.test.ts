@@ -2,12 +2,17 @@ import * as THREE from 'three'
 import { describe, expect, it } from 'vitest'
 
 import {
-  ARRIVE_EPSILON, COMMANDER_MOVE_SPEED, MELEE_MOVE_SPEED, SHOOTER_MOVE_SPEED, SOLDIER_MOVE_SPEED,
+  ARRIVE_EPSILON, COMMANDER_ATTACK_INTERVAL, COMMANDER_MELEE_INTERVAL, COMMANDER_MOVE_SPEED,
+  MELEE_ATTACK_INTERVAL, MELEE_MOVE_SPEED, SHOOTER_MOVE_SPEED, SOLDIER_ATTACK_INTERVAL,
+  SOLDIER_MOVE_SPEED,
 } from '../src/core/battle/constants'
+import { tickDurationAfter } from '../src/core/battle/upgrades'
+import { CARD_EFFECTS } from '../src/core/battle/constants'
 import { FIGURE_SCALE, createMiniatureGeometries, type MiniatureArchetype } from '../src/renderers/three-hybrid/diorama-assets'
 import {
   RIG_ARM, RIG_HIP_L, RIG_HIP_R, RIG_JOINT_COUNT, RIG_OFF, RIG_ROOT, RIG_SHIN_L, RIG_SHIN_R,
-  RIG_TORSO, STRIDE_CYCLE_DISTANCE, STRIDE_FULL_STEP, STRIDE_MIN_STEP, createRigMatrices,
+  RIG_TORSO, STRIDE_CYCLE_DISTANCE, STRIDE_FULL_STEP, STRIDE_MIN_STEP,
+  STRIKE_TICKS_COMMAND_MELEE, STRIKE_TICKS_MELEE, STRIKE_TICKS_RANGED, createRigMatrices,
   createRigPose, meleeSwing, phaseOffset, poseFigure, recoilCurve, restRigPose, rigMatrices,
   rigPivot, strideAmount, stridePhase,
 } from '../src/renderers/three-hybrid/figure-rig'
@@ -31,6 +36,7 @@ const REST = {
   strikeRanged: true,
   aim: 0,
   hit: 0,
+  hitBearing: 0,
 } as const
 
 /** Where the right foot sits, in pre-scale figure space, at a given point in the cycle. */
@@ -280,6 +286,133 @@ describe('the strike', () => {
     const calm = pose.angles[RIG_TORSO * 3]!
     poseFigure(pose, { ...REST, archetype: 'soldier', hit: 1 })
     expect(pose.angles[RIG_TORSO * 3]).toBeLessThan(calm - 0.2)
+  })
+
+  it('flinches AWAY from where the blow came from, not always backwards', () => {
+    // Batch M's flinch was one fixed backward tip whatever the bearing, on a body the renderer
+    // is simultaneously shoving in the WORLD direction of the blow — so on a hit from behind the
+    // torso leaned into the shove. The pitch is now `cos(bearing)` and the roll `sin(bearing)`.
+    const pose = createRigPose()
+    const read = (hitBearing: number) => {
+      poseFigure(pose, { ...REST, archetype: 'soldier', hit: 1, hitBearing })
+      return { pitch: pose.angles[RIG_TORSO * 3]!, roll: pose.angles[RIG_TORSO * 3 + 2]! }
+    }
+
+    const front = read(0)
+    const behind = read(Math.PI)
+    const right = read(Math.PI / 2)
+    const left = read(-Math.PI / 2)
+
+    // Front and back are opposite tips of the same size, and neither is a roll.
+    expect(front.pitch).toBeLessThan(-0.2)
+    expect(behind.pitch).toBeCloseTo(-front.pitch, 5)
+    expect(Math.abs(front.roll)).toBeLessThan(1e-9)
+    expect(Math.abs(behind.roll)).toBeLessThan(1e-9)
+    // A blow from the side is a roll and not a pitch, and the two sides roll opposite ways.
+    expect(Math.abs(right.pitch)).toBeLessThan(1e-9)
+    expect(Math.abs(right.roll)).toBeGreaterThan(0.15)
+    expect(left.roll).toBeCloseTo(-right.roll, 5)
+  })
+
+  it('drops the weapon carriage on a blow taken, and puts it back', () => {
+    // The flinch has to be visible in the UPPER BODY of a posed figure, not only in the torso
+    // angle: the carriage is what the eye follows at this scale.
+    const pose = createRigPose()
+    poseFigure(pose, { ...REST, archetype: 'soldier', hit: 0 })
+    const carried = pose.angles[RIG_ARM * 3]!
+    poseFigure(pose, { ...REST, archetype: 'soldier', hit: 1 })
+    expect(pose.angles[RIG_ARM * 3]).toBeGreaterThan(carried + 0.2)
+    poseFigure(pose, { ...REST, archetype: 'soldier', hit: 0 })
+    expect(pose.angles[RIG_ARM * 3]).toBe(carried)
+  })
+
+  it('lets a body finish its swing while it is being hit', () => {
+    // Composition, not replacement: the flinch is added under the strike rather than winning
+    // over it, because a figure that restarted its swing every time the volley landed on it
+    // would stutter through exactly the moments §1.4 wants read.
+    const pose = createRigPose()
+    const swingOnly = createRigPose()
+    poseFigure(swingOnly, { ...REST, archetype: 'command', strike: 0.45, strikeRanged: false })
+    poseFigure(pose, { ...REST, archetype: 'command', strike: 0.45, strikeRanged: false, hit: 1, hitBearing: 0 })
+    // Float32 storage, so the tolerance is the buffer's and not the maths'.
+    expect(pose.angles[RIG_ARM * 3]).toBeCloseTo(swingOnly.angles[RIG_ARM * 3]! + 0.26, 5)
+  })
+})
+
+describe('§1.4.2 the command unit swings', () => {
+  it('plays a swing and not a recoil, off the authority cause rather than the sculpt', () => {
+    // The defect this closes: a command figure is a RIFLEMAN, so batch M's "does this archetype
+    // swing" test said no and a `friendly-melee` blow came out as a rifle's kick. The branch is
+    // `strikeRanged` now, which is `DamageEvent.cause` carried through the view.
+    const swung = createRigPose()
+    const shot = createRigPose()
+    poseFigure(swung, { ...REST, archetype: 'command', strike: 0.55, strikeRanged: false })
+    poseFigure(shot, { ...REST, archetype: 'command', strike: 0.55, strikeRanged: true })
+
+    // The swing is a big forward chop; the recoil is a small backward kick. Opposite signs and
+    // an order of magnitude apart, so no threshold has to be invented to tell them apart.
+    expect(swung.angles[RIG_ARM * 3]).toBeGreaterThan(1.0)
+    expect(shot.angles[RIG_ARM * 3]).toBeLessThan(0)
+    expect(swung.angles[RIG_ARM * 3]! - shot.angles[RIG_ARM * 3]!).toBeGreaterThan(1.0)
+  })
+
+  it('sweeps the weapon through the target direction, wind-up first', () => {
+    // The same three beats the cleaver gets — the shape is `meleeSwing`, shared — read off the
+    // command rig so this is a statement about the figure the player drives.
+    const pose = createRigPose()
+    const armAt = (strike: number) => {
+      poseFigure(pose, { ...REST, archetype: 'command', strike, strikeRanged: false })
+      return pose.angles[RIG_ARM * 3]!
+    }
+    expect(armAt(0.15)).toBeLessThan(-0.2)
+    expect(armAt(0.55)).toBeGreaterThan(1.4)
+    expect(armAt(0.99)).toBeLessThan(0.1)
+  })
+
+  it('unwinds the aim yaw as the chop goes through, so the swing is not across its own chest', () => {
+    // A command unit that has been firing holds its rifle yawed down-range. The chop has to take
+    // the carriage back round, or the blade travels sideways across the body.
+    const pose = createRigPose()
+    poseFigure(pose, { ...REST, archetype: 'command', aim: 1, strike: -1, strikeRanged: false })
+    const held = pose.angles[RIG_ARM * 3 + 1]!
+    poseFigure(pose, { ...REST, archetype: 'command', aim: 1, strike: 0.55, strikeRanged: false })
+    const chopping = pose.angles[RIG_ARM * 3 + 1]!
+    expect(held).toBeLessThan(-0.8)
+    expect(Math.abs(chopping)).toBeLessThan(Math.abs(held) - 0.5)
+  })
+
+  it('holds the carry pose across the branch, so switching weapons does not pop', () => {
+    // The same `aim` with no blow in flight must give the same arm base whichever weapon the
+    // last blow was — otherwise the frame a command unit first swings on jumps its rifle.
+    const ranged = createRigPose()
+    const melee = createRigPose()
+    poseFigure(ranged, { ...REST, archetype: 'command', aim: 0.6, strike: -1, strikeRanged: true })
+    poseFigure(melee, { ...REST, archetype: 'command', aim: 0.6, strike: -1, strikeRanged: false })
+    expect([...melee.angles]).toEqual([...ranged.angles])
+  })
+
+  it('leaves the cleaver class exactly where it was', () => {
+    // The melee archetype is folded in by archetype as well as by `strikeRanged`, so nothing can
+    // hand a cleaver a rifle animation. Same pose either way.
+    const byCause = createRigPose()
+    const byArchetype = createRigPose()
+    poseFigure(byCause, { ...REST, archetype: 'melee', strike: 0.4, strikeRanged: false })
+    poseFigure(byArchetype, { ...REST, archetype: 'melee', strike: 0.4, strikeRanged: true })
+    expect([...byArchetype.angles]).toEqual([...byCause.angles])
+  })
+
+  it('fits every strike curve inside the shortest interval the rules can produce for it', () => {
+    // AN ANIMATION LONGER THAN ITS OWN INTERVAL NEVER FINISHES — every blow after the first
+    // restarts it from its middle. §1.13's `연사` shortens all three intervals, so the ceiling
+    // is the UPGRADED interval and not the anchor.
+    const fastest = (interval: number) => tickDurationAfter(interval, CARD_EFFECTS.rapid)
+
+    expect(STRIKE_TICKS_RANGED).toBeLessThanOrEqual(fastest(SOLDIER_ATTACK_INTERVAL))
+    expect(STRIKE_TICKS_RANGED).toBeLessThanOrEqual(fastest(COMMANDER_ATTACK_INTERVAL))
+    // The cleaver is an enemy and takes no cards, so its own interval is the ceiling.
+    expect(STRIKE_TICKS_MELEE).toBeLessThan(MELEE_ATTACK_INTERVAL)
+    expect(STRIKE_TICKS_COMMAND_MELEE).toBeLessThanOrEqual(fastest(COMMANDER_MELEE_INTERVAL))
+    expect(STRIKE_TICKS_COMMAND_MELEE).toBeLessThan(COMMANDER_MELEE_INTERVAL)
   })
 })
 
