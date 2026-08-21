@@ -233,20 +233,26 @@ const SWING_GUARD = 0.5
 /** Flinch a blow puts through the torso of whoever took it, radians. */
 const FLINCH_TORSO = 0.3
 
+/**
+ * What a pose is computed from. Mutable and meant to be REUSED: this is filled in once per unit
+ * per frame, sixty units a frame, and a fresh object literal per call would put sixty
+ * short-lived objects a frame into the nursery in the window with the least headroom.
+ * `createRigInput` makes the one the renderer keeps.
+ */
 export type RigInput = {
-  readonly archetype: MiniatureArchetype
+  archetype: MiniatureArchetype
   /** Stride phase in radians (`stridePhase`). */
-  readonly phase: number
+  phase: number
   /** 0 settled, 1 at full class speed (`strideAmount`). */
-  readonly stride: number
+  stride: number
   /** Progress through a strike, 0..1, or a negative number when no blow is in flight. */
-  readonly strike: number
+  strike: number
   /** True for a shot, false for a blow landed by hand. */
-  readonly strikeRanged: boolean
+  strikeRanged: boolean
   /** 0..1 weapon-raised blend, held between shots. */
-  readonly aim: number
+  aim: number
   /** 0..1 flinch from a blow just taken. */
-  readonly hit: number
+  hit: number
 }
 
 /**
@@ -257,6 +263,10 @@ export type RigPose = {
   readonly angles: Float32Array
   /** Vertical lift of the whole figure, in pre-`FIGURE_SCALE` figure units. Never negative. */
   bounce: number
+}
+
+export function createRigInput(): RigInput {
+  return { archetype: 'soldier', phase: 0, stride: 0, strike: -1, strikeRanged: true, aim: 0, hit: 0 }
 }
 
 export function createRigPose(): RigPose {

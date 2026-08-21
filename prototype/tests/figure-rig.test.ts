@@ -346,20 +346,25 @@ describe('the rig itself', () => {
     }
   })
 
-  it('allocates nothing per pose', () => {
-    // This runs once per unit per frame, sixty units a frame, and the elite window has under
-    // two milliseconds of headroom. A pose that allocated would be a garbage-collection spike
-    // in exactly the window that cannot afford one.
+  it('writes into the buffers it was handed instead of returning new ones', () => {
+    // This runs once per unit per frame, sixty units a frame, in the window with the least
+    // headroom. Neither function may hand back a fresh object: the pose buffer, its angle array
+    // and all eight matrices have to be the same objects two hundred poses later, so a caller
+    // that keeps one set of scratch keeps it. (`hybrid-renderer.ts` keeps the input object too,
+    // so the whole per-frame path allocates nothing.)
     const pose = createRigPose()
     const matrices = createRigMatrices()
     const angles = pose.angles
-    const first = matrices[RIG_ARM]
+    const before = matrices.map((matrix) => matrix)
+    const input = { ...REST, archetype: 'melee' as MiniatureArchetype, stride: 1, phase: 0, strike: -1 }
     for (let step = 0; step < 200; step += 1) {
-      poseFigure(pose, { ...REST, archetype: 'melee', phase: step, stride: 1, strike: (step % 20) / 20 })
+      input.phase = step
+      input.strike = (step % 20) / 20
+      poseFigure(pose, input)
       rigMatrices(matrices, pose, 'melee', FIGURE_SCALE)
     }
     expect(pose.angles).toBe(angles)
-    expect(matrices[RIG_ARM]).toBe(first)
+    matrices.forEach((matrix, index) => expect(matrix).toBe(before[index]))
   })
 })
 

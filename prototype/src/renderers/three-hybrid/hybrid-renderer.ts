@@ -8,7 +8,7 @@ import { DECAL_HEIGHT, FX_COSMETIC_SEED, createCombatFxAssets, createSurfaceDeca
 import { FIGURE_SCALE, GAUGE_HEIGHT, cosmeticRandom, createDioramaAssets, createHealthGaugeGeometry, readHealthGaugeFill, setHealthGaugeColor, setHealthGaugeFill, type DioramaAssets, type MiniatureArchetype } from './diorama-assets'
 import {
   AIM_RAISE_TICKS, AIM_RELEASE_TICKS, RIG_ARM, RIG_JOINT_COUNT, STRIDE_CYCLE_DISTANCE,
-  STRIKE_FIRE_FRACTION, STRIKE_TICKS_MELEE, STRIKE_TICKS_RANGED, createRigMatrices, createRigPose,
+  STRIKE_FIRE_FRACTION, STRIKE_TICKS_MELEE, STRIKE_TICKS_RANGED, createRigInput, createRigMatrices, createRigPose,
   poseFigure, restRigPose, rigMatrices, strideAmount, stridePhase,
 } from './figure-rig'
 import { DIORAMA_PITCH_RADIANS } from './staging'
@@ -513,8 +513,10 @@ function applyRigShader(this: RiggedMaterial, shader: { vertexShader: string; un
   shader.vertexShader = shader.vertexShader.replace('#include <begin_vertex>', RIG_POSITION_PATCH)
 }
 
-/** Scratch pose, reused for every unit on every frame so posing allocates nothing. */
+// Scratch pose and pose inputs, reused for every unit on every frame. Posing runs sixty times a
+// frame in the window that has the least headroom, and neither of these is ever handed out.
 const rigPoseScratch = createRigPose()
+const rigInputScratch = createRigInput()
 /** Scratch matrices for the muzzle placement, which has to agree with the drawn arm. */
 const muzzleRigScratch = createRigMatrices()
 const muzzleScratch = new THREE.Vector3()
@@ -1664,15 +1666,14 @@ class ThreeHybridRenderer implements HybridGameRenderer {
     const strikeAge = this.clock - anim.strikeStart
     const strike = strikeAge >= 0 && strikeAge < strikeTicks ? strikeAge / strikeTicks : -1
     const aim = anim.strikeRanged ? aimBlend(this.clock, anim.aimStart, anim.aimUntil) : 0
-    poseFigure(rigPoseScratch, {
-      archetype,
-      phase,
-      stride,
-      strike,
-      strikeRanged: anim.strikeRanged,
-      aim,
-      hit: anim.flash,
-    })
+    rigInputScratch.archetype = archetype
+    rigInputScratch.phase = phase
+    rigInputScratch.stride = stride
+    rigInputScratch.strike = strike
+    rigInputScratch.strikeRanged = anim.strikeRanged
+    rigInputScratch.aim = aim
+    rigInputScratch.hit = anim.flash
+    poseFigure(rigPoseScratch, rigInputScratch)
     rigMatrices(rig, rigPoseScratch, archetype, FIGURE_SCALE)
     visual.card.position.y += rigPoseScratch.bounce * FIGURE_SCALE
   }
@@ -1886,15 +1887,14 @@ class ThreeHybridRenderer implements HybridGameRenderer {
     const archetype = miniatureArchetype(attacker)
     const [restX, restY, restZ] = MUZZLE_OFFSETS[archetype]
     const anim = this.units.get(attacker.id)?.anim
-    poseFigure(rigPoseScratch, {
-      archetype,
-      phase: anim ? stridePhase(attacker.id, anim.travel) : 0,
-      stride: anim ? strideAmount(anim.step) : 0,
-      strike: STRIKE_FIRE_FRACTION,
-      strikeRanged: true,
-      aim: anim ? aimBlend(at, anim.aimStart, anim.aimUntil) : 1,
-      hit: 0,
-    })
+    rigInputScratch.archetype = archetype
+    rigInputScratch.phase = anim ? stridePhase(attacker.id, anim.travel) : 0
+    rigInputScratch.stride = anim ? strideAmount(anim.step) : 0
+    rigInputScratch.strike = STRIKE_FIRE_FRACTION
+    rigInputScratch.strikeRanged = true
+    rigInputScratch.aim = anim ? aimBlend(at, anim.aimStart, anim.aimUntil) : 1
+    rigInputScratch.hit = 0
+    poseFigure(rigPoseScratch, rigInputScratch)
     rigMatrices(muzzleRigScratch, rigPoseScratch, archetype, 1)
     muzzleScratch.set(restX, restY, restZ).applyMatrix4(muzzleRigScratch[RIG_ARM]!)
     const localX = muzzleScratch.x
