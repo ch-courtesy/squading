@@ -8,7 +8,7 @@ import { DECAL_HEIGHT, FX_COSMETIC_SEED, createCombatFxAssets, createSurfaceDeca
 import { FIGURE_SCALE, GAUGE_HEIGHT, cosmeticRandom, createDioramaAssets, createHealthGaugeGeometry, readHealthGaugeFill, setHealthGaugeColor, setHealthGaugeFill, type DioramaAssets, type MiniatureArchetype } from './diorama-assets'
 import {
   AIM_RAISE_TICKS, AIM_RELEASE_TICKS, RIG_ARM, RIG_JOINT_COUNT, STRIDE_CYCLE_DISTANCE,
-  STRIKE_FIRE_FRACTION, STRIKE_TICKS_COMMAND_MELEE, STRIKE_TICKS_MELEE, STRIKE_TICKS_RANGED,
+  RIG_TORSO, STRIKE_FIRE_FRACTION, STRIKE_TICKS_COMMAND_MELEE, STRIKE_TICKS_MELEE, STRIKE_TICKS_RANGED,
   createRigInput, createRigMatrices, createRigPose,
   poseFigure, restRigPose, rigMatrices, strideAmount, stridePhase,
 } from './figure-rig'
@@ -318,7 +318,27 @@ export type TelegraphLegibility = {
 export type HybridRendererDiagnostics = {
   readonly rendererType: 'webgl'; readonly objectCount: number; readonly actualObjectCount: number; readonly visualUnitCount: number; readonly visualEffectCount: number; readonly snapshotUnitIds: readonly number[]; readonly snapshotUnits: readonly { readonly id: number; readonly x: number; readonly y: number; readonly tint: number }[]; readonly teamTints: Readonly<Record<'teal' | 'scarlet' | 'enemy', number>>; readonly unitVisuals: readonly { readonly id: number; readonly x: number; readonly y: number; readonly tint: number; readonly billboard: boolean; readonly facesCamera: boolean; readonly screenY: number; readonly screenHeight: number; readonly kind: string; readonly state: string; readonly cardCenter: { readonly x: number; readonly y: number; readonly z: number }; readonly shadowNormalY: number; readonly markerNormalY: number; readonly shadowFootprint: { readonly x: number; readonly z: number } }[]; readonly worldBounds: { readonly width: number; readonly height: number; readonly centerX: number; readonly centerY: number }; readonly camera: { readonly projection: 'orthographic'; readonly left: number; readonly right: number; readonly top: number; readonly bottom: number }; readonly rescueSignalCount: number; readonly quality: { readonly particleCount: number; readonly shadowMapSize: number; readonly shadowTargetSize: { readonly width: number; readonly height: number } | null; readonly dpr: number }; readonly metrics: RendererMetrics
 }
-export interface HybridGameRenderer extends GameRenderer { getDiagnostics(): HybridRendererDiagnostics; getVisualState(): HybridVisualState; measureTelegraph(): TelegraphLegibility | null; projectGroundPoint(x: number, y: number): { x: number; y: number } | null }
+/**
+ * One figure's pose this frame — see `HybridGameRenderer.unitPose`.
+ *
+ * `weaponAngle` is the carriage's total rotation away from where it was sculpted, in radians.
+ * `weaponPitch` is the signed X component of that rotation, which is what separates a swing
+ * (large and positive) from a recoil (small and negative). `torsoPitch` and `torsoRoll` are the
+ * two components of the flinch.
+ */
+export type UnitPoseReading = {
+  readonly unitId: number
+  readonly archetype: MiniatureArchetype | null
+  readonly weaponAngle: number
+  readonly weaponPitch: number
+  readonly torsoPitch: number
+  readonly torsoRoll: number
+  readonly flash: number
+  readonly strikeRanged: boolean
+  readonly striking: boolean
+}
+
+export interface HybridGameRenderer extends GameRenderer { getDiagnostics(): HybridRendererDiagnostics; getVisualState(): HybridVisualState; measureTelegraph(): TelegraphLegibility | null; projectGroundPoint(x: number, y: number): { x: number; y: number } | null; unitPose(unitId: number): UnitPoseReading | null }
 
 const PARTICLE_COUNT = 12
 const WORLD_WIDTH = 40
@@ -523,6 +543,8 @@ function applyRigShader(this: RiggedMaterial, shader: { vertexShader: string; un
 // frame in the window that has the least headroom, and neither of these is ever handed out.
 const rigPoseScratch = createRigPose()
 const rigInputScratch = createRigInput()
+/** Scratch for `unitPose`, which reads Euler angles back out of the drawn matrices. */
+const poseEulerScratch = new THREE.Euler()
 /** Scratch matrices for the muzzle placement, which has to agree with the drawn arm. */
 const muzzleRigScratch = createRigMatrices()
 const muzzleScratch = new THREE.Vector3()
@@ -1185,6 +1207,41 @@ class ThreeHybridRenderer implements HybridGameRenderer {
     if (!this.camera) return null
     const projected = new THREE.Vector3(x, 0, y).project(this.camera)
     return { x: projected.x, y: projected.y }
+  }
+
+  /**
+   * One figure's POSE, read off the matrices the GPU was handed this frame.
+   *
+   * ITS OWN CALL, not a field of `getVisualState`, and for the same reason `measureTelegraph` is
+   * its own call: `getVisualState`'s pose aggregates (`maxWeaponAngle`, `strikingUnits`) answer
+   * "is anything on the board doing this". A SCREENSHOT has to answer the other question — is
+   * THIS body, the one the caption names, in the pose the caption claims — and an aggregate
+   * cannot: a cleaver enemy mid-chop and the command unit mid-swing produce the same maximum.
+   *
+   * Read off the drawn matrices rather than off the `UnitAnim` inputs that built them, so a rig
+   * that stopped applying an input would show up here rather than being reported from the input.
+   */
+  unitPose(unitId: number): UnitPoseReading | null {
+    const visual = this.units.get(unitId)
+    const rig = visual?.rig
+    if (!visual || !rig) return null
+    const arm = rig[RIG_ARM]!
+    const trace = arm.elements[0]! + arm.elements[5]! + arm.elements[10]!
+    poseEulerScratch.setFromRotationMatrix(arm)
+    const weaponPitch = poseEulerScratch.x
+    poseEulerScratch.setFromRotationMatrix(rig[RIG_TORSO]!)
+    return {
+      unitId,
+      archetype: visual.archetype ?? null,
+      weaponAngle: Math.acos(Math.min(1, Math.max(-1, (trace - 1) / 2))),
+      weaponPitch,
+      torsoPitch: poseEulerScratch.x,
+      torsoRoll: poseEulerScratch.z,
+      flash: visual.anim.flash,
+      strikeRanged: visual.anim.strikeRanged,
+      striking: this.clock >= visual.anim.strikeStart
+        && this.clock - visual.anim.strikeStart < strikeTicksFor(visual.archetype, visual.anim.strikeRanged),
+    }
   }
 
   private describeTelegraph(): HybridVisualState['eliteTelegraph'] {

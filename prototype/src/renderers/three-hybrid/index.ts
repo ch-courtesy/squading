@@ -25,6 +25,10 @@ export function createRenderer(): HybridGameRenderer {
       // `rendererScene` in a loop, and none of those loops should pay for this.
       telegraphLegibility: () => activeRenderer?.measureTelegraph() ?? null,
       projectGroundPoint: (x, y) => activeRenderer?.projectGroundPoint(x, y) ?? null,
+      // Its own entry for the same reason as `telegraphLegibility`: `rendererScene` answers
+      // "is anything on the board striking", and a screenshot caption has to answer "is THIS
+      // body in THAT pose". See `HybridGameRenderer.unitPose`.
+      unitPose: (unitId) => activeRenderer?.unitPose(unitId) ?? null,
     }
   }
   return renderer

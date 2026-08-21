@@ -631,7 +631,13 @@ function walkTo(page: Page, want: string, maxTicks: number, hold: string | null)
   ) as Promise<WalkMoment>
 }
 
-async function snapWalk(page: Page, name: string, moment: WalkMoment): Promise<void> {
+/**
+ * Screenshot the board and a detail crop centred on one point of it.
+ *
+ * `{ focusX, focusY }` is all it needs, so batch N's strike moments use it too rather than
+ * growing a second copy of the crop arithmetic.
+ */
+async function snapWalk(page: Page, name: string, moment: { focusX: number; focusY: number } | null): Promise<void> {
   mkdirSync(ARTIFACTS, { recursive: true })
   await page.locator('#action-shot-host canvas').screenshot({ path: `${ARTIFACTS}${name}.png` })
   if (!moment) return
@@ -693,4 +699,187 @@ test('captures the squad walking, the squad settled, and a melee closing on the 
   expect(closing!.chaserStep).toBeGreaterThan(closing!.commandStep)
   expect(settled!.maxStep).toBeLessThanOrEqual(ARRIVE_EPSILON)
   expect(walking!.striding).toBeGreaterThanOrEqual(10)
+})
+
+// --- Batch N: the upper body ----------------------------------------------------------------
+//
+// SAME HONESTY AS THE WALK SHOTS ABOVE: a still cannot show motion, so each of these three is a
+// picture of a POSE, and what makes it evidence is the pose reading printed beside it. That
+// reading is `unitPose(id)` — the joint matrices the GPU was handed on the frame that was shot,
+// for the ONE body the caption names. The aggregates in `rendererScene` cannot do this job: a
+// cleaver enemy mid-chop and the command unit mid-swing produce the same `maxWeaponAngle`.
+//
+// The frames are chosen by the AUTHORITY'S OWN DAMAGE EVENTS and not by scanning for a pose:
+// the board is stepped one tick at a time, the tick's `damageEvents` are read for the cause
+// being hunted, and the capture is taken a fixed number of ticks later — which is the same
+// scheduling the renderer itself uses (§1.4's volley rhythm depends on it) rather than a
+// second, independent way of finding the moment.
+
+type StrikeMoment = {
+  tick: number
+  /** The body the caption is about: the striker, or the one that took the blow. */
+  unitId: number
+  /** How many ticks after the authority's event this frame is. */
+  ticksAfterEvent: number
+  focusX: number
+  focusY: number
+} | null
+
+/**
+ * Installs an offline board and `window.__strikeShot(want, maxTicks)` over it.
+ *
+ * No input at all, which is §4.1's `tactical-no-input` minus the card slot: the melees walk into
+ * the command unit by themselves (§1.3), so the swing this hunts for arrives without anybody
+ * driving toward it.
+ */
+async function openStrikeBoard(page: Page, seed: string): Promise<void> {
+  await page.goto('?lab=renderers')
+  await page.waitForTimeout(400)
+  await page.evaluate(async ({ seed }) => {
+    const { createRenderer } = await (0, eval)('import("/src/renderers/three-hybrid/index.ts")')
+    const { createBattle } = await (0, eval)('import("/src/core/battle/battle.ts")')
+    const { projectBattleSnapshot } = await (0, eval)('import("/src/core/battle-view/snapshot.ts")')
+    document.body.style.margin = '0'
+    const host = document.createElement('div')
+    host.id = 'action-shot-host'
+    host.style.cssText = 'position:fixed;inset:0;width:1600px;height:1000px;z-index:9999'
+    document.body.append(host)
+    const renderer = createRenderer()
+    await renderer.mount(host)
+    renderer.resize(1600, 1000, 1)
+    const battle = createBattle(seed)
+    battle.start()
+
+    type Unit = { id: number; kind: string; team: string; state: string; x: number; y: number }
+    type Blow = { attackerId: number; targetId: number; cause: string; amount: number }
+
+    /** One tick, rendered. `null` once the run is over. */
+    const advance = (): { tick: number; blows: Blow[]; units: Unit[] } | null => {
+      const result = battle.step()
+      if (!result.ran) {
+        if (result.mode === 'awaiting-upgrade') {
+          battle.enqueue({ kind: 'choose-upgrade', slot: 1 })
+          return advance()
+        }
+        return null
+      }
+      const snapshot = projectBattleSnapshot(battle.state(), [result])
+      renderer.render(snapshot, 0)
+      return { tick: result.tick, blows: result.damageEvents as Blow[], units: snapshot.units as Unit[] }
+    }
+
+    ;(window as unknown as { __strikeShot?: unknown }).__strikeShot = (want: string, maxTicks: number) => {
+      const commandUnitId = battle.state().commandUnitId
+      for (let step = 0; step < maxTicks; step += 1) {
+        const frame = advance()
+        if (!frame) return null
+
+        // WHICH BLOW EACH SHOT IS LOOKING FOR, straight off `DamageEvent.cause`.
+        //   swing  — §1.4.2's `friendly-melee`, which only the command unit can produce.
+        //   recoil — a `friendly-attack` from a body that is NOT the command unit, so the
+        //            picture is a rifleman's kick and not the same figure as the swing shot.
+        //   flinch — anything an enemy landed on a friendly, taken on the tick it landed, where
+        //            the flash and the flinch are both at full.
+        const wanted = frame.blows.find((blow) =>
+          want === 'swing'
+            ? blow.cause === 'friendly-melee'
+            : want === 'recoil'
+              ? blow.cause === 'friendly-attack' && blow.attackerId !== commandUnitId
+              : blow.cause === 'melee-contact' || blow.cause === 'shooter-shot')
+        if (!wanted) continue
+
+        const unitId = want === 'flinch' ? wanted.targetId : wanted.attackerId
+        // The swing peaks around 0.55 of its 6-tick curve, so three more rendered ticks put the
+        // capture at 0.5 — through the target rather than winding up or recovering. The other
+        // two peak ON the event tick (the recoil's kick and the flinch's flash both start at
+        // full), so they are shot where they stand.
+        const wait = want === 'swing' ? 3 : 0
+        let last = frame
+        for (let extra = 0; extra < wait; extra += 1) {
+          const next = advance()
+          if (!next) return null
+          last = next
+        }
+        const body = last.units.find((unit) => unit.id === unitId)
+        if (!body || body.state === 'dead') continue
+        return {
+          tick: last.tick,
+          unitId,
+          ticksAfterEvent: wait,
+          focusX: body.x,
+          focusY: body.y,
+        }
+      }
+      return null
+    }
+  }, { seed })
+}
+
+function strikeTo(page: Page, want: string, maxTicks: number): Promise<StrikeMoment> {
+  return page.evaluate(
+    ({ want, maxTicks }) =>
+      (window as unknown as { __strikeShot: (w: string, m: number) => StrikeMoment })
+        .__strikeShot(want, maxTicks),
+    { want, maxTicks },
+  ) as Promise<StrikeMoment>
+}
+
+function poseOf(page: Page, unitId: number) {
+  return page.evaluate((id) => window.__SQUADING_TEST__!.unitPose!(id), unitId)
+}
+
+test('captures the commander mid-swing, a soldier mid-recoil, and a body flinching', async ({ page }) => {
+  test.setTimeout(420_000)
+  // `seed-c` because its first §1.4.2 swing lands at tick 432 with no input at all
+  // (`tests/sweeps/melee-usage.sweep.ts` is where that number comes from), so this capture does
+  // not have to play most of a battle before it has anything to shoot.
+  await openStrikeBoard(page, 'seed-c')
+
+  const recoil = await strikeTo(page, 'recoil', 600)
+  expect(recoil, 'no soldier ever fired').not.toBeNull()
+  await snapWalk(page, 'shot-strike-recoil', recoil)
+  const recoilPose = await poseOf(page, recoil!.unitId)
+  console.log(
+    `[shot] shot-strike-recoil tick=${recoil!.tick} unit=${recoil!.unitId} archetype=${recoilPose!.archetype}`
+    + ` weaponPitch=${recoilPose!.weaponPitch.toFixed(3)} weaponAngle=${recoilPose!.weaponAngle.toFixed(3)}`
+    + ` torsoPitch=${recoilPose!.torsoPitch.toFixed(3)} striking=${recoilPose!.striking}`,
+  )
+
+  const flinch = await strikeTo(page, 'flinch', 900)
+  expect(flinch, 'no friendly was ever hit').not.toBeNull()
+  await snapWalk(page, 'shot-strike-flinch', flinch)
+  const flinchPose = await poseOf(page, flinch!.unitId)
+  console.log(
+    `[shot] shot-strike-flinch tick=${flinch!.tick} unit=${flinch!.unitId} flash=${flinchPose!.flash.toFixed(3)}`
+    + ` torsoPitch=${flinchPose!.torsoPitch.toFixed(3)} torsoRoll=${flinchPose!.torsoRoll.toFixed(3)}`
+    + ` weaponPitch=${flinchPose!.weaponPitch.toFixed(3)}`,
+  )
+
+  const swing = await strikeTo(page, 'swing', 2400)
+  expect(swing, 'the command unit never landed a §1.4.2 melee blow').not.toBeNull()
+  await snapWalk(page, 'shot-strike-commander-melee', swing)
+  const swingPose = await poseOf(page, swing!.unitId)
+  console.log(
+    `[shot] shot-strike-commander-melee tick=${swing!.tick} unit=${swing!.unitId}`
+    + ` archetype=${swingPose!.archetype} strikeRanged=${swingPose!.strikeRanged}`
+    + ` weaponPitch=${swingPose!.weaponPitch.toFixed(3)} weaponAngle=${swingPose!.weaponAngle.toFixed(3)}`
+    + ` torsoPitch=${swingPose!.torsoPitch.toFixed(3)} striking=${swingPose!.striking}`,
+  )
+
+  // THE PICTURES ARE ONLY EVIDENCE IF THE FRAMES SAY WHAT THE CAPTIONS DO, so each caption is a
+  // claim about the joint matrices of ONE body and each is asserted against the reading.
+  //
+  // The swing: a command figure — a rifleman, which is the whole reason the branch could not be
+  // taken off the sculpt — swinging by cause, its carriage pitched a long way forward.
+  expect(swingPose!.archetype).toBe('command')
+  expect(swingPose!.strikeRanged).toBe(false)
+  expect(swingPose!.striking).toBe(true)
+  expect(swingPose!.weaponPitch).toBeGreaterThan(1)
+  // The recoil: the same class of rig, kicked the OTHER way and by an order of magnitude less.
+  expect(recoilPose!.strikeRanged).toBe(true)
+  expect(recoilPose!.striking).toBe(true)
+  expect(recoilPose!.weaponPitch).toBeLessThan(0)
+  // The flinch: a real flash, and a torso that is actually off its rest because of it.
+  expect(flinchPose!.flash).toBeGreaterThan(0.5)
+  expect(Math.hypot(flinchPose!.torsoPitch, flinchPose!.torsoRoll)).toBeGreaterThan(0.05)
 })

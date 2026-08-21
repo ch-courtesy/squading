@@ -4,7 +4,7 @@ import type { FrameSample } from './app/battle/battle-controller'
 import type { RecordedInput } from './app/battle/battle-replay'
 import type { BattleHud } from './core/battle-view/hud'
 import type { RenderSnapshot } from './core/types'
-import type { HybridVisualState, TelegraphLegibility } from './renderers/three-hybrid/hybrid-renderer'
+import type { HybridVisualState, TelegraphLegibility, UnitPoseReading } from './renderers/three-hybrid/hybrid-renderer'
 
 /**
  * What the v2 shell publishes for §4.3 and §4.4, and nothing a player-facing screen could
@@ -50,6 +50,16 @@ declare global {
        * reading cannot tell a framed battle from one drawn outside the frustum.
        */
       projectGroundPoint?(x: number, y: number): { x: number; y: number } | null
+      /**
+       * One figure's pose this frame, read off the joint matrices the GPU was handed — `null`
+       * when that body has no rig (the lab's cardboard cards) or is not on the board.
+       *
+       * A SCREENSHOT CANNOT SHOW MOTION, and `rendererScene`'s pose aggregates cannot tell one
+       * body from another: a cleaver enemy mid-chop and the command unit mid-swing produce the
+       * same `maxWeaponAngle`. This is what lets a capture assert that the body its caption
+       * names is in the pose the caption claims.
+       */
+      unitPose?(unitId: number): UnitPoseReading | null
       battle?: BattleTestBridge
     }
   }
