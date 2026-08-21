@@ -20,10 +20,16 @@ import { expect, test } from '@playwright/test'
  * 0.125 units every two ticks. Sixteen ticks apart is one full unit of travel, which is exactly
  * half a stride cycle: the legs are swapped.
  *
- * A second figure stands still on the other side of the board as the control. Its half of the
- * frame must come back byte-identical across the same two frames — which is both the proof that
- * nothing else in the scene is moving, and §1.4's settle checked at the pixel: a unit inside the
- * `ARRIVE_EPSILON` dead-band does not stride.
+ * TWO CONTROLS SHARE THE BOARD, one per remaining third of the frame, and both must come back
+ * byte-identical across the same two frames:
+ *
+ *   the STANDER  never moves, so it is §1.4's settle checked at the pixel. A unit inside the
+ *                `ARRIVE_EPSILON` dead-band does not stride, or the jitter that rule exists to
+ *                prevent is back as animation.
+ *   the DOWNED   is shuffled exactly like the walker and is on its side. §4.5's fourth question
+ *                is whether the player agonised over going back for someone, and it cannot be
+ *                asked if a body waiting for rescue is jogging on the spot. Its stillness is
+ *                also what proves the stander's stillness is not merely "nothing here moves".
  */
 
 /** Half a stride cycle at the fixture's speed: 16 ticks x 0.0625 units of travel = 1.0. */
@@ -31,7 +37,7 @@ const HALF_CYCLE_TICKS = 16
 /** Long enough for the two-tick facing steady state to converge (0.68^40 is about 3e-7). */
 const SETTLE_TICKS = 40
 
-test('walks the legs on the GPU: the drawn pixels follow the stride phase, and a settled figure does not', async ({ page }) => {
+test('walks the legs on the GPU, and neither a settled nor a downed body strides', async ({ page }) => {
   await page.goto('?lab=renderers')
   await page.waitForTimeout(400)
   const shaderErrors: string[] = []
@@ -50,17 +56,18 @@ test('walks the legs on the GPU: the drawn pixels follow the stride phase, and a
     const canvas = host.querySelector('canvas') as HTMLCanvasElement
     const gl = canvas.getContext('webgl2') as WebGL2RenderingContext
 
-    const WALKER_X = -6
-    const STANDER_X = 6
+    const WALKER_X = -9
+    const STANDER_X = 0
+    const DOWNED_X = 9
     // Alternating displacement, per tick. Over `ARRIVE_EPSILON` (0.004) by a wide margin, so the
     // authority-movement test the stride uses is satisfied, and at `STRIDE_FULL_STEP` so the
     // stride runs at full amplitude.
     const SHUFFLE = 0.0625
 
-    const body = (id: number, x: number) => ({
+    const body = (id: number, x: number, state = 'idle') => ({
       id, kind: 'soldier', team: 'teal', squad: 'teal',
-      x, y: 0, facingRadians: 0, radius: 0.45, hp01: 1, fatigue01: 0, morale01: 1,
-      state: 'idle' as const,
+      x, y: 0, facingRadians: 0, radius: 0.45, hp01: state === 'downed' ? 0 : 1,
+      fatigue01: 0, morale01: 1, state,
     })
 
     const frame = (tick: number) => ({
@@ -69,14 +76,16 @@ test('walks the legs on the GPU: the drawn pixels follow the stride phase, and a
       units: [
         // The walker: back on its mark at every even tick, one step further along its cycle.
         body(1, WALKER_X + (tick % 2 === 0 ? 0 : SHUFFLE)),
-        // The control: never moves at all.
+        // First control: never moves at all.
         body(2, STANDER_X),
+        // Second control: shuffled exactly like the walker, and on its side.
+        body(3, DOWNED_X + (tick % 2 === 0 ? 0 : SHUFFLE), 'downed'),
       ],
       projectiles: [],
       effects: [],
       camera: { centerX: 0, centerY: 0, worldWidth: 30, worldHeight: 18 },
       playArea: { centerX: 0, centerY: 0, worldWidth: 30, worldHeight: 18 },
-      // Deliberately NOT the team these two are on: the active squad's ring pulses with the
+      // Deliberately NOT the team these three are on: the active squad's ring pulses with the
       // tick, and a pulsing ring would be a difference that is not the legs.
       activeSquad: 'scarlet' as const,
     })
@@ -99,12 +108,23 @@ test('walks the legs on the GPU: the drawn pixels follow the stride phase, and a
       if (tick === settleTicks + halfCycle * 2) full = grab()
     }
 
-    // Left half of the frame is the walker, right half the control. The camera is fixed and the
-    // board is centred on the origin, so the split is exact.
-    const split = Math.floor(width / 2)
+    // WHERE THE WALKER'S BODY IS ON SCREEN, so the span the motion covers can be stated as a
+    // fraction of the figure rather than guessed. The board is drawn once more with the walker
+    // taken out of the snapshot, and every pixel that differs is a pixel the walker painted.
+    const last = settleTicks + halfCycle * 2
+    const empty = frame(last)
+    renderer.render({ ...empty, units: empty.units.slice(1) }, 0)
+    const without = grab()
+    // Put the walker back, so the frame left on screen is the one the comparison was taken from.
+    renderer.render(frame(last), 0)
+
+    // One third of the frame per figure. The camera is fixed and the board is centred on the
+    // origin, so the three bands hold exactly one body each.
+    const third = Math.floor(width / 3)
     const compare = (a: Uint8Array, b: Uint8Array) => {
-      let left = 0
-      let right = 0
+      let walker = 0
+      let stander = 0
+      let downed = 0
       let lowest = height
       let highest = 0
       for (let y = 0; y < height; y += 1) {
@@ -114,31 +134,42 @@ test('walks the legs on the GPU: the drawn pixels follow the stride phase, and a
             + Math.abs(a[index + 1]! - b[index + 1]!)
             + Math.abs(a[index + 2]! - b[index + 2]!)
           if (delta === 0) continue
-          if (x < split) {
-            left += 1
+          if (x < third) {
+            walker += 1
             if (y < lowest) lowest = y
             if (y > highest) highest = y
+          } else if (x < third * 2) {
+            stander += 1
           } else {
-            right += 1
+            downed += 1
           }
         }
       }
-      return { left, right, lowest, highest }
+      return { walker, stander, downed, lowest, highest }
     }
 
     const atHalfCycle = compare(first!, half!)
     const atFullCycle = compare(first!, full!)
+    const painted = compare(full!, without)
     const drawCalls = renderer.collectMetrics().drawCalls
     renderer.dispose()
     host.remove()
-    return { atHalfCycle, atFullCycle, width, height, drawCalls }
+    return { atHalfCycle, atFullCycle, painted, width, height, drawCalls }
   }, { halfCycle: HALF_CYCLE_TICKS, settleTicks: SETTLE_TICKS })
 
+  const bodyRows = reading.painted.highest - reading.painted.lowest
+  // How far up the body the motion runs, as a fraction of the body's own painted height.
+  // `readPixels` counts rows from the BOTTOM of the frame, so a small number is near the feet.
+  const startsAt = (reading.atHalfCycle.lowest - reading.painted.lowest) / bodyRows
+  const endsAt = (reading.atHalfCycle.highest - reading.painted.lowest) / bodyRows
   console.log(
     `[walk] ${reading.width}x${reading.height} drawCalls=${reading.drawCalls}`
-    + ` half-cycle: walker=${reading.atHalfCycle.left} control=${reading.atHalfCycle.right}`
-    + ` rows ${reading.atHalfCycle.lowest}..${reading.atHalfCycle.highest}`
-    + ` | full-cycle: walker=${reading.atFullCycle.left} control=${reading.atFullCycle.right}`,
+    + ` half-cycle: walker=${reading.atHalfCycle.walker} stander=${reading.atHalfCycle.stander}`
+    + ` downed=${reading.atHalfCycle.downed} rows ${reading.atHalfCycle.lowest}..${reading.atHalfCycle.highest}`
+    + ` | body rows ${reading.painted.lowest}..${reading.painted.highest} (${bodyRows}px)`
+    + ` | motion spans ${(startsAt * 100).toFixed(0)}%..${(endsAt * 100).toFixed(0)}% of body height`
+    + ` | full-cycle: walker=${reading.atFullCycle.walker} stander=${reading.atFullCycle.stander}`
+    + ` downed=${reading.atFullCycle.downed}`,
   )
 
   // A shader that did not compile is the failure mode this test exists for, and three.js reports
@@ -147,20 +178,46 @@ test('walks the legs on the GPU: the drawn pixels follow the stride phase, and a
 
   // THE WALK IS ON THE GPU. Same position, same facing, same light, same camera, same health —
   // the only thing that changed between these two frames is how far the authority has moved this
-  // figure, and a couple of hundred pixels of it are drawn somewhere else. Every part of the
-  // pose lives in the vertex shader, so a figure that merely slid answers 0 here.
-  expect(reading.atHalfCycle.left).toBeGreaterThan(150)
+  // figure, and hundreds of pixels of it are drawn somewhere else. Every part of the pose lives
+  // in the vertex shader, so a figure that merely slid answers 0 here.
+  expect(reading.atHalfCycle.walker).toBeGreaterThan(150)
 
-  // AND THE SETTLE IS TOO. The control figure never moved, so its stride amplitude is zero at
-  // every phase, and its half of the frame is identical to the byte across all three frames.
-  // This is §1.4's dead-band checked where it actually matters — if a settled figure kept
-  // striding, the jitter that rule exists to prevent would be back as animation.
-  expect(reading.atHalfCycle.right).toBe(0)
-  expect(reading.atFullCycle.right).toBe(0)
+  // AND THE SETTLE IS TOO. The stander never moved, so its stride amplitude is zero at every
+  // phase, and its third of the frame is identical to the byte across all three frames. This is
+  // §1.4's dead-band checked where it actually matters — if a settled figure kept striding, the
+  // jitter that rule exists to prevent would be back as animation.
+  expect(reading.atHalfCycle.stander).toBe(0)
+  expect(reading.atFullCycle.stander).toBe(0)
+
+  // AND A BODY ON ITS SIDE IS STILL. The third figure was shuffled exactly as far as the walker,
+  // so it is not sitting in the dead-band — it is toppled, and a toppled figure is posed at rest
+  // whatever the authority did with it. §1.11's downed body has to read as needing help.
+  expect(reading.atHalfCycle.downed).toBe(0)
+  expect(reading.atFullCycle.downed).toBe(0)
 
   // AND IT IS A CYCLE, not a drift. One full `STRIDE_CYCLE_DISTANCE` of travel later the figure
-  // is drawn byte for byte as it was: the phase really is travel over that distance, with no
-  // accumulator and no clock in it. This is the same property the screenshot regression and
-  // §4.3's replay agreement lean on, measured at the pixel.
-  expect(reading.atFullCycle.left).toBe(0)
+  // is drawn as it was: the phase really is travel over that distance, with no clock in it. This
+  // is the property the screenshot regression leans on, measured at the pixel.
+  //
+  // ONE PIXEL, not zero, and the reason is worth writing down rather than papering over. The
+  // travelled distance IS summed, tick by tick, so thirty-two additions of 0.0625 come to 2 only
+  // to within double-precision rounding; the phase after a full cycle differs from the phase
+  // before it by around 1e-16 radians, and on this frame exactly one pixel falls the other side
+  // of a rasterisation edge because of it. The stander and the downed body, whose sums are
+  // untouched, come back at zero.
+  expect(reading.atFullCycle.walker).toBeLessThanOrEqual(2)
+
+  // THE MOTION REACHES THE FEET, which is what tells a stride from a rock.
+  //
+  // Be precise about what this does and does not show. The stride moves the WHOLE figure on
+  // purpose — hips and knees swing, and the torso leans, rolls and twists on top of them — so the
+  // changed pixels span nearly the body's whole height (measured: 13% to 93% of it), and this
+  // test cannot attribute a given pixel to a given joint. What it CAN separate is the one failure
+  // the shape of this animation had to avoid: a body-level bob or a rocking torso leaves the feet
+  // planted, and the bottom of the figure would come back unchanged. It does not. The legs' own
+  // travel — 0.42-0.49 world units of reach and 0.07-0.12 of lift, hips in opposition, knees
+  // bending one way only — is measured joint by joint in `tests/figure-rig.test.ts`.
+  expect(bodyRows).toBeGreaterThan(30)
+  expect(startsAt).toBeLessThan(0.3)
+  expect(endsAt).toBeGreaterThan(0.5)
 })

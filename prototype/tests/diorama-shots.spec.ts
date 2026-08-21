@@ -1,7 +1,7 @@
 import { mkdirSync } from 'node:fs'
 import { expect, test, type Page } from '@playwright/test'
 
-import { COMBAT_TICK_LIMIT, ELITE_SPAWN_TICK } from '../src/core/battle/constants'
+import { ARRIVE_EPSILON, COMBAT_TICK_LIMIT, ELITE_SPAWN_TICK } from '../src/core/battle/constants'
 import { FORMATION_MAX_SLOT_RADIUS } from '../src/core/battle/formation'
 
 /**
@@ -503,4 +503,194 @@ test('captures the attack, the hit, the death and the warning with bodies in it'
   // The picture is only evidence if the ring in it really is behind bodies and really is whole.
   expect(telegraph!.bodiesInside).toBeGreaterThanOrEqual(2)
   expect(legibility!.paintedSamples).toBe(legibility!.samples)
+})
+
+// --- Batch M: the walk ---------------------------------------------------------------------
+//
+// A STILL CANNOT SHOW MOTION, and these three are honest about what they are: they are pictures
+// of POSES, chosen by measurement. What each frame is evidence of is written in the log line
+// beside it — how many friendlies were striding, how far the authority had moved them that
+// tick, and how fast the closing melee was going compared with the commander it was chasing.
+// The motion itself is pinned by `tests/figure-rig.test.ts` and `tests/figure-walk.spec.ts`.
+
+type WalkMoment = {
+  tick: number
+  striding: number
+  settled: number
+  friendlies: number
+  /** The largest per-tick step among the live friendlies, in world units. */
+  maxStep: number
+  commandStep: number
+  /** The nearest melee: its step this tick, and how far it still has to close. */
+  chaserStep: number
+  chaserRange: number
+  focusX: number
+  focusY: number
+} | null
+
+/**
+ * Installs an offline board and `window.__walkShot(want, maxTicks, hold)` over it.
+ *
+ * Same three calls the controller makes — `battle.step()`, `projectBattleSnapshot`, `render` —
+ * driven a tick at a time so a pose that lasts a handful of ticks can actually be caught. The
+ * step every unit took is computed here from consecutive AUTHORITY snapshots, which is the same
+ * quantity the renderer's stride reads, so the number in the log line and the legs in the
+ * picture come from one source.
+ */
+async function openWalkBoard(page: Page, seed: string, arriveEpsilon: number): Promise<void> {
+  await page.goto('?lab=renderers')
+  await page.waitForTimeout(400)
+  await page.evaluate(async ({ seed, arriveEpsilon }) => {
+    const { createRenderer } = await (0, eval)('import("/src/renderers/three-hybrid/index.ts")')
+    const { createBattle } = await (0, eval)('import("/src/core/battle/battle.ts")')
+    const { projectBattleSnapshot } = await (0, eval)('import("/src/core/battle-view/snapshot.ts")')
+    document.body.style.margin = '0'
+    const host = document.createElement('div')
+    host.id = 'action-shot-host'
+    host.style.cssText = 'position:fixed;inset:0;width:1600px;height:1000px;z-index:9999'
+    document.body.append(host)
+    const renderer = createRenderer()
+    await renderer.mount(host)
+    renderer.resize(1600, 1000, 1)
+    const battle = createBattle(seed)
+    battle.start()
+    let held: string | null = null
+    const previous = new Map<number, { x: number; y: number }>()
+
+    ;(window as unknown as { __walkShot?: unknown }).__walkShot = (want: string, maxTicks: number, hold: string | null) => {
+      if (held !== hold) {
+        if (held) battle.keyUp(held)
+        if (hold) battle.keyDown(hold)
+        held = hold
+      }
+      for (let step = 0; step < maxTicks; step += 1) {
+        const result = battle.step()
+        if (!result.ran) {
+          if (result.mode === 'awaiting-upgrade') { battle.enqueue({ kind: 'choose-upgrade', slot: 1 }); continue }
+          return null
+        }
+        const snapshot = projectBattleSnapshot(battle.state(), [result])
+        renderer.render(snapshot, 0)
+        type Unit = { id: number; kind: string; team: string; state: string; x: number; y: number }
+        const units = snapshot.units as Unit[]
+        const stepOf = (unit: Unit) => {
+          const last = previous.get(unit.id)
+          return last ? Math.hypot(unit.x - last.x, unit.y - last.y) : 0
+        }
+        const friendlies = units.filter((unit) => unit.team !== 'enemy' && unit.state !== 'dead' && unit.state !== 'downed')
+        const command = units.find((unit) => unit.kind === 'commander')
+        const striding = friendlies.filter((unit) => stepOf(unit) > arriveEpsilon).length
+        const maxStep = friendlies.reduce((max, unit) => Math.max(max, stepOf(unit)), 0)
+        const commandStep = command ? stepOf(command) : 0
+        // §1.9's melee class is `enemy`; `enemy-commander` is the shooter. The one that matters
+        // here is the melee closing on the body the player drives.
+        const chasers = command
+          ? units.filter((unit) => unit.kind === 'enemy' && unit.state !== 'dead')
+            .map((unit) => ({ unit, range: Math.hypot(unit.x - command.x, unit.y - command.y) }))
+            .sort((left, right) => left.range - right.range)
+          : []
+        const chaser = chasers[0]
+        const reading: NonNullable<WalkMoment> = {
+          tick: result.tick,
+          striding,
+          settled: friendlies.length - striding,
+          friendlies: friendlies.length,
+          maxStep,
+          commandStep,
+          chaserStep: chaser ? stepOf(chaser.unit) : 0,
+          chaserRange: chaser ? chaser.range : Infinity,
+          focusX: command?.x ?? 0,
+          focusY: command?.y ?? 0,
+        }
+        units.forEach((unit) => previous.set(unit.id, { x: unit.x, y: unit.y }))
+        if (result.tick < 12) continue
+        const found = want === 'walking'
+          ? striding >= Math.max(10, friendlies.length - 2) && commandStep > arriveEpsilon
+          : want === 'settled'
+            ? striding === 0 && friendlies.length >= 14
+            : chaser !== undefined && reading.chaserRange < 4.5 && reading.chaserStep > commandStep
+              && reading.chaserStep > arriveEpsilon
+        if (!found) continue
+        if (want === 'closing' && chaser) {
+          reading.focusX = (chaser.unit.x + reading.focusX) / 2
+          reading.focusY = (chaser.unit.y + reading.focusY) / 2
+        }
+        return reading
+      }
+      return null
+    }
+  }, { seed, arriveEpsilon })
+}
+
+function walkTo(page: Page, want: string, maxTicks: number, hold: string | null): Promise<WalkMoment> {
+  return page.evaluate(
+    ({ want, maxTicks, hold }) =>
+      (window as unknown as { __walkShot: (w: string, m: number, h: string | null) => WalkMoment })
+        .__walkShot(want, maxTicks, hold),
+    { want, maxTicks, hold },
+  ) as Promise<WalkMoment>
+}
+
+async function snapWalk(page: Page, name: string, moment: WalkMoment): Promise<void> {
+  mkdirSync(ARTIFACTS, { recursive: true })
+  await page.locator('#action-shot-host canvas').screenshot({ path: `${ARTIFACTS}${name}.png` })
+  if (!moment) return
+  const point = await page.evaluate(
+    ({ x, y }) => window.__SQUADING_TEST__!.projectGroundPoint!(x, y),
+    { x: moment.focusX, y: moment.focusY },
+  )
+  if (!point) return
+  const centreX = ((point.x + 1) / 2) * SHOT_WIDTH
+  const centreY = ((1 - point.y) / 2) * SHOT_HEIGHT
+  await page.screenshot({
+    path: `${ARTIFACTS}${name}-detail.png`,
+    clip: {
+      x: Math.max(0, Math.min(SHOT_WIDTH - DETAIL_WIDTH, centreX - DETAIL_WIDTH / 2)),
+      y: Math.max(0, Math.min(SHOT_HEIGHT - DETAIL_HEIGHT, centreY - DETAIL_HEIGHT / 2)),
+      width: DETAIL_WIDTH,
+      height: DETAIL_HEIGHT,
+    },
+  })
+}
+
+test('captures the squad walking, the squad settled, and a melee closing on the command unit', async ({ page }) => {
+  test.setTimeout(420_000)
+  await openWalkBoard(page, 'seed-a', ARRIVE_EPSILON)
+
+  // The pair is taken off ONE board in ONE run, walking then stopped, because that is the
+  // comparison the brief asks for: the same sixteen figures, a tick apart, and the only
+  // difference is whether the authority is moving them. It has to be taken before contact —
+  // §1.4.1 sends the fifteen out to fight the moment there is anything to fight, and a squad
+  // with a leash out never comes to a full stop again.
+  const walking = await walkTo(page, 'walking', 400, 'KeyD')
+  expect(walking, 'the squad never had ten of its own walking at once').not.toBeNull()
+  await snapWalk(page, 'shot-walk-squad', walking)
+  console.log(
+    `[shot] shot-walk-squad tick=${walking!.tick} striding=${walking!.striding}/${walking!.friendlies}`
+    + ` commandStep=${walking!.commandStep.toFixed(4)} maxStep=${walking!.maxStep.toFixed(4)}`,
+  )
+
+  const settled = await walkTo(page, 'settled', 120, null)
+  expect(settled, 'the squad never came to a full stop inside §1.4 ARRIVE_EPSILON').not.toBeNull()
+  await snapWalk(page, 'shot-walk-settled', settled)
+  console.log(
+    `[shot] shot-walk-settled tick=${settled!.tick} striding=${settled!.striding}/${settled!.friendlies}`
+    + ` maxStep=${settled!.maxStep.toFixed(5)}`,
+  )
+
+  const closing = await walkTo(page, 'closing', 1600, 'KeyA')
+  expect(closing, 'no melee ever closed on the command unit while outrunning it').not.toBeNull()
+  await snapWalk(page, 'shot-walk-melee-closing', closing)
+  console.log(
+    `[shot] shot-walk-melee-closing tick=${closing!.tick} range=${closing!.chaserRange.toFixed(2)}`
+    + ` meleeStep=${closing!.chaserStep.toFixed(4)} commandStep=${closing!.commandStep.toFixed(4)}`
+    + ` ratio=${(closing!.chaserStep / Math.max(1e-6, closing!.commandStep)).toFixed(2)}`,
+  )
+
+  // The pictures are only evidence if the frames they were taken from say what the captions do.
+  // §1.3's `MELEE_MOVE_SPEED > COMMANDER_MOVE_SPEED` is a structural constant; this is that
+  // constant caught on the board, in the frame that was shot.
+  expect(closing!.chaserStep).toBeGreaterThan(closing!.commandStep)
+  expect(settled!.maxStep).toBeLessThanOrEqual(ARRIVE_EPSILON)
+  expect(walking!.striding).toBeGreaterThanOrEqual(10)
 })
