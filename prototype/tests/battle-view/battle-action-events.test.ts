@@ -102,7 +102,7 @@ describe('battle-view: this tick\'s blows, as display events (§액션 피드백
     expect(action!.targetId).toBe(COMMANDER_ID)
   })
 
-  it('splits the four causes into the three things they look like', () => {
+  it('splits the five causes into the three things they look like', () => {
     const state = stateAt()
     state.enemies.push(createEnemy(101, 'melee', { x: 29, y: 16 }))
     state.enemies.push(createEnemy(102, 'shooter', { x: 34, y: 16 }))
@@ -116,6 +116,13 @@ describe('battle-view: this tick\'s blows, as display events (§액션 피드백
     expect(kindOf(damage({ attackerId: 102, cause: 'shooter-shot' }))).toBe('shot')
     expect(kindOf(damage({ attackerId: 101, cause: 'melee-contact' }))).toBe('melee')
     expect(kindOf(damage({ attackerId: 103, cause: 'elite-blast' }))).toBe('blast')
+    // §1.4.2's swing (batch N). The one cause where the attacker IS carrying a gun and still must
+    // not fire it: `friendly-melee` comes from the command unit, whose miniature is a rifleman,
+    // so nothing about the body it came off would tell the renderer this was not a shot. A
+    // muzzle puff here is the defect §액션 피드백 names, and this line is what stands on it —
+    // measured, not assumed: `scripts/mutate.mjs`'s "paint a muzzle puff on the commander's
+    // swing" was MISSED by the whole suite until this assertion existed.
+    expect(kindOf(damage({ side: 'friendly', attackerId: COMMANDER_ID, targetId: 101, cause: 'friendly-melee' }))).toBe('melee')
   })
 
   it('scales the blow by what fraction of the target it took', () => {

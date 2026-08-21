@@ -119,6 +119,11 @@ const TARGET_TESTS = [
   'tests/battle/battle-step-numbers.test.ts',
   // Batch H: §1.4.1's rule lives in `movement.ts` and its fixtures live here.
   'tests/battle/battle-movement.test.ts',
+  // Batch N: §1.4.2's rule lives in `attacks.ts` / `targeting.ts`, its card composition in
+  // `battle-upgrades.test.ts`, and the display half of its `cause` in the view fixtures.
+  'tests/battle/battle-combat.test.ts',
+  'tests/battle/battle-upgrades.test.ts',
+  'tests/battle-view/battle-action-events.test.ts',
 ]
 
 const VIEW = 'src/core/harness/policy/view.ts'
@@ -126,6 +131,9 @@ const POLICIES = 'src/core/harness/policy/policies.ts'
 const RUN = 'src/core/harness/policy/run.ts'
 const MOVEMENT = 'src/core/battle/movement.ts'
 const CONSTANTS = 'src/core/battle/constants.ts'
+const ATTACKS = 'src/core/battle/attacks.ts'
+const TARGETING = 'src/core/battle/targeting.ts'
+const SNAPSHOT = 'src/core/battle-view/snapshot.ts'
 
 /**
  * The mutation table. Hardcoded on purpose — a generated mutation set is a different tool, and
@@ -539,6 +547,109 @@ const MUTATIONS = [
     label: "put §1.10's phase-0 request interval back where batch H had it",
     find: '  { fromTick: 0, engagedCap: 14, requestInterval: 9, meleeToShooter: [5, 1] },',
     replace: '  { fromTick: 0, engagedCap: 14, requestInterval: 12, meleeToShooter: [5, 1] },',
+  },
+
+  // --- attacks.ts / §1.4.2 the command unit's melee (batch N) --------------------------------
+  // DERIVED FROM §1.4.2's OWN SENTENCES, with the fixtures unread, exactly as the header above
+  // requires. The section says five things about the rule and each one is a mutation here:
+  //   "COMMANDER_MELEE_RANGE 안에 ... 있으면 근접으로 친다. 밖이면 기존 사거리 공격이다."
+  //   "병사는 갖지 않는다" (and the melee follows the 지휘 유닛, not the role)
+  //   "근접은 COMMANDER_DAMAGE보다 세고"
+  //   "COMMANDER_ATTACK_INTERVAL보다 짧거나 같다"
+  //   "피해 이벤트의 cause는 friendly-melee로 구분한다"
+  // Plus the boundary, which §1.4.2 does not state and the implementation had to choose: `<=`,
+  // the same closed edge §1.8 admits a candidate with.
+  {
+    file: ATTACKS,
+    label: 'never swing — the command unit always shoots',
+    find: '  return distance <= COMMANDER_MELEE_RANGE',
+    replace: '  return false',
+  },
+  {
+    file: ATTACKS,
+    label: 'swing from wherever the command unit is standing',
+    find: '  return distance <= COMMANDER_MELEE_RANGE\n}',
+    replace: '  return distance >= 0\n}',
+  },
+  {
+    file: ATTACKS,
+    label: 'open the melee boundary — exactly at the range is now outside it',
+    find: '  // `<=`, the same closed boundary §1.8 admits a candidate with.\n  return distance <= COMMANDER_MELEE_RANGE',
+    replace: '  // `<=`, the same closed boundary §1.8 admits a candidate with.\n  return distance < COMMANDER_MELEE_RANGE',
+  },
+  {
+    file: ATTACKS,
+    label: 'give the melee to the whole squad, not just the command unit',
+    find: '  if (unit.id !== state.commandUnitId) return false',
+    replace: '  if (false) return false',
+  },
+  {
+    file: ATTACKS,
+    label: 'swing for the rifle\'s damage',
+    find: '      amount: melee ? meleeDamageOf(state) : attackDamageOf(state, unit),',
+    replace: '      amount: attackDamageOf(state, unit),',
+  },
+  {
+    file: ATTACKS,
+    label: 'book the rifle\'s cooldown after a swing',
+    find: '    unit.attackCooldown = melee ? meleeIntervalOf(state) : attackIntervalOf(state, unit)',
+    replace: '    unit.attackCooldown = attackIntervalOf(state, unit)',
+  },
+  {
+    file: ATTACKS,
+    label: 'report a swing as a shot',
+    find: "      cause: melee ? 'friendly-melee' : 'friendly-attack',",
+    replace: "      cause: 'friendly-attack',",
+  },
+
+  // --- targeting.ts: how §1.13's cards compose with the melee --------------------------------
+  // A DECISION, not a reading — §1.4.2 says nothing about the cards, and `targeting.ts` records
+  // why it composes `firepower` and `연사` and deliberately withholds `사수`. Both mutations
+  // remove the composition, which is the shape of the decision going the other way.
+  {
+    file: TARGETING,
+    label: 'let the firepower card pass the melee by',
+    find: '  return COMMANDER_MELEE_DAMAGE * firepowerMultiplierOf(state)',
+    replace: '  return COMMANDER_MELEE_DAMAGE',
+  },
+  {
+    file: TARGETING,
+    label: 'let the rapid card pass the melee by',
+    find: '  return tickDurationAfter(COMMANDER_MELEE_INTERVAL, attackIntervalMultiplierOf(state))',
+    replace: '  return COMMANDER_MELEE_INTERVAL',
+  },
+
+  // --- constants.ts: §2's three bounds on the melee -------------------------------------------
+  // Each value is moved OUT of the box §2 draws around it. What is being measured is whether the
+  // `assertRule` at the bottom of that file actually fires: a placeholder outside its own bounds
+  // must be a loud import-time failure, not a quietly different game.
+  {
+    file: CONSTANTS,
+    label: 'let the melee reach past what a shooter can answer (§2 range bound)',
+    find: 'export const COMMANDER_MELEE_RANGE = 1.2',
+    replace: 'export const COMMANDER_MELEE_RANGE = 5.0',
+  },
+  {
+    file: CONSTANTS,
+    label: 'make the swing weaker than the shot (§2 damage bound)',
+    find: 'export const COMMANDER_MELEE_DAMAGE = 0.5',
+    replace: 'export const COMMANDER_MELEE_DAMAGE = 0.1',
+  },
+  {
+    file: CONSTANTS,
+    label: 'make the swing slower than the shot (§2 interval bound)',
+    find: 'export const COMMANDER_MELEE_INTERVAL = 8',
+    replace: 'export const COMMANDER_MELEE_INTERVAL = 11',
+  },
+
+  // --- battle-view/snapshot.ts: the display half of §1.4.2's `cause` ---------------------------
+  // §1.4.2 gives the cause its own value so "렌더러가 베기와 사격을 추측 없이 가른다", and
+  // §액션 피드백 forbids a muzzle puff on a blow landed by hand. This is that sentence inverted.
+  {
+    file: SNAPSHOT,
+    label: 'paint a muzzle puff on the commander\'s swing',
+    find: "  'friendly-melee': 'melee',",
+    replace: "  'friendly-melee': 'shot',",
   },
 
   // --- run.ts: the aggregation ---------------------------------------------------------------
