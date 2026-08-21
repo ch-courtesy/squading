@@ -115,7 +115,12 @@ test('walks the legs on the GPU, and neither a settled nor a downed body strides
     const empty = frame(last)
     renderer.render({ ...empty, units: empty.units.slice(1) }, 0)
     const without = grab()
-    // Put the walker back, so the frame left on screen is the one the comparison was taken from.
+    // And once with ONLY the walker, so the two controls can be shown to be drawn at all. A
+    // control that painted nothing would satisfy "identical to the byte" for free, and the two
+    // claims those controls carry would be vacuous.
+    renderer.render({ ...empty, units: empty.units.slice(0, 1) }, 0)
+    const alone = grab()
+    // Put everyone back, so the frame left on screen is the one the comparison was taken from.
     renderer.render(frame(last), 0)
 
     // One third of the frame per figure. The camera is fixed and the board is centred on the
@@ -151,10 +156,11 @@ test('walks the legs on the GPU, and neither a settled nor a downed body strides
     const atHalfCycle = compare(first!, half!)
     const atFullCycle = compare(first!, full!)
     const painted = compare(full!, without)
+    const controls = compare(full!, alone)
     const drawCalls = renderer.collectMetrics().drawCalls
     renderer.dispose()
     host.remove()
-    return { atHalfCycle, atFullCycle, painted, width, height, drawCalls }
+    return { atHalfCycle, atFullCycle, painted, controls, width, height, drawCalls }
   }, { halfCycle: HALF_CYCLE_TICKS, settleTicks: SETTLE_TICKS })
 
   const bodyRows = reading.painted.highest - reading.painted.lowest
@@ -166,7 +172,8 @@ test('walks the legs on the GPU, and neither a settled nor a downed body strides
     `[walk] ${reading.width}x${reading.height} drawCalls=${reading.drawCalls}`
     + ` half-cycle: walker=${reading.atHalfCycle.walker} stander=${reading.atHalfCycle.stander}`
     + ` downed=${reading.atHalfCycle.downed} rows ${reading.atHalfCycle.lowest}..${reading.atHalfCycle.highest}`
-    + ` | body rows ${reading.painted.lowest}..${reading.painted.highest} (${bodyRows}px)`
+    + ` | painted: walker=${reading.painted.walker} rows ${reading.painted.lowest}..${reading.painted.highest}`
+    + ` stander=${reading.controls.stander} downed=${reading.controls.downed}`
     + ` | motion spans ${(startsAt * 100).toFixed(0)}%..${(endsAt * 100).toFixed(0)}% of body height`
     + ` | full-cycle: walker=${reading.atFullCycle.walker} stander=${reading.atFullCycle.stander}`
     + ` downed=${reading.atFullCycle.downed}`,
@@ -186,6 +193,10 @@ test('walks the legs on the GPU, and neither a settled nor a downed body strides
   // phase, and its third of the frame is identical to the byte across all three frames. This is
   // §1.4's dead-band checked where it actually matters — if a settled figure kept striding, the
   // jitter that rule exists to prevent would be back as animation.
+  // Both controls are DRAWN, checked by rendering the board with only the walker on it: a body
+  // that painted no pixels would satisfy "identical to the byte" for nothing.
+  expect(reading.controls.stander).toBeGreaterThan(300)
+  expect(reading.controls.downed).toBeGreaterThan(300)
   expect(reading.atHalfCycle.stander).toBe(0)
   expect(reading.atFullCycle.stander).toBe(0)
 

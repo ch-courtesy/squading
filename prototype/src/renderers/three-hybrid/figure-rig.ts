@@ -210,9 +210,17 @@ export const AIM_RELEASE_TICKS = 8
  *   -Y yaw    swings +X round to +Z: the rifle carried across the chest turns down-range.
  */
 const AIM_TROOPER_YAW = -0.95
-/** The shooter carries its barrel level already, so its rest is a LOWERED weapon. */
-const AIM_SHOOTER_REST_PITCH = 0.35
-const AIM_ELITE_REST_PITCH = 0.22
+/**
+ * The shooter carries its barrel level already, so its rest is a LOWERED weapon — but only just.
+ *
+ * SMALL ON PURPOSE, and the reason is the spec rather than taste. §미니어처 디테일 makes the
+ * shooter's long forward barrel the one cue the melee blob can never be mistaken for, and it is a
+ * TOP-DOWN cue: a barrel pitched down foreshortens to nothing from the staged camera. At 0.35 the
+ * lineup shot showed the muzzle stabbing into the board and the needle gone. At 0.2 the weapon
+ * still visibly comes up when the shooter fires, and the silhouette survives the rest of the time.
+ */
+const AIM_SHOOTER_REST_PITCH = 0.2
+const AIM_ELITE_REST_PITCH = 0.14
 /** Muzzle rise on the shot, radians. Negative because the barrel points forward. */
 const RECOIL_PITCH = -0.34
 /** Shoulder shove the kick puts through the torso, radians. */
