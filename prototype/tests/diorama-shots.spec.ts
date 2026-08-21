@@ -784,8 +784,14 @@ async function openStrikeBoard(page: Page, seed: string): Promise<void> {
      * around the rule; it IS the rule, and the picture is worth taking because it is now the
      * picture of something a player did.
      */
+    type Body = { id: number; kind: string; life: string; position: { x: number; y: number } }
+
     const walkAtStandoffClass = (): void => {
-      const state = battle.state()
+      const state = battle.state() as {
+        commandUnitId: number
+        friendlies: Body[]
+        enemies: Body[]
+      }
       const me = state.friendlies.find((unit) => unit.id === state.commandUnitId)
       if (!me || me.life !== 'standing') return
       let prey: { x: number; y: number } | null = null
