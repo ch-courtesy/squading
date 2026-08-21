@@ -23,11 +23,11 @@
 // below, and it is a return value rather than a field on `BattleState` because of the
 // no-scratch rule in `types.ts`.
 //
-// §1.4.2 (batch N) LANDS IN THE FRIENDLY PASS AND NOWHERE ELSE. The command unit swings inside
-// `COMMANDER_MELEE_RANGE` and shoots outside it; `isCommandMeleeStrike` is the whole of that
-// decision, and the pass composes it into the one blow it was already resolving. No state field,
-// no stream, no §1.16 row — see that function's own comment for why each of the three is
-// possible at all.
+// §1.4.2 (batch N) LANDS IN THE FRIENDLY PASS AND NOWHERE ELSE. The command unit swings at a
+// `shooter` or the `elite` inside `COMMANDER_MELEE_RANGE` (v13) and shoots in every other case;
+// `isCommandMeleeStrike` is the whole of that decision, and the pass composes it into the one blow
+// it was already resolving. No state field, no stream, no §1.16 row — see that function's own
+// comment for why each of the three is possible at all.
 
 import { COMMANDER_MELEE_RANGE, MELEE_RANGE, SHOOTER_STANDOFF } from './constants'
 import { enemyAttackIntervalOf, enemyDamageOf } from './enemy'
@@ -63,7 +63,7 @@ export function advanceCooldowns(state: BattleState): void {
 /**
  * §1.4.2: is THIS blow, by THIS unit, against THIS target, a melee?
  *
- * THE WHOLE RULE IS THIS FUNCTION, and it is three lines because §1.4.2 asked for three lines:
+ * THE WHOLE RULE IS THIS FUNCTION, and it is four lines because §1.4.2 asked for four lines:
  * no new `BattleState` field, no new PRNG stream, no new step in §1.16. "지금 근접 거리인가" is
  * derived every tick from two positions the movement step has already written, exactly the way
  * §1.4.1 derives "am I engaging" — the no-scratch rule in `types.ts` is why both are derived
@@ -82,6 +82,24 @@ export function advanceCooldowns(state: BattleState): void {
  * ONLY THE COMMAND UNIT. Not "the body whose role is commander" — §1.5 lets a soldier hold the
  * command, and §1.4.2 attaches the melee to the 지휘 유닛 throughout. §1.4.2's "병사는 갖지
  * 않는다" is the `state.commandUnitId` test: fifteen of the sixteen fail it every tick.
+ *
+ * ONLY AGAINST A TARGET WHOSE OWN CLASS HOLDS DISTANCE (v13). §1.4.2: "근접은 §1.8이 고른
+ * 대상이 `shooter` 또는 `elite`일 때만 나간다. 근접형(`melee`)에게는 기존 사거리 공격으로
+ * 친다." v12 had no such clause and claimed the melee was bought with §1.6's range advantage;
+ * `i4-inversion-diagnosis.md` measured that claim false. §1.3 REQUIRES
+ * `MELEE_MOVE_SPEED > COMMANDER_MOVE_SPEED`, so a melee-class enemy closes on the command unit
+ * whatever the command unit does — 93.4 % of `skilled`'s swings and 100 % of `camps-in-place`'s
+ * landed on bodies that arrived by themselves, and the two policies that never move swung three
+ * times as often per run as `skilled`. Nothing was given up, so nothing was traded.
+ *
+ * A shooter holds `SHOOTER_STANDOFF` low `2.70` and the elite holds `ELITE_APPROACH_RANGE 4.5`,
+ * both far outside `COMMANDER_MELEE_RANGE 1.2`. Neither will close that gap, so every swing that
+ * survives this test is one the PLAYER walked into — and walking there means standing inside
+ * `SHOOTER_RANGE`, which is what makes §1.4.2's own sentence true.
+ *
+ * The test is written positively (`shooter` or `elite`) rather than as `!== 'melee'` because
+ * §1.4.2's word is "만" — a class the campaign's stage 4 adds later is outside the rule until
+ * some later batch puts it inside on purpose.
  */
 export function isCommandMeleeStrike(
   state: BattleState,
@@ -89,6 +107,7 @@ export function isCommandMeleeStrike(
   target: EnemyUnit,
 ): boolean {
   if (unit.id !== state.commandUnitId) return false
+  if (target.kind !== 'shooter' && target.kind !== 'elite') return false
   const distance = Math.hypot(
     target.position.x - unit.position.x,
     target.position.y - unit.position.y,

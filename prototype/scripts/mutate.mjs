@@ -557,8 +557,31 @@ const MUTATIONS = [
   //   "근접은 COMMANDER_DAMAGE보다 세고"
   //   "COMMANDER_ATTACK_INTERVAL보다 짧거나 같다"
   //   "피해 이벤트의 cause는 friendly-melee로 구분한다"
+  //   "근접은 §1.8이 고른 대상이 shooter 또는 elite일 때만 나간다" (v13)
   // Plus the boundary, which §1.4.2 does not state and the implementation had to choose: `<=`,
   // the same closed edge §1.8 admits a candidate with.
+  //
+  // WHAT THE v13 CLAUSE MEASURED WHEN IT WAS FIRST ADDED HERE, recorded rather than tidied away.
+  // The rule went into `attacks.ts`, this mutation went in next, and the fixture that catches it
+  // was written afterwards — so the miss is a measurement and not a guess.
+  //
+  //   * Whole TARGET_TESTS set: caught, by the DIGEST BLOCK in `tests/harness` alone. That is the
+  //     change detector this file's header warns about: it says the run is different and never
+  //     which rule broke.
+  //   * The six RULE files (TARGET_TESTS minus `tests/harness`): 112/112 GREEN with the clause
+  //     deleted. Every §1.4.2 fixture in the tree at that moment used a `melee`-class body as the
+  //     target, so not one of them could tell "swing inside the range" from "swing inside the
+  //     range at a shooter or the elite".
+  //
+  // The pair fixture in `battle-combat.test.ts` ('swings at a shooter at melee range, and shoots a
+  // melee-class enemy at the SAME distance') was written to close that, and the rest of the block
+  // was moved off the melee class so it stops passing for the wrong reason.
+  {
+    file: ATTACKS,
+    label: 'swing at the melee class too — the v13 clause deleted',
+    find: "  if (target.kind !== 'shooter' && target.kind !== 'elite') return false",
+    replace: '  if (false) return false',
+  },
   {
     file: ATTACKS,
     label: 'never swing — the command unit always shoots',

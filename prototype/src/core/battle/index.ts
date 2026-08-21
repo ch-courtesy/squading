@@ -180,8 +180,9 @@
 //         THE ONE RULE OF THAT BATCH, and like §1.4.1 it is a change INSIDE an existing row
 //         rather than a new one — the 아군 공격 row — so the table below is untouched and
 //         `battle-step-numbers.test.ts` keeps that true. `isCommandMeleeStrike(state, unit,
-//         target)` (attacks.ts) is the whole decision: the unit is `state.commandUnitId` and its
-//         §1.8 target is within `COMMANDER_MELEE_RANGE`. When it holds, the blow the pass was
+//         target)` (attacks.ts) is the whole decision: the unit is `state.commandUnitId`, its
+//         §1.8 target is a `shooter` or the `elite` (v13), and that target is within
+//         `COMMANDER_MELEE_RANGE`. When it holds, the blow the pass was
 //         already going to resolve is made of `COMMANDER_MELEE_DAMAGE`, `COMMANDER_MELEE_INTERVAL`
 //         and `cause: 'friendly-melee'` instead of the ranged three. Nothing else changes: not
 //         whether the blow happens, not the target, not the step order.
@@ -192,10 +193,13 @@
 //         `BattleState`, cannot see the new cause. `battle-state.test.ts`'s four key-set pins are
 //         what hold the first; the digests in `tests/harness/policy-run.test.ts` MOVED, because
 //         behaviour moved, and that is the second half of the same statement.
-//         THE TRADE IS THE RULE: `COMMANDER_MELEE_RANGE < SHOOTER_RANGE` is asserted in
-//         `constants.ts`, so a tick spent swinging is a tick spent inside the band every shooter
-//         fires from. §1.6's range advantage is the price of the melee, and the assert is what
-//         stops a tuning pass from quietly making it free.
+//         THE TRADE IS THE RULE, AND v13 IS WHAT MAKES IT ONE: `COMMANDER_MELEE_RANGE <
+//         SHOOTER_RANGE` is asserted in `constants.ts`, so a tick spent swinging is a tick spent
+//         inside the band every shooter fires from. That assert alone was NOT enough — §1.3 makes
+//         melee-class enemies faster than the command unit, so they walked into the melee band on
+//         their own and the swing cost nothing (measured: `i4-inversion-diagnosis.md` §2). The
+//         class clause is what removes the free half: a `shooter` holds `SHOOTER_STANDOFF` low
+//         and the `elite` holds `ELITE_APPROACH_RANGE`, so only the player can close either gap.
 //         WHICH TARGET, and it is a reading §1.4.2 leaves open: the §1.8 target step 7 already
 //         chose, not a re-rank over the melee-range bodies. The fixture that separates the two
 //         readings (an elite between the ranges) is in `battle-combat.test.ts`.

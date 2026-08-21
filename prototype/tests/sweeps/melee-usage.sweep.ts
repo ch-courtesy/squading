@@ -5,12 +5,17 @@
 //
 //   npx vitest run --config vitest.sweep.config.ts tests/sweeps/melee-usage.sweep.ts
 //
-// WHY IT EXISTS. Batch N's digest pins in `tests/harness/policy-run.test.ts` say that
-// `tactical-no-input` on `seed-b` came out of the melee change with the SAME digest, end tick and
-// kill count as before it. That line is the kind of claim that reads as "the rule is inert", so
-// the two things which make it not inert are measured here rather than argued: every policy on
-// every band seed lands melee blows, and `seed-b`'s run visibly DIVERGES on the tick after its
-// first swing before re-converging.
+// WHY IT EXISTS. The digest pins in `tests/harness/policy-run.test.ts` say that
+// `tactical-no-input`'s three runs come out of §1.4.2 with the SAME digest, end tick and kill
+// count as the tree that has no §1.4.2 at all. That line is the kind of claim that reads as "the
+// rule is inert", so what makes it not inert is measured here rather than argued.
+//
+// v13 CHANGED WHAT THIS FILE HAS TO SHOW. The clause fires the melee only against a `shooter` or
+// the `elite` — classes that hold a standoff outside `COMMANDER_MELEE_RANGE` — so a policy that
+// never walks anywhere lands NO swings, and identical digests are the expected outcome for it
+// rather than a coincidence about one seed. What must still be true is that the rule pays out for
+// the policies that DO walk in. Both halves are recorded below: the per-policy count, and the
+// contrast between the policy that never moves and the one that stands on top of the enemy.
 
 import { mkdirSync, writeFileSync } from 'node:fs'
 
@@ -63,6 +68,10 @@ function drive(id: PolicyId, seed: string, sampleAt: readonly number[] = []): Ru
   return run
 }
 
+function sum(values: readonly number[]): number {
+  return values.reduce((total, value) => total + value, 0)
+}
+
 describe('§1.4.2 melee usage', () => {
   it('counts melee blows against ranged blows for every policy on every band seed', () => {
     const lines = ['| policy | melee / (melee + shots), one column per band seed |', '|---|---|']
@@ -82,21 +91,28 @@ describe('§1.4.2 melee usage', () => {
     expect(runs).toBe(ALL_POLICIES.length * POLICY_BAND_SEEDS.length)
   })
 
-  it('shows `seed-b` diverging on the tick after its first swing and re-converging', () => {
-    // The four later samples are what the identical end digest is made of: if the run had gone
-    // on differing, the pin in `policy-run.test.ts` could not read the same as batch I's.
-    const run = drive('tactical-no-input', 'seed-b', [1286, 1300, 1500, 1800, 2100])
+  it('shows the rule is not inert: nothing for the policy that never moves, plenty for the one that dives', () => {
+    // The pair that makes the identical digests readable. `tactical-no-input` emits no command at
+    // all, so it never crosses a shooter's standoff or the elite's approach range and lands zero
+    // swings on any band seed — which is why its three pins are the pre-§1.4.2 tree's values.
+    // `ignores-range` walks onto whatever it is fighting, so it collects swings on exactly the
+    // two classes v13 admits. A run of this file where BOTH are zero would mean the rule had been
+    // switched off rather than restricted.
+    //
+    // BEFORE v13 the same two totals over the eight band seeds were 192 and 179; after it they
+    // are 0 and 25. The 192 were ALL on melee-class bodies that had walked into contact by
+    // themselves, so the first number going to zero is the whole point of the clause; the second
+    // staying non-zero is what says the melee still exists for a policy that walks in.
+    const still = POLICY_BAND_SEEDS.map((seed) => drive('tactical-no-input', seed).melee)
+    const dives = POLICY_BAND_SEEDS.map((seed) => drive('ignores-range', seed).melee)
     const lines = [
-      `melee blows: ${run.melee} at ticks ${run.meleeTicks.join(', ')}`,
-      `end tick ${run.endTick}, digest ${run.digest}`,
-      ...run.samples,
-      '',
-      'Batch I (no melee rule) at the same sample points: tick 1286 = f3a565d4, 1300 = 44eb1b1d,',
-      '1500 = 9ad9ac30, 1800 = f8e231a9, 2100 = b22c7788, end 2190 = 91fc34fe. Only 1286 differs.',
+      `tactical-no-input swings per band seed: ${still.join(' ')} (total ${sum(still)})`,
+      `ignores-range     swings per band seed: ${dives.join(' ')} (total ${sum(dives)})`,
     ]
 
     mkdirSync('artifacts', { recursive: true })
-    writeFileSync('artifacts/melee-seed-b-convergence.txt', `${lines.join('\n')}\n`)
-    expect(run.melee).toBeGreaterThan(0)
+    writeFileSync('artifacts/melee-who-swings.txt', `${lines.join('\n')}\n`)
+    expect(sum(still)).toBe(0)
+    expect(sum(dives)).toBeGreaterThan(0)
   })
 })

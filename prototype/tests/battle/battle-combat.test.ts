@@ -670,11 +670,21 @@ describe('attack pass ordering and shape', () => {
 /**
  * THE WHOLE RULE IS A TRADE, and these fixtures are what hold each half of it.
  *
- * §1.4.2: inside `COMMANDER_MELEE_RANGE` the command unit strikes in melee, outside it fires
- * the ranged attack it has always had. Both are automatic (§1.3 already made every attack
- * automatic) and §1.15 gains no key. What it costs is §1.6's range advantage: the melee range
- * is well inside `SHOOTER_RANGE`, so a tick spent in melee is a tick spent where the shooters
- * can answer, and `constants.ts` asserts that relation rather than trusting it.
+ * §1.4.2: inside `COMMANDER_MELEE_RANGE`, against a target whose own class holds distance, the
+ * command unit strikes in melee; in every other case it fires the ranged attack it has always
+ * had. Both are automatic (§1.3 already made every attack automatic) and §1.15 gains no key. What
+ * it costs is §1.6's range advantage: the melee range is well inside `SHOOTER_RANGE`, so a tick
+ * spent in melee is a tick spent where the shooters can answer, and `constants.ts` asserts that
+ * relation rather than trusting it.
+ *
+ * WHY EVERY TARGET BELOW IS A `shooter` AND NOT A `melee` (v13). v12 had no class clause and
+ * these fixtures all used a `melee` body, which made them unable to distinguish the rule from the
+ * one §1.4.2 now states — `scripts/mutate.mjs` measured exactly that and MISSED. §1.3 requires
+ * `MELEE_MOVE_SPEED > COMMANDER_MOVE_SPEED`, so a melee-class enemy arrives at contact range on
+ * its own and a swing that lands on it was bought with nothing; a shooter holds
+ * `SHOOTER_STANDOFF` low `2.70` and only the player can cross it. The pair at the top of this
+ * block is what separates the two, and everything after it uses the class that can actually
+ * produce a swing.
  *
  * NO STATE FIELD AND NO DRAW. "Am I in melee range" is a distance computed inside the attack
  * step from positions the movement step already wrote. `tests/battle/battle-state.test.ts`'s
@@ -682,20 +692,85 @@ describe('attack pass ordering and shape', () => {
  */
 describe('§1.4.2 the command unit strikes in melee inside its melee range', () => {
   /** Both fixtures below, so the only difference between them is the one distance. */
-  function commanderAgainstAMeleeAt(gap: number): {
+  function commanderAgainstAShooterAt(gap: number): {
     state: BattleState
     commander: FriendlyUnit
   } {
     const state = fixture()
-    state.enemies = [createEnemy(101, 'melee', { x: 28 + gap, y: 16 })]
+    state.enemies = [createEnemy(101, 'shooter', { x: 28 + gap, y: 16 })]
     return { state, commander: commanderOf(state) }
   }
+
+  it('swings at a shooter at melee range, and shoots a melee-class enemy at the SAME distance', () => {
+    // §1.4.2 (v13): "근접은 §1.8이 고른 대상이 `shooter` 또는 `elite`일 때만 나간다. 근접형
+    // (`melee`)에게는 기존 사거리 공격으로 친다."
+    //
+    // THE PAIR DIFFERS IN ONE THING AND IT IS THE CLASS. Same commander, same position, same gap,
+    // same enemy id, same everything the §1.8 step reads except `kind`. A rule that tested only
+    // the distance would produce `friendly-melee` on both lines; a rule that never swung would
+    // produce `friendly-attack` on both. Exactly one of the two is what §1.4.2 asks for.
+    //
+    // WHY THE CLASS IS THE RIGHT AXIS, and it is not a taste: §1.3 REQUIRES `MELEE_MOVE_SPEED >
+    // COMMANDER_MOVE_SPEED`, so the melee-class body on the second line walked into this distance
+    // by itself and the command unit gave up nothing to be here. The shooter on the first line
+    // holds its standoff outside `COMMANDER_MELEE_RANGE` and will not close it, so the only way
+    // the command unit is standing this close to one is that the player walked it in — and that
+    // walk is inside `SHOOTER_RANGE`, which is the §1.6 price §1.4.2 says the melee costs.
+    const gap = COMMANDER_MELEE_RANGE - 0.01
+
+    const shooter = fixture()
+    shooter.enemies = [createEnemy(101, 'shooter', { x: 28 + gap, y: 16 })]
+    advanceTargeting(shooter)
+    expect(commanderOf(shooter).targetId).toBe(101)
+    expect(resolveFriendlyAttacks(shooter)).toEqual([
+      {
+        side: 'friendly',
+        attackerId: COMMANDER_ID,
+        targetId: 101,
+        amount: COMMANDER_MELEE_DAMAGE,
+        cause: 'friendly-melee',
+      },
+    ])
+    expect(commanderOf(shooter).attackCooldown).toBe(COMMANDER_MELEE_INTERVAL)
+
+    const closer = fixture()
+    closer.enemies = [createEnemy(101, 'melee', { x: 28 + gap, y: 16 })]
+    advanceTargeting(closer)
+    expect(commanderOf(closer).targetId).toBe(101)
+    expect(resolveFriendlyAttacks(closer)).toEqual([
+      {
+        side: 'friendly',
+        attackerId: COMMANDER_ID,
+        targetId: 101,
+        amount: COMMANDER_DAMAGE,
+        cause: 'friendly-attack',
+      },
+    ])
+    expect(commanderOf(closer).attackCooldown).toBe(COMMANDER_ATTACK_INTERVAL)
+  })
+
+  it('swings at the elite at melee range, which is the other half of the same clause', () => {
+    // §1.4.2 names TWO classes and a fixture that pinned only the shooter would let "shooter" be
+    // written where "shooter or elite" is meant. `ELITE_APPROACH_RANGE 4.5` is the elite's own
+    // standoff and is far outside `COMMANDER_MELEE_RANGE 1.2`, so it is the same argument as the
+    // shooter's: the command unit is only ever this close because it walked there.
+    const state = fixture()
+    state.enemies = [createEnemy(1000, 'elite', { x: 28 + COMMANDER_MELEE_RANGE - 0.01, y: 16 })]
+    state.elite.enemyId = 1000
+
+    advanceTargeting(state)
+    expect(commanderOf(state).targetId).toBe(1000)
+    expect(resolveFriendlyAttacks(state).map((event) => event.cause)).toEqual(['friendly-melee'])
+  })
 
   it('swings inside the melee range', () => {
     // 1.19 = COMMANDER_MELEE_RANGE - 0.01, hand-computed off the constant so the fixture moves
     // with §5's tuning instead of pinning a literal that would silently stop being inside.
+    // THE AXIS HERE IS DISTANCE, not class — the pair with the fixture below holds the boundary,
+    // and the pair at the top of the block holds the class. Both targets are shooters so that
+    // this pair varies exactly one thing.
     const gap = COMMANDER_MELEE_RANGE - 0.01
-    const { state, commander } = commanderAgainstAMeleeAt(gap)
+    const { state, commander } = commanderAgainstAShooterAt(gap)
     expect(gap).toBeLessThan(COMMANDER_MELEE_RANGE)
 
     advanceTargeting(state)
@@ -717,7 +792,7 @@ describe('§1.4.2 the command unit strikes in melee inside its melee range', () 
     // `gap`, which is 0.02 larger. If the melee branch were reached unconditionally, or never
     // reached at all, exactly one of the two would fail.
     const gap = COMMANDER_MELEE_RANGE + 0.01
-    const { state, commander } = commanderAgainstAMeleeAt(gap)
+    const { state, commander } = commanderAgainstAShooterAt(gap)
     expect(gap).toBeGreaterThan(COMMANDER_MELEE_RANGE)
     expect(gap).toBeLessThan(COMMANDER_RANGE)
 
@@ -741,7 +816,7 @@ describe('§1.4.2 the command unit strikes in melee inside its melee range', () 
     // `COMMANDER_MELEE_RANGE` — because `28 + 1.2 - 28` is 1.1999999999999993 in binary floating
     // point and would test the open side of the boundary while claiming to test the closed one.
     const state = fixture({ friendlies: { [COMMANDER_ID]: { x: 0, y: 16 } } })
-    state.enemies = [createEnemy(101, 'melee', { x: COMMANDER_MELEE_RANGE, y: 16 })]
+    state.enemies = [createEnemy(101, 'shooter', { x: COMMANDER_MELEE_RANGE, y: 16 })]
     expect(Math.hypot(COMMANDER_MELEE_RANGE - 0, 0)).toBe(COMMANDER_MELEE_RANGE)
 
     advanceTargeting(state)
@@ -750,9 +825,11 @@ describe('§1.4.2 the command unit strikes in melee inside its melee range', () 
 
   it('gives a soldier nothing at the same distance', () => {
     // §1.4.2: "병사는 갖지 않는다". Soldier 2 stands exactly where the commander stood in the
-    // first fixture, against the same enemy, and fires its rifle for `SOLDIER_DAMAGE`.
+    // first fixture, against the same enemy, and fires its rifle for `SOLDIER_DAMAGE`. The enemy
+    // is a `shooter` so that the v13 class clause cannot be what produces the rifle here — this
+    // fixture is about the id, and a melee-class body would let it pass for the wrong reason.
     const state = fixture({ friendlies: { 2: { x: 28, y: 16 } } })
-    state.enemies = [createEnemy(101, 'melee', { x: 28 + COMMANDER_MELEE_RANGE - 0.01, y: 16 })]
+    state.enemies = [createEnemy(101, 'shooter', { x: 28 + COMMANDER_MELEE_RANGE - 0.01, y: 16 })]
 
     advanceTargeting(state)
     expect(resolveFriendlyAttacks(state)).toEqual([
@@ -777,7 +854,7 @@ describe('§1.4.2 the command unit strikes in melee inside its melee range', () 
     const state = fixture({
       friendlies: { [COMMANDER_ID]: { x: 28, y: 16 }, 2: { x: 28, y: 16 } },
     })
-    state.enemies = [createEnemy(101, 'melee', { x: 28 + gap, y: 16 })]
+    state.enemies = [createEnemy(101, 'shooter', { x: 28 + gap, y: 16 })]
     state.commandUnitId = 2
 
     advanceTargeting(state)
@@ -816,9 +893,13 @@ describe('§1.4.2 the command unit strikes in melee inside its melee range', () 
     // bodies inside melee range. The two readings differ exactly here — an elite outside melee
     // range outranks a nearer body inside it (§1.8 puts 정예 first), so the command unit shoots
     // the elite instead of swinging at what is standing on top of it.
+    //
+    // The nearer body is a `shooter`, which the v13 class clause ADMITS. If it were the melee
+    // class the fixture would pass for the wrong reason — the swing would be refused by the class
+    // and the reading it means to pin would go untested.
     const state = fixture()
     state.enemies = [
-      createEnemy(101, 'melee', { x: 28.4, y: 16 }),
+      createEnemy(101, 'shooter', { x: 28.4, y: 16 }),
       createEnemy(1000, 'elite', { x: 32, y: 16 }),
     ]
     state.elite.enemyId = 1000
@@ -851,7 +932,11 @@ describe('§1.4.2 the command unit strikes in melee inside its melee range', () 
     state.mode = 'running'
     // A high id so the spawn step, which reserves ids from `FIRST_ENEMY_ID` upward, cannot
     // collide with the body this fixture placed by hand.
-    state.enemies = [createEnemy(900, 'melee', { x: 28 + COMMANDER_MELEE_RANGE - 0.01, y: 16 })]
+    // The gap is 0.5 rather than 1.19 because this fixture runs the WHOLE tick, enemy movement
+    // included: a shooter this far inside its own standoff retreats by `SHOOTER_MOVE_SPEED 0.06`
+    // before the attack step, and 1.19 + 0.06 would be outside `COMMANDER_MELEE_RANGE` by the
+    // time the swing is resolved. 0.5 + 0.06 is not.
+    state.enemies = [createEnemy(900, 'shooter', { x: 28.5, y: 16 })]
     const commander = commanderOf(state)
     commander.attackCooldown = 0
 
@@ -873,7 +958,7 @@ describe('§1.4.2 the command unit strikes in melee inside its melee range', () 
     // still swings, because it is still inside the melee range after the step.
     //   28 -> 27.885, so the gap goes 0.9 -> 1.015, still <= 1.2.
     const state = fixture()
-    state.enemies = [createEnemy(101, 'melee', { x: 28.9, y: 16 })]
+    state.enemies = [createEnemy(101, 'shooter', { x: 28.9, y: 16 })]
     const commander = commanderOf(state)
     commander.attackCooldown = 1
     state.input.move = { x: -1, y: 0 }

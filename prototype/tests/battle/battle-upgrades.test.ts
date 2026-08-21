@@ -408,7 +408,9 @@ describe('§1.13 card effects, read off the chosen cards', () => {
     // in the same file, so the difference has to be asserted rather than assumed.
     const reaching = withCards(fixture(), 'marksman')
     expect(attackRangeOf(reaching, unit(reaching, COMMANDER_ID))).toBeCloseTo(COMMANDER_RANGE + 1, 12)
-    reaching.enemies.push(createEnemy(101, 'melee', { x: 28 + COMMANDER_MELEE_RANGE + 0.01, y: 16 }))
+    // A `shooter`, not a melee-class body: §1.4.2's v13 clause would refuse the swing on class
+    // alone, and this line is about the RANGE card not reaching the melee envelope.
+    reaching.enemies.push(createEnemy(101, 'shooter', { x: 28 + COMMANDER_MELEE_RANGE + 0.01, y: 16 }))
     unit(reaching, COMMANDER_ID).targetId = 101
     expect(resolveFriendlyAttacks(reaching)[0]!.cause).toBe('friendly-attack')
   })

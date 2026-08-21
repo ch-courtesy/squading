@@ -728,9 +728,16 @@ type StrikeMoment = {
 /**
  * Installs an offline board and `window.__strikeShot(want, maxTicks)` over it.
  *
- * No input at all, which is §4.1's `tactical-no-input` minus the card slot: the melees walk into
- * the command unit by themselves (§1.3), so the swing this hunts for arrives without anybody
- * driving toward it.
+ * The recoil and the flinch take no input at all, which is §4.1's `tactical-no-input` minus the
+ * card slot: the melees walk into the command unit by themselves (§1.3), so both arrive without
+ * anybody driving toward them.
+ *
+ * THE SWING DOES NOT, ANY MORE. §1.4.2's v13 clause fires the melee only against a `shooter` or
+ * the `elite`, and both classes hold a standoff outside `COMMANDER_MELEE_RANGE`, so a board that
+ * sends no command never produces one — `tests/sweeps/melee-usage.sweep.ts` measures
+ * `tactical-no-input` at 0 swings over all eight band seeds. `walkAtStandoffClass` below is what
+ * the capture drives instead, and it is the rule rather than a workaround: the swing is a picture
+ * of a player walking inside `SHOOTER_RANGE` on purpose.
  */
 async function openStrikeBoard(page: Page, seed: string): Promise<void> {
   await page.goto('?lab=renderers')
@@ -768,9 +775,42 @@ async function openStrikeBoard(page: Page, seed: string): Promise<void> {
       return { tick: result.tick, blows: result.damageEvents as Blow[], units: snapshot.units as Unit[] }
     }
 
+    /**
+     * Walk the command unit at the nearest `shooter` or the `elite`, one tick's worth.
+     *
+     * §1.4.2's v13 clause is why this exists: the melee fires only against a target whose own
+     * class holds distance, so a board with no input at all now lands NO swings ever — measured,
+     * `tactical-no-input` is 0 over the eight band seeds. Walking in is not this capture cheating
+     * around the rule; it IS the rule, and the picture is worth taking because it is now the
+     * picture of something a player did.
+     */
+    const walkAtStandoffClass = (): void => {
+      const state = battle.state()
+      const me = state.friendlies.find((unit) => unit.id === state.commandUnitId)
+      if (!me || me.life !== 'standing') return
+      let prey: { x: number; y: number } | null = null
+      let best = Infinity
+      for (const enemy of state.enemies) {
+        if (enemy.life !== 'standing') continue
+        if (enemy.kind !== 'shooter' && enemy.kind !== 'elite') continue
+        const gap = Math.hypot(enemy.position.x - me.position.x, enemy.position.y - me.position.y)
+        if (gap < best) {
+          best = gap
+          prey = enemy.position
+        }
+      }
+      if (!prey) return
+      battle.enqueue({
+        kind: 'set-move',
+        move: { x: prey.x - me.position.x, y: prey.y - me.position.y },
+        keydown: true,
+      })
+    }
+
     ;(window as unknown as { __strikeShot?: unknown }).__strikeShot = (want: string, maxTicks: number) => {
       const commandUnitId = battle.state().commandUnitId
       for (let step = 0; step < maxTicks; step += 1) {
+        if (want === 'swing') walkAtStandoffClass()
         const frame = advance()
         if (!frame) return null
 
@@ -830,9 +870,10 @@ function poseOf(page: Page, unitId: number) {
 
 test('captures the commander mid-swing, a soldier mid-recoil, and a body flinching', async ({ page }) => {
   test.setTimeout(420_000)
-  // `seed-c` because its first §1.4.2 swing lands at tick 432 with no input at all
-  // (`tests/sweeps/melee-usage.sweep.ts` is where that number comes from), so this capture does
-  // not have to play most of a battle before it has anything to shoot.
+  // `seed-c` is kept from the v12 capture, where its first §1.4.2 swing landed at tick 432 with
+  // no input at all. Under the v13 clause no seed produces one that way; the swing hunt drives at
+  // the nearest shooter or the elite instead (see `openStrikeBoard`), and the tick it lands on is
+  // whatever that walk costs on this seed.
   await openStrikeBoard(page, 'seed-c')
 
   const recoil = await strikeTo(page, 'recoil', 600)

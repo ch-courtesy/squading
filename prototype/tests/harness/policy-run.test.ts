@@ -65,10 +65,22 @@ describe('§1.17 the runner reproduces the digests batch H recorded', () => {
     // moved, and `tests/sweeps/melee-usage.sweep.ts` measures melee blows in 62 of the 64
     // policy-by-seed runs (the two exceptions are `flees-always` on `seed-f` and `seed-h`, which
     // land none at all).
+    //
+    // §1.4.2's v13 CLAUSE MOVED THEM BACK — all three, to batch I's values EXACTLY. That is not a
+    // revert of the rule; it is what the rule now says about this policy. v13 fires the melee only
+    // when the §1.8 target is a `shooter` or the `elite`, and `tactical-no-input` never walks
+    // anywhere, so it almost never crosses `SHOOTER_STANDOFF` low (2.70) or `ELITE_APPROACH_RANGE`
+    // (4.5) to reach one. Measured: 0 swings over §4.1's eight band seeds and 1 over a 32-seed
+    // extension, against 192 and 595 before the clause — every one of which had landed on a
+    // melee-class body that walked to it (`i4-inversion-diagnosis.md` §2). A policy that gives up
+    // nothing now gets nothing, so these three runs are bit-identical to the tree that has no
+    // §1.4.2 at all. The equality with batch I is the strongest statement available that the
+    // clause removed exactly the free half and nothing else — and it is not the rule going inert,
+    // which `tests/sweeps/melee-usage.sweep.ts` measures on the other side.
     expect(THREE_SEEDS.map((seed) => runPolicySeed(policyFactory('tactical-no-input'), seed))).toEqual([
-      { seed: 'seed-a', outcome: 'lost', endTick: 1671, kills: 165, standing: 0, digest: '50338ecf' },
+      { seed: 'seed-a', outcome: 'lost', endTick: 1653, kills: 159, standing: 0, digest: '8f30c06d' },
       { seed: 'seed-b', outcome: 'lost', endTick: 2190, kills: 228, standing: 0, digest: '91fc34fe' },
-      { seed: 'seed-c', outcome: 'lost', endTick: 1933, kills: 200, standing: 0, digest: '2c93bef7' },
+      { seed: 'seed-c', outcome: 'lost', endTick: 1719, kills: 170, standing: 0, digest: '334b1763' },
     ])
   })
 })
@@ -108,10 +120,19 @@ describe('§4.1 `flees-always` on the three seeds', () => {
     // 2204/225/`ffddc7d9` and 2083/225/`e79eb3e9`. A policy that runs from the nearest enemy
     // still ends up inside `COMMANDER_MELEE_RANGE` — §1.3's whole point is that it cannot get
     // away — so the melee lands on it too (38, 3 and 20 blows on the three seeds).
+    //
+    // §1.4.2's v13 CLAUSE MOVED THEM AGAIN, AND TWO OF THE THREE ARE BATCH I'S VALUES EXACTLY.
+    // `seed-a` and `seed-b` are back to `d8f816f6` and `ffddc7d9`: on those two, every swing the
+    // rule used to pay out landed on a melee-class body that had run the command unit down, so
+    // with the class clause the policy lands none at all and the run is bit-identical to the tree
+    // without §1.4.2. `seed-c` is NOT batch I's — flight backs the command unit into shooters and
+    // the elite often enough on this seed for some swings to survive the clause, so it is its own
+    // third value. Two identical and one not is the shape the clause predicts: the melee stops
+    // being free without being switched off.
     expect(THREE_SEEDS.map((seed) => runPolicySeed(policyFactory('flees-always'), seed))).toEqual([
-      { seed: 'seed-a', outcome: 'lost', endTick: 1753, kills: 166, standing: 0, digest: 'ef49aefa' },
-      { seed: 'seed-b', outcome: 'lost', endTick: 2205, kills: 228, standing: 0, digest: '3a44e656' },
-      { seed: 'seed-c', outcome: 'lost', endTick: 2100, kills: 231, standing: 0, digest: '795d75c9' },
+      { seed: 'seed-a', outcome: 'lost', endTick: 1563, kills: 147, standing: 0, digest: 'd8f816f6' },
+      { seed: 'seed-b', outcome: 'lost', endTick: 2204, kills: 225, standing: 0, digest: 'ffddc7d9' },
+      { seed: 'seed-c', outcome: 'lost', endTick: 2099, kills: 230, standing: 0, digest: '991977cd' },
     ])
   })
 
