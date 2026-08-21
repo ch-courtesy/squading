@@ -1,6 +1,10 @@
 // Batch B fixtures: attack-while-moving (§1.3), target selection (§1.8), the two
 // enemy classes (§1.9) and the range advantage that replaced cover (§1.6).
 //
+// Batch N adds §1.4.2, the command unit's melee, at the bottom of this file. It lives here
+// because it is resolved in the SAME STEP as everything above — the 아군 공격 step (§1.16 gains
+// no row) — and the whole of the rule is a distance test inside `resolveFriendlyAttacks`.
+//
 // There is no terrain (§1.6), so there are no hand-authored layouts here any more and no
 // sight fixtures at all. Every expected coordinate, tick and shot count below is
 // hand-computed from the constants, not read back off the implementation.
@@ -11,7 +15,11 @@ import {
   ARENA_WIDTH,
   COMMANDER_ATTACK_INTERVAL,
   COMMANDER_DAMAGE,
+  COMMANDER_MELEE_DAMAGE,
+  COMMANDER_MELEE_INTERVAL,
+  COMMANDER_MELEE_RANGE,
   COMMANDER_MOVE_SPEED,
+  COMMANDER_RANGE,
   MELEE_ATTACK_INTERVAL,
   MELEE_DAMAGE,
   MELEE_MOVE_SPEED,
@@ -35,6 +43,9 @@ import {
 import { advanceTargeting, selectFriendlyTargetId } from '../../src/core/battle/targeting'
 import { advanceEnemyMovement, isEnemyEngaged } from '../../src/core/battle/enemy'
 import { COMMANDER_ID, createEnemy, createInitialBattleState, findEnemy, findFriendly } from '../../src/core/battle/state'
+import { commandBatch } from '../../src/core/battle/input'
+import { advanceBattleTick } from '../../src/core/battle/tick'
+import type { ResolvedTick } from '../../src/core/battle/tick'
 import type { BattleState, EnemyUnit, FriendlyUnit } from '../../src/core/battle/types'
 
 /**
@@ -649,5 +660,228 @@ describe('attack pass ordering and shape', () => {
     expect(elite.targetId).toBeNull()
     expect(elite.position).toEqual({ x: 30, y: 16 })
     expect(resolveEnemyAttacks(state)).toEqual([])
+  })
+})
+
+// ---------------------------------------------------------------------------
+// §1.4.2 — the command unit's melee (batch N)
+// ---------------------------------------------------------------------------
+
+/**
+ * THE WHOLE RULE IS A TRADE, and these fixtures are what hold each half of it.
+ *
+ * §1.4.2: inside `COMMANDER_MELEE_RANGE` the command unit strikes in melee, outside it fires
+ * the ranged attack it has always had. Both are automatic (§1.3 already made every attack
+ * automatic) and §1.15 gains no key. What it costs is §1.6's range advantage: the melee range
+ * is well inside `SHOOTER_RANGE`, so a tick spent in melee is a tick spent where the shooters
+ * can answer, and `constants.ts` asserts that relation rather than trusting it.
+ *
+ * NO STATE FIELD AND NO DRAW. "Am I in melee range" is a distance computed inside the attack
+ * step from positions the movement step already wrote. `tests/battle/battle-state.test.ts`'s
+ * key-set pins are what prove nothing was added; these fixtures prove the rule works without it.
+ */
+describe('§1.4.2 the command unit strikes in melee inside its melee range', () => {
+  /** Both fixtures below, so the only difference between them is the one distance. */
+  function commanderAgainstAMeleeAt(gap: number): {
+    state: BattleState
+    commander: FriendlyUnit
+  } {
+    const state = fixture()
+    state.enemies = [createEnemy(101, 'melee', { x: 28 + gap, y: 16 })]
+    return { state, commander: commanderOf(state) }
+  }
+
+  it('swings inside the melee range', () => {
+    // 1.19 = COMMANDER_MELEE_RANGE - 0.01, hand-computed off the constant so the fixture moves
+    // with §5's tuning instead of pinning a literal that would silently stop being inside.
+    const gap = COMMANDER_MELEE_RANGE - 0.01
+    const { state, commander } = commanderAgainstAMeleeAt(gap)
+    expect(gap).toBeLessThan(COMMANDER_MELEE_RANGE)
+
+    advanceTargeting(state)
+    expect(commander.targetId).toBe(101)
+    expect(resolveFriendlyAttacks(state)).toEqual([
+      {
+        side: 'friendly',
+        attackerId: COMMANDER_ID,
+        targetId: 101,
+        amount: COMMANDER_MELEE_DAMAGE,
+        cause: 'friendly-melee',
+      },
+    ])
+    expect(commander.attackCooldown).toBe(COMMANDER_MELEE_INTERVAL)
+  })
+
+  it('shoots from just outside it — the same fixture, one hundredth further out', () => {
+    // The non-vacuity of the pair: everything here is identical to the fixture above except
+    // `gap`, which is 0.02 larger. If the melee branch were reached unconditionally, or never
+    // reached at all, exactly one of the two would fail.
+    const gap = COMMANDER_MELEE_RANGE + 0.01
+    const { state, commander } = commanderAgainstAMeleeAt(gap)
+    expect(gap).toBeGreaterThan(COMMANDER_MELEE_RANGE)
+    expect(gap).toBeLessThan(COMMANDER_RANGE)
+
+    advanceTargeting(state)
+    expect(commander.targetId).toBe(101)
+    expect(resolveFriendlyAttacks(state)).toEqual([
+      {
+        side: 'friendly',
+        attackerId: COMMANDER_ID,
+        targetId: 101,
+        amount: COMMANDER_DAMAGE,
+        cause: 'friendly-attack',
+      },
+    ])
+    expect(commander.attackCooldown).toBe(COMMANDER_ATTACK_INTERVAL)
+  })
+
+  it('counts a distance of exactly the melee range as inside it', () => {
+    // §1.8 admits a candidate at `distance <= range` and §1.4.2 is written the same way, so the
+    // boundary is inclusive. The coordinates are chosen so the subtraction is EXACT — `0` and
+    // `COMMANDER_MELEE_RANGE` — because `28 + 1.2 - 28` is 1.1999999999999993 in binary floating
+    // point and would test the open side of the boundary while claiming to test the closed one.
+    const state = fixture({ friendlies: { [COMMANDER_ID]: { x: 0, y: 16 } } })
+    state.enemies = [createEnemy(101, 'melee', { x: COMMANDER_MELEE_RANGE, y: 16 })]
+    expect(Math.hypot(COMMANDER_MELEE_RANGE - 0, 0)).toBe(COMMANDER_MELEE_RANGE)
+
+    advanceTargeting(state)
+    expect(resolveFriendlyAttacks(state).map((event) => event.cause)).toEqual(['friendly-melee'])
+  })
+
+  it('gives a soldier nothing at the same distance', () => {
+    // §1.4.2: "병사는 갖지 않는다". Soldier 2 stands exactly where the commander stood in the
+    // first fixture, against the same enemy, and fires its rifle for `SOLDIER_DAMAGE`.
+    const state = fixture({ friendlies: { 2: { x: 28, y: 16 } } })
+    state.enemies = [createEnemy(101, 'melee', { x: 28 + COMMANDER_MELEE_RANGE - 0.01, y: 16 })]
+
+    advanceTargeting(state)
+    expect(resolveFriendlyAttacks(state)).toEqual([
+      {
+        side: 'friendly',
+        attackerId: 2,
+        targetId: 101,
+        amount: SOLDIER_DAMAGE,
+        cause: 'friendly-attack',
+      },
+    ])
+    expect(findFriendly(state, 2)!.attackCooldown).toBe(SOLDIER_ATTACK_INTERVAL)
+  })
+
+  it('follows the COMMAND UNIT, not the body that started as commander', () => {
+    // §1.4.2 gives the melee to the 지휘 유닛, and §1.5 lets that be a soldier. So the fixture
+    // stands BOTH bodies at the same distance from the same enemy and promotes the soldier:
+    // the soldier swings and the original commander — no longer the command unit — shoots.
+    // The two events differ in nothing else, which is what makes this a test of the id and not
+    // of the distance.
+    const gap = COMMANDER_MELEE_RANGE - 0.01
+    const state = fixture({
+      friendlies: { [COMMANDER_ID]: { x: 28, y: 16 }, 2: { x: 28, y: 16 } },
+    })
+    state.enemies = [createEnemy(101, 'melee', { x: 28 + gap, y: 16 })]
+    state.commandUnitId = 2
+
+    advanceTargeting(state)
+    expect(resolveFriendlyAttacks(state)).toEqual([
+      {
+        side: 'friendly',
+        attackerId: COMMANDER_ID,
+        targetId: 101,
+        amount: COMMANDER_DAMAGE,
+        cause: 'friendly-attack',
+      },
+      {
+        side: 'friendly',
+        attackerId: 2,
+        targetId: 101,
+        amount: COMMANDER_MELEE_DAMAGE,
+        cause: 'friendly-melee',
+      },
+    ])
+  })
+
+  it('is the trade §1.4.2 describes: the melee range is inside what the shooters can answer', () => {
+    // Not a behaviour test — a statement of the geometry the rule is made of, next to the
+    // fixtures that use it. `constants.ts` asserts the same relation at import; this says out
+    // loud what it buys. A command unit at melee range from anything is inside the standoff
+    // band every shooter on the board fires from.
+    expect(COMMANDER_MELEE_RANGE).toBeLessThan(SHOOTER_RANGE)
+    expect(COMMANDER_MELEE_DAMAGE).toBeGreaterThan(COMMANDER_DAMAGE)
+    expect(COMMANDER_MELEE_INTERVAL).toBeLessThanOrEqual(COMMANDER_ATTACK_INTERVAL)
+  })
+
+  it('does not melee a target the §1.8 ranking put outside the melee range', () => {
+    // The reading this batch shipped, pinned so a later batch has to change a fixture to change
+    // it: §1.4.2's "COMMANDER_MELEE_RANGE 안에 §1.8 순위의 대상이 있으면" is read as a test on
+    // THE TARGET §1.8 ALREADY CHOSE (what the 대상 선택 step wrote), not a second ranking pass over the
+    // bodies inside melee range. The two readings differ exactly here — an elite outside melee
+    // range outranks a nearer body inside it (§1.8 puts 정예 first), so the command unit shoots
+    // the elite instead of swinging at what is standing on top of it.
+    const state = fixture()
+    state.enemies = [
+      createEnemy(101, 'melee', { x: 28.4, y: 16 }),
+      createEnemy(1000, 'elite', { x: 32, y: 16 }),
+    ]
+    state.elite.enemyId = 1000
+
+    advanceTargeting(state)
+    expect(commanderOf(state).targetId).toBe(1000)
+    expect(resolveFriendlyAttacks(state)).toEqual([
+      {
+        side: 'friendly',
+        attackerId: COMMANDER_ID,
+        targetId: 1000,
+        amount: COMMANDER_DAMAGE,
+        cause: 'friendly-attack',
+      },
+    ])
+  })
+
+  it('carries the swing out on the tick result, and leaves the state\u2019s shape alone', () => {
+    // §1.4.2: "\ud53c\ud574 \uc774\ubca4\ud2b8\uc758 `cause`\ub294 `friendly-melee`\ub85c \uad6c\ubd84\ud55c\ub2e4. `DamageEvent`\ub294 `TickResult`\uc5d0\ub9cc
+    // \uc788\uc73c\ubbc0\ub85c `BattleState`\uc640 digest \uad6c\uc870\uc5d0 \uc601\ud5a5\uc774 \uc5c6\uace0". This drives a WHOLE TICK — the reducer,
+    // not the attack pass on its own — and asserts both halves of that sentence at once: the new
+    // cause reaches the outside on the tick result, and the state it left behind has the same key
+    // set as one that has never seen a melee.
+    //
+    // `battle-state.test.ts` pins the key sets against a literal list, which is the enforcement;
+    // this is the demonstration that a tick which really produced a `friendly-melee` still
+    // satisfies it, because a key added at runtime rather than at construction would pass there
+    // and fail here.
+    const state = fixture()
+    state.mode = 'running'
+    // A high id so the spawn step, which reserves ids from `FIRST_ENEMY_ID` upward, cannot
+    // collide with the body this fixture placed by hand.
+    state.enemies = [createEnemy(900, 'melee', { x: 28 + COMMANDER_MELEE_RANGE - 0.01, y: 16 })]
+    const commander = commanderOf(state)
+    commander.attackCooldown = 0
+
+    const result = advanceBattleTick(state, commandBatch([]))
+    expect(result.ran).toBe(true)
+    const causes = (result as ResolvedTick).damageEvents.map((event) => event.cause)
+    expect(causes).toContain('friendly-melee')
+    expect(Object.keys(state).sort()).toEqual(
+      Object.keys(createInitialBattleState('seed-a')).sort(),
+    )
+    expect(Object.keys(commander).sort()).toEqual(
+      Object.keys(createInitialBattleState('seed-a').friendlies[0]!).sort(),
+    )
+  })
+
+  it('still costs nothing to move: the swing lands on a tick the command unit walked', () => {
+    // §1.3 is unchanged by §1.4.2 — displacement gates nothing — and the melee must not
+    // reintroduce the tax from the other side. The command unit walks away at full speed and
+    // still swings, because it is still inside the melee range after the step.
+    //   28 -> 27.885, so the gap goes 0.9 -> 1.015, still <= 1.2.
+    const state = fixture()
+    state.enemies = [createEnemy(101, 'melee', { x: 28.9, y: 16 })]
+    const commander = commanderOf(state)
+    commander.attackCooldown = 1
+    state.input.move = { x: -1, y: 0 }
+
+    advanceCommandUnit(state)
+    advanceCooldowns(state)
+    expect(commander.attackCooldown).toBe(0)
+    advanceTargeting(state)
+    expect(resolveFriendlyAttacks(state).map((event) => event.cause)).toEqual(['friendly-melee'])
   })
 })

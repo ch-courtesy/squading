@@ -22,12 +22,18 @@
 // So the interface to the damage step is a plain list of `DamageEvent`, described
 // below, and it is a return value rather than a field on `BattleState` because of the
 // no-scratch rule in `types.ts`.
+//
+// §1.4.2 (batch N) LANDS IN THE FRIENDLY PASS AND NOWHERE ELSE. The command unit swings inside
+// `COMMANDER_MELEE_RANGE` and shoots outside it; `isCommandMeleeStrike` is the whole of that
+// decision, and the pass composes it into the one blow it was already resolving. No state field,
+// no stream, no §1.16 row — see that function's own comment for why each of the three is
+// possible at all.
 
-import { MELEE_RANGE, SHOOTER_STANDOFF } from './constants'
+import { COMMANDER_MELEE_RANGE, MELEE_RANGE, SHOOTER_STANDOFF } from './constants'
 import { enemyAttackIntervalOf, enemyDamageOf } from './enemy'
 import { enemiesById, findEnemy, findFriendly, friendliesById } from './state'
-import { attackDamageOf, attackIntervalOf } from './targeting'
-import type { BattleState, DamageEvent } from './types'
+import { attackDamageOf, attackIntervalOf, meleeDamageOf, meleeIntervalOf } from './targeting'
+import type { BattleState, DamageEvent, EnemyUnit, FriendlyUnit } from './types'
 
 export type { DamageCause, DamageEvent, DamageSide } from './types'
 
@@ -55,6 +61,43 @@ export function advanceCooldowns(state: BattleState): void {
 }
 
 /**
+ * §1.4.2: is THIS blow, by THIS unit, against THIS target, a melee?
+ *
+ * THE WHOLE RULE IS THIS FUNCTION, and it is three lines because §1.4.2 asked for three lines:
+ * no new `BattleState` field, no new PRNG stream, no new step in §1.16. "지금 근접 거리인가" is
+ * derived every tick from two positions the movement step has already written, exactly the way
+ * §1.4.1 derives "am I engaging" — the no-scratch rule in `types.ts` is why both are derived
+ * rather than stored.
+ *
+ * WHICH TARGET IT ASKS ABOUT, because §1.4.2 admits two readings and this is the one shipped.
+ * "COMMANDER_MELEE_RANGE 안에 §1.8 순위의 대상이 있으면 근접으로 친다" is read as a test on the
+ * target §1.8 ALREADY CHOSE — the `unit.targetId` the 대상 선택 step wrote — and not as a second
+ * ranking pass over whatever is inside the melee range. §1.4.2 says the melee is DECIDED inside the friendly-attack
+ * step and that §1.16 gains no row, and a second ranking pass would be the 대상 선택 step run
+ * twice. The readings differ in one situation and only one: an elite between the two ranges
+ * outranks a nearer body inside the melee range (§1.8 puts 정예 first), so the command unit
+ * shoots the elite rather than swinging at whatever is standing on top of it.
+ * `tests/battle/battle-combat.test.ts` pins that case as the fixture that separates them.
+ *
+ * ONLY THE COMMAND UNIT. Not "the body whose role is commander" — §1.5 lets a soldier hold the
+ * command, and §1.4.2 attaches the melee to the 지휘 유닛 throughout. §1.4.2's "병사는 갖지
+ * 않는다" is the `state.commandUnitId` test: fifteen of the sixteen fail it every tick.
+ */
+export function isCommandMeleeStrike(
+  state: BattleState,
+  unit: FriendlyUnit,
+  target: EnemyUnit,
+): boolean {
+  if (unit.id !== state.commandUnitId) return false
+  const distance = Math.hypot(
+    target.position.x - unit.position.x,
+    target.position.y - unit.position.y,
+  )
+  // `<=`, the same closed boundary §1.8 admits a candidate with.
+  return distance <= COMMANDER_MELEE_RANGE
+}
+
+/**
  * The 아군 공격 step — "이동 중에도 발사한다" (§1.16's own note on this step).
  *
  * The target is whatever the 대상 선택 step chose this tick, so the range test is not
@@ -63,7 +106,13 @@ export function advanceCooldowns(state: BattleState): void {
  * written when a shot actually happens.
  *
  * The three conditions below are the WHOLE gate: standing, cooled down, has a target.
- * Displacement is not one of them (§1.3).
+ * Displacement is not one of them (§1.3) — including for the melee, which is a test of WHERE
+ * the unit is and never of whether it got there this tick.
+ *
+ * §1.4.2 (batch N) IS DECIDED HERE AND NOWHERE ELSE. It changes which of two weapons the one
+ * blow this unit was already going to land is made of — its `amount`, its `cause` and the
+ * cooldown it books — and it changes nothing about whether the blow happens. That is what
+ * "근접은 아군 공격 단계 안에서 결정되며 새 단계가 아니다" costs in code: one branch, no row.
  */
 export function resolveFriendlyAttacks(state: BattleState): DamageEvent[] {
   const events: DamageEvent[] = []
@@ -77,14 +126,15 @@ export function resolveFriendlyAttacks(state: BattleState): DamageEvent[] {
     const target = findEnemy(state, unit.targetId)
     if (!target || target.life !== 'standing') continue
 
+    const melee = isCommandMeleeStrike(state, unit, target)
     events.push({
       side: 'friendly',
       attackerId: unit.id,
       targetId: target.id,
-      amount: attackDamageOf(state, unit),
-      cause: 'friendly-attack',
+      amount: melee ? meleeDamageOf(state) : attackDamageOf(state, unit),
+      cause: melee ? 'friendly-melee' : 'friendly-attack',
     })
-    unit.attackCooldown = attackIntervalOf(state, unit)
+    unit.attackCooldown = melee ? meleeIntervalOf(state) : attackIntervalOf(state, unit)
   }
 
   return events

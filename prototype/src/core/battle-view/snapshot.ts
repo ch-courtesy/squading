@@ -235,11 +235,17 @@ export type BattleTickEvents = {
 }
 
 /**
- * §액션 피드백 asks for a muzzle puff and it means a MUZZLE. The four authority causes carry the
+ * §액션 피드백 asks for a muzzle puff and it means a MUZZLE. The five authority causes carry the
  * distinction already, so the renderer never has to guess a weapon from a distance.
+ *
+ * `friendly-melee` (§1.4.2) is the reason the table is exhaustive over `DamageCause` rather than
+ * a switch with a default: the day the authority grew a fifth weapon, `tsc` refused to compile
+ * this file until the row existed. A default would have painted a muzzle puff on a blow landed
+ * by hand, which is the exact thing §액션 피드백 forbids, and nothing would have failed.
  */
 const ACTION_KIND_BY_CAUSE: Readonly<Record<DamageCause, RenderActionEventKind>> = {
   'friendly-attack': 'shot',
+  'friendly-melee': 'melee',
   'shooter-shot': 'shot',
   'melee-contact': 'melee',
   'elite-blast': 'blast',

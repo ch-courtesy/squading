@@ -176,6 +176,29 @@
 //         words, and `battle-state.test.ts`'s four key-set pins are what hold it.
 //         §1.8's ORDER is not duplicated: `selectRankedEnemyId` (targeting.ts) is the one copy,
 //         and the leash and the attack differ only in which bodies they admit.
+//   §1.4.2 the command unit's melee (batch N) ................. attacks, targeting, constants
+//         THE ONE RULE OF THAT BATCH, and like §1.4.1 it is a change INSIDE an existing row
+//         rather than a new one — the 아군 공격 row — so the table below is untouched and
+//         `battle-step-numbers.test.ts` keeps that true. `isCommandMeleeStrike(state, unit,
+//         target)` (attacks.ts) is the whole decision: the unit is `state.commandUnitId` and its
+//         §1.8 target is within `COMMANDER_MELEE_RANGE`. When it holds, the blow the pass was
+//         already going to resolve is made of `COMMANDER_MELEE_DAMAGE`, `COMMANDER_MELEE_INTERVAL`
+//         and `cause: 'friendly-melee'` instead of the ranged three. Nothing else changes: not
+//         whether the blow happens, not the target, not the step order.
+//         NO FIELD, NO STREAM, NO ROW. "지금 근접 거리인가" is derived every tick from two
+//         positions the movement row already wrote (§1.4.2 requires that in as many words), the
+//         melee consumes no draw because §1.17 forbids randomness in combat at all, and
+//         `DamageEvent` reaches the outside on `TickResult` — so §1.17's digest, which walks
+//         `BattleState`, cannot see the new cause. `battle-state.test.ts`'s four key-set pins are
+//         what hold the first; the digests in `tests/harness/policy-run.test.ts` MOVED, because
+//         behaviour moved, and that is the second half of the same statement.
+//         THE TRADE IS THE RULE: `COMMANDER_MELEE_RANGE < SHOOTER_RANGE` is asserted in
+//         `constants.ts`, so a tick spent swinging is a tick spent inside the band every shooter
+//         fires from. §1.6's range advantage is the price of the melee, and the assert is what
+//         stops a tuning pass from quietly making it free.
+//         WHICH TARGET, and it is a reading §1.4.2 leaves open: the §1.8 target step 7 already
+//         chose, not a re-rank over the melee-range bodies. The fixture that separates the two
+//         readings (an elite between the ranges) is in `battle-combat.test.ts`.
 //   §6    the facade ........................................... battle
 //         `createBattle(seed)`: start, enqueue input, step, read state, read digest, restart.
 //         Display-agnostic and driverless — no camera, no snapshot, no timer. §4.3 compares a

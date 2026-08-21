@@ -50,9 +50,17 @@ import type { BattleMode, BattleState, DamageCause } from '../../src/core/battle
 
 const NO_COMMANDS: BattleCommand[] = []
 
-/** The three producers of §1.16's damage list, as the rank they must appear in. */
+/**
+ * The three producers of §1.16's damage list, as the rank they must appear in.
+ *
+ * Five causes, three ranks: §1.4.2's `friendly-melee` comes out of the SAME step as
+ * `friendly-attack` (the 아군 공격 row), which is the point of the rule — it is a second weapon
+ * on an existing step, not a new step — so it shares rank 1 exactly as the two enemy classes
+ * share rank 2.
+ */
 const SOURCE_RANK: Readonly<Record<DamageCause, number>> = {
   'friendly-attack': 1,
+  'friendly-melee': 1,
   'melee-contact': 2,
   'shooter-shot': 2,
   'elite-blast': 3,

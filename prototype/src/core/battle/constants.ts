@@ -72,6 +72,38 @@ export const FOLLOW_SPEED_MULTIPLIER = 1.3
 export const FOLLOW_MAX_SPEED = SOLDIER_MOVE_SPEED * FOLLOW_SPEED_MULTIPLIER
 
 // ---------------------------------------------------------------------------
+// PLACEHOLDER — §1.4.2 the command unit's melee (§2 `COMMANDER_MELEE_*`)
+// ---------------------------------------------------------------------------
+
+/**
+ * PLACEHOLDER — how close the command unit has to be before it swings instead of shooting.
+ *
+ * §2 boxes this on one side only, and that one side is the whole rule: `< SHOOTER_RANGE`. The
+ * melee is not a better attack the player unlocks, it is a POSITION the player buys — reaching
+ * it means standing inside the band every shooter on the board fires from, so §1.6's range
+ * advantage is what gets spent to get there. The assert at the bottom of this file holds that
+ * edge; nothing holds the other, because §2 gives no lower bound.
+ *
+ * 1.2 is an arbitrary starting point like every other PLACEHOLDER here, chosen as "close enough
+ * that the two bodies are visibly touching, far enough that it is not `MELEE_RANGE` 0.75 by
+ * another name". §5 owns the final number. NOTE what §2 does NOT constrain and this file does not
+ * pretend to: the relation between this and the enemy's own `MELEE_RANGE` is unstated, so at
+ * 1.2 against 0.75 the command unit can open on a closing melee before that melee can answer.
+ * That is a consequence of the placeholders, not a rule.
+ */
+export const COMMANDER_MELEE_RANGE = 1.2
+/**
+ * PLACEHOLDER — §2: `> COMMANDER_DAMAGE`. "세지 않으면 붙을 이유가 없고, 붙을 이유가 없으면 이
+ * 규칙은 없는 것과 같다" (§1.4.2).
+ */
+export const COMMANDER_MELEE_DAMAGE = 0.5
+/**
+ * PLACEHOLDER — §2: `<= COMMANDER_ATTACK_INTERVAL`. The equality is allowed on purpose, so a
+ * tuning pass may make the melee purely a damage trade with no rate change.
+ */
+export const COMMANDER_MELEE_INTERVAL = 8
+
+// ---------------------------------------------------------------------------
 // PLACEHOLDER — friendly HP (§2: commander 3~7, soldier 1.0~2.0)
 // ---------------------------------------------------------------------------
 
@@ -426,6 +458,31 @@ assertRule(
 // squad is no longer paid for standing still, so the band has to be worth standing in.
 assertRule(SHOOTER_RANGE < SOLDIER_RANGE, 'SHOOTER_RANGE must be < SOLDIER_RANGE (§1.9)')
 assertRule(RANGE_ADVANTAGE > 0, 'the range advantage must be positive (§1.6)')
+// §1.4.2/§2: the three relations the melee IS. Each one is a different way for the rule to
+// stop being a trade:
+//   range  — at or beyond `SHOOTER_RANGE` the command unit could swing from a spot no shooter
+//            can answer from, so the melee would be free and §1.6's advantage would not be the
+//            thing it costs. "근접 사거리는 SHOOTER_RANGE보다 확실히 짧다."
+//   damage — at or below `COMMANDER_DAMAGE` there is no reason to close, and a rule nobody has
+//            a reason to use is not in the game at all.
+//   rate   — above `COMMANDER_ATTACK_INTERVAL` the melee would be slower AND require the worse
+//            position, which is the same non-rule from the other side.
+assertRule(
+  COMMANDER_MELEE_RANGE < SHOOTER_RANGE,
+  'COMMANDER_MELEE_RANGE must be < SHOOTER_RANGE (§1.4.2)',
+)
+assertRule(
+  COMMANDER_MELEE_DAMAGE > COMMANDER_DAMAGE,
+  'COMMANDER_MELEE_DAMAGE must be > COMMANDER_DAMAGE (§1.4.2)',
+)
+assertRule(
+  COMMANDER_MELEE_INTERVAL <= COMMANDER_ATTACK_INTERVAL,
+  'COMMANDER_MELEE_INTERVAL must be <= COMMANDER_ATTACK_INTERVAL (§1.4.2)',
+)
+// An interval of 0 is not "faster", it is a body attacking every tick forever; the same guard
+// `RESCUE_TICKS` gets, for the same reason.
+assertRule(COMMANDER_MELEE_INTERVAL >= 1, 'COMMANDER_MELEE_INTERVAL must be >= 1 (§1.4.2)')
+assertRule(COMMANDER_MELEE_RANGE > 0, 'COMMANDER_MELEE_RANGE must be positive (§1.4.2)')
 // §1.12: the same shape of argument for the elite — an elite that parked outside soldier
 // range would be unkillable by the 15 bodies that are supposed to kill it.
 assertRule(ELITE_APPROACH_RANGE < SOLDIER_RANGE, 'ELITE_APPROACH_RANGE must be < SOLDIER_RANGE (§1.12)')

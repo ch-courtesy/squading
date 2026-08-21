@@ -47,10 +47,28 @@ describe('§1.17 the runner reproduces the digests batch H recorded', () => {
     // set, every nested object's key set, both row types and the three stream names, and none of
     // those four pins was touched by this batch. These three lines are the OTHER half: they say
     // that whatever moved, it moved once and reproducibly.
+    //
+    // §1.4.2 (batch N) MOVED TWO OF THE THREE. The command unit now swings inside
+    // `COMMANDER_MELEE_RANGE` for `COMMANDER_MELEE_DAMAGE` on `COMMANDER_MELEE_INTERVAL`, and a
+    // policy that never moves still gets swung at: the melees walk into contact by themselves.
+    // Batch I's values were 1653/159/`8f30c06d`, 2190/228/`91fc34fe` and 1719/170/`334b1763`.
+    //
+    // `seed-b` DID NOT MOVE, and that is measured rather than assumed. Its `tactical-no-input`
+    // run lands exactly three melee blows (ticks 1285, 1442, 1694 — the rest of the run has
+    // nothing inside 1.2). The digest DOES diverge on the tick after the first one — `397dc51f`
+    // against batch I's `f3a565d4` at tick 1286 — and is back to `44eb1b1d` on both sides by
+    // 1300, so the run re-converges instead of never differing: the heavier blow was spent on a
+    // body that died in that tick either way, and the shorter cooldown had run out with nothing
+    // in range to spend it on. Four sampled digests along the rest of the run (1300, 1500, 1800,
+    // 2100) agree on both sides. The identical line below is therefore a fact about this seed,
+    // not evidence that the rule is inert — the other two seeds and `flees-always`'s three all
+    // moved, and `tests/sweeps/melee-usage.sweep.ts` measures melee blows in 62 of the 64
+    // policy-by-seed runs (the two exceptions are `flees-always` on `seed-f` and `seed-h`, which
+    // land none at all).
     expect(THREE_SEEDS.map((seed) => runPolicySeed(policyFactory('tactical-no-input'), seed))).toEqual([
-      { seed: 'seed-a', outcome: 'lost', endTick: 1653, kills: 159, standing: 0, digest: '8f30c06d' },
+      { seed: 'seed-a', outcome: 'lost', endTick: 1671, kills: 165, standing: 0, digest: '50338ecf' },
       { seed: 'seed-b', outcome: 'lost', endTick: 2190, kills: 228, standing: 0, digest: '91fc34fe' },
-      { seed: 'seed-c', outcome: 'lost', endTick: 1719, kills: 170, standing: 0, digest: '334b1763' },
+      { seed: 'seed-c', outcome: 'lost', endTick: 1933, kills: 200, standing: 0, digest: '2c93bef7' },
     ])
   })
 })
@@ -86,10 +104,14 @@ describe('§4.1 `flees-always` on the three seeds', () => {
     // 1983/176/16/`e005f02e`; v11's bearing moved them again, for the reason recorded above the
     // first block, and `PRESSURE_PHASES` then `LEASH_RADIUS` moved them twice more inside the
     // same batch.
+    // §1.4.2 (batch N) MOVED ALL THREE. Batch I's values were 1563/147/`d8f816f6`,
+    // 2204/225/`ffddc7d9` and 2083/225/`e79eb3e9`. A policy that runs from the nearest enemy
+    // still ends up inside `COMMANDER_MELEE_RANGE` — §1.3's whole point is that it cannot get
+    // away — so the melee lands on it too (38, 3 and 20 blows on the three seeds).
     expect(THREE_SEEDS.map((seed) => runPolicySeed(policyFactory('flees-always'), seed))).toEqual([
-      { seed: 'seed-a', outcome: 'lost', endTick: 1563, kills: 147, standing: 0, digest: 'd8f816f6' },
-      { seed: 'seed-b', outcome: 'lost', endTick: 2204, kills: 225, standing: 0, digest: 'ffddc7d9' },
-      { seed: 'seed-c', outcome: 'lost', endTick: 2083, kills: 225, standing: 0, digest: 'e79eb3e9' },
+      { seed: 'seed-a', outcome: 'lost', endTick: 1753, kills: 166, standing: 0, digest: 'ef49aefa' },
+      { seed: 'seed-b', outcome: 'lost', endTick: 2205, kills: 228, standing: 0, digest: '3a44e656' },
+      { seed: 'seed-c', outcome: 'lost', endTick: 2100, kills: 231, standing: 0, digest: '795d75c9' },
     ])
   })
 

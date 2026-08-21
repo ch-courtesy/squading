@@ -17,6 +17,8 @@
 import {
   COMMANDER_ATTACK_INTERVAL,
   COMMANDER_DAMAGE,
+  COMMANDER_MELEE_DAMAGE,
+  COMMANDER_MELEE_INTERVAL,
   COMMANDER_RANGE,
   SOLDIER_ATTACK_INTERVAL,
   SOLDIER_DAMAGE,
@@ -57,6 +59,34 @@ export function attackDamageOf(state: BattleState, unit: FriendlyUnit): number {
   // §1.13 `화력`. Attacker-side, so it is baked into the event's `amount` (§1.16) and the
   // defender-side `cover` multiplier composes with it where damage is applied.
   return base * firepowerMultiplierOf(state)
+}
+
+/**
+ * §1.4.2's two melee numbers, next to the three they replace when the command unit is close.
+ *
+ * WHAT THE CARDS DO TO THEM, and it is a decision rather than a reading: §1.13's `firepower` and
+ * `연사` compose with the melee exactly as they compose with the shot, through the same two
+ * functions in `upgrades.ts`. The alternative — raw constants — would make the melee the one
+ * attack in the game that upgrades cannot touch, which no section says and which would quietly
+ * invert the trade as the run went on (a fully upgraded rifle would out-damage the swing that
+ * §1.4.2 requires to be stronger).
+ *
+ * `사수` (range) is the exception and is deliberately NOT applied. It is §1.6's card — it widens
+ * the range advantage — and adding it to the melee envelope would let the player buy a longer
+ * reach for the attack whose whole cost is having to be close.
+ *
+ * There is no `unit` parameter. §1.4.2 gives the melee to the COMMAND UNIT, and the caller is
+ * what tests that; the numbers themselves are the commander's whichever body is holding the
+ * command. `COMMANDER_MELEE_DAMAGE > COMMANDER_DAMAGE > SOLDIER_DAMAGE` and
+ * `COMMANDER_MELEE_INTERVAL <= COMMANDER_ATTACK_INTERVAL < SOLDIER_ATTACK_INTERVAL` hold at the
+ * anchors, so a promoted soldier's swing is stronger and faster than its own rifle too.
+ */
+export function meleeDamageOf(state: BattleState): number {
+  return COMMANDER_MELEE_DAMAGE * firepowerMultiplierOf(state)
+}
+
+export function meleeIntervalOf(state: BattleState): number {
+  return tickDurationAfter(COMMANDER_MELEE_INTERVAL, attackIntervalMultiplierOf(state))
 }
 
 type Ranked = {

@@ -125,7 +125,24 @@ export type EnemyUnit = {
  */
 export type DamageSide = 'friendly' | 'enemy'
 
-export type DamageCause = 'friendly-attack' | 'melee-contact' | 'shooter-shot' | 'elite-blast'
+/**
+ * Which weapon produced the blow. FIVE VALUES, one per thing that can hit something.
+ *
+ * `friendly-melee` is §1.4.2's (batch N): the command unit inside `COMMANDER_MELEE_RANGE`. It is
+ * a separate value rather than a flag on `friendly-attack` because the renderer has to tell a
+ * swing from a shot without guessing — §액션 피드백 forbids a muzzle puff on a blow landed by
+ * hand, and the distance alone cannot decide it (a soldier at the same distance IS shooting).
+ *
+ * ADDING A VALUE HERE DOES NOT TOUCH `BattleState`. `DamageEvent` is a return value of the
+ * attack steps and reaches the outside on `TickResult`; §1.17's digest walks the state and never
+ * sees one. `tests/battle/battle-state.test.ts`'s key-set pins are what hold that.
+ */
+export type DamageCause =
+  | 'friendly-attack'
+  | 'friendly-melee'
+  | 'melee-contact'
+  | 'shooter-shot'
+  | 'elite-blast'
 
 export type DamageEvent = {
   side: DamageSide

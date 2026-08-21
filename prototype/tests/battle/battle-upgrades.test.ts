@@ -22,6 +22,9 @@ import {
   COMBAT_TICK_LIMIT,
   COMMANDER_ATTACK_INTERVAL,
   COMMANDER_DAMAGE,
+  COMMANDER_MELEE_DAMAGE,
+  COMMANDER_MELEE_INTERVAL,
+  COMMANDER_MELEE_RANGE,
   COMMANDER_MOVE_SPEED,
   COMMANDER_RANGE,
   ELITE_DAMAGE,
@@ -63,6 +66,8 @@ import {
   attackDamageOf,
   attackIntervalOf,
   attackRangeOf,
+  meleeDamageOf,
+  meleeIntervalOf,
   selectFriendlyTargetId,
 } from '../../src/core/battle/targeting'
 import type { TransitionOutcome } from '../../src/core/battle/transitions'
@@ -342,8 +347,13 @@ describe('§1.13 card effects, read off the chosen cards', () => {
   })
 
   it('firepower scales the damage a friendly deals (+30%)', () => {
+    // 31, NOT 29. §1.4.2 (batch N) gave the command unit a melee inside
+    // `COMMANDER_MELEE_RANGE`, and at 29 this fixture stopped measuring `attackDamageOf` at all —
+    // it measured `meleeDamageOf`, and read 0.65 where it asserts 0.26. Moving the body out to
+    // 3.0 (still well inside `COMMANDER_RANGE` 6.0) puts the rifle back in its hands. The melee's
+    // own composition with the same card is measured by its own fixture below.
     const state = withCards(fixture(), 'firepower')
-    state.enemies.push(createEnemy(101, 'melee', { x: 29, y: 16 }))
+    state.enemies.push(createEnemy(101, 'melee', { x: 31, y: 16 }))
     const commander = unit(state, COMMANDER_ID)
     commander.targetId = 101
 
@@ -376,6 +386,31 @@ describe('§1.13 card effects, read off the chosen cards', () => {
     // counted down by 1 per tick and a fractional remainder would sit in the digest.
     expect(attackIntervalOf(state, unit(state, COMMANDER_ID))).toBe(9)
     expect(attackIntervalOf(state, unit(state, 2))).toBe(10)
+  })
+
+  it('composes firepower and rapid with §1.4.2’s melee, and marksman deliberately not', () => {
+    // A DECISION, PINNED, because §1.4.2 does not state it and `targeting.ts` had to choose.
+    //   firepower / rapid — the melee upgrades exactly as the shot does, through the same two
+    //     functions. Otherwise a fully upgraded rifle would eventually out-damage the swing that
+    //     §1.4.2 requires to be the stronger of the two, and the trade would silently invert.
+    //   marksman — deliberately NOT applied. It is §1.6's card: it widens the range advantage,
+    //     and buying reach for the attack whose whole cost is being close would refund the trade.
+    // 0.5 x 1.3 = 0.65, and 8 x 0.85 = 6.8 -> round 7.
+    const boosted = withCards(fixture(), 'firepower', 'rapid')
+    expect(meleeDamageOf(boosted)).toBeCloseTo(0.65, 12)
+    expect(meleeIntervalOf(boosted)).toBe(7)
+
+    const bare = fixture()
+    expect(meleeDamageOf(bare)).toBe(COMMANDER_MELEE_DAMAGE)
+    expect(meleeIntervalOf(bare)).toBe(COMMANDER_MELEE_INTERVAL)
+
+    // The range card moves the rifle's reach and leaves the melee envelope alone; the two live
+    // in the same file, so the difference has to be asserted rather than assumed.
+    const reaching = withCards(fixture(), 'marksman')
+    expect(attackRangeOf(reaching, unit(reaching, COMMANDER_ID))).toBeCloseTo(COMMANDER_RANGE + 1, 12)
+    reaching.enemies.push(createEnemy(101, 'melee', { x: 28 + COMMANDER_MELEE_RANGE + 0.01, y: 16 }))
+    unit(reaching, COMMANDER_ID).targetId = 101
+    expect(resolveFriendlyAttacks(reaching)[0]!.cause).toBe('friendly-attack')
   })
 
   it('firstaid shortens the rescue (x0.7, rounded to ticks)', () => {
