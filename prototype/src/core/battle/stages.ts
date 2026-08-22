@@ -397,25 +397,31 @@ const STAGE_ONE: StageSpec = {
 const STAGE_TWO: StageSpec = {
   id: 2,
 
-  arenaWidth: 56,
-  arenaHeight: 32,
+  arenaWidth: STAGE_ONE.arenaWidth,
+  arenaHeight: STAGE_ONE.arenaHeight,
 
-  leashRadius: 10.0,
+  leashRadius: STAGE_ONE.leashRadius,
 
-  meleeHp: 1.0,
-  meleeMoveSpeed: 0.14,
-  meleeRange: 0.75,
-  meleeAttackInterval: 15,
-  meleeDamage: 0.045,
+  // DERIVED FROM STAGE ONE, NOT RESTATED. The header above claims these are stage 1's values,
+  // and while they were literals that claim was true only by coincidence: tuning stage 1's
+  // radii to 14/11 left this row at 13/10 and made the sentence false, silently, because the
+  // guard pinned the four stat fields and not the radii. A stage whose dominant axis is density
+  // cannot afford a second axis moving underneath it — §5 stage 4 would have no way to tell
+  // which half of the difference did what. Deriving them makes the claim structural.
+  meleeHp: STAGE_ONE.meleeHp,
+  meleeMoveSpeed: STAGE_ONE.meleeMoveSpeed,
+  meleeRange: STAGE_ONE.meleeRange,
+  meleeAttackInterval: STAGE_ONE.meleeAttackInterval,
+  meleeDamage: STAGE_ONE.meleeDamage,
 
-  shooterHp: 0.8,
-  shooterMoveSpeed: 0.06,
-  shooterRange: 4.5,
-  shooterAttackInterval: 30,
-  shooterDamage: 0.035,
+  shooterHp: STAGE_ONE.shooterHp,
+  shooterMoveSpeed: STAGE_ONE.shooterMoveSpeed,
+  shooterRange: STAGE_ONE.shooterRange,
+  shooterAttackInterval: STAGE_ONE.shooterAttackInterval,
+  shooterDamage: STAGE_ONE.shooterDamage,
 
-  spawnRadius: 13.0,
-  engageRadius: 10.0,
+  spawnRadius: STAGE_ONE.spawnRadius,
+  engageRadius: STAGE_ONE.engageRadius,
   absoluteEnemyCap: 72,
   backlogSize: 16,
   backlogDrainPerTick: 3,

@@ -90,10 +90,26 @@ describe('§2.3: each stage is dominated by the axis it is named for', () => {
     expect(two.absoluteEnemyCap).toBeGreaterThan(one.absoluteEnemyCap)
     // And the density is the ONLY axis: the bodies arriving are stage 1's bodies. That is what
     // makes stage 2 a measurement of density rather than of density plus five other things.
+    //
+    // The four stat fields were pinned here from the start; the RADII were not, and tuning
+    // batch 1 moved stage 1 to 14/11 while this row stayed at 13/10 — so for one commit stage 2
+    // was a measurement of density AND geometry, and the header above said otherwise. The list
+    // below is now everything the header claims, not the subset somebody happened to think of.
     expect(two.meleeHp).toBe(one.meleeHp)
-    expect(two.shooterHp).toBe(one.shooterHp)
-    expect(two.shooterRange).toBe(one.shooterRange)
+    expect(two.meleeMoveSpeed).toBe(one.meleeMoveSpeed)
+    expect(two.meleeRange).toBe(one.meleeRange)
+    expect(two.meleeAttackInterval).toBe(one.meleeAttackInterval)
     expect(two.meleeDamage).toBe(one.meleeDamage)
+    expect(two.shooterHp).toBe(one.shooterHp)
+    expect(two.shooterMoveSpeed).toBe(one.shooterMoveSpeed)
+    expect(two.shooterRange).toBe(one.shooterRange)
+    expect(two.shooterAttackInterval).toBe(one.shooterAttackInterval)
+    expect(two.shooterDamage).toBe(one.shooterDamage)
+    expect(two.spawnRadius).toBe(one.spawnRadius)
+    expect(two.engageRadius).toBe(one.engageRadius)
+    expect(two.arenaWidth).toBe(one.arenaWidth)
+    expect(two.arenaHeight).toBe(one.arenaHeight)
+    expect(two.leashRadius).toBe(one.leashRadius)
   })
 
   it('3 노랑 — many weak: the weakest bodies in the table, behind the highest engaged caps', () => {
