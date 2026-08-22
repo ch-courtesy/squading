@@ -1,0 +1,3445 @@
+{
+  "policies": [
+    "tactical-no-input",
+    "flees-always",
+    "camps-in-place",
+    "skilled",
+    "ignores-range",
+    "abandons-downed",
+    "skilled-conservative",
+    "skilled-aggressive"
+  ],
+  "seeds": [
+    "seed-a",
+    "seed-b",
+    "seed-c",
+    "seed-d",
+    "seed-e",
+    "seed-f",
+    "seed-g",
+    "seed-h"
+  ],
+  "stageCount": 7,
+  "elapsedMs": 4556,
+  "runs": [
+    {
+      "policy": "tactical-no-input",
+      "rootSeed": "seed-a",
+      "reached": 1,
+      "cleared": 0,
+      "end": "defeat",
+      "outcome": "lost",
+      "finalSurvivors": 0,
+      "totalKills": 159,
+      "cards": [
+        "firstaid",
+        "cohesion",
+        "marksman",
+        "mobility"
+      ],
+      "fallenByStage": {
+        "1": 16
+      },
+      "digest": "88a750f9",
+      "legs": [
+        {
+          "stageId": 1,
+          "seed": "seed-a",
+          "outcome": "lost",
+          "endTick": 1653,
+          "kills": 159,
+          "entered": 16,
+          "standing": 0,
+          "downed": 10,
+          "dead": 6,
+          "hpAtEnd": 0,
+          "maxHpAtEnd": 0,
+          "cardsAfter": [
+            "firstaid",
+            "cohesion",
+            "marksman",
+            "mobility"
+          ],
+          "campaignKillsAfter": 159
+        }
+      ]
+    },
+    {
+      "policy": "tactical-no-input",
+      "rootSeed": "seed-b",
+      "reached": 1,
+      "cleared": 0,
+      "end": "defeat",
+      "outcome": "lost",
+      "finalSurvivors": 0,
+      "totalKills": 228,
+      "cards": [
+        "cover",
+        "vitality",
+        "mobility",
+        "rapid"
+      ],
+      "fallenByStage": {
+        "1": 16
+      },
+      "digest": "3cda3802",
+      "legs": [
+        {
+          "stageId": 1,
+          "seed": "seed-b",
+          "outcome": "lost",
+          "endTick": 2190,
+          "kills": 228,
+          "entered": 16,
+          "standing": 0,
+          "downed": 11,
+          "dead": 5,
+          "hpAtEnd": 0,
+          "maxHpAtEnd": 0,
+          "cardsAfter": [
+            "cover",
+            "vitality",
+            "mobility",
+            "rapid"
+          ],
+          "campaignKillsAfter": 228
+        }
+      ]
+    },
+    {
+      "policy": "tactical-no-input",
+      "rootSeed": "seed-c",
+      "reached": 1,
+      "cleared": 0,
+      "end": "defeat",
+      "outcome": "lost",
+      "finalSurvivors": 0,
+      "totalKills": 170,
+      "cards": [
+        "mobility",
+        "cohesion",
+        "rapid",
+        "marksman"
+      ],
+      "fallenByStage": {
+        "1": 16
+      },
+      "digest": "500ce9ad",
+      "legs": [
+        {
+          "stageId": 1,
+          "seed": "seed-c",
+          "outcome": "lost",
+          "endTick": 1719,
+          "kills": 170,
+          "entered": 16,
+          "standing": 0,
+          "downed": 9,
+          "dead": 7,
+          "hpAtEnd": 0,
+          "maxHpAtEnd": 0,
+          "cardsAfter": [
+            "mobility",
+            "cohesion",
+            "rapid",
+            "marksman"
+          ],
+          "campaignKillsAfter": 170
+        }
+      ]
+    },
+    {
+      "policy": "tactical-no-input",
+      "rootSeed": "seed-d",
+      "reached": 1,
+      "cleared": 0,
+      "end": "defeat",
+      "outcome": "lost",
+      "finalSurvivors": 0,
+      "totalKills": 170,
+      "cards": [
+        "marksman",
+        "mobility",
+        "firstaid",
+        "vitality"
+      ],
+      "fallenByStage": {
+        "1": 16
+      },
+      "digest": "eacfac06",
+      "legs": [
+        {
+          "stageId": 1,
+          "seed": "seed-d",
+          "outcome": "lost",
+          "endTick": 1763,
+          "kills": 170,
+          "entered": 16,
+          "standing": 0,
+          "downed": 10,
+          "dead": 6,
+          "hpAtEnd": 0,
+          "maxHpAtEnd": 0,
+          "cardsAfter": [
+            "marksman",
+            "mobility",
+            "firstaid",
+            "vitality"
+          ],
+          "campaignKillsAfter": 170
+        }
+      ]
+    },
+    {
+      "policy": "tactical-no-input",
+      "rootSeed": "seed-e",
+      "reached": 1,
+      "cleared": 0,
+      "end": "defeat",
+      "outcome": "lost",
+      "finalSurvivors": 0,
+      "totalKills": 166,
+      "cards": [
+        "mobility",
+        "cohesion",
+        "marksman",
+        "vitality"
+      ],
+      "fallenByStage": {
+        "1": 16
+      },
+      "digest": "3e9962b1",
+      "legs": [
+        {
+          "stageId": 1,
+          "seed": "seed-e",
+          "outcome": "lost",
+          "endTick": 1767,
+          "kills": 166,
+          "entered": 16,
+          "standing": 0,
+          "downed": 10,
+          "dead": 6,
+          "hpAtEnd": 0,
+          "maxHpAtEnd": 0,
+          "cardsAfter": [
+            "mobility",
+            "cohesion",
+            "marksman",
+            "vitality"
+          ],
+          "campaignKillsAfter": 166
+        }
+      ]
+    },
+    {
+      "policy": "tactical-no-input",
+      "rootSeed": "seed-f",
+      "reached": 1,
+      "cleared": 0,
+      "end": "defeat",
+      "outcome": "lost",
+      "finalSurvivors": 0,
+      "totalKills": 170,
+      "cards": [
+        "cohesion",
+        "mobility",
+        "cover",
+        "firepower"
+      ],
+      "fallenByStage": {
+        "1": 16
+      },
+      "digest": "2d51cab3",
+      "legs": [
+        {
+          "stageId": 1,
+          "seed": "seed-f",
+          "outcome": "lost",
+          "endTick": 1780,
+          "kills": 170,
+          "entered": 16,
+          "standing": 0,
+          "downed": 8,
+          "dead": 8,
+          "hpAtEnd": 0,
+          "maxHpAtEnd": 0,
+          "cardsAfter": [
+            "cohesion",
+            "mobility",
+            "cover",
+            "firepower"
+          ],
+          "campaignKillsAfter": 170
+        }
+      ]
+    },
+    {
+      "policy": "tactical-no-input",
+      "rootSeed": "seed-g",
+      "reached": 1,
+      "cleared": 0,
+      "end": "defeat",
+      "outcome": "lost",
+      "finalSurvivors": 0,
+      "totalKills": 148,
+      "cards": [
+        "cohesion",
+        "firstaid",
+        "cover",
+        "marksman"
+      ],
+      "fallenByStage": {
+        "1": 16
+      },
+      "digest": "ad1b0ef7",
+      "legs": [
+        {
+          "stageId": 1,
+          "seed": "seed-g",
+          "outcome": "lost",
+          "endTick": 1693,
+          "kills": 148,
+          "entered": 16,
+          "standing": 0,
+          "downed": 9,
+          "dead": 7,
+          "hpAtEnd": 0,
+          "maxHpAtEnd": 0,
+          "cardsAfter": [
+            "cohesion",
+            "firstaid",
+            "cover",
+            "marksman"
+          ],
+          "campaignKillsAfter": 148
+        }
+      ]
+    },
+    {
+      "policy": "tactical-no-input",
+      "rootSeed": "seed-h",
+      "reached": 1,
+      "cleared": 0,
+      "end": "defeat",
+      "outcome": "lost",
+      "finalSurvivors": 0,
+      "totalKills": 209,
+      "cards": [
+        "firepower",
+        "vitality",
+        "firstaid",
+        "marksman"
+      ],
+      "fallenByStage": {
+        "1": 16
+      },
+      "digest": "d133232b",
+      "legs": [
+        {
+          "stageId": 1,
+          "seed": "seed-h",
+          "outcome": "lost",
+          "endTick": 2013,
+          "kills": 209,
+          "entered": 16,
+          "standing": 0,
+          "downed": 8,
+          "dead": 8,
+          "hpAtEnd": 0,
+          "maxHpAtEnd": 0,
+          "cardsAfter": [
+            "firepower",
+            "vitality",
+            "firstaid",
+            "marksman"
+          ],
+          "campaignKillsAfter": 209
+        }
+      ]
+    },
+    {
+      "policy": "flees-always",
+      "rootSeed": "seed-a",
+      "reached": 1,
+      "cleared": 0,
+      "end": "defeat",
+      "outcome": "lost",
+      "finalSurvivors": 0,
+      "totalKills": 147,
+      "cards": [
+        "firstaid",
+        "cohesion",
+        "marksman",
+        "mobility"
+      ],
+      "fallenByStage": {
+        "1": 16
+      },
+      "digest": "b439c22e",
+      "legs": [
+        {
+          "stageId": 1,
+          "seed": "seed-a",
+          "outcome": "lost",
+          "endTick": 1563,
+          "kills": 147,
+          "entered": 16,
+          "standing": 0,
+          "downed": 11,
+          "dead": 5,
+          "hpAtEnd": 0,
+          "maxHpAtEnd": 0,
+          "cardsAfter": [
+            "firstaid",
+            "cohesion",
+            "marksman",
+            "mobility"
+          ],
+          "campaignKillsAfter": 147
+        }
+      ]
+    },
+    {
+      "policy": "flees-always",
+      "rootSeed": "seed-b",
+      "reached": 1,
+      "cleared": 0,
+      "end": "defeat",
+      "outcome": "lost",
+      "finalSurvivors": 0,
+      "totalKills": 225,
+      "cards": [
+        "cover",
+        "vitality",
+        "mobility",
+        "rapid"
+      ],
+      "fallenByStage": {
+        "1": 16
+      },
+      "digest": "2348ea45",
+      "legs": [
+        {
+          "stageId": 1,
+          "seed": "seed-b",
+          "outcome": "lost",
+          "endTick": 2204,
+          "kills": 225,
+          "entered": 16,
+          "standing": 0,
+          "downed": 10,
+          "dead": 6,
+          "hpAtEnd": 0,
+          "maxHpAtEnd": 0,
+          "cardsAfter": [
+            "cover",
+            "vitality",
+            "mobility",
+            "rapid"
+          ],
+          "campaignKillsAfter": 225
+        }
+      ]
+    },
+    {
+      "policy": "flees-always",
+      "rootSeed": "seed-c",
+      "reached": 1,
+      "cleared": 0,
+      "end": "defeat",
+      "outcome": "lost",
+      "finalSurvivors": 0,
+      "totalKills": 230,
+      "cards": [
+        "mobility",
+        "cohesion",
+        "rapid",
+        "marksman"
+      ],
+      "fallenByStage": {
+        "1": 16
+      },
+      "digest": "9e6eafe0",
+      "legs": [
+        {
+          "stageId": 1,
+          "seed": "seed-c",
+          "outcome": "lost",
+          "endTick": 2099,
+          "kills": 230,
+          "entered": 16,
+          "standing": 0,
+          "downed": 12,
+          "dead": 4,
+          "hpAtEnd": 0,
+          "maxHpAtEnd": 0,
+          "cardsAfter": [
+            "mobility",
+            "cohesion",
+            "rapid",
+            "marksman"
+          ],
+          "campaignKillsAfter": 230
+        }
+      ]
+    },
+    {
+      "policy": "flees-always",
+      "rootSeed": "seed-d",
+      "reached": 1,
+      "cleared": 0,
+      "end": "defeat",
+      "outcome": "lost",
+      "finalSurvivors": 0,
+      "totalKills": 155,
+      "cards": [
+        "marksman",
+        "mobility",
+        "firstaid",
+        "vitality"
+      ],
+      "fallenByStage": {
+        "1": 16
+      },
+      "digest": "82571c5f",
+      "legs": [
+        {
+          "stageId": 1,
+          "seed": "seed-d",
+          "outcome": "lost",
+          "endTick": 1662,
+          "kills": 155,
+          "entered": 16,
+          "standing": 0,
+          "downed": 10,
+          "dead": 6,
+          "hpAtEnd": 0,
+          "maxHpAtEnd": 0,
+          "cardsAfter": [
+            "marksman",
+            "mobility",
+            "firstaid",
+            "vitality"
+          ],
+          "campaignKillsAfter": 155
+        }
+      ]
+    },
+    {
+      "policy": "flees-always",
+      "rootSeed": "seed-e",
+      "reached": 1,
+      "cleared": 0,
+      "end": "defeat",
+      "outcome": "lost",
+      "finalSurvivors": 0,
+      "totalKills": 172,
+      "cards": [
+        "mobility",
+        "cohesion",
+        "marksman",
+        "vitality"
+      ],
+      "fallenByStage": {
+        "1": 16
+      },
+      "digest": "00cdb7f4",
+      "legs": [
+        {
+          "stageId": 1,
+          "seed": "seed-e",
+          "outcome": "lost",
+          "endTick": 1788,
+          "kills": 172,
+          "entered": 16,
+          "standing": 0,
+          "downed": 10,
+          "dead": 6,
+          "hpAtEnd": 0,
+          "maxHpAtEnd": 0,
+          "cardsAfter": [
+            "mobility",
+            "cohesion",
+            "marksman",
+            "vitality"
+          ],
+          "campaignKillsAfter": 172
+        }
+      ]
+    },
+    {
+      "policy": "flees-always",
+      "rootSeed": "seed-f",
+      "reached": 1,
+      "cleared": 0,
+      "end": "defeat",
+      "outcome": "lost",
+      "finalSurvivors": 0,
+      "totalKills": 190,
+      "cards": [
+        "cohesion",
+        "mobility",
+        "cover",
+        "firepower"
+      ],
+      "fallenByStage": {
+        "1": 16
+      },
+      "digest": "2ae750f9",
+      "legs": [
+        {
+          "stageId": 1,
+          "seed": "seed-f",
+          "outcome": "lost",
+          "endTick": 2057,
+          "kills": 190,
+          "entered": 16,
+          "standing": 0,
+          "downed": 7,
+          "dead": 9,
+          "hpAtEnd": 0,
+          "maxHpAtEnd": 0,
+          "cardsAfter": [
+            "cohesion",
+            "mobility",
+            "cover",
+            "firepower"
+          ],
+          "campaignKillsAfter": 190
+        }
+      ]
+    },
+    {
+      "policy": "flees-always",
+      "rootSeed": "seed-g",
+      "reached": 1,
+      "cleared": 0,
+      "end": "defeat",
+      "outcome": "lost",
+      "finalSurvivors": 0,
+      "totalKills": 182,
+      "cards": [
+        "cohesion",
+        "firstaid",
+        "cover",
+        "marksman"
+      ],
+      "fallenByStage": {
+        "1": 16
+      },
+      "digest": "3deb027d",
+      "legs": [
+        {
+          "stageId": 1,
+          "seed": "seed-g",
+          "outcome": "lost",
+          "endTick": 1935,
+          "kills": 182,
+          "entered": 16,
+          "standing": 0,
+          "downed": 7,
+          "dead": 9,
+          "hpAtEnd": 0,
+          "maxHpAtEnd": 0,
+          "cardsAfter": [
+            "cohesion",
+            "firstaid",
+            "cover",
+            "marksman"
+          ],
+          "campaignKillsAfter": 182
+        }
+      ]
+    },
+    {
+      "policy": "flees-always",
+      "rootSeed": "seed-h",
+      "reached": 2,
+      "cleared": 1,
+      "end": "defeat",
+      "outcome": "lost",
+      "finalSurvivors": 0,
+      "totalKills": 251,
+      "cards": [
+        "firepower",
+        "vitality",
+        "firstaid",
+        "marksman"
+      ],
+      "fallenByStage": {
+        "1": 9,
+        "2": 7
+      },
+      "digest": "7a50a0ae",
+      "legs": [
+        {
+          "stageId": 1,
+          "seed": "seed-h",
+          "outcome": "won",
+          "endTick": 2123,
+          "kills": 237,
+          "entered": 16,
+          "standing": 7,
+          "downed": 7,
+          "dead": 2,
+          "hpAtEnd": 6.6775000000000055,
+          "maxHpAtEnd": 16.75,
+          "cardsAfter": [
+            "firepower",
+            "vitality",
+            "firstaid",
+            "marksman"
+          ],
+          "campaignKillsAfter": 237
+        },
+        {
+          "stageId": 2,
+          "seed": "seed-h:stage:2",
+          "outcome": "lost",
+          "endTick": 395,
+          "kills": 14,
+          "entered": 7,
+          "standing": 0,
+          "downed": 7,
+          "dead": 0,
+          "hpAtEnd": 0,
+          "maxHpAtEnd": 0,
+          "cardsAfter": [
+            "firepower",
+            "vitality",
+            "firstaid",
+            "marksman"
+          ],
+          "campaignKillsAfter": 251
+        }
+      ]
+    },
+    {
+      "policy": "camps-in-place",
+      "rootSeed": "seed-a",
+      "reached": 1,
+      "cleared": 0,
+      "end": "defeat",
+      "outcome": "lost",
+      "finalSurvivors": 0,
+      "totalKills": 159,
+      "cards": [
+        "firstaid",
+        "cohesion",
+        "marksman",
+        "mobility"
+      ],
+      "fallenByStage": {
+        "1": 16
+      },
+      "digest": "88a750f9",
+      "legs": [
+        {
+          "stageId": 1,
+          "seed": "seed-a",
+          "outcome": "lost",
+          "endTick": 1653,
+          "kills": 159,
+          "entered": 16,
+          "standing": 0,
+          "downed": 10,
+          "dead": 6,
+          "hpAtEnd": 0,
+          "maxHpAtEnd": 0,
+          "cardsAfter": [
+            "firstaid",
+            "cohesion",
+            "marksman",
+            "mobility"
+          ],
+          "campaignKillsAfter": 159
+        }
+      ]
+    },
+    {
+      "policy": "camps-in-place",
+      "rootSeed": "seed-b",
+      "reached": 1,
+      "cleared": 0,
+      "end": "defeat",
+      "outcome": "lost",
+      "finalSurvivors": 0,
+      "totalKills": 232,
+      "cards": [
+        "cover",
+        "vitality",
+        "mobility",
+        "rapid"
+      ],
+      "fallenByStage": {
+        "1": 16
+      },
+      "digest": "5173a80d",
+      "legs": [
+        {
+          "stageId": 1,
+          "seed": "seed-b",
+          "outcome": "lost",
+          "endTick": 2207,
+          "kills": 232,
+          "entered": 16,
+          "standing": 0,
+          "downed": 11,
+          "dead": 5,
+          "hpAtEnd": 0,
+          "maxHpAtEnd": 0,
+          "cardsAfter": [
+            "cover",
+            "vitality",
+            "mobility",
+            "rapid"
+          ],
+          "campaignKillsAfter": 232
+        }
+      ]
+    },
+    {
+      "policy": "camps-in-place",
+      "rootSeed": "seed-c",
+      "reached": 1,
+      "cleared": 0,
+      "end": "defeat",
+      "outcome": "lost",
+      "finalSurvivors": 0,
+      "totalKills": 170,
+      "cards": [
+        "mobility",
+        "cohesion",
+        "rapid",
+        "marksman"
+      ],
+      "fallenByStage": {
+        "1": 16
+      },
+      "digest": "500ce9ad",
+      "legs": [
+        {
+          "stageId": 1,
+          "seed": "seed-c",
+          "outcome": "lost",
+          "endTick": 1719,
+          "kills": 170,
+          "entered": 16,
+          "standing": 0,
+          "downed": 9,
+          "dead": 7,
+          "hpAtEnd": 0,
+          "maxHpAtEnd": 0,
+          "cardsAfter": [
+            "mobility",
+            "cohesion",
+            "rapid",
+            "marksman"
+          ],
+          "campaignKillsAfter": 170
+        }
+      ]
+    },
+    {
+      "policy": "camps-in-place",
+      "rootSeed": "seed-d",
+      "reached": 1,
+      "cleared": 0,
+      "end": "defeat",
+      "outcome": "lost",
+      "finalSurvivors": 0,
+      "totalKills": 170,
+      "cards": [
+        "marksman",
+        "mobility",
+        "firstaid",
+        "vitality"
+      ],
+      "fallenByStage": {
+        "1": 16
+      },
+      "digest": "eacfac06",
+      "legs": [
+        {
+          "stageId": 1,
+          "seed": "seed-d",
+          "outcome": "lost",
+          "endTick": 1763,
+          "kills": 170,
+          "entered": 16,
+          "standing": 0,
+          "downed": 10,
+          "dead": 6,
+          "hpAtEnd": 0,
+          "maxHpAtEnd": 0,
+          "cardsAfter": [
+            "marksman",
+            "mobility",
+            "firstaid",
+            "vitality"
+          ],
+          "campaignKillsAfter": 170
+        }
+      ]
+    },
+    {
+      "policy": "camps-in-place",
+      "rootSeed": "seed-e",
+      "reached": 1,
+      "cleared": 0,
+      "end": "defeat",
+      "outcome": "lost",
+      "finalSurvivors": 0,
+      "totalKills": 166,
+      "cards": [
+        "mobility",
+        "cohesion",
+        "marksman",
+        "vitality"
+      ],
+      "fallenByStage": {
+        "1": 16
+      },
+      "digest": "3e9962b1",
+      "legs": [
+        {
+          "stageId": 1,
+          "seed": "seed-e",
+          "outcome": "lost",
+          "endTick": 1767,
+          "kills": 166,
+          "entered": 16,
+          "standing": 0,
+          "downed": 10,
+          "dead": 6,
+          "hpAtEnd": 0,
+          "maxHpAtEnd": 0,
+          "cardsAfter": [
+            "mobility",
+            "cohesion",
+            "marksman",
+            "vitality"
+          ],
+          "campaignKillsAfter": 166
+        }
+      ]
+    },
+    {
+      "policy": "camps-in-place",
+      "rootSeed": "seed-f",
+      "reached": 1,
+      "cleared": 0,
+      "end": "defeat",
+      "outcome": "lost",
+      "finalSurvivors": 0,
+      "totalKills": 170,
+      "cards": [
+        "cohesion",
+        "mobility",
+        "cover",
+        "firepower"
+      ],
+      "fallenByStage": {
+        "1": 16
+      },
+      "digest": "2d51cab3",
+      "legs": [
+        {
+          "stageId": 1,
+          "seed": "seed-f",
+          "outcome": "lost",
+          "endTick": 1780,
+          "kills": 170,
+          "entered": 16,
+          "standing": 0,
+          "downed": 8,
+          "dead": 8,
+          "hpAtEnd": 0,
+          "maxHpAtEnd": 0,
+          "cardsAfter": [
+            "cohesion",
+            "mobility",
+            "cover",
+            "firepower"
+          ],
+          "campaignKillsAfter": 170
+        }
+      ]
+    },
+    {
+      "policy": "camps-in-place",
+      "rootSeed": "seed-g",
+      "reached": 1,
+      "cleared": 0,
+      "end": "defeat",
+      "outcome": "lost",
+      "finalSurvivors": 0,
+      "totalKills": 148,
+      "cards": [
+        "cohesion",
+        "firstaid",
+        "cover",
+        "marksman"
+      ],
+      "fallenByStage": {
+        "1": 16
+      },
+      "digest": "ad1b0ef7",
+      "legs": [
+        {
+          "stageId": 1,
+          "seed": "seed-g",
+          "outcome": "lost",
+          "endTick": 1693,
+          "kills": 148,
+          "entered": 16,
+          "standing": 0,
+          "downed": 9,
+          "dead": 7,
+          "hpAtEnd": 0,
+          "maxHpAtEnd": 0,
+          "cardsAfter": [
+            "cohesion",
+            "firstaid",
+            "cover",
+            "marksman"
+          ],
+          "campaignKillsAfter": 148
+        }
+      ]
+    },
+    {
+      "policy": "camps-in-place",
+      "rootSeed": "seed-h",
+      "reached": 1,
+      "cleared": 0,
+      "end": "defeat",
+      "outcome": "lost",
+      "finalSurvivors": 0,
+      "totalKills": 207,
+      "cards": [
+        "firepower",
+        "vitality",
+        "firstaid",
+        "marksman"
+      ],
+      "fallenByStage": {
+        "1": 16
+      },
+      "digest": "1af9554d",
+      "legs": [
+        {
+          "stageId": 1,
+          "seed": "seed-h",
+          "outcome": "lost",
+          "endTick": 2021,
+          "kills": 207,
+          "entered": 16,
+          "standing": 0,
+          "downed": 8,
+          "dead": 8,
+          "hpAtEnd": 0,
+          "maxHpAtEnd": 0,
+          "cardsAfter": [
+            "firepower",
+            "vitality",
+            "firstaid",
+            "marksman"
+          ],
+          "campaignKillsAfter": 207
+        }
+      ]
+    },
+    {
+      "policy": "skilled",
+      "rootSeed": "seed-a",
+      "reached": 2,
+      "cleared": 1,
+      "end": "defeat",
+      "outcome": "lost",
+      "finalSurvivors": 0,
+      "totalKills": 238,
+      "cards": [
+        "firstaid",
+        "cohesion",
+        "marksman",
+        "mobility"
+      ],
+      "fallenByStage": {
+        "1": 10,
+        "2": 6
+      },
+      "digest": "976239a4",
+      "legs": [
+        {
+          "stageId": 1,
+          "seed": "seed-a",
+          "outcome": "won",
+          "endTick": 2076,
+          "kills": 228,
+          "entered": 16,
+          "standing": 6,
+          "downed": 10,
+          "dead": 0,
+          "hpAtEnd": 4.115000000000001,
+          "maxHpAtEnd": 12.000000000000002,
+          "cardsAfter": [
+            "firstaid",
+            "cohesion",
+            "marksman",
+            "mobility"
+          ],
+          "campaignKillsAfter": 228
+        },
+        {
+          "stageId": 2,
+          "seed": "seed-a:stage:2",
+          "outcome": "lost",
+          "endTick": 348,
+          "kills": 10,
+          "entered": 6,
+          "standing": 0,
+          "downed": 6,
+          "dead": 0,
+          "hpAtEnd": 0,
+          "maxHpAtEnd": 0,
+          "cardsAfter": [
+            "firstaid",
+            "cohesion",
+            "marksman",
+            "mobility"
+          ],
+          "campaignKillsAfter": 238
+        }
+      ]
+    },
+    {
+      "policy": "skilled",
+      "rootSeed": "seed-b",
+      "reached": 2,
+      "cleared": 1,
+      "end": "defeat",
+      "outcome": "lost",
+      "finalSurvivors": 0,
+      "totalKills": 351,
+      "cards": [
+        "cover",
+        "vitality",
+        "mobility",
+        "rapid"
+      ],
+      "fallenByStage": {
+        "1": 2,
+        "2": 14
+      },
+      "digest": "c43dfcee",
+      "legs": [
+        {
+          "stageId": 1,
+          "seed": "seed-b",
+          "outcome": "won",
+          "endTick": 2055,
+          "kills": 240,
+          "entered": 16,
+          "standing": 14,
+          "downed": 2,
+          "dead": 0,
+          "hpAtEnd": 13.380062499999994,
+          "maxHpAtEnd": 29,
+          "cardsAfter": [
+            "cover",
+            "vitality",
+            "mobility",
+            "rapid"
+          ],
+          "campaignKillsAfter": 240
+        },
+        {
+          "stageId": 2,
+          "seed": "seed-b:stage:2",
+          "outcome": "lost",
+          "endTick": 1165,
+          "kills": 111,
+          "entered": 14,
+          "standing": 0,
+          "downed": 9,
+          "dead": 5,
+          "hpAtEnd": 0,
+          "maxHpAtEnd": 0,
+          "cardsAfter": [
+            "cover",
+            "vitality",
+            "mobility",
+            "rapid"
+          ],
+          "campaignKillsAfter": 351
+        }
+      ]
+    },
+    {
+      "policy": "skilled",
+      "rootSeed": "seed-c",
+      "reached": 2,
+      "cleared": 1,
+      "end": "defeat",
+      "outcome": "lost",
+      "finalSurvivors": 0,
+      "totalKills": 289,
+      "cards": [
+        "mobility",
+        "cohesion",
+        "rapid",
+        "marksman"
+      ],
+      "fallenByStage": {
+        "1": 3,
+        "2": 13
+      },
+      "digest": "a2f37aa6",
+      "legs": [
+        {
+          "stageId": 1,
+          "seed": "seed-c",
+          "outcome": "won",
+          "endTick": 2000,
+          "kills": 231,
+          "entered": 16,
+          "standing": 13,
+          "downed": 3,
+          "dead": 0,
+          "hpAtEnd": 9.705000000000002,
+          "maxHpAtEnd": 21.799999999999997,
+          "cardsAfter": [
+            "mobility",
+            "cohesion",
+            "rapid",
+            "marksman"
+          ],
+          "campaignKillsAfter": 231
+        },
+        {
+          "stageId": 2,
+          "seed": "seed-c:stage:2",
+          "outcome": "lost",
+          "endTick": 809,
+          "kills": 58,
+          "entered": 13,
+          "standing": 0,
+          "downed": 7,
+          "dead": 6,
+          "hpAtEnd": 0,
+          "maxHpAtEnd": 0,
+          "cardsAfter": [
+            "mobility",
+            "cohesion",
+            "rapid",
+            "marksman"
+          ],
+          "campaignKillsAfter": 289
+        }
+      ]
+    },
+    {
+      "policy": "skilled",
+      "rootSeed": "seed-d",
+      "reached": 1,
+      "cleared": 0,
+      "end": "defeat",
+      "outcome": "lost",
+      "finalSurvivors": 0,
+      "totalKills": 221,
+      "cards": [
+        "marksman",
+        "mobility",
+        "firstaid",
+        "vitality"
+      ],
+      "fallenByStage": {
+        "1": 16
+      },
+      "digest": "9b63de81",
+      "legs": [
+        {
+          "stageId": 1,
+          "seed": "seed-d",
+          "outcome": "lost",
+          "endTick": 2120,
+          "kills": 221,
+          "entered": 16,
+          "standing": 0,
+          "downed": 13,
+          "dead": 3,
+          "hpAtEnd": 0,
+          "maxHpAtEnd": 0,
+          "cardsAfter": [
+            "marksman",
+            "mobility",
+            "firstaid",
+            "vitality"
+          ],
+          "campaignKillsAfter": 221
+        }
+      ]
+    },
+    {
+      "policy": "skilled",
+      "rootSeed": "seed-e",
+      "reached": 2,
+      "cleared": 1,
+      "end": "defeat",
+      "outcome": "lost",
+      "finalSurvivors": 0,
+      "totalKills": 229,
+      "cards": [
+        "mobility",
+        "cohesion",
+        "marksman",
+        "vitality"
+      ],
+      "fallenByStage": {
+        "1": 10,
+        "2": 6
+      },
+      "digest": "d8c1abac",
+      "legs": [
+        {
+          "stageId": 1,
+          "seed": "seed-e",
+          "outcome": "won",
+          "endTick": 2011,
+          "kills": 220,
+          "entered": 16,
+          "standing": 6,
+          "downed": 9,
+          "dead": 1,
+          "hpAtEnd": 6.505000000000006,
+          "maxHpAtEnd": 15,
+          "cardsAfter": [
+            "mobility",
+            "cohesion",
+            "marksman",
+            "vitality"
+          ],
+          "campaignKillsAfter": 220
+        },
+        {
+          "stageId": 2,
+          "seed": "seed-e:stage:2",
+          "outcome": "lost",
+          "endTick": 375,
+          "kills": 9,
+          "entered": 6,
+          "standing": 0,
+          "downed": 6,
+          "dead": 0,
+          "hpAtEnd": 0,
+          "maxHpAtEnd": 0,
+          "cardsAfter": [
+            "mobility",
+            "cohesion",
+            "marksman",
+            "vitality"
+          ],
+          "campaignKillsAfter": 229
+        }
+      ]
+    },
+    {
+      "policy": "skilled",
+      "rootSeed": "seed-f",
+      "reached": 2,
+      "cleared": 1,
+      "end": "defeat",
+      "outcome": "lost",
+      "finalSurvivors": 0,
+      "totalKills": 338,
+      "cards": [
+        "cohesion",
+        "mobility",
+        "cover",
+        "firepower"
+      ],
+      "fallenByStage": {
+        "1": 3,
+        "2": 13
+      },
+      "digest": "209a993d",
+      "legs": [
+        {
+          "stageId": 1,
+          "seed": "seed-f",
+          "outcome": "won",
+          "endTick": 2020,
+          "kills": 238,
+          "entered": 16,
+          "standing": 13,
+          "downed": 3,
+          "dead": 0,
+          "hpAtEnd": 10.337750000000002,
+          "maxHpAtEnd": 21.799999999999997,
+          "cardsAfter": [
+            "cohesion",
+            "mobility",
+            "cover",
+            "firepower"
+          ],
+          "campaignKillsAfter": 238
+        },
+        {
+          "stageId": 2,
+          "seed": "seed-f:stage:2",
+          "outcome": "lost",
+          "endTick": 1032,
+          "kills": 100,
+          "entered": 13,
+          "standing": 0,
+          "downed": 9,
+          "dead": 4,
+          "hpAtEnd": 0,
+          "maxHpAtEnd": 0,
+          "cardsAfter": [
+            "cohesion",
+            "mobility",
+            "cover",
+            "firepower"
+          ],
+          "campaignKillsAfter": 338
+        }
+      ]
+    },
+    {
+      "policy": "skilled",
+      "rootSeed": "seed-g",
+      "reached": 2,
+      "cleared": 1,
+      "end": "defeat",
+      "outcome": "lost",
+      "finalSurvivors": 0,
+      "totalKills": 233,
+      "cards": [
+        "cohesion",
+        "firstaid",
+        "cover",
+        "marksman"
+      ],
+      "fallenByStage": {
+        "1": 12,
+        "2": 4
+      },
+      "digest": "b81f72f7",
+      "legs": [
+        {
+          "stageId": 1,
+          "seed": "seed-g",
+          "outcome": "won",
+          "endTick": 2151,
+          "kills": 228,
+          "entered": 16,
+          "standing": 4,
+          "downed": 12,
+          "dead": 0,
+          "hpAtEnd": 4.960999999999989,
+          "maxHpAtEnd": 9.200000000000001,
+          "cardsAfter": [
+            "cohesion",
+            "firstaid",
+            "cover",
+            "marksman"
+          ],
+          "campaignKillsAfter": 228
+        },
+        {
+          "stageId": 2,
+          "seed": "seed-g:stage:2",
+          "outcome": "lost",
+          "endTick": 336,
+          "kills": 5,
+          "entered": 4,
+          "standing": 0,
+          "downed": 4,
+          "dead": 0,
+          "hpAtEnd": 0,
+          "maxHpAtEnd": 0,
+          "cardsAfter": [
+            "cohesion",
+            "firstaid",
+            "cover",
+            "marksman"
+          ],
+          "campaignKillsAfter": 233
+        }
+      ]
+    },
+    {
+      "policy": "skilled",
+      "rootSeed": "seed-h",
+      "reached": 2,
+      "cleared": 1,
+      "end": "defeat",
+      "outcome": "lost",
+      "finalSurvivors": 0,
+      "totalKills": 349,
+      "cards": [
+        "firepower",
+        "vitality",
+        "firstaid",
+        "marksman"
+      ],
+      "fallenByStage": {
+        "1": 2,
+        "2": 14
+      },
+      "digest": "102b7985",
+      "legs": [
+        {
+          "stageId": 1,
+          "seed": "seed-h",
+          "outcome": "won",
+          "endTick": 1993,
+          "kills": 237,
+          "entered": 16,
+          "standing": 14,
+          "downed": 2,
+          "dead": 0,
+          "hpAtEnd": 13.832500000000012,
+          "maxHpAtEnd": 29,
+          "cardsAfter": [
+            "firepower",
+            "vitality",
+            "firstaid",
+            "marksman"
+          ],
+          "campaignKillsAfter": 237
+        },
+        {
+          "stageId": 2,
+          "seed": "seed-h:stage:2",
+          "outcome": "lost",
+          "endTick": 1003,
+          "kills": 112,
+          "entered": 14,
+          "standing": 0,
+          "downed": 13,
+          "dead": 1,
+          "hpAtEnd": 0,
+          "maxHpAtEnd": 0,
+          "cardsAfter": [
+            "firepower",
+            "vitality",
+            "firstaid",
+            "marksman"
+          ],
+          "campaignKillsAfter": 349
+        }
+      ]
+    },
+    {
+      "policy": "ignores-range",
+      "rootSeed": "seed-a",
+      "reached": 2,
+      "cleared": 1,
+      "end": "defeat",
+      "outcome": "lost",
+      "finalSurvivors": 0,
+      "totalKills": 229,
+      "cards": [
+        "firstaid",
+        "cohesion",
+        "marksman",
+        "mobility"
+      ],
+      "fallenByStage": {
+        "1": 13,
+        "2": 3
+      },
+      "digest": "c4cb2c4f",
+      "legs": [
+        {
+          "stageId": 1,
+          "seed": "seed-a",
+          "outcome": "won",
+          "endTick": 2114,
+          "kills": 223,
+          "entered": 16,
+          "standing": 3,
+          "downed": 13,
+          "dead": 0,
+          "hpAtEnd": 1.475000000000004,
+          "maxHpAtEnd": 7.800000000000001,
+          "cardsAfter": [
+            "firstaid",
+            "cohesion",
+            "marksman",
+            "mobility"
+          ],
+          "campaignKillsAfter": 223
+        },
+        {
+          "stageId": 2,
+          "seed": "seed-a:stage:2",
+          "outcome": "lost",
+          "endTick": 266,
+          "kills": 6,
+          "entered": 3,
+          "standing": 0,
+          "downed": 3,
+          "dead": 0,
+          "hpAtEnd": 0,
+          "maxHpAtEnd": 0,
+          "cardsAfter": [
+            "firstaid",
+            "cohesion",
+            "marksman",
+            "mobility"
+          ],
+          "campaignKillsAfter": 229
+        }
+      ]
+    },
+    {
+      "policy": "ignores-range",
+      "rootSeed": "seed-b",
+      "reached": 2,
+      "cleared": 1,
+      "end": "defeat",
+      "outcome": "lost",
+      "finalSurvivors": 0,
+      "totalKills": 394,
+      "cards": [
+        "cover",
+        "vitality",
+        "mobility",
+        "rapid"
+      ],
+      "fallenByStage": {
+        "2": 16
+      },
+      "digest": "246d7541",
+      "legs": [
+        {
+          "stageId": 1,
+          "seed": "seed-b",
+          "outcome": "won",
+          "endTick": 1985,
+          "kills": 232,
+          "entered": 16,
+          "standing": 16,
+          "downed": 0,
+          "dead": 0,
+          "hpAtEnd": 14.993999999999993,
+          "maxHpAtEnd": 32.5,
+          "cardsAfter": [
+            "cover",
+            "vitality",
+            "mobility",
+            "rapid"
+          ],
+          "campaignKillsAfter": 232
+        },
+        {
+          "stageId": 2,
+          "seed": "seed-b:stage:2",
+          "outcome": "lost",
+          "endTick": 1409,
+          "kills": 162,
+          "entered": 16,
+          "standing": 0,
+          "downed": 10,
+          "dead": 6,
+          "hpAtEnd": 0,
+          "maxHpAtEnd": 0,
+          "cardsAfter": [
+            "cover",
+            "vitality",
+            "mobility",
+            "rapid"
+          ],
+          "campaignKillsAfter": 394
+        }
+      ]
+    },
+    {
+      "policy": "ignores-range",
+      "rootSeed": "seed-c",
+      "reached": 2,
+      "cleared": 1,
+      "end": "defeat",
+      "outcome": "lost",
+      "finalSurvivors": 0,
+      "totalKills": 243,
+      "cards": [
+        "mobility",
+        "cohesion",
+        "rapid",
+        "marksman"
+      ],
+      "fallenByStage": {
+        "1": 8,
+        "2": 8
+      },
+      "digest": "d97006f5",
+      "legs": [
+        {
+          "stageId": 1,
+          "seed": "seed-c",
+          "outcome": "won",
+          "endTick": 1962,
+          "kills": 229,
+          "entered": 16,
+          "standing": 8,
+          "downed": 8,
+          "dead": 0,
+          "hpAtEnd": 6.670000000000002,
+          "maxHpAtEnd": 14.800000000000002,
+          "cardsAfter": [
+            "mobility",
+            "cohesion",
+            "rapid",
+            "marksman"
+          ],
+          "campaignKillsAfter": 229
+        },
+        {
+          "stageId": 2,
+          "seed": "seed-c:stage:2",
+          "outcome": "lost",
+          "endTick": 397,
+          "kills": 14,
+          "entered": 8,
+          "standing": 0,
+          "downed": 8,
+          "dead": 0,
+          "hpAtEnd": 0,
+          "maxHpAtEnd": 0,
+          "cardsAfter": [
+            "mobility",
+            "cohesion",
+            "rapid",
+            "marksman"
+          ],
+          "campaignKillsAfter": 243
+        }
+      ]
+    },
+    {
+      "policy": "ignores-range",
+      "rootSeed": "seed-d",
+      "reached": 2,
+      "cleared": 1,
+      "end": "defeat",
+      "outcome": "lost",
+      "finalSurvivors": 0,
+      "totalKills": 233,
+      "cards": [
+        "marksman",
+        "mobility",
+        "firstaid",
+        "vitality"
+      ],
+      "fallenByStage": {
+        "1": 9,
+        "2": 7
+      },
+      "digest": "fa958430",
+      "legs": [
+        {
+          "stageId": 1,
+          "seed": "seed-d",
+          "outcome": "won",
+          "endTick": 2013,
+          "kills": 219,
+          "entered": 16,
+          "standing": 7,
+          "downed": 8,
+          "dead": 1,
+          "hpAtEnd": 6.063750000000003,
+          "maxHpAtEnd": 16.75,
+          "cardsAfter": [
+            "marksman",
+            "mobility",
+            "firstaid",
+            "vitality"
+          ],
+          "campaignKillsAfter": 219
+        },
+        {
+          "stageId": 2,
+          "seed": "seed-d:stage:2",
+          "outcome": "lost",
+          "endTick": 619,
+          "kills": 14,
+          "entered": 7,
+          "standing": 0,
+          "downed": 4,
+          "dead": 3,
+          "hpAtEnd": 0,
+          "maxHpAtEnd": 0,
+          "cardsAfter": [
+            "marksman",
+            "mobility",
+            "firstaid",
+            "vitality"
+          ],
+          "campaignKillsAfter": 233
+        }
+      ]
+    },
+    {
+      "policy": "ignores-range",
+      "rootSeed": "seed-e",
+      "reached": 2,
+      "cleared": 1,
+      "end": "defeat",
+      "outcome": "lost",
+      "finalSurvivors": 0,
+      "totalKills": 236,
+      "cards": [
+        "mobility",
+        "cohesion",
+        "marksman",
+        "vitality"
+      ],
+      "fallenByStage": {
+        "1": 9,
+        "2": 7
+      },
+      "digest": "f7eb609f",
+      "legs": [
+        {
+          "stageId": 1,
+          "seed": "seed-e",
+          "outcome": "won",
+          "endTick": 2048,
+          "kills": 228,
+          "entered": 16,
+          "standing": 7,
+          "downed": 9,
+          "dead": 0,
+          "hpAtEnd": 6.945000000000003,
+          "maxHpAtEnd": 16.75,
+          "cardsAfter": [
+            "mobility",
+            "cohesion",
+            "marksman",
+            "vitality"
+          ],
+          "campaignKillsAfter": 228
+        },
+        {
+          "stageId": 2,
+          "seed": "seed-e:stage:2",
+          "outcome": "lost",
+          "endTick": 368,
+          "kills": 8,
+          "entered": 7,
+          "standing": 0,
+          "downed": 7,
+          "dead": 0,
+          "hpAtEnd": 0,
+          "maxHpAtEnd": 0,
+          "cardsAfter": [
+            "mobility",
+            "cohesion",
+            "marksman",
+            "vitality"
+          ],
+          "campaignKillsAfter": 236
+        }
+      ]
+    },
+    {
+      "policy": "ignores-range",
+      "rootSeed": "seed-f",
+      "reached": 2,
+      "cleared": 1,
+      "end": "defeat",
+      "outcome": "lost",
+      "finalSurvivors": 0,
+      "totalKills": 312,
+      "cards": [
+        "cohesion",
+        "mobility",
+        "cover",
+        "firepower"
+      ],
+      "fallenByStage": {
+        "1": 6,
+        "2": 10
+      },
+      "digest": "5869759c",
+      "legs": [
+        {
+          "stageId": 1,
+          "seed": "seed-f",
+          "outcome": "won",
+          "endTick": 2264,
+          "kills": 274,
+          "entered": 16,
+          "standing": 10,
+          "downed": 6,
+          "dead": 0,
+          "hpAtEnd": 7.205249999999996,
+          "maxHpAtEnd": 17.6,
+          "cardsAfter": [
+            "cohesion",
+            "mobility",
+            "cover",
+            "firepower"
+          ],
+          "campaignKillsAfter": 274
+        },
+        {
+          "stageId": 2,
+          "seed": "seed-f:stage:2",
+          "outcome": "lost",
+          "endTick": 658,
+          "kills": 38,
+          "entered": 10,
+          "standing": 0,
+          "downed": 9,
+          "dead": 1,
+          "hpAtEnd": 0,
+          "maxHpAtEnd": 0,
+          "cardsAfter": [
+            "cohesion",
+            "mobility",
+            "cover",
+            "firepower"
+          ],
+          "campaignKillsAfter": 312
+        }
+      ]
+    },
+    {
+      "policy": "ignores-range",
+      "rootSeed": "seed-g",
+      "reached": 2,
+      "cleared": 1,
+      "end": "defeat",
+      "outcome": "lost",
+      "finalSurvivors": 0,
+      "totalKills": 240,
+      "cards": [
+        "cohesion",
+        "firstaid",
+        "cover",
+        "marksman"
+      ],
+      "fallenByStage": {
+        "1": 9,
+        "2": 7
+      },
+      "digest": "1bd2d3f4",
+      "legs": [
+        {
+          "stageId": 1,
+          "seed": "seed-g",
+          "outcome": "won",
+          "endTick": 2094,
+          "kills": 226,
+          "entered": 16,
+          "standing": 7,
+          "downed": 9,
+          "dead": 0,
+          "hpAtEnd": 6.391999999999993,
+          "maxHpAtEnd": 13.400000000000002,
+          "cardsAfter": [
+            "cohesion",
+            "firstaid",
+            "cover",
+            "marksman"
+          ],
+          "campaignKillsAfter": 226
+        },
+        {
+          "stageId": 2,
+          "seed": "seed-g:stage:2",
+          "outcome": "lost",
+          "endTick": 492,
+          "kills": 14,
+          "entered": 7,
+          "standing": 0,
+          "downed": 7,
+          "dead": 0,
+          "hpAtEnd": 0,
+          "maxHpAtEnd": 0,
+          "cardsAfter": [
+            "cohesion",
+            "firstaid",
+            "cover",
+            "marksman"
+          ],
+          "campaignKillsAfter": 240
+        }
+      ]
+    },
+    {
+      "policy": "ignores-range",
+      "rootSeed": "seed-h",
+      "reached": 2,
+      "cleared": 1,
+      "end": "defeat",
+      "outcome": "lost",
+      "finalSurvivors": 0,
+      "totalKills": 481,
+      "cards": [
+        "firepower",
+        "vitality",
+        "firstaid",
+        "marksman"
+      ],
+      "fallenByStage": {
+        "2": 16
+      },
+      "digest": "5434fc64",
+      "legs": [
+        {
+          "stageId": 1,
+          "seed": "seed-h",
+          "outcome": "won",
+          "endTick": 1973,
+          "kills": 239,
+          "entered": 16,
+          "standing": 16,
+          "downed": 0,
+          "dead": 0,
+          "hpAtEnd": 16.20750000000001,
+          "maxHpAtEnd": 32.5,
+          "cardsAfter": [
+            "firepower",
+            "vitality",
+            "firstaid",
+            "marksman"
+          ],
+          "campaignKillsAfter": 239
+        },
+        {
+          "stageId": 2,
+          "seed": "seed-h:stage:2",
+          "outcome": "lost",
+          "endTick": 1798,
+          "kills": 242,
+          "entered": 16,
+          "standing": 0,
+          "downed": 10,
+          "dead": 6,
+          "hpAtEnd": 0,
+          "maxHpAtEnd": 0,
+          "cardsAfter": [
+            "firepower",
+            "vitality",
+            "firstaid",
+            "marksman"
+          ],
+          "campaignKillsAfter": 481
+        }
+      ]
+    },
+    {
+      "policy": "abandons-downed",
+      "rootSeed": "seed-a",
+      "reached": 1,
+      "cleared": 0,
+      "end": "defeat",
+      "outcome": "lost",
+      "finalSurvivors": 0,
+      "totalKills": 214,
+      "cards": [
+        "firstaid",
+        "cohesion",
+        "marksman",
+        "mobility"
+      ],
+      "fallenByStage": {
+        "1": 16
+      },
+      "digest": "053d5f17",
+      "legs": [
+        {
+          "stageId": 1,
+          "seed": "seed-a",
+          "outcome": "lost",
+          "endTick": 2053,
+          "kills": 214,
+          "entered": 16,
+          "standing": 0,
+          "downed": 11,
+          "dead": 5,
+          "hpAtEnd": 0,
+          "maxHpAtEnd": 0,
+          "cardsAfter": [
+            "firstaid",
+            "cohesion",
+            "marksman",
+            "mobility"
+          ],
+          "campaignKillsAfter": 214
+        }
+      ]
+    },
+    {
+      "policy": "abandons-downed",
+      "rootSeed": "seed-b",
+      "reached": 2,
+      "cleared": 1,
+      "end": "defeat",
+      "outcome": "lost",
+      "finalSurvivors": 0,
+      "totalKills": 312,
+      "cards": [
+        "cover",
+        "vitality",
+        "mobility",
+        "rapid"
+      ],
+      "fallenByStage": {
+        "1": 1,
+        "2": 15
+      },
+      "digest": "4ac4b6ea",
+      "legs": [
+        {
+          "stageId": 1,
+          "seed": "seed-b",
+          "outcome": "won",
+          "endTick": 2049,
+          "kills": 238,
+          "entered": 16,
+          "standing": 15,
+          "downed": 1,
+          "dead": 0,
+          "hpAtEnd": 13.498562499999995,
+          "maxHpAtEnd": 30.75,
+          "cardsAfter": [
+            "cover",
+            "vitality",
+            "mobility",
+            "rapid"
+          ],
+          "campaignKillsAfter": 238
+        },
+        {
+          "stageId": 2,
+          "seed": "seed-b:stage:2",
+          "outcome": "lost",
+          "endTick": 812,
+          "kills": 74,
+          "entered": 15,
+          "standing": 0,
+          "downed": 9,
+          "dead": 6,
+          "hpAtEnd": 0,
+          "maxHpAtEnd": 0,
+          "cardsAfter": [
+            "cover",
+            "vitality",
+            "mobility",
+            "rapid"
+          ],
+          "campaignKillsAfter": 312
+        }
+      ]
+    },
+    {
+      "policy": "abandons-downed",
+      "rootSeed": "seed-c",
+      "reached": 2,
+      "cleared": 1,
+      "end": "defeat",
+      "outcome": "lost",
+      "finalSurvivors": 0,
+      "totalKills": 259,
+      "cards": [
+        "mobility",
+        "cohesion",
+        "rapid",
+        "marksman"
+      ],
+      "fallenByStage": {
+        "1": 5,
+        "2": 11
+      },
+      "digest": "bac316db",
+      "legs": [
+        {
+          "stageId": 1,
+          "seed": "seed-c",
+          "outcome": "won",
+          "endTick": 1988,
+          "kills": 226,
+          "entered": 16,
+          "standing": 11,
+          "downed": 4,
+          "dead": 1,
+          "hpAtEnd": 8.655000000000003,
+          "maxHpAtEnd": 19,
+          "cardsAfter": [
+            "mobility",
+            "cohesion",
+            "rapid",
+            "marksman"
+          ],
+          "campaignKillsAfter": 226
+        },
+        {
+          "stageId": 2,
+          "seed": "seed-c:stage:2",
+          "outcome": "lost",
+          "endTick": 586,
+          "kills": 33,
+          "entered": 11,
+          "standing": 0,
+          "downed": 5,
+          "dead": 6,
+          "hpAtEnd": 0,
+          "maxHpAtEnd": 0,
+          "cardsAfter": [
+            "mobility",
+            "cohesion",
+            "rapid",
+            "marksman"
+          ],
+          "campaignKillsAfter": 259
+        }
+      ]
+    },
+    {
+      "policy": "abandons-downed",
+      "rootSeed": "seed-d",
+      "reached": 1,
+      "cleared": 0,
+      "end": "defeat",
+      "outcome": "lost",
+      "finalSurvivors": 0,
+      "totalKills": 215,
+      "cards": [
+        "marksman",
+        "mobility",
+        "firstaid",
+        "vitality"
+      ],
+      "fallenByStage": {
+        "1": 16
+      },
+      "digest": "72e14ac6",
+      "legs": [
+        {
+          "stageId": 1,
+          "seed": "seed-d",
+          "outcome": "lost",
+          "endTick": 2075,
+          "kills": 215,
+          "entered": 16,
+          "standing": 0,
+          "downed": 10,
+          "dead": 6,
+          "hpAtEnd": 0,
+          "maxHpAtEnd": 0,
+          "cardsAfter": [
+            "marksman",
+            "mobility",
+            "firstaid",
+            "vitality"
+          ],
+          "campaignKillsAfter": 215
+        }
+      ]
+    },
+    {
+      "policy": "abandons-downed",
+      "rootSeed": "seed-e",
+      "reached": 1,
+      "cleared": 0,
+      "end": "defeat",
+      "outcome": "lost",
+      "finalSurvivors": 0,
+      "totalKills": 221,
+      "cards": [
+        "mobility",
+        "cohesion",
+        "marksman",
+        "vitality"
+      ],
+      "fallenByStage": {
+        "1": 16
+      },
+      "digest": "a6f85485",
+      "legs": [
+        {
+          "stageId": 1,
+          "seed": "seed-e",
+          "outcome": "lost",
+          "endTick": 2131,
+          "kills": 221,
+          "entered": 16,
+          "standing": 0,
+          "downed": 14,
+          "dead": 2,
+          "hpAtEnd": 0,
+          "maxHpAtEnd": 0,
+          "cardsAfter": [
+            "mobility",
+            "cohesion",
+            "marksman",
+            "vitality"
+          ],
+          "campaignKillsAfter": 221
+        }
+      ]
+    },
+    {
+      "policy": "abandons-downed",
+      "rootSeed": "seed-f",
+      "reached": 2,
+      "cleared": 1,
+      "end": "defeat",
+      "outcome": "lost",
+      "finalSurvivors": 0,
+      "totalKills": 269,
+      "cards": [
+        "cohesion",
+        "mobility",
+        "cover",
+        "firepower"
+      ],
+      "fallenByStage": {
+        "1": 6,
+        "2": 10
+      },
+      "digest": "4a65edf7",
+      "legs": [
+        {
+          "stageId": 1,
+          "seed": "seed-f",
+          "outcome": "won",
+          "endTick": 2088,
+          "kills": 243,
+          "entered": 16,
+          "standing": 10,
+          "downed": 5,
+          "dead": 1,
+          "hpAtEnd": 7.106249999999997,
+          "maxHpAtEnd": 17.6,
+          "cardsAfter": [
+            "cohesion",
+            "mobility",
+            "cover",
+            "firepower"
+          ],
+          "campaignKillsAfter": 243
+        },
+        {
+          "stageId": 2,
+          "seed": "seed-f:stage:2",
+          "outcome": "lost",
+          "endTick": 477,
+          "kills": 26,
+          "entered": 10,
+          "standing": 0,
+          "downed": 8,
+          "dead": 2,
+          "hpAtEnd": 0,
+          "maxHpAtEnd": 0,
+          "cardsAfter": [
+            "cohesion",
+            "mobility",
+            "cover",
+            "firepower"
+          ],
+          "campaignKillsAfter": 269
+        }
+      ]
+    },
+    {
+      "policy": "abandons-downed",
+      "rootSeed": "seed-g",
+      "reached": 1,
+      "cleared": 0,
+      "end": "defeat",
+      "outcome": "lost",
+      "finalSurvivors": 0,
+      "totalKills": 219,
+      "cards": [
+        "cohesion",
+        "firstaid",
+        "cover",
+        "marksman"
+      ],
+      "fallenByStage": {
+        "1": 16
+      },
+      "digest": "48e81ed4",
+      "legs": [
+        {
+          "stageId": 1,
+          "seed": "seed-g",
+          "outcome": "lost",
+          "endTick": 2178,
+          "kills": 219,
+          "entered": 16,
+          "standing": 0,
+          "downed": 10,
+          "dead": 6,
+          "hpAtEnd": 0,
+          "maxHpAtEnd": 0,
+          "cardsAfter": [
+            "cohesion",
+            "firstaid",
+            "cover",
+            "marksman"
+          ],
+          "campaignKillsAfter": 219
+        }
+      ]
+    },
+    {
+      "policy": "abandons-downed",
+      "rootSeed": "seed-h",
+      "reached": 2,
+      "cleared": 1,
+      "end": "defeat",
+      "outcome": "lost",
+      "finalSurvivors": 0,
+      "totalKills": 275,
+      "cards": [
+        "firepower",
+        "vitality",
+        "firstaid",
+        "marksman"
+      ],
+      "fallenByStage": {
+        "1": 5,
+        "2": 11
+      },
+      "digest": "5d6c97c8",
+      "legs": [
+        {
+          "stageId": 1,
+          "seed": "seed-h",
+          "outcome": "won",
+          "endTick": 2024,
+          "kills": 237,
+          "entered": 16,
+          "standing": 11,
+          "downed": 4,
+          "dead": 1,
+          "hpAtEnd": 11.516250000000008,
+          "maxHpAtEnd": 23.75,
+          "cardsAfter": [
+            "firepower",
+            "vitality",
+            "firstaid",
+            "marksman"
+          ],
+          "campaignKillsAfter": 237
+        },
+        {
+          "stageId": 2,
+          "seed": "seed-h:stage:2",
+          "outcome": "lost",
+          "endTick": 576,
+          "kills": 38,
+          "entered": 11,
+          "standing": 0,
+          "downed": 9,
+          "dead": 2,
+          "hpAtEnd": 0,
+          "maxHpAtEnd": 0,
+          "cardsAfter": [
+            "firepower",
+            "vitality",
+            "firstaid",
+            "marksman"
+          ],
+          "campaignKillsAfter": 275
+        }
+      ]
+    },
+    {
+      "policy": "skilled-conservative",
+      "rootSeed": "seed-a",
+      "reached": 2,
+      "cleared": 1,
+      "end": "defeat",
+      "outcome": "lost",
+      "finalSurvivors": 0,
+      "totalKills": 238,
+      "cards": [
+        "firstaid",
+        "cohesion",
+        "marksman",
+        "mobility"
+      ],
+      "fallenByStage": {
+        "1": 12,
+        "2": 4
+      },
+      "digest": "d7e246b4",
+      "legs": [
+        {
+          "stageId": 1,
+          "seed": "seed-a",
+          "outcome": "won",
+          "endTick": 2070,
+          "kills": 231,
+          "entered": 16,
+          "standing": 4,
+          "downed": 12,
+          "dead": 0,
+          "hpAtEnd": 5.105000000000002,
+          "maxHpAtEnd": 9.200000000000001,
+          "cardsAfter": [
+            "firstaid",
+            "cohesion",
+            "marksman",
+            "mobility"
+          ],
+          "campaignKillsAfter": 231
+        },
+        {
+          "stageId": 2,
+          "seed": "seed-a:stage:2",
+          "outcome": "lost",
+          "endTick": 297,
+          "kills": 7,
+          "entered": 4,
+          "standing": 0,
+          "downed": 4,
+          "dead": 0,
+          "hpAtEnd": 0,
+          "maxHpAtEnd": 0,
+          "cardsAfter": [
+            "firstaid",
+            "cohesion",
+            "marksman",
+            "mobility"
+          ],
+          "campaignKillsAfter": 238
+        }
+      ]
+    },
+    {
+      "policy": "skilled-conservative",
+      "rootSeed": "seed-b",
+      "reached": 2,
+      "cleared": 1,
+      "end": "defeat",
+      "outcome": "lost",
+      "finalSurvivors": 0,
+      "totalKills": 288,
+      "cards": [
+        "cover",
+        "vitality",
+        "mobility",
+        "rapid"
+      ],
+      "fallenByStage": {
+        "1": 4,
+        "2": 12
+      },
+      "digest": "ed67e3bd",
+      "legs": [
+        {
+          "stageId": 1,
+          "seed": "seed-b",
+          "outcome": "won",
+          "endTick": 2108,
+          "kills": 236,
+          "entered": 16,
+          "standing": 12,
+          "downed": 3,
+          "dead": 1,
+          "hpAtEnd": 11.620999999999995,
+          "maxHpAtEnd": 25.5,
+          "cardsAfter": [
+            "cover",
+            "vitality",
+            "mobility",
+            "rapid"
+          ],
+          "campaignKillsAfter": 236
+        },
+        {
+          "stageId": 2,
+          "seed": "seed-b:stage:2",
+          "outcome": "lost",
+          "endTick": 717,
+          "kills": 52,
+          "entered": 12,
+          "standing": 0,
+          "downed": 9,
+          "dead": 3,
+          "hpAtEnd": 0,
+          "maxHpAtEnd": 0,
+          "cardsAfter": [
+            "cover",
+            "vitality",
+            "mobility",
+            "rapid"
+          ],
+          "campaignKillsAfter": 288
+        }
+      ]
+    },
+    {
+      "policy": "skilled-conservative",
+      "rootSeed": "seed-c",
+      "reached": 2,
+      "cleared": 1,
+      "end": "defeat",
+      "outcome": "lost",
+      "finalSurvivors": 0,
+      "totalKills": 270,
+      "cards": [
+        "mobility",
+        "cohesion",
+        "rapid",
+        "marksman"
+      ],
+      "fallenByStage": {
+        "1": 3,
+        "2": 13
+      },
+      "digest": "ffc336f8",
+      "legs": [
+        {
+          "stageId": 1,
+          "seed": "seed-c",
+          "outcome": "won",
+          "endTick": 2001,
+          "kills": 233,
+          "entered": 16,
+          "standing": 13,
+          "downed": 3,
+          "dead": 0,
+          "hpAtEnd": 8.860000000000003,
+          "maxHpAtEnd": 21.799999999999997,
+          "cardsAfter": [
+            "mobility",
+            "cohesion",
+            "rapid",
+            "marksman"
+          ],
+          "campaignKillsAfter": 233
+        },
+        {
+          "stageId": 2,
+          "seed": "seed-c:stage:2",
+          "outcome": "lost",
+          "endTick": 558,
+          "kills": 37,
+          "entered": 13,
+          "standing": 0,
+          "downed": 9,
+          "dead": 4,
+          "hpAtEnd": 0,
+          "maxHpAtEnd": 0,
+          "cardsAfter": [
+            "mobility",
+            "cohesion",
+            "rapid",
+            "marksman"
+          ],
+          "campaignKillsAfter": 270
+        }
+      ]
+    },
+    {
+      "policy": "skilled-conservative",
+      "rootSeed": "seed-d",
+      "reached": 2,
+      "cleared": 1,
+      "end": "defeat",
+      "outcome": "lost",
+      "finalSurvivors": 0,
+      "totalKills": 230,
+      "cards": [
+        "marksman",
+        "mobility",
+        "firstaid",
+        "vitality"
+      ],
+      "fallenByStage": {
+        "1": 14,
+        "2": 2
+      },
+      "digest": "9d187da0",
+      "legs": [
+        {
+          "stageId": 1,
+          "seed": "seed-d",
+          "outcome": "won",
+          "endTick": 2116,
+          "kills": 228,
+          "entered": 16,
+          "standing": 2,
+          "downed": 14,
+          "dead": 0,
+          "hpAtEnd": 2.2050000000000027,
+          "maxHpAtEnd": 8,
+          "cardsAfter": [
+            "marksman",
+            "mobility",
+            "firstaid",
+            "vitality"
+          ],
+          "campaignKillsAfter": 228
+        },
+        {
+          "stageId": 2,
+          "seed": "seed-d:stage:2",
+          "outcome": "lost",
+          "endTick": 214,
+          "kills": 2,
+          "entered": 2,
+          "standing": 0,
+          "downed": 2,
+          "dead": 0,
+          "hpAtEnd": 0,
+          "maxHpAtEnd": 0,
+          "cardsAfter": [
+            "marksman",
+            "mobility",
+            "firstaid",
+            "vitality"
+          ],
+          "campaignKillsAfter": 230
+        }
+      ]
+    },
+    {
+      "policy": "skilled-conservative",
+      "rootSeed": "seed-e",
+      "reached": 2,
+      "cleared": 1,
+      "end": "defeat",
+      "outcome": "lost",
+      "finalSurvivors": 0,
+      "totalKills": 230,
+      "cards": [
+        "mobility",
+        "cohesion",
+        "marksman",
+        "vitality"
+      ],
+      "fallenByStage": {
+        "1": 12,
+        "2": 4
+      },
+      "digest": "0a4e6ada",
+      "legs": [
+        {
+          "stageId": 1,
+          "seed": "seed-e",
+          "outcome": "won",
+          "endTick": 2107,
+          "kills": 224,
+          "entered": 16,
+          "standing": 4,
+          "downed": 12,
+          "dead": 0,
+          "hpAtEnd": 3.3675000000000033,
+          "maxHpAtEnd": 11.5,
+          "cardsAfter": [
+            "mobility",
+            "cohesion",
+            "marksman",
+            "vitality"
+          ],
+          "campaignKillsAfter": 224
+        },
+        {
+          "stageId": 2,
+          "seed": "seed-e:stage:2",
+          "outcome": "lost",
+          "endTick": 371,
+          "kills": 6,
+          "entered": 4,
+          "standing": 0,
+          "downed": 4,
+          "dead": 0,
+          "hpAtEnd": 0,
+          "maxHpAtEnd": 0,
+          "cardsAfter": [
+            "mobility",
+            "cohesion",
+            "marksman",
+            "vitality"
+          ],
+          "campaignKillsAfter": 230
+        }
+      ]
+    },
+    {
+      "policy": "skilled-conservative",
+      "rootSeed": "seed-f",
+      "reached": 2,
+      "cleared": 1,
+      "end": "defeat",
+      "outcome": "lost",
+      "finalSurvivors": 0,
+      "totalKills": 425,
+      "cards": [
+        "cohesion",
+        "mobility",
+        "cover",
+        "firepower"
+      ],
+      "fallenByStage": {
+        "2": 16
+      },
+      "digest": "68006dff",
+      "legs": [
+        {
+          "stageId": 1,
+          "seed": "seed-f",
+          "outcome": "won",
+          "endTick": 2030,
+          "kills": 246,
+          "entered": 16,
+          "standing": 16,
+          "downed": 0,
+          "dead": 0,
+          "hpAtEnd": 11.10725,
+          "maxHpAtEnd": 25.999999999999993,
+          "cardsAfter": [
+            "cohesion",
+            "mobility",
+            "cover",
+            "firepower"
+          ],
+          "campaignKillsAfter": 246
+        },
+        {
+          "stageId": 2,
+          "seed": "seed-f:stage:2",
+          "outcome": "lost",
+          "endTick": 1430,
+          "kills": 179,
+          "entered": 16,
+          "standing": 0,
+          "downed": 12,
+          "dead": 4,
+          "hpAtEnd": 0,
+          "maxHpAtEnd": 0,
+          "cardsAfter": [
+            "cohesion",
+            "mobility",
+            "cover",
+            "firepower"
+          ],
+          "campaignKillsAfter": 425
+        }
+      ]
+    },
+    {
+      "policy": "skilled-conservative",
+      "rootSeed": "seed-g",
+      "reached": 2,
+      "cleared": 1,
+      "end": "defeat",
+      "outcome": "lost",
+      "finalSurvivors": 0,
+      "totalKills": 230,
+      "cards": [
+        "cohesion",
+        "firstaid",
+        "cover",
+        "marksman"
+      ],
+      "fallenByStage": {
+        "1": 12,
+        "2": 4
+      },
+      "digest": "aea6ea1c",
+      "legs": [
+        {
+          "stageId": 1,
+          "seed": "seed-g",
+          "outcome": "won",
+          "endTick": 2098,
+          "kills": 224,
+          "entered": 16,
+          "standing": 4,
+          "downed": 12,
+          "dead": 0,
+          "hpAtEnd": 5.564749999999993,
+          "maxHpAtEnd": 9.200000000000001,
+          "cardsAfter": [
+            "cohesion",
+            "firstaid",
+            "cover",
+            "marksman"
+          ],
+          "campaignKillsAfter": 224
+        },
+        {
+          "stageId": 2,
+          "seed": "seed-g:stage:2",
+          "outcome": "lost",
+          "endTick": 468,
+          "kills": 6,
+          "entered": 4,
+          "standing": 0,
+          "downed": 4,
+          "dead": 0,
+          "hpAtEnd": 0,
+          "maxHpAtEnd": 0,
+          "cardsAfter": [
+            "cohesion",
+            "firstaid",
+            "cover",
+            "marksman"
+          ],
+          "campaignKillsAfter": 230
+        }
+      ]
+    },
+    {
+      "policy": "skilled-conservative",
+      "rootSeed": "seed-h",
+      "reached": 2,
+      "cleared": 1,
+      "end": "defeat",
+      "outcome": "lost",
+      "finalSurvivors": 0,
+      "totalKills": 317,
+      "cards": [
+        "firepower",
+        "vitality",
+        "firstaid",
+        "marksman"
+      ],
+      "fallenByStage": {
+        "1": 4,
+        "2": 12
+      },
+      "digest": "c84b3e2a",
+      "legs": [
+        {
+          "stageId": 1,
+          "seed": "seed-h",
+          "outcome": "won",
+          "endTick": 2052,
+          "kills": 241,
+          "entered": 16,
+          "standing": 12,
+          "downed": 4,
+          "dead": 0,
+          "hpAtEnd": 12.052500000000009,
+          "maxHpAtEnd": 25.5,
+          "cardsAfter": [
+            "firepower",
+            "vitality",
+            "firstaid",
+            "marksman"
+          ],
+          "campaignKillsAfter": 241
+        },
+        {
+          "stageId": 2,
+          "seed": "seed-h:stage:2",
+          "outcome": "lost",
+          "endTick": 729,
+          "kills": 76,
+          "entered": 12,
+          "standing": 0,
+          "downed": 12,
+          "dead": 0,
+          "hpAtEnd": 0,
+          "maxHpAtEnd": 0,
+          "cardsAfter": [
+            "firepower",
+            "vitality",
+            "firstaid",
+            "marksman"
+          ],
+          "campaignKillsAfter": 317
+        }
+      ]
+    },
+    {
+      "policy": "skilled-aggressive",
+      "rootSeed": "seed-a",
+      "reached": 1,
+      "cleared": 0,
+      "end": "defeat",
+      "outcome": "lost",
+      "finalSurvivors": 0,
+      "totalKills": 215,
+      "cards": [
+        "firstaid",
+        "cohesion",
+        "marksman",
+        "mobility"
+      ],
+      "fallenByStage": {
+        "1": 16
+      },
+      "digest": "70ecf860",
+      "legs": [
+        {
+          "stageId": 1,
+          "seed": "seed-a",
+          "outcome": "lost",
+          "endTick": 2005,
+          "kills": 215,
+          "entered": 16,
+          "standing": 0,
+          "downed": 14,
+          "dead": 2,
+          "hpAtEnd": 0,
+          "maxHpAtEnd": 0,
+          "cardsAfter": [
+            "firstaid",
+            "cohesion",
+            "marksman",
+            "mobility"
+          ],
+          "campaignKillsAfter": 215
+        }
+      ]
+    },
+    {
+      "policy": "skilled-aggressive",
+      "rootSeed": "seed-b",
+      "reached": 2,
+      "cleared": 1,
+      "end": "defeat",
+      "outcome": "lost",
+      "finalSurvivors": 0,
+      "totalKills": 358,
+      "cards": [
+        "cover",
+        "vitality",
+        "mobility",
+        "rapid"
+      ],
+      "fallenByStage": {
+        "1": 1,
+        "2": 15
+      },
+      "digest": "67cd772c",
+      "legs": [
+        {
+          "stageId": 1,
+          "seed": "seed-b",
+          "outcome": "won",
+          "endTick": 1996,
+          "kills": 234,
+          "entered": 16,
+          "standing": 15,
+          "downed": 1,
+          "dead": 0,
+          "hpAtEnd": 14.221999999999996,
+          "maxHpAtEnd": 30.75,
+          "cardsAfter": [
+            "cover",
+            "vitality",
+            "mobility",
+            "rapid"
+          ],
+          "campaignKillsAfter": 234
+        },
+        {
+          "stageId": 2,
+          "seed": "seed-b:stage:2",
+          "outcome": "lost",
+          "endTick": 1172,
+          "kills": 124,
+          "entered": 15,
+          "standing": 0,
+          "downed": 9,
+          "dead": 6,
+          "hpAtEnd": 0,
+          "maxHpAtEnd": 0,
+          "cardsAfter": [
+            "cover",
+            "vitality",
+            "mobility",
+            "rapid"
+          ],
+          "campaignKillsAfter": 358
+        }
+      ]
+    },
+    {
+      "policy": "skilled-aggressive",
+      "rootSeed": "seed-c",
+      "reached": 2,
+      "cleared": 1,
+      "end": "defeat",
+      "outcome": "lost",
+      "finalSurvivors": 0,
+      "totalKills": 270,
+      "cards": [
+        "mobility",
+        "cohesion",
+        "rapid",
+        "marksman"
+      ],
+      "fallenByStage": {
+        "1": 4,
+        "2": 12
+      },
+      "digest": "67a1c6a1",
+      "legs": [
+        {
+          "stageId": 1,
+          "seed": "seed-c",
+          "outcome": "won",
+          "endTick": 1983,
+          "kills": 229,
+          "entered": 16,
+          "standing": 12,
+          "downed": 4,
+          "dead": 0,
+          "hpAtEnd": 9.320000000000002,
+          "maxHpAtEnd": 20.4,
+          "cardsAfter": [
+            "mobility",
+            "cohesion",
+            "rapid",
+            "marksman"
+          ],
+          "campaignKillsAfter": 229
+        },
+        {
+          "stageId": 2,
+          "seed": "seed-c:stage:2",
+          "outcome": "lost",
+          "endTick": 663,
+          "kills": 41,
+          "entered": 12,
+          "standing": 0,
+          "downed": 10,
+          "dead": 2,
+          "hpAtEnd": 0,
+          "maxHpAtEnd": 0,
+          "cardsAfter": [
+            "mobility",
+            "cohesion",
+            "rapid",
+            "marksman"
+          ],
+          "campaignKillsAfter": 270
+        }
+      ]
+    },
+    {
+      "policy": "skilled-aggressive",
+      "rootSeed": "seed-d",
+      "reached": 2,
+      "cleared": 1,
+      "end": "defeat",
+      "outcome": "lost",
+      "finalSurvivors": 0,
+      "totalKills": 225,
+      "cards": [
+        "marksman",
+        "mobility",
+        "firstaid",
+        "vitality"
+      ],
+      "fallenByStage": {
+        "1": 15,
+        "2": 1
+      },
+      "digest": "d7a2cc97",
+      "legs": [
+        {
+          "stageId": 1,
+          "seed": "seed-d",
+          "outcome": "won",
+          "endTick": 2201,
+          "kills": 223,
+          "entered": 16,
+          "standing": 1,
+          "downed": 13,
+          "dead": 2,
+          "hpAtEnd": 0.9762500000000048,
+          "maxHpAtEnd": 6.25,
+          "cardsAfter": [
+            "marksman",
+            "mobility",
+            "firstaid",
+            "vitality"
+          ],
+          "campaignKillsAfter": 223
+        },
+        {
+          "stageId": 2,
+          "seed": "seed-d:stage:2",
+          "outcome": "lost",
+          "endTick": 161,
+          "kills": 2,
+          "entered": 1,
+          "standing": 0,
+          "downed": 1,
+          "dead": 0,
+          "hpAtEnd": 0,
+          "maxHpAtEnd": 0,
+          "cardsAfter": [
+            "marksman",
+            "mobility",
+            "firstaid",
+            "vitality"
+          ],
+          "campaignKillsAfter": 225
+        }
+      ]
+    },
+    {
+      "policy": "skilled-aggressive",
+      "rootSeed": "seed-e",
+      "reached": 2,
+      "cleared": 1,
+      "end": "defeat",
+      "outcome": "lost",
+      "finalSurvivors": 0,
+      "totalKills": 230,
+      "cards": [
+        "mobility",
+        "cohesion",
+        "marksman",
+        "vitality"
+      ],
+      "fallenByStage": {
+        "1": 11,
+        "2": 5
+      },
+      "digest": "c09770b1",
+      "legs": [
+        {
+          "stageId": 1,
+          "seed": "seed-e",
+          "outcome": "won",
+          "endTick": 2017,
+          "kills": 219,
+          "entered": 16,
+          "standing": 5,
+          "downed": 11,
+          "dead": 0,
+          "hpAtEnd": 7.4300000000000015,
+          "maxHpAtEnd": 13.25,
+          "cardsAfter": [
+            "mobility",
+            "cohesion",
+            "marksman",
+            "vitality"
+          ],
+          "campaignKillsAfter": 219
+        },
+        {
+          "stageId": 2,
+          "seed": "seed-e:stage:2",
+          "outcome": "lost",
+          "endTick": 434,
+          "kills": 11,
+          "entered": 5,
+          "standing": 0,
+          "downed": 5,
+          "dead": 0,
+          "hpAtEnd": 0,
+          "maxHpAtEnd": 0,
+          "cardsAfter": [
+            "mobility",
+            "cohesion",
+            "marksman",
+            "vitality"
+          ],
+          "campaignKillsAfter": 230
+        }
+      ]
+    },
+    {
+      "policy": "skilled-aggressive",
+      "rootSeed": "seed-f",
+      "reached": 2,
+      "cleared": 1,
+      "end": "defeat",
+      "outcome": "lost",
+      "finalSurvivors": 0,
+      "totalKills": 459,
+      "cards": [
+        "cohesion",
+        "mobility",
+        "cover",
+        "firepower"
+      ],
+      "fallenByStage": {
+        "2": 16
+      },
+      "digest": "4a8bb864",
+      "legs": [
+        {
+          "stageId": 1,
+          "seed": "seed-f",
+          "outcome": "won",
+          "endTick": 1982,
+          "kills": 240,
+          "entered": 16,
+          "standing": 16,
+          "downed": 0,
+          "dead": 0,
+          "hpAtEnd": 10.694750000000003,
+          "maxHpAtEnd": 25.999999999999993,
+          "cardsAfter": [
+            "cohesion",
+            "mobility",
+            "cover",
+            "firepower"
+          ],
+          "campaignKillsAfter": 240
+        },
+        {
+          "stageId": 2,
+          "seed": "seed-f:stage:2",
+          "outcome": "lost",
+          "endTick": 1653,
+          "kills": 219,
+          "entered": 16,
+          "standing": 0,
+          "downed": 12,
+          "dead": 4,
+          "hpAtEnd": 0,
+          "maxHpAtEnd": 0,
+          "cardsAfter": [
+            "cohesion",
+            "mobility",
+            "cover",
+            "firepower"
+          ],
+          "campaignKillsAfter": 459
+        }
+      ]
+    },
+    {
+      "policy": "skilled-aggressive",
+      "rootSeed": "seed-g",
+      "reached": 2,
+      "cleared": 1,
+      "end": "defeat",
+      "outcome": "lost",
+      "finalSurvivors": 0,
+      "totalKills": 245,
+      "cards": [
+        "cohesion",
+        "firstaid",
+        "cover",
+        "marksman"
+      ],
+      "fallenByStage": {
+        "1": 9,
+        "2": 7
+      },
+      "digest": "e42927b7",
+      "legs": [
+        {
+          "stageId": 1,
+          "seed": "seed-g",
+          "outcome": "won",
+          "endTick": 2113,
+          "kills": 233,
+          "entered": 16,
+          "standing": 7,
+          "downed": 9,
+          "dead": 0,
+          "hpAtEnd": 6.681749999999996,
+          "maxHpAtEnd": 13.400000000000002,
+          "cardsAfter": [
+            "cohesion",
+            "firstaid",
+            "cover",
+            "marksman"
+          ],
+          "campaignKillsAfter": 233
+        },
+        {
+          "stageId": 2,
+          "seed": "seed-g:stage:2",
+          "outcome": "lost",
+          "endTick": 471,
+          "kills": 12,
+          "entered": 7,
+          "standing": 0,
+          "downed": 7,
+          "dead": 0,
+          "hpAtEnd": 0,
+          "maxHpAtEnd": 0,
+          "cardsAfter": [
+            "cohesion",
+            "firstaid",
+            "cover",
+            "marksman"
+          ],
+          "campaignKillsAfter": 245
+        }
+      ]
+    },
+    {
+      "policy": "skilled-aggressive",
+      "rootSeed": "seed-h",
+      "reached": 2,
+      "cleared": 1,
+      "end": "defeat",
+      "outcome": "lost",
+      "finalSurvivors": 0,
+      "totalKills": 331,
+      "cards": [
+        "firepower",
+        "vitality",
+        "firstaid",
+        "marksman"
+      ],
+      "fallenByStage": {
+        "1": 3,
+        "2": 13
+      },
+      "digest": "250e5a5b",
+      "legs": [
+        {
+          "stageId": 1,
+          "seed": "seed-h",
+          "outcome": "won",
+          "endTick": 2012,
+          "kills": 235,
+          "entered": 16,
+          "standing": 13,
+          "downed": 3,
+          "dead": 0,
+          "hpAtEnd": 13.34125000000001,
+          "maxHpAtEnd": 27.25,
+          "cardsAfter": [
+            "firepower",
+            "vitality",
+            "firstaid",
+            "marksman"
+          ],
+          "campaignKillsAfter": 235
+        },
+        {
+          "stageId": 2,
+          "seed": "seed-h:stage:2",
+          "outcome": "lost",
+          "endTick": 967,
+          "kills": 96,
+          "entered": 13,
+          "standing": 0,
+          "downed": 9,
+          "dead": 4,
+          "hpAtEnd": 0,
+          "maxHpAtEnd": 0,
+          "cardsAfter": [
+            "firepower",
+            "vitality",
+            "firstaid",
+            "marksman"
+          ],
+          "campaignKillsAfter": 331
+        }
+      ]
+    }
+  ]
+}
