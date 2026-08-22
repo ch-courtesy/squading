@@ -135,6 +135,17 @@ function cardView(id: CardId, slot: number): UpgradeCardView {
   return { slot, id, name: UPGRADE_CARD_LABELS[id].name, effect: UPGRADE_CARD_LABELS[id].effect }
 }
 
+/**
+ * A held-card list as the screens print it, numbered from 1.
+ *
+ * Exported because the CAMPAIGN's screens print the same list off the campaign state (§1.2's
+ * cards outlive the battle that offered them), and a second copy of `UPGRADE_CARD_LABELS` is how
+ * the two screens would come to advertise different magnitudes for the same card.
+ */
+export function upgradeCardViews(cards: readonly CardId[]): UpgradeCardView[] {
+  return cards.map((id, index) => cardView(id, index + 1))
+}
+
 function rosterEntry(
   state: Readonly<BattleState>,
   unit: Readonly<FriendlyUnit>,

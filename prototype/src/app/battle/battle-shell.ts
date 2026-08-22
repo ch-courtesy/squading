@@ -12,6 +12,8 @@ import { COMBAT_TICK_LIMIT } from '../../core/battle/constants'
 import type { BattleMode } from '../../core/battle/types'
 import { BATTLE_TICKS_PER_SECOND } from '../../core/battle-view/snapshot'
 import type { BattleHud, RosterEntryView } from '../../core/battle-view/hud'
+import type { CampaignHud } from '../../core/campaign-view/hud'
+import type { CampaignPhase } from '../../core/campaign/state'
 import { createBattleController, type BattleController } from './battle-controller'
 import { createBattleInputAdapter } from './battle-input'
 import { pointerWorldOffset } from './battle-pointer'
@@ -105,6 +107,19 @@ function skeleton(): string {
         </div>
       </section>
 
+      <section class="bt-overlay bt-transition" data-campaign-transition role="dialog" aria-modal="true" aria-label="스테이지 전환" hidden>
+        <h2>스테이지 <span data-campaign-cleared-stage></span> 완료</h2>
+        <dl class="bt-result-stats">
+          <div><dt>누적 처치</dt><dd data-campaign-kills></dd></div>
+          <div><dt>보유 강화</dt><dd data-campaign-cards></dd></div>
+        </dl>
+        <h3>분대 <span data-campaign-survivor-count></span></h3>
+        <ul class="bt-record" data-campaign-survivors></ul>
+        <h3>잃은 사람</h3>
+        <ul class="bt-record" data-campaign-lost></ul>
+        <button type="button" data-campaign-next>스테이지 <span data-campaign-next-stage></span> 시작</button>
+      </section>
+
       <section class="bt-overlay bt-terminal" data-battle-terminal role="dialog" aria-modal="true" aria-label="전투 결과" hidden>
         <h2 data-battle-result-title></h2>
         <p data-battle-result-cause></p>
@@ -120,6 +135,18 @@ function skeleton(): string {
         <ul class="bt-record" data-battle-casualties></ul>
         <h3>구조 기록</h3>
         <ul class="bt-record" data-battle-rescue-records></ul>
+
+        <div class="bt-campaign-summary" data-campaign-summary>
+          <h3 data-campaign-outcome></h3>
+          <dl class="bt-result-stats">
+            <div><dt>도달 스테이지</dt><dd data-campaign-reached></dd></div>
+            <div><dt>누적 처치</dt><dd data-campaign-total-kills></dd></div>
+            <div><dt>보유 강화</dt><dd data-campaign-held-cards></dd></div>
+          </dl>
+          <h3>캠페인 전사자</h3>
+          <ul class="bt-record" data-campaign-fallen></ul>
+        </div>
+
         <button type="button" data-battle-restart>다시 시작</button>
       </section>
     </main>
@@ -154,6 +181,19 @@ export function mountApp(root: HTMLElement, dependencies: BattleAppDependencies 
   const resultCards = pick('[data-battle-result-cards]')
   const casualties = pick('[data-battle-casualties]')
   const rescueRecords = pick('[data-battle-rescue-records]')
+  const transitionOverlay = pick('[data-campaign-transition]')
+  const clearedStage = pick('[data-campaign-cleared-stage]')
+  const campaignKills = pick('[data-campaign-kills]')
+  const campaignCards = pick('[data-campaign-cards]')
+  const survivorCount = pick('[data-campaign-survivor-count]')
+  const survivors = pick('[data-campaign-survivors]')
+  const lost = pick('[data-campaign-lost]')
+  const nextStage = pick('[data-campaign-next-stage]')
+  const campaignOutcome = pick('[data-campaign-outcome]')
+  const campaignReached = pick('[data-campaign-reached]')
+  const campaignTotalKills = pick('[data-campaign-total-kills]')
+  const campaignHeldCards = pick('[data-campaign-held-cards]')
+  const campaignFallen = pick('[data-campaign-fallen]')
 
   const controller = dependencies.createController?.(stage)
     ?? createBattleController({
@@ -168,7 +208,9 @@ export function mountApp(root: HTMLElement, dependencies: BattleAppDependencies 
 
   pick<HTMLButtonElement>('[data-battle-begin]').addEventListener('click', () => controller.begin())
   pick<HTMLButtonElement>('[data-battle-resume]').addEventListener('click', () => controller.togglePause())
+  // Campaign §1.4: 다시 시작 is a new campaign from stage 1, not a retry of the stage that ended.
   pick<HTMLButtonElement>('[data-battle-restart]').addEventListener('click', () => controller.restart())
+  pick<HTMLButtonElement>('[data-campaign-next]').addEventListener('click', () => controller.advanceStage())
   root.querySelectorAll<HTMLButtonElement>('[data-battle-card]').forEach((button) => {
     button.addEventListener('click', () => controller.chooseUpgrade(Number(button.dataset.battleCard)))
   })
@@ -199,19 +241,28 @@ export function mountApp(root: HTMLElement, dependencies: BattleAppDependencies 
   }).attach()
 
   let previousMode: BattleMode | null = null
+  let previousPhase: CampaignPhase | null = null
 
-  const renderVisibility = (mode: BattleMode): void => {
+  const renderVisibility = (mode: BattleMode, campaign: CampaignHud): void => {
+    // WHICH END SCREEN, and it is the campaign that decides rather than the battle. A stage that
+    // ended is `won`/`lost` either way; what differs is whether the campaign has another stage for
+    // the survivors (§1.1's transition) or has finished with them (§1.4/§1.5's end).
+    const stageEnded = mode === 'won' || mode === 'lost'
+    const cleared = campaign.phase === 'stage-cleared'
+
     readyScreen.hidden = mode !== 'ready'
     hud.hidden = !HUD_VISIBLE_MODES.includes(mode)
     pauseOverlay.hidden = mode !== 'paused'
     upgradeOverlay.hidden = mode !== 'awaiting-upgrade'
-    terminalOverlay.hidden = mode !== 'won' && mode !== 'lost'
+    transitionOverlay.hidden = !cleared
+    terminalOverlay.hidden = !stageEnded || cleared
 
     // Only on an actual transition: the HUD is rewritten every frame, and moving focus every
     // frame would yank it out of whatever the player is doing inside the visible section.
-    if (mode === previousMode) return
+    if (mode === previousMode && campaign.phase === previousPhase) return
     previousMode = mode
-    const selector = PRIMARY_BUTTON_SELECTOR[mode]
+    previousPhase = campaign.phase
+    const selector = cleared ? '[data-campaign-next]' : PRIMARY_BUTTON_SELECTOR[mode]
     if (selector) root.querySelector<HTMLElement>(selector)?.focus()
   }
 
@@ -309,11 +360,56 @@ export function mountApp(root: HTMLElement, dependencies: BattleAppDependencies 
     )
   }
 
+  /**
+   * §1.1's transition screen: who is left, who was lost, what the squad carries.
+   *
+   * THE NAMES ARE WHY THIS SCREEN EXISTS. §1.14 gave the roster names so a loss reads as a person,
+   * and this is the one screen where the loss is stated as a fact about the NEXT stage rather than
+   * as the end of a run.
+   *
+   * IT IS UNREACHABLE IN PLAY TODAY, and that is a fact about `STAGES` having one row rather than
+   * about this code: winning stage 1 completes the campaign, so `stage-cleared` never arrives.
+   * `tests/app/battle-shell.test.ts` renders it from a campaign projection in that phase.
+   */
+  const renderTransition = (campaign: CampaignHud): void => {
+    if (campaign.phase !== 'stage-cleared') return
+    clearedStage.textContent = String(campaign.stageId)
+    nextStage.textContent = campaign.nextStageId === null ? '' : String(campaign.nextStageId)
+    campaignKills.textContent = String(campaign.kills)
+    campaignCards.textContent = cardSummary(campaign)
+    survivorCount.textContent = `${campaign.survivors.length}명`
+    survivors.replaceChildren(
+      ...campaign.survivors.map((entry) =>
+        textItem(
+          `${entry.isCommand ? '★ ' : ''}${entry.name} — ${entry.hp.toFixed(2)} / ${entry.maxHp.toFixed(2)}`,
+        ),
+      ),
+    )
+    lost.replaceChildren(...fallenItems(campaign))
+  }
+
+  /** §1.4/§1.5's end screen: how far the campaign got, and who it cost. */
+  const renderCampaignSummary = (campaign: CampaignHud): void => {
+    campaignOutcome.textContent =
+      campaign.outcome === 'won'
+        ? '캠페인 완료'
+        : campaign.outcome === 'lost'
+          ? '캠페인 종료'
+          : '캠페인 진행 중'
+    campaignReached.textContent = `${campaign.stageId} / ${campaign.stageCount}`
+    campaignTotalKills.textContent = String(campaign.kills)
+    campaignHeldCards.textContent = cardSummary(campaign)
+    campaignFallen.replaceChildren(...fallenItems(campaign))
+  }
+
   const render = (view: BattleHud): void => {
-    renderVisibility(view.mode)
+    const campaign = controller.campaign()
+    renderVisibility(view.mode, campaign)
     renderHud(view)
     renderUpgrade(view)
     renderTerminal(view)
+    renderTransition(campaign)
+    renderCampaignSummary(campaign)
   }
 
   controller.subscribe(render)
@@ -343,4 +439,20 @@ function textItem(text: string): HTMLLIElement {
   const item = document.createElement('li')
   item.textContent = text
   return item
+}
+
+function cardSummary(campaign: CampaignHud): string {
+  if (campaign.cards.length === 0) return '없음'
+  return campaign.cards.map((card) => `${card.name}(${card.effect})`).join(' · ')
+}
+
+/**
+ * §1.14: the dead, BY NAME.
+ *
+ * The stage number rides along because a campaign is seven fights and "누가 죽었는지" is only half
+ * the record without "어디에서".
+ */
+function fallenItems(campaign: CampaignHud): HTMLLIElement[] {
+  if (campaign.fallen.length === 0) return [textItem('없음')]
+  return campaign.fallen.map((entry) => textItem(`${entry.name} — 스테이지 ${entry.stageId}`))
 }

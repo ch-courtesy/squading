@@ -30,10 +30,12 @@
 // a driver that gets this wrong; `tests/app/battle-controller.test.ts` and §4.4's browser gate
 // are what stand there instead.
 
-import { createBattle, type Battle } from '../../core/battle/battle'
+import type { Battle } from '../../core/battle/battle'
 import type { PointerPhase } from '../../core/battle/input'
 import type { Vec2 } from '../../core/battle/types'
 import type { ResolvedTick } from '../../core/battle/tick'
+import { createCampaign, type Campaign } from '../../core/campaign/campaign'
+import { projectCampaignHud, type CampaignHud } from '../../core/campaign-view/hud'
 import { projectBattleHud, type BattleHud } from '../../core/battle-view/hud'
 import { BATTLE_TICKS_PER_SECOND, projectBattleSnapshot } from '../../core/battle-view/snapshot'
 import type { RenderSnapshot } from '../../core/types'
@@ -124,10 +126,28 @@ export interface BattleController {
   start(): Promise<void>
   /** §1.15 has no "start" command: `ready -> running` is the facade's own verb. */
   begin(): void
+  /** Campaign §1.4: a restart is a NEW CAMPAIGN from stage 1. There is no stage retry. */
   restart(seed?: string): void
+  /**
+   * Campaign §1.1: open the next stage with the squad that survived, and start it.
+   *
+   * A no-op unless the campaign is at `stage-cleared`, which with one stage in `STAGES` it never
+   * reaches — winning stage 1 completes the campaign. The verb exists because the transition
+   * screen is what calls it, and it is covered by `tests/app/battle-controller.test.ts` driving
+   * the campaign rather than by anything a player can currently do.
+   */
+  advanceStage(): void
   subscribe(listener: (hud: BattleHud) => void): () => void
   hud(): BattleHud
+  /** The campaign the current stage belongs to (§3.2), as the two campaign screens print it. */
+  campaign(): CampaignHud
   snapshot(): RenderSnapshot
+  /**
+   * The seed of the STAGE being played, which is what §4.3's replay needs.
+   *
+   * `stageSeed(root, 1)` is the root, so on stage 1 — the only stage there is — this is the seed
+   * the URL asked for, and `createBattle(seed)` replays the run exactly.
+   */
   seed(): string
   /** §1.17's digest of the run as it stands, for §4.3's comparison. */
   digest(): string
@@ -171,7 +191,11 @@ export function createBattleController(options: BattleControllerOptions): Battle
   const isVisible = options.isVisible ?? (() => document.visibilityState !== 'hidden')
   const now = options.now ?? (() => performance.now())
 
-  let battle: Battle = createBattle(options.seed)
+  // THE CAMPAIGN IS WHAT THIS DRIVES NOW, and `options.seed` is its ROOT seed (§3.2). The battle
+  // is the current stage's, replaced when a stage is advanced or the campaign restarted — which
+  // is why every reader below goes through the variable rather than capturing the object.
+  const campaign: Campaign = createCampaign(options.seed)
+  let battle: Battle = campaign.battle()
   let renderer: GameRenderer | null = null
   let frameId: number | null = null
   let generation = 0
@@ -200,6 +224,23 @@ export function createBattleController(options: BattleControllerOptions): Battle
 
   // The one place the authoritative state is read, and it is read only to project it.
   const hud = (): BattleHud => projectBattleHud(battle.state())
+  const campaignHud = (): CampaignHud => projectCampaignHud(campaign.state())
+
+  /**
+   * Fold a finished stage into the campaign, once (campaign §1.1, §1.3, §1.4, §1.5).
+   *
+   * `phase` is what makes it once: `completeStage` leaves the campaign at `stage-cleared` or
+   * `campaign-over`, so a second call on the same finished battle cannot happen — which matters
+   * because this runs after every step and a finished battle stays finished.
+   *
+   * NOTHING UNDER `src/core` CAN DO THIS. The core has no loop; the driver is what notices that a
+   * battle has ended, exactly as it is what notices a hidden tab.
+   */
+  const foldFinishedStage = (): void => {
+    if (campaign.state().phase !== 'in-stage') return
+    if (battle.state().result === null) return
+    campaign.finishStage()
+  }
   const snapshot = (): RenderSnapshot => {
     const ticks = pendingTicks
     pendingTicks = []
@@ -228,6 +269,22 @@ export function createBattleController(options: BattleControllerOptions): Battle
   const send = (event: BattleInputEvent): void => {
     if (!applyBattleInput(battle, event)) return
     inputLog.push({ step: steps, event })
+  }
+
+  /**
+   * Everything the DRIVER remembers about the battle it was driving, cleared for the next one.
+   *
+   * Shared by `restart` and `advanceStage` because forgetting one of these is the same defect
+   * either way: §4.3's input log belongs to one battle, and the last frame's blows must not
+   * animate on the first frame of the next stage.
+   */
+  const resetDriverState = (): void => {
+    steps = 0
+    inputLog = []
+    frameSamples = []
+    pendingTicks = []
+    lastFrameAt = null
+    accumulatorMs = 0
   }
 
   const stopActive = (): Error | null => {
@@ -343,6 +400,10 @@ export function createBattleController(options: BattleControllerOptions): Battle
           steps += 1
           accumulatorMs -= STEP_MS
           ran += 1
+          // The verdict landed on THIS step if it landed at all, and the stage is folded into the
+          // campaign here rather than at the end of the frame so the loop cannot run further ticks
+          // into a finished stage before the campaign has seen it.
+          foldFinishedStage()
         }
         if (ran === MAX_STEPS_PER_FRAME && accumulatorMs >= STEP_THRESHOLD_MS) accumulatorMs = 0
         phase.steps = ran
@@ -416,14 +477,21 @@ export function createBattleController(options: BattleControllerOptions): Battle
       notify()
     },
     restart(seed?: string): void {
-      battle.restart(seed)
-      steps = 0
-      inputLog = []
-      frameSamples = []
-      // The finished run's last frame must not animate on the new run's first one.
-      pendingTicks = []
-      lastFrameAt = null
-      accumulatorMs = 0
+      // Campaign §1.4: "재시작은 스테이지 1부터." Not `battle.restart()`, which would replay the
+      // stage that was just lost with the squad it was lost with — the stage retry §1.4 refuses.
+      campaign.restart(seed)
+      battle = campaign.battle()
+      resetDriverState()
+      notify()
+    },
+    advanceStage(): void {
+      if (campaign.state().phase !== 'stage-cleared') return
+      campaign.advance()
+      battle = campaign.battle()
+      resetDriverState()
+      // The player pressed a button that says "next stage"; a second press of 전투 시작 for the
+      // same intent would be a ready screen between two halves of one decision.
+      battle.start()
       notify()
     },
     subscribe(listener): () => void {
@@ -431,6 +499,7 @@ export function createBattleController(options: BattleControllerOptions): Battle
       return () => listeners.delete(listener)
     },
     hud,
+    campaign: campaignHud,
     snapshot,
     seed: () => battle.seed(),
     digest: () => battle.digest(),

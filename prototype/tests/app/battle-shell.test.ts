@@ -1,15 +1,19 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 
+import { NAME_POOL } from '../../src/core/battle/names'
 import { createInitialBattleState } from '../../src/core/battle/state'
 import type { BattleState } from '../../src/core/battle/types'
 import { projectBattleHud, type BattleHud } from '../../src/core/battle-view/hud'
 import { projectBattleSnapshot } from '../../src/core/battle-view/snapshot'
+import { projectCampaignHud } from '../../src/core/campaign-view/hud'
+import { createCampaignState, type CampaignState } from '../../src/core/campaign/state'
 import type { BattleController } from '../../src/app/battle/battle-controller'
 import { mountApp } from '../../src/app/battle/battle-shell'
 
 type Calls = {
   begin: number
   restart: number
+  advanceStage: number
   togglePause: number
   upgrades: number[]
   keysDown: string[]
@@ -19,12 +23,21 @@ type Calls = {
 type Stub = {
   controller: BattleController
   calls: Calls
-  publish(state: BattleState): void
+  publish(state: BattleState, campaign?: CampaignState): void
 }
 
 function stubController(initial: BattleState): Stub {
-  const calls: Calls = { begin: 0, restart: 0, togglePause: 0, upgrades: [], keysDown: [], keysUp: [] }
+  const calls: Calls = {
+    begin: 0,
+    restart: 0,
+    advanceStage: 0,
+    togglePause: 0,
+    upgrades: [],
+    keysDown: [],
+    keysUp: [],
+  }
   let state = initial
+  let campaign = createCampaignState('stub')
   const listeners = new Set<(hud: BattleHud) => void>()
 
   const controller: BattleController = {
@@ -35,11 +48,15 @@ function stubController(initial: BattleState): Stub {
     restart: () => {
       calls.restart += 1
     },
+    advanceStage: () => {
+      calls.advanceStage += 1
+    },
     subscribe(listener) {
       listeners.add(listener)
       return () => listeners.delete(listener)
     },
     hud: () => projectBattleHud(state),
+    campaign: () => projectCampaignHud(campaign),
     snapshot: () => projectBattleSnapshot(state),
     seed: () => 'stub',
     digest: () => 'stub-digest',
@@ -60,8 +77,9 @@ function stubController(initial: BattleState): Stub {
   return {
     controller,
     calls,
-    publish(next: BattleState): void {
+    publish(next: BattleState, nextCampaign?: CampaignState): void {
       state = next
+      if (nextCampaign) campaign = nextCampaign
       const hud = projectBattleHud(next)
       listeners.forEach((listener) => listener(hud))
     },
@@ -209,6 +227,102 @@ describe('the v2 shell prints the projection and sends §1.15 inputs', () => {
 
     root.querySelector<HTMLButtonElement>('[data-battle-restart]')!.click()
     expect(stub.calls.restart).toBe(1)
+  })
+
+  it('turns the result screen into the campaign end screen (§1.4, §1.14)', () => {
+    const state = running()
+    state.mode = 'lost'
+    state.result = 'lost'
+    state.failureReason = 'all-units-lost'
+    const campaign: CampaignState = {
+      ...createCampaignState('stub'),
+      phase: 'campaign-over',
+      end: 'defeat',
+      kills: 137,
+      cards: ['firepower', 'cover'],
+      fallen: [
+        { id: 4, nameIndex: 0, stageId: 1 },
+        { id: 9, nameIndex: 5, stageId: 1 },
+      ],
+    }
+
+    const { root, stub } = mount(state)
+    stub.publish(state, campaign)
+
+    // The battle result is still the battle's; the campaign block is what is added under it.
+    expect(root.querySelector<HTMLElement>('[data-battle-terminal]')!.hidden).toBe(false)
+    expect(root.querySelector<HTMLElement>('[data-campaign-transition]')!.hidden).toBe(true)
+    expect(root.querySelector('[data-campaign-outcome]')!.textContent).toBe('캠페인 종료')
+    expect(root.querySelector('[data-campaign-reached]')!.textContent).toBe('1 / 1')
+    expect(root.querySelector('[data-campaign-total-kills]')!.textContent).toBe('137')
+    expect(root.querySelector('[data-campaign-held-cards]')!.textContent).toContain('화력')
+    // §1.14: the dead are NAMES on this screen, which is the whole reason the roster has any.
+    const fallen = root.querySelector('[data-campaign-fallen]')!.textContent!
+    expect(fallen).toContain(NAME_POOL[0])
+    expect(fallen).toContain(NAME_POOL[5])
+    expect(fallen).toContain('스테이지 1')
+  })
+
+  it('says 캠페인 완료 when the last stage was won', () => {
+    const state = running()
+    state.mode = 'won'
+    state.result = 'won'
+    const { root, stub } = mount(state)
+    stub.publish(state, {
+      ...createCampaignState('stub'),
+      phase: 'campaign-over',
+      end: 'complete',
+    })
+    expect(root.querySelector('[data-campaign-outcome]')!.textContent).toBe('캠페인 완료')
+    expect(root.querySelector('[data-campaign-fallen]')!.textContent).toBe('없음')
+  })
+
+  it('shows the stage transition instead of the result when a stage is cleared (§1.1)', () => {
+    // UNREACHABLE IN PLAY while `STAGES` has one row — winning stage 1 completes the campaign, so
+    // no run can produce `stage-cleared`. This renders the projection in that phase directly,
+    // which is a test of the SCREEN and not of the relay; the relay's own fixtures are in
+    // `tests/campaign/campaign-relay.test.ts` and drive the real transition.
+    const state = running()
+    state.mode = 'won'
+    state.result = 'won'
+    const campaign: CampaignState = {
+      ...createCampaignState('stub'),
+      phase: 'stage-cleared',
+      kills: 62,
+      cards: ['marksman'],
+      squad: {
+        commandUnitId: 1,
+        members: [
+          { id: 1, role: 'commander', nameIndex: 2, hp: 3.5, maxHp: 5 },
+          { id: 3, role: 'soldier', nameIndex: 7, hp: 1.4, maxHp: 1.4 },
+        ],
+      },
+      fallen: [{ id: 4, nameIndex: 11, stageId: 1 }],
+    }
+
+    const { root, stub } = mount(state)
+    stub.publish(state, campaign)
+
+    const transition = root.querySelector<HTMLElement>('[data-campaign-transition]')!
+    expect(transition.hidden).toBe(false)
+    // The battle's own result screen gives way: the stage ended, the campaign did not.
+    expect(root.querySelector<HTMLElement>('[data-battle-terminal]')!.hidden).toBe(true)
+    expect(root.querySelector('[data-campaign-cleared-stage]')!.textContent).toBe('1')
+    expect(root.querySelector('[data-campaign-kills]')!.textContent).toBe('62')
+    expect(root.querySelector('[data-campaign-cards]')!.textContent).toContain('사격술')
+    expect(root.querySelector('[data-campaign-survivor-count]')!.textContent).toBe('2명')
+
+    const survivors = root.querySelector('[data-campaign-survivors]')!.textContent!
+    expect(survivors).toContain(NAME_POOL[2])
+    expect(survivors).toContain(NAME_POOL[7])
+    // §1.1: the carried hp is on the screen, because "3.50 / 5.00" is the whole of what a stage
+    // costs a body that lived through it.
+    expect(survivors).toContain('3.50 / 5.00')
+    expect(root.querySelector('[data-campaign-lost]')!.textContent).toContain(NAME_POOL[11])
+
+    root.querySelector<HTMLButtonElement>('[data-campaign-next]')!.click()
+    expect(stub.calls.advanceStage).toBe(1)
+    expect(stub.calls.restart).toBe(0)
   })
 
   it('never prints an enemy hit point, because §1 draws no enemy hp bar', () => {

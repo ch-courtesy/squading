@@ -75,6 +75,23 @@ function runFrames(test: Harness, count: number, deltaMs: number): void {
   for (let index = 0; index < count; index += 1) test.frame(deltaMs)
 }
 
+/**
+ * Drive the current stage to §1.16's verdict, answering §1.13's card screens on the way.
+ *
+ * The card screen has to be answered or the run never decides: §1.1 stops the clock in
+ * `awaiting-upgrade`, so a driver that ignores it loops at a constant tick. Slot 1 every time —
+ * WHICH card is taken is not what these fixtures are about.
+ */
+function playToTheVerdict(test: Harness): void {
+  for (let frame = 0; frame < 2000; frame += 1) {
+    const mode = test.controller.hud().mode
+    if (mode === 'won' || mode === 'lost') return
+    if (mode === 'awaiting-upgrade') test.controller.chooseUpgrade(1)
+    test.frame(STEP_MS * MAX_STEPS_PER_FRAME)
+  }
+  throw new Error(`the stage did not decide (mode ${test.controller.hud().mode})`)
+}
+
 /** Everything up to the first frame that carries a delta, which is where the clock starts. */
 async function started(seed?: string): Promise<Harness> {
   const test = await harness(seed)
@@ -244,6 +261,68 @@ describe('the v2 controller drives §1.1 fixed steps', () => {
           sample.steps <= MAX_STEPS_PER_FRAME,
       ),
     ).toBe(true)
+  })
+
+  it('folds the finished stage into the campaign, once (§1.1, §1.4)', async () => {
+    // NOTHING UNDER `src/core` CAN DO THIS. The core has no loop, so noticing that a stage has
+    // ended is the driver's job — exactly like not stepping a hidden tab.
+    const test = await started('campaign-a')
+    expect(test.controller.campaign().phase).toBe('in-stage')
+    expect(test.controller.campaign().kills).toBe(0)
+
+    playToTheVerdict(test)
+
+    const battle = test.controller.hud()
+    const campaign = test.controller.campaign()
+    expect(battle.mode === 'won' || battle.mode === 'lost').toBe(true)
+    expect(campaign.phase).toBe('campaign-over')
+    // §5 stage 1: one stage, so a win completes the campaign and a loss ends it (§1.4).
+    expect(campaign.end).toBe(battle.mode === 'won' ? 'complete' : 'defeat')
+    expect(campaign.outcome).toBe(battle.mode === 'won' ? 'won' : 'lost')
+    expect(campaign.stageId).toBe(1)
+    expect(campaign.stageCount).toBe(1)
+    expect(campaign.nextStageId).toBeNull()
+    // The stage's kills are now the campaign's, and the dead are named.
+    expect(campaign.kills).toBe(battle.kills)
+    expect(campaign.fallen.length).toBe(battle.dead + battle.downed)
+    expect(campaign.fallen.every((entry) => entry.name.length > 0)).toBe(true)
+
+    // Fold once: another 40 frames of a finished battle must not re-count anything.
+    const digestOfRecord = { ...campaign }
+    runFrames(test, 40, STEP_MS * 5)
+    expect(test.controller.campaign()).toEqual(digestOfRecord)
+  })
+
+  it('restarts the CAMPAIGN, not the stage (§1.4)', async () => {
+    const test = await started('campaign-a')
+    playToTheVerdict(test)
+    expect(test.controller.campaign().phase).toBe('campaign-over')
+
+    test.controller.restart()
+
+    const campaign = test.controller.campaign()
+    expect(campaign.phase).toBe('in-stage')
+    expect(campaign.end).toBeNull()
+    expect(campaign.stageId).toBe(1)
+    expect(campaign.kills).toBe(0)
+    expect(campaign.fallen).toEqual([])
+    expect(campaign.cards).toEqual([])
+    expect(test.controller.hud().tick).toBe(0)
+    expect(test.controller.hud().roster).toHaveLength(16)
+  })
+
+  it('refuses to advance a campaign that has no next stage', async () => {
+    // With one row in `STAGES` no run can reach `stage-cleared`, so this is what the button would
+    // do if it were somehow pressed: nothing. It is a no-op rather than a throw because a screen
+    // that cannot be shown must not be able to crash the shell either.
+    const test = await started('campaign-a')
+    playToTheVerdict(test)
+    const before = test.controller.campaign()
+
+    test.controller.advanceStage()
+
+    expect(test.controller.campaign()).toEqual(before)
+    expect(test.controller.hud().mode === 'won' || test.controller.hud().mode === 'lost').toBe(true)
   })
 
   it('draws once before the loop, so the first battle frame is not the asset build', async () => {
