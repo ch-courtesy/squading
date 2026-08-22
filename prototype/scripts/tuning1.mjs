@@ -15,6 +15,7 @@ import { readFileSync } from 'node:fs'
 const OUT = process.env.TUNE_OUT ?? 'artifacts/tuning1-search.json'
 
 function fmt(result) {
+  if (result.rejected) return `${result.label.padEnd(38)}  REJECTED  ${result.rejected}`
   const skilled = result.policies['skilled']
   const wins = (id) => (result.policies[id] ? `${result.policies[id].wins}/8` : '  - ')
   const failed = Object.entries(result.verdict)
@@ -39,10 +40,35 @@ function fmt(result) {
   ].join('  ')
 }
 
+/**
+ * `TUNE_PRINT` filters the LINES, never the file. `pass` prints the candidates that hold every
+ * gate, `near` those missing at most one, `all` (the default) every one of them. A grid of a
+ * hundred points is unreadable in full and every point is still in `artifacts/` and in the
+ * append-only log either way — this is a terminal filter and not a selection of results.
+ */
+const PRINT = process.env.TUNE_PRINT ?? 'all'
+
+function failCount(result) {
+  if (result.rejected) return 99
+  return Object.values(result.verdict).filter((held) => !held).length
+}
+
+function print(data) {
+  const limit = PRINT === 'pass' ? 0 : PRINT === 'near' ? 1 : Infinity
+  let hidden = 0
+  for (const result of data.results) {
+    if (failCount(result) > limit) {
+      hidden += 1
+      continue
+    }
+    console.log(fmt(result))
+  }
+  if (hidden > 0) console.log(`  (${hidden} candidates with more than ${limit} failing gates not printed)`)
+}
+
 const args = process.argv.slice(2)
 if (args[0] === '--print') {
-  const data = JSON.parse(readFileSync(args[1] ?? OUT, 'utf8'))
-  for (const result of data.results) console.log(fmt(result))
+  print(JSON.parse(readFileSync(args[1] ?? OUT, 'utf8')))
   process.exit(0)
 }
 
@@ -59,7 +85,7 @@ execFileSync(
 )
 
 const data = JSON.parse(readFileSync(OUT, 'utf8'))
-for (const result of data.results) console.log(fmt(result))
+print(data)
 console.log(
   `[tuning1] ${data.results.length} candidates x ${data.policies.length} policies x 8 seeds in ` +
     `${(data.elapsedMs / 1000).toFixed(1)}s`,

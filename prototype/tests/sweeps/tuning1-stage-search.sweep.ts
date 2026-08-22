@@ -81,7 +81,7 @@ import {
   SOLDIER_RANGE,
 } from '../../src/core/battle/constants'
 import { FORMATION_MAX_SLOT_RADIUS } from '../../src/core/battle/formation'
-import { stageConfigOf, type StageConfig, type StageId } from '../../src/core/battle/stages'
+import { STAGES, stageConfigOf, type StageConfig, type StageId } from '../../src/core/battle/stages'
 import { attackRangeOf } from '../../src/core/battle/targeting'
 import type { BattleState, DamageCause } from '../../src/core/battle/types'
 import { policyFactory, type PolicyId } from '../../src/core/harness/policy/policies'
@@ -206,8 +206,102 @@ function assertWithinSpec(stage: StageConfig): void {
   if (!(stage.arenaWidth > 0 && stage.arenaHeight > 0)) fail('the arena must have area (§1.1)')
 }
 
+/**
+ * §2.3's RELATIONS, as `tests/battle/battle-stages.test.ts` pins them, checked with the candidate
+ * standing in for its row and the other six exactly as written.
+ *
+ * WHY THIS IS PART OF THE SEARCH AND NOT AN AFTERTHOUGHT. This batch may move stage 1 and may not
+ * move stages 2-7, and stage 2 is DEFINED as "stage 1's bodies arriving faster" — its fixture
+ * asserts `meleeHp`, `shooterHp`, `shooterRange` and `meleeDamage` are equal to stage 1's, so those
+ * four are not free knobs on stage 1 at all: moving one moves stage 2. The rest of the relations
+ * box stage 1 from both sides in the same way. A candidate that breaks any of them is not a
+ * solution to this batch — it is a solution to a different batch that is also allowed to edit six
+ * other rows — so the search rejects it instead of reporting it, exactly as it rejects a value
+ * outside §2's ranges.
+ */
+function assertTableRelations(stage: StageConfig): void {
+  if (stage.id !== 1) return
+  const fail = (message: string): never => {
+    throw new Error(`tuning1: candidate breaks a §2.3 relation — ${message}`)
+  }
+  const others = STAGES.filter((row) => row.id !== 1)
+  const shooterShare = (row: StageConfig, phase: number): number => {
+    const [melee, shooter] = row.pressurePhases[phase].meleeToShooter
+    return shooter / (melee + shooter)
+  }
+  const two = stageConfigOf(2)
+  const three = stageConfigOf(3)
+  const four = stageConfigOf(4)
+  const five = stageConfigOf(5)
+  const six = stageConfigOf(6)
+  const seven = stageConfigOf(7)
+
+  // 1 빨강 — the most melee-heavy opening in the table.
+  for (const row of others) {
+    if (!(shooterShare(row, 0) > shooterShare(stage, 0)))
+      fail(`stage ${row.id} opens no less melee-heavy than stage 1`)
+  }
+  // 2 주황 — density is stage 2's ONLY axis, so the bodies are stage 1's bodies.
+  for (let phase = 0; phase < stage.pressurePhases.length; phase += 1) {
+    if (!(two.pressurePhases[phase].requestInterval < stage.pressurePhases[phase].requestInterval))
+      fail(`stage 2's requestInterval is not below stage 1's in phase ${phase}`)
+    if (!(two.pressurePhases[phase].engagedCap > stage.pressurePhases[phase].engagedCap))
+      fail(`stage 2's engagedCap is not above stage 1's in phase ${phase}`)
+  }
+  if (!(two.absoluteEnemyCap > stage.absoluteEnemyCap)) fail("stage 2's absoluteEnemyCap is not above stage 1's")
+  if (two.meleeHp !== stage.meleeHp) fail('stage 2 pins meleeHp to stage 1')
+  if (two.shooterHp !== stage.shooterHp) fail('stage 2 pins shooterHp to stage 1')
+  if (two.shooterRange !== stage.shooterRange) fail('stage 2 pins shooterRange to stage 1')
+  if (two.meleeDamage !== stage.meleeDamage) fail('stage 2 pins meleeDamage to stage 1')
+  // 3 노랑 — the weakest bodies and the highest caps.
+  if (!(three.meleeHp < stage.meleeHp)) fail("stage 3's meleeHp is not below stage 1's")
+  if (!(three.shooterHp < stage.shooterHp)) fail("stage 3's shooterHp is not below stage 1's")
+  for (let phase = 0; phase < stage.pressurePhases.length; phase += 1) {
+    if (!(three.pressurePhases[phase].engagedCap > stage.pressurePhases[phase].engagedCap))
+      fail(`stage 3's engagedCap is not above stage 1's in phase ${phase}`)
+  }
+  // 4 초록 — the highest shooter share in every phase, and the smallest range advantage.
+  for (let phase = 0; phase < stage.pressurePhases.length; phase += 1) {
+    if (!(shooterShare(four, phase) > shooterShare(stage, phase)))
+      fail(`stage 1 phase ${phase} is at least as shooter-heavy as stage 4`)
+  }
+  if (!(four.rangeAdvantage < stage.rangeAdvantage)) fail("stage 4's rangeAdvantage is not below stage 1's")
+  // 5 파랑 — the board opens and the leash does not follow it.
+  if (!(five.arenaWidth * five.arenaHeight > stage.arenaWidth * stage.arenaHeight))
+    fail("stage 5's arena is not larger than stage 1's")
+  if (!(five.leashRadius < stage.leashRadius)) fail("stage 5's leash is not below stage 1's")
+  if (!(five.leashRadius / five.arenaWidth < stage.leashRadius / stage.arenaWidth))
+    fail("stage 5's leash-to-arena ratio is not below stage 1's")
+  // 6 남색 — the elite arrives sooner, warns for less time and covers more ground.
+  if (!(six.eliteTelegraphTicks < stage.eliteTelegraphTicks)) fail("stage 6's telegraph is not below stage 1's")
+  if (!(six.eliteCooldownTicks < stage.eliteCooldownTicks)) fail("stage 6's cooldown is not below stage 1's")
+  if (!(six.eliteBlastRadius > stage.eliteBlastRadius)) fail("stage 6's blast is not above stage 1's")
+  if (!(six.eliteSpawnTick <= stage.eliteSpawnTick)) fail("stage 6's elite does not arrive by stage 1's tick")
+  // 7 보라 — the largest population and the toughest elite.
+  if (!(seven.absoluteEnemyCap > stage.absoluteEnemyCap)) fail("stage 7's absoluteEnemyCap is not above stage 1's")
+  if (!(seven.eliteHp > stage.eliteHp)) fail("stage 7's eliteHp is not above stage 1's")
+  if (!(seven.eliteBlastRadius > stage.eliteBlastRadius)) fail("stage 7's blast is not above stage 1's")
+  for (let phase = 0; phase < stage.pressurePhases.length; phase += 1) {
+    if (!(seven.pressurePhases[phase].requestInterval < stage.pressurePhases[phase].requestInterval))
+      fail(`stage 7's requestInterval is not below stage 1's in phase ${phase}`)
+  }
+  // The elite ramps every stage, so stage 1 sits below stage 2.
+  if (!(two.eliteHp > stage.eliteHp)) fail("stage 2's eliteHp is not above stage 1's")
+  // And no two rows may be equal.
+  const shape = JSON.stringify({ ...stage, id: 0 })
+  for (const row of others) {
+    if (JSON.stringify({ ...row, id: 0 }) === shape) fail(`the candidate is stage ${row.id} under another number`)
+  }
+}
+
 /** The two derived fields, exactly as `buildStage` computes them. */
 function materialise(candidate: Candidate): StageConfig {
+  // CLEAR THE OVERRIDE FIRST. `stageConfigOf` here is the MOCKED one, so with a previous
+  // candidate still installed the base would be that candidate and every patch would compose with
+  // every patch before it. The first version of this file did exactly that and the resulting grid
+  // read as if `absoluteEnemyCap` and `backlogSize` did nothing — they were being measured on top
+  // of a leaked pressure curve. A patch is a patch against the WRITTEN row, always.
+  ;(globalThis as Record<string, unknown>).__TUNING1_STAGE__ = undefined
   const base = stageConfigOf(candidate.stageId ?? 1)
   const merged = { ...base, ...candidate.patch } as StageConfig
   const stage: StageConfig = {
@@ -219,6 +313,7 @@ function materialise(candidate: Candidate): StageConfig {
     rangeAdvantage: SOLDIER_RANGE - merged.shooterRange,
   }
   assertWithinSpec(stage)
+  assertTableRelations(stage)
   return stage
 }
 
@@ -300,6 +395,8 @@ function runOne(stage: StageConfig, policyId: PolicyId, seed: string): Run {
 
 type PolicySummary = {
   wins: number
+  /** Which of the eight seeds were won, in `POLICY_BAND_SEEDS` order. A count hides WHICH one. */
+  wonSeeds: string[]
   damageRatio: number
   windowRatios: [number, number, number]
   longestIdleRun: number
@@ -319,6 +416,7 @@ function summarise(runs: readonly Run[]): PolicySummary {
   }
   return {
     wins: runs.filter((run) => run.won).length,
+    wonSeeds: runs.filter((run) => run.won).map((run) => run.seed),
     damageRatio: taken / rosterHp,
     windowRatios: [byWindow[0] / rosterHp, byWindow[1] / rosterHp, byWindow[2] / rosterHp],
     longestIdleRun: Math.max(...runs.map((run) => run.longestIdleRun)),
@@ -337,6 +435,8 @@ type CandidateResult = {
   verdict: Record<string, boolean>
   i4DamageGap: number | null
   elapsedMs: number
+  /** Set when the candidate was outside §2's box and was therefore never played. */
+  rejected?: string
 }
 
 function evaluate(candidate: Candidate, policies: readonly PolicyId[]): CandidateResult {
@@ -416,9 +516,26 @@ describe('tuning 1 — the stage search', () => {
     const startedAt = Date.now()
 
     for (const candidate of candidates) {
-      const result = evaluate(candidate, policies)
+      // A candidate outside §2 is RECORDED as rejected rather than thrown, so that one bad point
+      // does not discard the fifty good measurements beside it — and so that the log says which
+      // points the box refused, which is part of the answer to "what did the search try".
+      let result: CandidateResult
+      try {
+        result = evaluate(candidate, policies)
+      } catch (error) {
+        result = {
+          label: candidate.label,
+          stageId: candidate.stageId ?? 1,
+          patch: candidate.patch,
+          policies: {},
+          verdict: {},
+          i4DamageGap: null,
+          elapsedMs: 0,
+          rejected: error instanceof Error ? error.message : String(error),
+        }
+      }
       results.push(result)
-      console.log(line(result))
+      console.log(result.rejected ? `${result.label.padEnd(34)}  REJECTED  ${result.rejected}` : line(result))
     }
 
     const elapsedMs = Date.now() - startedAt
