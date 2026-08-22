@@ -1,0 +1,1013 @@
+{
+ "policies": "screen",
+ "candidates": [
+  {
+   "label": "E e10/s13 mix 5:1/3:1/2:1",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 13,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 14,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       5,
+       1
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 20,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       3,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 26,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       2,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "E e10/s13 mix 4:1/2:1/1:1",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 13,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 14,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       4,
+       1
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 20,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       2,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 26,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "E e10/s13 mix 3:1/2:1/1:1",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 13,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 14,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       1
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 20,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       2,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 26,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "E e10/s13 mix 2:1/1:1/1:1",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 13,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 14,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       2,
+       1
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 20,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 26,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "E e10/s13 mix 1:1/1:1/1:1",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 13,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 14,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 20,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 26,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "E e10/s13 mix 3:2/1:1/1:2",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 13,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 14,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 20,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 26,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       2
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "E e10/s13 mix 1:1/1:2/1:2",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 13,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 14,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 20,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       2
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 26,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       2
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "E e11/s14 mix 5:1/3:1/2:1",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 14,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       5,
+       1
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 20,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       3,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 26,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       2,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "E e11/s14 mix 4:1/2:1/1:1",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 14,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       4,
+       1
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 20,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       2,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 26,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "E e11/s14 mix 3:1/2:1/1:1",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 14,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       1
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 20,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       2,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 26,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "E e11/s14 mix 2:1/1:1/1:1",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 14,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       2,
+       1
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 20,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 26,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "E e11/s14 mix 1:1/1:1/1:1",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 14,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 20,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 26,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "E e11/s14 mix 3:2/1:1/1:2",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 14,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 20,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 26,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       2
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "E e11/s14 mix 1:1/1:2/1:2",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 14,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 20,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       2
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 26,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       2
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "E e11/s15 mix 5:1/3:1/2:1",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 15,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 14,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       5,
+       1
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 20,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       3,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 26,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       2,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "E e11/s15 mix 4:1/2:1/1:1",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 15,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 14,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       4,
+       1
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 20,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       2,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 26,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "E e11/s15 mix 3:1/2:1/1:1",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 15,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 14,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       1
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 20,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       2,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 26,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "E e11/s15 mix 2:1/1:1/1:1",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 15,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 14,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       2,
+       1
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 20,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 26,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "E e11/s15 mix 1:1/1:1/1:1",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 15,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 14,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 20,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 26,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "E e11/s15 mix 3:2/1:1/1:2",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 15,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 14,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 20,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 26,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       2
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "E e11/s15 mix 1:1/1:2/1:2",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 15,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 14,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 20,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       2
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 26,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       2
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "E e12/s15 mix 5:1/3:1/2:1",
+   "patch": {
+    "engageRadius": 12,
+    "spawnRadius": 15,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 14,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       5,
+       1
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 20,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       3,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 26,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       2,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "E e12/s15 mix 4:1/2:1/1:1",
+   "patch": {
+    "engageRadius": 12,
+    "spawnRadius": 15,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 14,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       4,
+       1
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 20,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       2,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 26,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "E e12/s15 mix 3:1/2:1/1:1",
+   "patch": {
+    "engageRadius": 12,
+    "spawnRadius": 15,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 14,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       1
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 20,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       2,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 26,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "E e12/s15 mix 2:1/1:1/1:1",
+   "patch": {
+    "engageRadius": 12,
+    "spawnRadius": 15,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 14,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       2,
+       1
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 20,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 26,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "E e12/s15 mix 1:1/1:1/1:1",
+   "patch": {
+    "engageRadius": 12,
+    "spawnRadius": 15,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 14,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 20,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 26,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "E e12/s15 mix 3:2/1:1/1:2",
+   "patch": {
+    "engageRadius": 12,
+    "spawnRadius": 15,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 14,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 20,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 26,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       2
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "E e12/s15 mix 1:1/1:2/1:2",
+   "patch": {
+    "engageRadius": 12,
+    "spawnRadius": 15,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 14,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 20,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       2
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 26,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       2
+      ]
+     }
+    ]
+   }
+  }
+ ]
+}

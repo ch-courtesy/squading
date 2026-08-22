@@ -1,0 +1,716 @@
+{
+ "policies": "screen",
+ "candidates": [
+  {
+   "label": "A1 ri 12/9/7",
+   "patch": {
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 14,
+      "requestInterval": 12,
+      "meleeToShooter": [
+       5,
+       1
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 20,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 26,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       2,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "A1 ri 11/8/6",
+   "patch": {
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 14,
+      "requestInterval": 11,
+      "meleeToShooter": [
+       5,
+       1
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 20,
+      "requestInterval": 8,
+      "meleeToShooter": [
+       3,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 26,
+      "requestInterval": 6,
+      "meleeToShooter": [
+       2,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "A1 ri 10/8/6",
+   "patch": {
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 14,
+      "requestInterval": 10,
+      "meleeToShooter": [
+       5,
+       1
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 20,
+      "requestInterval": 8,
+      "meleeToShooter": [
+       3,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 26,
+      "requestInterval": 6,
+      "meleeToShooter": [
+       2,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "A1 ri 8/6/4",
+   "patch": {
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 14,
+      "requestInterval": 8,
+      "meleeToShooter": [
+       5,
+       1
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 20,
+      "requestInterval": 6,
+      "meleeToShooter": [
+       3,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 26,
+      "requestInterval": 4,
+      "meleeToShooter": [
+       2,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "A1 ri 7/5/4",
+   "patch": {
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 14,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       5,
+       1
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 20,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       3,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 26,
+      "requestInterval": 4,
+      "meleeToShooter": [
+       2,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "A1 ri 6/5/4",
+   "patch": {
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 14,
+      "requestInterval": 6,
+      "meleeToShooter": [
+       5,
+       1
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 20,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       3,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 26,
+      "requestInterval": 4,
+      "meleeToShooter": [
+       2,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "A2 cap 8/12/16",
+   "patch": {
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 8,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       5,
+       1
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 12,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       3,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 16,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       2,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "A2 cap 10/16/22",
+   "patch": {
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 10,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       5,
+       1
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 16,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       3,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 22,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       2,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "A2 cap 12/18/24",
+   "patch": {
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 12,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       5,
+       1
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 18,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       3,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 24,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       2,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "A2 cap 16/22/28",
+   "patch": {
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       5,
+       1
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       3,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       2,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "A2 cap 18/24/30",
+   "patch": {
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 18,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       5,
+       1
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 24,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       3,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 30,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       2,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "A2 cap 20/28/36",
+   "patch": {
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 20,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       5,
+       1
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 28,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       3,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 36,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       2,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "A3 engage 7",
+   "patch": {
+    "engageRadius": 7,
+    "spawnRadius": 10
+   }
+  },
+  {
+   "label": "A3 engage 8",
+   "patch": {
+    "engageRadius": 8,
+    "spawnRadius": 11
+   }
+  },
+  {
+   "label": "A3 engage 9",
+   "patch": {
+    "engageRadius": 9,
+    "spawnRadius": 12
+   }
+  },
+  {
+   "label": "A3 engage 11",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14
+   }
+  },
+  {
+   "label": "A3 engage 12",
+   "patch": {
+    "engageRadius": 12,
+    "spawnRadius": 15
+   }
+  },
+  {
+   "label": "A3 engage 13",
+   "patch": {
+    "engageRadius": 13,
+    "spawnRadius": 16
+   }
+  },
+  {
+   "label": "A4 spawn 12",
+   "patch": {
+    "spawnRadius": 12
+   }
+  },
+  {
+   "label": "A4 spawn 14",
+   "patch": {
+    "spawnRadius": 14
+   }
+  },
+  {
+   "label": "A4 spawn 15",
+   "patch": {
+    "spawnRadius": 15
+   }
+  },
+  {
+   "label": "A4 spawn 16",
+   "patch": {
+    "spawnRadius": 16
+   }
+  },
+  {
+   "label": "A4 spawn 18",
+   "patch": {
+    "spawnRadius": 18
+   }
+  },
+  {
+   "label": "A5 mix 8:1/5:1/3:1",
+   "patch": {
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 14,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       8,
+       1
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 20,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       5,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 26,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       3,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "A5 mix 3:1/2:1/3:2",
+   "patch": {
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 14,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       1
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 20,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       2,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 26,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "A5 mix 2:1/3:2/1:1",
+   "patch": {
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 14,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       2,
+       1
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 20,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 26,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "A5 mix 1:1/1:1/1:1",
+   "patch": {
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 14,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 20,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 26,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "A6 abscap 45",
+   "patch": {
+    "absoluteEnemyCap": 45
+   }
+  },
+  {
+   "label": "A6 abscap 50",
+   "patch": {
+    "absoluteEnemyCap": 50
+   }
+  },
+  {
+   "label": "A6 abscap 70",
+   "patch": {
+    "absoluteEnemyCap": 70
+   }
+  },
+  {
+   "label": "A6 abscap 80",
+   "patch": {
+    "absoluteEnemyCap": 80
+   }
+  },
+  {
+   "label": "A6 abscap 100",
+   "patch": {
+    "absoluteEnemyCap": 100
+   }
+  },
+  {
+   "label": "A7 backlog 8/1",
+   "patch": {
+    "backlogSize": 8,
+    "backlogDrainPerTick": 1
+   }
+  },
+  {
+   "label": "A7 backlog 8/2",
+   "patch": {
+    "backlogSize": 8,
+    "backlogDrainPerTick": 2
+   }
+  },
+  {
+   "label": "A7 backlog 16/2",
+   "patch": {
+    "backlogSize": 16,
+    "backlogDrainPerTick": 2
+   }
+  },
+  {
+   "label": "A7 backlog 16/3",
+   "patch": {
+    "backlogSize": 16,
+    "backlogDrainPerTick": 3
+   }
+  },
+  {
+   "label": "A7 backlog 20/4",
+   "patch": {
+    "backlogSize": 20,
+    "backlogDrainPerTick": 4
+   }
+  },
+  {
+   "label": "A8 leash 7",
+   "patch": {
+    "leashRadius": 7
+   }
+  },
+  {
+   "label": "A8 leash 8",
+   "patch": {
+    "leashRadius": 8
+   }
+  },
+  {
+   "label": "A8 leash 9",
+   "patch": {
+    "leashRadius": 9
+   }
+  },
+  {
+   "label": "A8 leash 11",
+   "patch": {
+    "leashRadius": 11
+   }
+  },
+  {
+   "label": "A8 leash 12",
+   "patch": {
+    "leashRadius": 12
+   }
+  }
+ ]
+}

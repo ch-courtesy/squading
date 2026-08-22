@@ -1,0 +1,165 @@
+{
+ "policies": "full",
+ "candidates": [
+  {
+   "label": "Z0 baseline (as written)",
+   "patch": {}
+  },
+  {
+   "label": "Z1 engage11/spawn14",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14
+   }
+  },
+  {
+   "label": "Z2 +eliteDamage .3",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "eliteDamage": 0.3
+   }
+  },
+  {
+   "label": "Z3 engage10/spawn14",
+   "patch": {
+    "spawnRadius": 14
+   }
+  },
+  {
+   "label": "Z4 +eliteHp 21",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "eliteHp": 21
+   }
+  },
+  {
+   "label": "Z5 +shooterInterval 32",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "shooterAttackInterval": 32
+   }
+  },
+  {
+   "label": "Z6 +absoluteEnemyCap 55",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "absoluteEnemyCap": 55
+   }
+  },
+  {
+   "label": "Z7 +telegraph 60/62",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "eliteTelegraphTicks": 60,
+    "eliteCooldownTicks": 62
+   }
+  },
+  {
+   "label": "Z8 +mix 5:1/3:1/3:2",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 14,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       5,
+       1
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 20,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       3,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 26,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "Z9 +mix 5:1/2:1/1:1",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 14,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       5,
+       1
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 20,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       2,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 26,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "Z10 engage11.5/spawn14",
+   "patch": {
+    "engageRadius": 11.5,
+    "spawnRadius": 14
+   }
+  },
+  {
+   "label": "Z11 engage11/spawn14.5",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14.5
+   }
+  },
+  {
+   "label": "Z12 engage11/spawn13.5",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 13.5
+   }
+  },
+  {
+   "label": "Z13 +backlog 14/3",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "backlogSize": 14,
+    "backlogDrainPerTick": 3
+   }
+  }
+ ]
+}

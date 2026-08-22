@@ -1,0 +1,4421 @@
+{
+ "policies": "screen",
+ "candidates": [
+  {
+   "label": "G mi15 eh17 ms0.135 ss0.05 sh0.7",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 17,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.7,
+    "meleeMoveSpeed": 0.135,
+    "shooterMoveSpeed": 0.05,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "G mi15 eh17 ms0.135 ss0.05 sh0.8",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 17,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "meleeMoveSpeed": 0.135,
+    "shooterMoveSpeed": 0.05,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "G mi15 eh17 ms0.135 ss0.06 sh0.7",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 17,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.7,
+    "meleeMoveSpeed": 0.135,
+    "shooterMoveSpeed": 0.06,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "G mi15 eh17 ms0.135 ss0.06 sh0.8",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 17,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "meleeMoveSpeed": 0.135,
+    "shooterMoveSpeed": 0.06,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "G mi15 eh17 ms0.14 ss0.05 sh0.7",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 17,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.7,
+    "meleeMoveSpeed": 0.14,
+    "shooterMoveSpeed": 0.05,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "G mi15 eh17 ms0.14 ss0.05 sh0.8",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 17,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "meleeMoveSpeed": 0.14,
+    "shooterMoveSpeed": 0.05,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "G mi15 eh17 ms0.14 ss0.06 sh0.7",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 17,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.7,
+    "meleeMoveSpeed": 0.14,
+    "shooterMoveSpeed": 0.06,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "G mi15 eh17 ms0.14 ss0.06 sh0.8",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 17,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "meleeMoveSpeed": 0.14,
+    "shooterMoveSpeed": 0.06,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "G mi15 eh18 ms0.135 ss0.05 sh0.7",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 18,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.7,
+    "meleeMoveSpeed": 0.135,
+    "shooterMoveSpeed": 0.05,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "G mi15 eh18 ms0.135 ss0.05 sh0.8",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 18,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "meleeMoveSpeed": 0.135,
+    "shooterMoveSpeed": 0.05,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "G mi15 eh18 ms0.135 ss0.06 sh0.7",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 18,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.7,
+    "meleeMoveSpeed": 0.135,
+    "shooterMoveSpeed": 0.06,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "G mi15 eh18 ms0.135 ss0.06 sh0.8",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 18,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "meleeMoveSpeed": 0.135,
+    "shooterMoveSpeed": 0.06,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "G mi15 eh18 ms0.14 ss0.05 sh0.7",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 18,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.7,
+    "meleeMoveSpeed": 0.14,
+    "shooterMoveSpeed": 0.05,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "G mi15 eh18 ms0.14 ss0.05 sh0.8",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 18,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "meleeMoveSpeed": 0.14,
+    "shooterMoveSpeed": 0.05,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "G mi15 eh18 ms0.14 ss0.06 sh0.7",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 18,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.7,
+    "meleeMoveSpeed": 0.14,
+    "shooterMoveSpeed": 0.06,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "G mi15 eh18 ms0.14 ss0.06 sh0.8",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 18,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "meleeMoveSpeed": 0.14,
+    "shooterMoveSpeed": 0.06,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "G mi15 eh19 ms0.135 ss0.05 sh0.7",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 19,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.7,
+    "meleeMoveSpeed": 0.135,
+    "shooterMoveSpeed": 0.05,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "G mi15 eh19 ms0.135 ss0.05 sh0.8",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 19,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "meleeMoveSpeed": 0.135,
+    "shooterMoveSpeed": 0.05,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "G mi15 eh19 ms0.135 ss0.06 sh0.7",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 19,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.7,
+    "meleeMoveSpeed": 0.135,
+    "shooterMoveSpeed": 0.06,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "G mi15 eh19 ms0.135 ss0.06 sh0.8",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 19,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "meleeMoveSpeed": 0.135,
+    "shooterMoveSpeed": 0.06,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "G mi15 eh19 ms0.14 ss0.05 sh0.7",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 19,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.7,
+    "meleeMoveSpeed": 0.14,
+    "shooterMoveSpeed": 0.05,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "G mi15 eh19 ms0.14 ss0.05 sh0.8",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 19,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "meleeMoveSpeed": 0.14,
+    "shooterMoveSpeed": 0.05,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "G mi15 eh19 ms0.14 ss0.06 sh0.7",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 19,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.7,
+    "meleeMoveSpeed": 0.14,
+    "shooterMoveSpeed": 0.06,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "G mi15 eh19 ms0.14 ss0.06 sh0.8",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 19,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "meleeMoveSpeed": 0.14,
+    "shooterMoveSpeed": 0.06,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "G mi15 eh20 ms0.135 ss0.05 sh0.7",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 20,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.7,
+    "meleeMoveSpeed": 0.135,
+    "shooterMoveSpeed": 0.05,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "G mi15 eh20 ms0.135 ss0.05 sh0.8",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 20,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "meleeMoveSpeed": 0.135,
+    "shooterMoveSpeed": 0.05,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "G mi15 eh20 ms0.135 ss0.06 sh0.7",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 20,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.7,
+    "meleeMoveSpeed": 0.135,
+    "shooterMoveSpeed": 0.06,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "G mi15 eh20 ms0.135 ss0.06 sh0.8",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 20,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "meleeMoveSpeed": 0.135,
+    "shooterMoveSpeed": 0.06,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "G mi15 eh20 ms0.14 ss0.05 sh0.7",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 20,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.7,
+    "meleeMoveSpeed": 0.14,
+    "shooterMoveSpeed": 0.05,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "G mi15 eh20 ms0.14 ss0.05 sh0.8",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 20,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "meleeMoveSpeed": 0.14,
+    "shooterMoveSpeed": 0.05,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "G mi15 eh20 ms0.14 ss0.06 sh0.7",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 20,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.7,
+    "meleeMoveSpeed": 0.14,
+    "shooterMoveSpeed": 0.06,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "G mi15 eh20 ms0.14 ss0.06 sh0.8",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 20,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "meleeMoveSpeed": 0.14,
+    "shooterMoveSpeed": 0.06,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "G mi16 eh17 ms0.135 ss0.05 sh0.7",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 17,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 16,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.7,
+    "meleeMoveSpeed": 0.135,
+    "shooterMoveSpeed": 0.05,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "G mi16 eh17 ms0.135 ss0.05 sh0.8",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 17,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 16,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "meleeMoveSpeed": 0.135,
+    "shooterMoveSpeed": 0.05,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "G mi16 eh17 ms0.135 ss0.06 sh0.7",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 17,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 16,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.7,
+    "meleeMoveSpeed": 0.135,
+    "shooterMoveSpeed": 0.06,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "G mi16 eh17 ms0.135 ss0.06 sh0.8",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 17,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 16,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "meleeMoveSpeed": 0.135,
+    "shooterMoveSpeed": 0.06,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "G mi16 eh17 ms0.14 ss0.05 sh0.7",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 17,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 16,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.7,
+    "meleeMoveSpeed": 0.14,
+    "shooterMoveSpeed": 0.05,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "G mi16 eh17 ms0.14 ss0.05 sh0.8",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 17,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 16,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "meleeMoveSpeed": 0.14,
+    "shooterMoveSpeed": 0.05,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "G mi16 eh17 ms0.14 ss0.06 sh0.7",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 17,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 16,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.7,
+    "meleeMoveSpeed": 0.14,
+    "shooterMoveSpeed": 0.06,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "G mi16 eh17 ms0.14 ss0.06 sh0.8",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 17,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 16,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "meleeMoveSpeed": 0.14,
+    "shooterMoveSpeed": 0.06,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "G mi16 eh18 ms0.135 ss0.05 sh0.7",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 18,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 16,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.7,
+    "meleeMoveSpeed": 0.135,
+    "shooterMoveSpeed": 0.05,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "G mi16 eh18 ms0.135 ss0.05 sh0.8",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 18,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 16,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "meleeMoveSpeed": 0.135,
+    "shooterMoveSpeed": 0.05,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "G mi16 eh18 ms0.135 ss0.06 sh0.7",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 18,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 16,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.7,
+    "meleeMoveSpeed": 0.135,
+    "shooterMoveSpeed": 0.06,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "G mi16 eh18 ms0.135 ss0.06 sh0.8",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 18,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 16,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "meleeMoveSpeed": 0.135,
+    "shooterMoveSpeed": 0.06,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "G mi16 eh18 ms0.14 ss0.05 sh0.7",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 18,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 16,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.7,
+    "meleeMoveSpeed": 0.14,
+    "shooterMoveSpeed": 0.05,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "G mi16 eh18 ms0.14 ss0.05 sh0.8",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 18,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 16,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "meleeMoveSpeed": 0.14,
+    "shooterMoveSpeed": 0.05,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "G mi16 eh18 ms0.14 ss0.06 sh0.7",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 18,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 16,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.7,
+    "meleeMoveSpeed": 0.14,
+    "shooterMoveSpeed": 0.06,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "G mi16 eh18 ms0.14 ss0.06 sh0.8",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 18,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 16,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "meleeMoveSpeed": 0.14,
+    "shooterMoveSpeed": 0.06,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "G mi16 eh19 ms0.135 ss0.05 sh0.7",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 19,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 16,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.7,
+    "meleeMoveSpeed": 0.135,
+    "shooterMoveSpeed": 0.05,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "G mi16 eh19 ms0.135 ss0.05 sh0.8",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 19,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 16,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "meleeMoveSpeed": 0.135,
+    "shooterMoveSpeed": 0.05,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "G mi16 eh19 ms0.135 ss0.06 sh0.7",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 19,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 16,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.7,
+    "meleeMoveSpeed": 0.135,
+    "shooterMoveSpeed": 0.06,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "G mi16 eh19 ms0.135 ss0.06 sh0.8",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 19,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 16,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "meleeMoveSpeed": 0.135,
+    "shooterMoveSpeed": 0.06,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "G mi16 eh19 ms0.14 ss0.05 sh0.7",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 19,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 16,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.7,
+    "meleeMoveSpeed": 0.14,
+    "shooterMoveSpeed": 0.05,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "G mi16 eh19 ms0.14 ss0.05 sh0.8",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 19,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 16,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "meleeMoveSpeed": 0.14,
+    "shooterMoveSpeed": 0.05,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "G mi16 eh19 ms0.14 ss0.06 sh0.7",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 19,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 16,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.7,
+    "meleeMoveSpeed": 0.14,
+    "shooterMoveSpeed": 0.06,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "G mi16 eh19 ms0.14 ss0.06 sh0.8",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 19,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 16,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "meleeMoveSpeed": 0.14,
+    "shooterMoveSpeed": 0.06,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "G mi16 eh20 ms0.135 ss0.05 sh0.7",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 20,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 16,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.7,
+    "meleeMoveSpeed": 0.135,
+    "shooterMoveSpeed": 0.05,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "G mi16 eh20 ms0.135 ss0.05 sh0.8",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 20,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 16,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "meleeMoveSpeed": 0.135,
+    "shooterMoveSpeed": 0.05,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "G mi16 eh20 ms0.135 ss0.06 sh0.7",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 20,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 16,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.7,
+    "meleeMoveSpeed": 0.135,
+    "shooterMoveSpeed": 0.06,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "G mi16 eh20 ms0.135 ss0.06 sh0.8",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 20,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 16,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "meleeMoveSpeed": 0.135,
+    "shooterMoveSpeed": 0.06,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "G mi16 eh20 ms0.14 ss0.05 sh0.7",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 20,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 16,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.7,
+    "meleeMoveSpeed": 0.14,
+    "shooterMoveSpeed": 0.05,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "G mi16 eh20 ms0.14 ss0.05 sh0.8",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 20,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 16,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "meleeMoveSpeed": 0.14,
+    "shooterMoveSpeed": 0.05,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "G mi16 eh20 ms0.14 ss0.06 sh0.7",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 20,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 16,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.7,
+    "meleeMoveSpeed": 0.14,
+    "shooterMoveSpeed": 0.06,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "G mi16 eh20 ms0.14 ss0.06 sh0.8",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 20,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 16,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "meleeMoveSpeed": 0.14,
+    "shooterMoveSpeed": 0.06,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "G mi17 eh17 ms0.135 ss0.05 sh0.7",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 17,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 17,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.7,
+    "meleeMoveSpeed": 0.135,
+    "shooterMoveSpeed": 0.05,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "G mi17 eh17 ms0.135 ss0.05 sh0.8",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 17,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 17,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "meleeMoveSpeed": 0.135,
+    "shooterMoveSpeed": 0.05,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "G mi17 eh17 ms0.135 ss0.06 sh0.7",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 17,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 17,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.7,
+    "meleeMoveSpeed": 0.135,
+    "shooterMoveSpeed": 0.06,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "G mi17 eh17 ms0.135 ss0.06 sh0.8",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 17,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 17,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "meleeMoveSpeed": 0.135,
+    "shooterMoveSpeed": 0.06,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "G mi17 eh17 ms0.14 ss0.05 sh0.7",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 17,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 17,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.7,
+    "meleeMoveSpeed": 0.14,
+    "shooterMoveSpeed": 0.05,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "G mi17 eh17 ms0.14 ss0.05 sh0.8",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 17,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 17,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "meleeMoveSpeed": 0.14,
+    "shooterMoveSpeed": 0.05,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "G mi17 eh17 ms0.14 ss0.06 sh0.7",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 17,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 17,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.7,
+    "meleeMoveSpeed": 0.14,
+    "shooterMoveSpeed": 0.06,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "G mi17 eh17 ms0.14 ss0.06 sh0.8",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 17,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 17,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "meleeMoveSpeed": 0.14,
+    "shooterMoveSpeed": 0.06,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "G mi17 eh18 ms0.135 ss0.05 sh0.7",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 18,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 17,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.7,
+    "meleeMoveSpeed": 0.135,
+    "shooterMoveSpeed": 0.05,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "G mi17 eh18 ms0.135 ss0.05 sh0.8",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 18,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 17,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "meleeMoveSpeed": 0.135,
+    "shooterMoveSpeed": 0.05,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "G mi17 eh18 ms0.135 ss0.06 sh0.7",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 18,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 17,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.7,
+    "meleeMoveSpeed": 0.135,
+    "shooterMoveSpeed": 0.06,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "G mi17 eh18 ms0.135 ss0.06 sh0.8",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 18,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 17,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "meleeMoveSpeed": 0.135,
+    "shooterMoveSpeed": 0.06,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "G mi17 eh18 ms0.14 ss0.05 sh0.7",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 18,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 17,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.7,
+    "meleeMoveSpeed": 0.14,
+    "shooterMoveSpeed": 0.05,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "G mi17 eh18 ms0.14 ss0.05 sh0.8",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 18,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 17,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "meleeMoveSpeed": 0.14,
+    "shooterMoveSpeed": 0.05,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "G mi17 eh18 ms0.14 ss0.06 sh0.7",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 18,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 17,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.7,
+    "meleeMoveSpeed": 0.14,
+    "shooterMoveSpeed": 0.06,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "G mi17 eh18 ms0.14 ss0.06 sh0.8",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 18,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 17,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "meleeMoveSpeed": 0.14,
+    "shooterMoveSpeed": 0.06,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "G mi17 eh19 ms0.135 ss0.05 sh0.7",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 19,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 17,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.7,
+    "meleeMoveSpeed": 0.135,
+    "shooterMoveSpeed": 0.05,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "G mi17 eh19 ms0.135 ss0.05 sh0.8",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 19,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 17,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "meleeMoveSpeed": 0.135,
+    "shooterMoveSpeed": 0.05,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "G mi17 eh19 ms0.135 ss0.06 sh0.7",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 19,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 17,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.7,
+    "meleeMoveSpeed": 0.135,
+    "shooterMoveSpeed": 0.06,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "G mi17 eh19 ms0.135 ss0.06 sh0.8",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 19,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 17,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "meleeMoveSpeed": 0.135,
+    "shooterMoveSpeed": 0.06,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "G mi17 eh19 ms0.14 ss0.05 sh0.7",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 19,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 17,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.7,
+    "meleeMoveSpeed": 0.14,
+    "shooterMoveSpeed": 0.05,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "G mi17 eh19 ms0.14 ss0.05 sh0.8",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 19,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 17,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "meleeMoveSpeed": 0.14,
+    "shooterMoveSpeed": 0.05,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "G mi17 eh19 ms0.14 ss0.06 sh0.7",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 19,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 17,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.7,
+    "meleeMoveSpeed": 0.14,
+    "shooterMoveSpeed": 0.06,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "G mi17 eh19 ms0.14 ss0.06 sh0.8",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 19,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 17,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "meleeMoveSpeed": 0.14,
+    "shooterMoveSpeed": 0.06,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "G mi17 eh20 ms0.135 ss0.05 sh0.7",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 20,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 17,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.7,
+    "meleeMoveSpeed": 0.135,
+    "shooterMoveSpeed": 0.05,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "G mi17 eh20 ms0.135 ss0.05 sh0.8",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 20,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 17,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "meleeMoveSpeed": 0.135,
+    "shooterMoveSpeed": 0.05,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "G mi17 eh20 ms0.135 ss0.06 sh0.7",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 20,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 17,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.7,
+    "meleeMoveSpeed": 0.135,
+    "shooterMoveSpeed": 0.06,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "G mi17 eh20 ms0.135 ss0.06 sh0.8",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 20,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 17,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "meleeMoveSpeed": 0.135,
+    "shooterMoveSpeed": 0.06,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "G mi17 eh20 ms0.14 ss0.05 sh0.7",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 20,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 17,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.7,
+    "meleeMoveSpeed": 0.14,
+    "shooterMoveSpeed": 0.05,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "G mi17 eh20 ms0.14 ss0.05 sh0.8",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 20,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 17,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "meleeMoveSpeed": 0.14,
+    "shooterMoveSpeed": 0.05,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "G mi17 eh20 ms0.14 ss0.06 sh0.7",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 20,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 17,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.7,
+    "meleeMoveSpeed": 0.14,
+    "shooterMoveSpeed": 0.06,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "G mi17 eh20 ms0.14 ss0.06 sh0.8",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 20,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 17,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "meleeMoveSpeed": 0.14,
+    "shooterMoveSpeed": 0.06,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  }
+ ]
+}

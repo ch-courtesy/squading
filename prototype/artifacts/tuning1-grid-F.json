@@ -1,0 +1,3367 @@
+{
+ "policies": "screen",
+ "candidates": [
+  {
+   "label": "F0 base",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 19,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "F engageRadius 9",
+   "patch": {
+    "engageRadius": 9,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 19,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "F engageRadius 11",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 19,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "F engageRadius 12",
+   "patch": {
+    "engageRadius": 12,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 19,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "F spawnRadius 13",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 13,
+    "leashRadius": 11,
+    "eliteHp": 19,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "F spawnRadius 14",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 14,
+    "leashRadius": 11,
+    "eliteHp": 19,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "F spawnRadius 16",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 16,
+    "leashRadius": 11,
+    "eliteHp": 19,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "F spawnRadius 17",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 17,
+    "leashRadius": 11,
+    "eliteHp": 19,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "F leashRadius 9.5",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 9.5,
+    "eliteHp": 19,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "F leashRadius 10",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 10,
+    "eliteHp": 19,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "F leashRadius 10.5",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 10.5,
+    "eliteHp": 19,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "F leashRadius 11.5",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11.5,
+    "eliteHp": 19,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "F leashRadius 12",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 12,
+    "eliteHp": 19,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "F eliteHp 17",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 17,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "F eliteHp 18",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 18,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "F eliteHp 20",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 20,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "F eliteHp 21",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 21,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "F eliteHp 22",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 22,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "F meleeHp 0.9",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 19,
+    "meleeHp": 0.9,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "F meleeHp 0.95",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 19,
+    "meleeHp": 0.95,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "F meleeHp 1.05",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 19,
+    "meleeHp": 1.05,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "F meleeDamage 0.04",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 19,
+    "meleeHp": 1,
+    "meleeDamage": 0.04,
+    "meleeAttackInterval": 15,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "F meleeDamage 0.0425",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 19,
+    "meleeHp": 1,
+    "meleeDamage": 0.0425,
+    "meleeAttackInterval": 15,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "F meleeDamage 0.0475",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 19,
+    "meleeHp": 1,
+    "meleeDamage": 0.0475,
+    "meleeAttackInterval": 15,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "F meleeAttackInterval 14",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 19,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 14,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "F meleeAttackInterval 16",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 19,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 16,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "F meleeAttackInterval 17",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 19,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 17,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "F shooterRange 4.4",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 19,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15,
+    "shooterRange": 4.4,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "F shooterRange 4.5",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 19,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15,
+    "shooterRange": 4.5,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "F shooterRange 4.6",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 19,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15,
+    "shooterRange": 4.6,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "F shooterRange 4.8",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 19,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15,
+    "shooterRange": 4.8,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "F shooterRange 4.9",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 19,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15,
+    "shooterRange": 4.9,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "F shooterDamage 0.03",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 19,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.03,
+    "shooterHp": 0.8,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "F shooterDamage 0.035",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 19,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.035,
+    "shooterHp": 0.8,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "F shooterDamage 0.045",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 19,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.045,
+    "shooterHp": 0.8,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "F shooterHp 0.7",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 19,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.7,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "F shooterHp 0.75",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 19,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.75,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "F shooterHp 0.85",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 19,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.85,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "F shooterHp 0.9",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 19,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.9,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "F meleeMoveSpeed 0.135",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 19,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "meleeMoveSpeed": 0.135,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "F meleeMoveSpeed 0.145",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 19,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "meleeMoveSpeed": 0.145,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "F meleeMoveSpeed 0.15",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 19,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "meleeMoveSpeed": 0.15,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "F eliteSpawnTick 1700",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 19,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "eliteSpawnTick": 1700,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "F eliteSpawnTick 1900",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 19,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "eliteSpawnTick": 1900,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "F eliteSpawnTick 2000",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 19,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "eliteSpawnTick": 2000,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "F eliteDamage 0.3",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 19,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "eliteDamage": 0.3,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "F eliteDamage 0.5",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 19,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "eliteDamage": 0.5,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "F shooterMoveSpeed 0.05",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 19,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "shooterMoveSpeed": 0.05,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "F shooterMoveSpeed 0.07",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 19,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "shooterMoveSpeed": 0.07,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "F eliteApproachRange 3.5",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 19,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "eliteApproachRange": 3.5,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "F eliteApproachRange 4.9",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 19,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "eliteApproachRange": 4.9,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "F eliteTelegraphTicks 44",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 19,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "eliteTelegraphTicks": 44,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "F eliteTelegraphTicks 64",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 19,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "eliteTelegraphTicks": 64,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "F absoluteEnemyCap 50",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 19,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "absoluteEnemyCap": 50,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "F absoluteEnemyCap 80",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 19,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "absoluteEnemyCap": 80,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "F backlogSize 8",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 19,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "backlogSize": 8,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "F backlogSize 18",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 19,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "backlogSize": 18,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "F caps 12-18-24",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 19,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 12,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 18,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 24,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "F caps 14-20-26",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 19,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 14,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 20,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 26,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "F caps 18-24-30",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 19,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 18,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 24,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 30,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "F caps 20-26-32",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 19,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 20,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 26,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 32,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "F ints 10-8-6",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 19,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 10,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 8,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 6,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "F ints 8-7-5",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 19,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 8,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "F ints 9-8-6",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 19,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 8,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 6,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "F ints 10-7-5",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 19,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 10,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "F ints 9-7-6",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 19,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 6,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "F ints 9-6-5",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 19,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 6,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "F mix 5:1/3:1/2:1",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 19,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       5,
+       1
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       3,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       2,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "F mix 4:1/2:1/1:1",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 19,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       4,
+       1
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       2,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "F mix 3:1/2:1/1:1",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 19,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       1
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       2,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "F mix 2:1/2:1/1:1",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 19,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       2,
+       1
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       2,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "F mix 2:1/1:1/1:1",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 19,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       2,
+       1
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "F mix 3:2/1:1/1:1",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 19,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "F mix 1:1/1:1/1:1",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 19,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "F mix 3:2/1:1/1:2",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 19,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       2
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "F mix 2:1/3:2/1:1",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 15,
+    "leashRadius": 11,
+    "eliteHp": 19,
+    "meleeHp": 1,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15,
+    "shooterRange": 4.7,
+    "shooterDamage": 0.04,
+    "shooterHp": 0.8,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 16,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       2,
+       1
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 22,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       3,
+       2
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 28,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  }
+ ]
+}

@@ -1,0 +1,596 @@
+{
+ "policies": "screen",
+ "candidates": [
+  {
+   "label": "B0 engage11/spawn14 (base)",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14
+   }
+  },
+  {
+   "label": "B1 meleeHp 0.8",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "meleeHp": 0.8
+   }
+  },
+  {
+   "label": "B1 meleeHp 0.85",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "meleeHp": 0.85
+   }
+  },
+  {
+   "label": "B1 meleeHp 0.9",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "meleeHp": 0.9
+   }
+  },
+  {
+   "label": "B1 meleeHp 0.95",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "meleeHp": 0.95
+   }
+  },
+  {
+   "label": "B1 meleeHp 1.05",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "meleeHp": 1.05
+   }
+  },
+  {
+   "label": "B1 meleeHp 1.1",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "meleeHp": 1.1
+   }
+  },
+  {
+   "label": "B2 meleeSpeed 0.13",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "meleeMoveSpeed": 0.13
+   }
+  },
+  {
+   "label": "B2 meleeSpeed 0.135",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "meleeMoveSpeed": 0.135
+   }
+  },
+  {
+   "label": "B2 meleeSpeed 0.145",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "meleeMoveSpeed": 0.145
+   }
+  },
+  {
+   "label": "B2 meleeSpeed 0.15",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "meleeMoveSpeed": 0.15
+   }
+  },
+  {
+   "label": "B2 meleeSpeed 0.16",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "meleeMoveSpeed": 0.16
+   }
+  },
+  {
+   "label": "B2 meleeSpeed 0.17",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "meleeMoveSpeed": 0.17
+   }
+  },
+  {
+   "label": "B3 meleeDmg 0.035",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "meleeDamage": 0.035
+   }
+  },
+  {
+   "label": "B3 meleeDmg 0.04",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "meleeDamage": 0.04
+   }
+  },
+  {
+   "label": "B3 meleeDmg 0.042",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "meleeDamage": 0.042
+   }
+  },
+  {
+   "label": "B3 meleeDmg 0.048",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "meleeDamage": 0.048
+   }
+  },
+  {
+   "label": "B3 meleeDmg 0.05",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "meleeDamage": 0.05
+   }
+  },
+  {
+   "label": "B4 meleeInt 12",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "meleeAttackInterval": 12
+   }
+  },
+  {
+   "label": "B4 meleeInt 13",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "meleeAttackInterval": 13
+   }
+  },
+  {
+   "label": "B4 meleeInt 17",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "meleeAttackInterval": 17
+   }
+  },
+  {
+   "label": "B4 meleeInt 18",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "meleeAttackInterval": 18
+   }
+  },
+  {
+   "label": "B4 meleeInt 20",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "meleeAttackInterval": 20
+   }
+  },
+  {
+   "label": "B5 shooterHp 0.6",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "shooterHp": 0.6
+   }
+  },
+  {
+   "label": "B5 shooterHp 0.7",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "shooterHp": 0.7
+   }
+  },
+  {
+   "label": "B5 shooterHp 0.9",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "shooterHp": 0.9
+   }
+  },
+  {
+   "label": "B5 shooterHp 1",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "shooterHp": 1
+   }
+  },
+  {
+   "label": "B6 shooterDmg 0.025",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "shooterDamage": 0.025
+   }
+  },
+  {
+   "label": "B6 shooterDmg 0.03",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "shooterDamage": 0.03
+   }
+  },
+  {
+   "label": "B6 shooterDmg 0.04",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "shooterDamage": 0.04
+   }
+  },
+  {
+   "label": "B6 shooterDmg 0.045",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "shooterDamage": 0.045
+   }
+  },
+  {
+   "label": "B7 shooterInt 24",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "shooterAttackInterval": 24
+   }
+  },
+  {
+   "label": "B7 shooterInt 26",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "shooterAttackInterval": 26
+   }
+  },
+  {
+   "label": "B7 shooterInt 34",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "shooterAttackInterval": 34
+   }
+  },
+  {
+   "label": "B7 shooterInt 38",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "shooterAttackInterval": 38
+   }
+  },
+  {
+   "label": "B8 shooterRange 3.5",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "shooterRange": 3.5
+   }
+  },
+  {
+   "label": "B8 shooterRange 4",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "shooterRange": 4
+   }
+  },
+  {
+   "label": "B8 shooterRange 4.2",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "shooterRange": 4.2
+   }
+  },
+  {
+   "label": "B8 shooterRange 4.7",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "shooterRange": 4.7
+   }
+  },
+  {
+   "label": "B8 shooterRange 4.9",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "shooterRange": 4.9
+   }
+  },
+  {
+   "label": "B9 eliteHp 18",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "eliteHp": 18
+   }
+  },
+  {
+   "label": "B9 eliteHp 20",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "eliteHp": 20
+   }
+  },
+  {
+   "label": "B9 eliteHp 24",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "eliteHp": 24
+   }
+  },
+  {
+   "label": "B9 eliteHp 26",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "eliteHp": 26
+   }
+  },
+  {
+   "label": "B9 eliteHp 30",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "eliteHp": 30
+   }
+  },
+  {
+   "label": "B10 eliteDmg 0.3",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "eliteDamage": 0.3
+   }
+  },
+  {
+   "label": "B10 eliteDmg 0.35",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "eliteDamage": 0.35
+   }
+  },
+  {
+   "label": "B10 eliteDmg 0.45",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "eliteDamage": 0.45
+   }
+  },
+  {
+   "label": "B10 eliteDmg 0.5",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "eliteDamage": 0.5
+   }
+  },
+  {
+   "label": "B11 eliteApproach 3.5",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "eliteApproachRange": 3.5
+   }
+  },
+  {
+   "label": "B11 eliteApproach 4",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "eliteApproachRange": 4
+   }
+  },
+  {
+   "label": "B11 eliteApproach 4.9",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "eliteApproachRange": 4.9
+   }
+  },
+  {
+   "label": "B12 shooterSpeed 0.05",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "shooterMoveSpeed": 0.05
+   }
+  },
+  {
+   "label": "B12 shooterSpeed 0.055",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "shooterMoveSpeed": 0.055
+   }
+  },
+  {
+   "label": "B12 shooterSpeed 0.07",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "shooterMoveSpeed": 0.07
+   }
+  },
+  {
+   "label": "B12 shooterSpeed 0.08",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "shooterMoveSpeed": 0.08
+   }
+  },
+  {
+   "label": "B13 ri 10/8/6",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 14,
+      "requestInterval": 10,
+      "meleeToShooter": [
+       5,
+       1
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 20,
+      "requestInterval": 8,
+      "meleeToShooter": [
+       3,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 26,
+      "requestInterval": 6,
+      "meleeToShooter": [
+       2,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "B13 ri 10/7/5",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 14,
+      "requestInterval": 10,
+      "meleeToShooter": [
+       5,
+       1
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 20,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       3,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 26,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       2,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "B13 ri 8/7/5",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 14,
+      "requestInterval": 8,
+      "meleeToShooter": [
+       5,
+       1
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 20,
+      "requestInterval": 7,
+      "meleeToShooter": [
+       3,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 26,
+      "requestInterval": 5,
+      "meleeToShooter": [
+       2,
+       1
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "label": "B13 ri 9/8/6",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "pressurePhases": [
+     {
+      "fromTick": 0,
+      "engagedCap": 14,
+      "requestInterval": 9,
+      "meleeToShooter": [
+       5,
+       1
+      ]
+     },
+     {
+      "fromTick": 900,
+      "engagedCap": 20,
+      "requestInterval": 8,
+      "meleeToShooter": [
+       3,
+       1
+      ]
+     },
+     {
+      "fromTick": 1800,
+      "engagedCap": 26,
+      "requestInterval": 6,
+      "meleeToShooter": [
+       2,
+       1
+      ]
+     }
+    ]
+   }
+  }
+ ]
+}

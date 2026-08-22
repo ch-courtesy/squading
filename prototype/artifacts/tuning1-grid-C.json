@@ -1,0 +1,1085 @@
+{
+ "policies": "screen",
+ "candidates": [
+  {
+   "label": "C e10/s13 eh20 md0.04 mi15",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 13,
+    "eliteHp": 20,
+    "meleeDamage": 0.04,
+    "meleeAttackInterval": 15
+   }
+  },
+  {
+   "label": "C e10/s13 eh20 md0.04 mi16",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 13,
+    "eliteHp": 20,
+    "meleeDamage": 0.04,
+    "meleeAttackInterval": 16
+   }
+  },
+  {
+   "label": "C e10/s13 eh20 md0.04 mi17",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 13,
+    "eliteHp": 20,
+    "meleeDamage": 0.04,
+    "meleeAttackInterval": 17
+   }
+  },
+  {
+   "label": "C e10/s13 eh20 md0.0425 mi15",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 13,
+    "eliteHp": 20,
+    "meleeDamage": 0.0425,
+    "meleeAttackInterval": 15
+   }
+  },
+  {
+   "label": "C e10/s13 eh20 md0.0425 mi16",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 13,
+    "eliteHp": 20,
+    "meleeDamage": 0.0425,
+    "meleeAttackInterval": 16
+   }
+  },
+  {
+   "label": "C e10/s13 eh20 md0.0425 mi17",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 13,
+    "eliteHp": 20,
+    "meleeDamage": 0.0425,
+    "meleeAttackInterval": 17
+   }
+  },
+  {
+   "label": "C e10/s13 eh20 md0.045 mi15",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 13,
+    "eliteHp": 20,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15
+   }
+  },
+  {
+   "label": "C e10/s13 eh20 md0.045 mi16",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 13,
+    "eliteHp": 20,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 16
+   }
+  },
+  {
+   "label": "C e10/s13 eh20 md0.045 mi17",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 13,
+    "eliteHp": 20,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 17
+   }
+  },
+  {
+   "label": "C e10/s13 eh22 md0.04 mi15",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 13,
+    "eliteHp": 22,
+    "meleeDamage": 0.04,
+    "meleeAttackInterval": 15
+   }
+  },
+  {
+   "label": "C e10/s13 eh22 md0.04 mi16",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 13,
+    "eliteHp": 22,
+    "meleeDamage": 0.04,
+    "meleeAttackInterval": 16
+   }
+  },
+  {
+   "label": "C e10/s13 eh22 md0.04 mi17",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 13,
+    "eliteHp": 22,
+    "meleeDamage": 0.04,
+    "meleeAttackInterval": 17
+   }
+  },
+  {
+   "label": "C e10/s13 eh22 md0.0425 mi15",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 13,
+    "eliteHp": 22,
+    "meleeDamage": 0.0425,
+    "meleeAttackInterval": 15
+   }
+  },
+  {
+   "label": "C e10/s13 eh22 md0.0425 mi16",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 13,
+    "eliteHp": 22,
+    "meleeDamage": 0.0425,
+    "meleeAttackInterval": 16
+   }
+  },
+  {
+   "label": "C e10/s13 eh22 md0.0425 mi17",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 13,
+    "eliteHp": 22,
+    "meleeDamage": 0.0425,
+    "meleeAttackInterval": 17
+   }
+  },
+  {
+   "label": "C e10/s13 eh22 md0.045 mi15",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 13,
+    "eliteHp": 22,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15
+   }
+  },
+  {
+   "label": "C e10/s13 eh22 md0.045 mi16",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 13,
+    "eliteHp": 22,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 16
+   }
+  },
+  {
+   "label": "C e10/s13 eh22 md0.045 mi17",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 13,
+    "eliteHp": 22,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 17
+   }
+  },
+  {
+   "label": "C e10/s13 eh24 md0.04 mi15",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 13,
+    "eliteHp": 24,
+    "meleeDamage": 0.04,
+    "meleeAttackInterval": 15
+   }
+  },
+  {
+   "label": "C e10/s13 eh24 md0.04 mi16",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 13,
+    "eliteHp": 24,
+    "meleeDamage": 0.04,
+    "meleeAttackInterval": 16
+   }
+  },
+  {
+   "label": "C e10/s13 eh24 md0.04 mi17",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 13,
+    "eliteHp": 24,
+    "meleeDamage": 0.04,
+    "meleeAttackInterval": 17
+   }
+  },
+  {
+   "label": "C e10/s13 eh24 md0.0425 mi15",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 13,
+    "eliteHp": 24,
+    "meleeDamage": 0.0425,
+    "meleeAttackInterval": 15
+   }
+  },
+  {
+   "label": "C e10/s13 eh24 md0.0425 mi16",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 13,
+    "eliteHp": 24,
+    "meleeDamage": 0.0425,
+    "meleeAttackInterval": 16
+   }
+  },
+  {
+   "label": "C e10/s13 eh24 md0.0425 mi17",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 13,
+    "eliteHp": 24,
+    "meleeDamage": 0.0425,
+    "meleeAttackInterval": 17
+   }
+  },
+  {
+   "label": "C e10/s13 eh24 md0.045 mi15",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 13,
+    "eliteHp": 24,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15
+   }
+  },
+  {
+   "label": "C e10/s13 eh24 md0.045 mi16",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 13,
+    "eliteHp": 24,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 16
+   }
+  },
+  {
+   "label": "C e10/s13 eh24 md0.045 mi17",
+   "patch": {
+    "engageRadius": 10,
+    "spawnRadius": 13,
+    "eliteHp": 24,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 17
+   }
+  },
+  {
+   "label": "C e11/s14 eh20 md0.04 mi15",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "eliteHp": 20,
+    "meleeDamage": 0.04,
+    "meleeAttackInterval": 15
+   }
+  },
+  {
+   "label": "C e11/s14 eh20 md0.04 mi16",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "eliteHp": 20,
+    "meleeDamage": 0.04,
+    "meleeAttackInterval": 16
+   }
+  },
+  {
+   "label": "C e11/s14 eh20 md0.04 mi17",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "eliteHp": 20,
+    "meleeDamage": 0.04,
+    "meleeAttackInterval": 17
+   }
+  },
+  {
+   "label": "C e11/s14 eh20 md0.0425 mi15",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "eliteHp": 20,
+    "meleeDamage": 0.0425,
+    "meleeAttackInterval": 15
+   }
+  },
+  {
+   "label": "C e11/s14 eh20 md0.0425 mi16",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "eliteHp": 20,
+    "meleeDamage": 0.0425,
+    "meleeAttackInterval": 16
+   }
+  },
+  {
+   "label": "C e11/s14 eh20 md0.0425 mi17",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "eliteHp": 20,
+    "meleeDamage": 0.0425,
+    "meleeAttackInterval": 17
+   }
+  },
+  {
+   "label": "C e11/s14 eh20 md0.045 mi15",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "eliteHp": 20,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15
+   }
+  },
+  {
+   "label": "C e11/s14 eh20 md0.045 mi16",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "eliteHp": 20,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 16
+   }
+  },
+  {
+   "label": "C e11/s14 eh20 md0.045 mi17",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "eliteHp": 20,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 17
+   }
+  },
+  {
+   "label": "C e11/s14 eh22 md0.04 mi15",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "eliteHp": 22,
+    "meleeDamage": 0.04,
+    "meleeAttackInterval": 15
+   }
+  },
+  {
+   "label": "C e11/s14 eh22 md0.04 mi16",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "eliteHp": 22,
+    "meleeDamage": 0.04,
+    "meleeAttackInterval": 16
+   }
+  },
+  {
+   "label": "C e11/s14 eh22 md0.04 mi17",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "eliteHp": 22,
+    "meleeDamage": 0.04,
+    "meleeAttackInterval": 17
+   }
+  },
+  {
+   "label": "C e11/s14 eh22 md0.0425 mi15",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "eliteHp": 22,
+    "meleeDamage": 0.0425,
+    "meleeAttackInterval": 15
+   }
+  },
+  {
+   "label": "C e11/s14 eh22 md0.0425 mi16",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "eliteHp": 22,
+    "meleeDamage": 0.0425,
+    "meleeAttackInterval": 16
+   }
+  },
+  {
+   "label": "C e11/s14 eh22 md0.0425 mi17",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "eliteHp": 22,
+    "meleeDamage": 0.0425,
+    "meleeAttackInterval": 17
+   }
+  },
+  {
+   "label": "C e11/s14 eh22 md0.045 mi15",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "eliteHp": 22,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15
+   }
+  },
+  {
+   "label": "C e11/s14 eh22 md0.045 mi16",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "eliteHp": 22,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 16
+   }
+  },
+  {
+   "label": "C e11/s14 eh22 md0.045 mi17",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "eliteHp": 22,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 17
+   }
+  },
+  {
+   "label": "C e11/s14 eh24 md0.04 mi15",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "eliteHp": 24,
+    "meleeDamage": 0.04,
+    "meleeAttackInterval": 15
+   }
+  },
+  {
+   "label": "C e11/s14 eh24 md0.04 mi16",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "eliteHp": 24,
+    "meleeDamage": 0.04,
+    "meleeAttackInterval": 16
+   }
+  },
+  {
+   "label": "C e11/s14 eh24 md0.04 mi17",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "eliteHp": 24,
+    "meleeDamage": 0.04,
+    "meleeAttackInterval": 17
+   }
+  },
+  {
+   "label": "C e11/s14 eh24 md0.0425 mi15",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "eliteHp": 24,
+    "meleeDamage": 0.0425,
+    "meleeAttackInterval": 15
+   }
+  },
+  {
+   "label": "C e11/s14 eh24 md0.0425 mi16",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "eliteHp": 24,
+    "meleeDamage": 0.0425,
+    "meleeAttackInterval": 16
+   }
+  },
+  {
+   "label": "C e11/s14 eh24 md0.0425 mi17",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "eliteHp": 24,
+    "meleeDamage": 0.0425,
+    "meleeAttackInterval": 17
+   }
+  },
+  {
+   "label": "C e11/s14 eh24 md0.045 mi15",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "eliteHp": 24,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15
+   }
+  },
+  {
+   "label": "C e11/s14 eh24 md0.045 mi16",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "eliteHp": 24,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 16
+   }
+  },
+  {
+   "label": "C e11/s14 eh24 md0.045 mi17",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "eliteHp": 24,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 17
+   }
+  },
+  {
+   "label": "C e11/s15 eh20 md0.04 mi15",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 15,
+    "eliteHp": 20,
+    "meleeDamage": 0.04,
+    "meleeAttackInterval": 15
+   }
+  },
+  {
+   "label": "C e11/s15 eh20 md0.04 mi16",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 15,
+    "eliteHp": 20,
+    "meleeDamage": 0.04,
+    "meleeAttackInterval": 16
+   }
+  },
+  {
+   "label": "C e11/s15 eh20 md0.04 mi17",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 15,
+    "eliteHp": 20,
+    "meleeDamage": 0.04,
+    "meleeAttackInterval": 17
+   }
+  },
+  {
+   "label": "C e11/s15 eh20 md0.0425 mi15",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 15,
+    "eliteHp": 20,
+    "meleeDamage": 0.0425,
+    "meleeAttackInterval": 15
+   }
+  },
+  {
+   "label": "C e11/s15 eh20 md0.0425 mi16",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 15,
+    "eliteHp": 20,
+    "meleeDamage": 0.0425,
+    "meleeAttackInterval": 16
+   }
+  },
+  {
+   "label": "C e11/s15 eh20 md0.0425 mi17",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 15,
+    "eliteHp": 20,
+    "meleeDamage": 0.0425,
+    "meleeAttackInterval": 17
+   }
+  },
+  {
+   "label": "C e11/s15 eh20 md0.045 mi15",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 15,
+    "eliteHp": 20,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15
+   }
+  },
+  {
+   "label": "C e11/s15 eh20 md0.045 mi16",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 15,
+    "eliteHp": 20,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 16
+   }
+  },
+  {
+   "label": "C e11/s15 eh20 md0.045 mi17",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 15,
+    "eliteHp": 20,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 17
+   }
+  },
+  {
+   "label": "C e11/s15 eh22 md0.04 mi15",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 15,
+    "eliteHp": 22,
+    "meleeDamage": 0.04,
+    "meleeAttackInterval": 15
+   }
+  },
+  {
+   "label": "C e11/s15 eh22 md0.04 mi16",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 15,
+    "eliteHp": 22,
+    "meleeDamage": 0.04,
+    "meleeAttackInterval": 16
+   }
+  },
+  {
+   "label": "C e11/s15 eh22 md0.04 mi17",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 15,
+    "eliteHp": 22,
+    "meleeDamage": 0.04,
+    "meleeAttackInterval": 17
+   }
+  },
+  {
+   "label": "C e11/s15 eh22 md0.0425 mi15",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 15,
+    "eliteHp": 22,
+    "meleeDamage": 0.0425,
+    "meleeAttackInterval": 15
+   }
+  },
+  {
+   "label": "C e11/s15 eh22 md0.0425 mi16",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 15,
+    "eliteHp": 22,
+    "meleeDamage": 0.0425,
+    "meleeAttackInterval": 16
+   }
+  },
+  {
+   "label": "C e11/s15 eh22 md0.0425 mi17",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 15,
+    "eliteHp": 22,
+    "meleeDamage": 0.0425,
+    "meleeAttackInterval": 17
+   }
+  },
+  {
+   "label": "C e11/s15 eh22 md0.045 mi15",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 15,
+    "eliteHp": 22,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15
+   }
+  },
+  {
+   "label": "C e11/s15 eh22 md0.045 mi16",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 15,
+    "eliteHp": 22,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 16
+   }
+  },
+  {
+   "label": "C e11/s15 eh22 md0.045 mi17",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 15,
+    "eliteHp": 22,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 17
+   }
+  },
+  {
+   "label": "C e11/s15 eh24 md0.04 mi15",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 15,
+    "eliteHp": 24,
+    "meleeDamage": 0.04,
+    "meleeAttackInterval": 15
+   }
+  },
+  {
+   "label": "C e11/s15 eh24 md0.04 mi16",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 15,
+    "eliteHp": 24,
+    "meleeDamage": 0.04,
+    "meleeAttackInterval": 16
+   }
+  },
+  {
+   "label": "C e11/s15 eh24 md0.04 mi17",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 15,
+    "eliteHp": 24,
+    "meleeDamage": 0.04,
+    "meleeAttackInterval": 17
+   }
+  },
+  {
+   "label": "C e11/s15 eh24 md0.0425 mi15",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 15,
+    "eliteHp": 24,
+    "meleeDamage": 0.0425,
+    "meleeAttackInterval": 15
+   }
+  },
+  {
+   "label": "C e11/s15 eh24 md0.0425 mi16",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 15,
+    "eliteHp": 24,
+    "meleeDamage": 0.0425,
+    "meleeAttackInterval": 16
+   }
+  },
+  {
+   "label": "C e11/s15 eh24 md0.0425 mi17",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 15,
+    "eliteHp": 24,
+    "meleeDamage": 0.0425,
+    "meleeAttackInterval": 17
+   }
+  },
+  {
+   "label": "C e11/s15 eh24 md0.045 mi15",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 15,
+    "eliteHp": 24,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15
+   }
+  },
+  {
+   "label": "C e11/s15 eh24 md0.045 mi16",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 15,
+    "eliteHp": 24,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 16
+   }
+  },
+  {
+   "label": "C e11/s15 eh24 md0.045 mi17",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 15,
+    "eliteHp": 24,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 17
+   }
+  },
+  {
+   "label": "C e12/s15 eh20 md0.04 mi15",
+   "patch": {
+    "engageRadius": 12,
+    "spawnRadius": 15,
+    "eliteHp": 20,
+    "meleeDamage": 0.04,
+    "meleeAttackInterval": 15
+   }
+  },
+  {
+   "label": "C e12/s15 eh20 md0.04 mi16",
+   "patch": {
+    "engageRadius": 12,
+    "spawnRadius": 15,
+    "eliteHp": 20,
+    "meleeDamage": 0.04,
+    "meleeAttackInterval": 16
+   }
+  },
+  {
+   "label": "C e12/s15 eh20 md0.04 mi17",
+   "patch": {
+    "engageRadius": 12,
+    "spawnRadius": 15,
+    "eliteHp": 20,
+    "meleeDamage": 0.04,
+    "meleeAttackInterval": 17
+   }
+  },
+  {
+   "label": "C e12/s15 eh20 md0.0425 mi15",
+   "patch": {
+    "engageRadius": 12,
+    "spawnRadius": 15,
+    "eliteHp": 20,
+    "meleeDamage": 0.0425,
+    "meleeAttackInterval": 15
+   }
+  },
+  {
+   "label": "C e12/s15 eh20 md0.0425 mi16",
+   "patch": {
+    "engageRadius": 12,
+    "spawnRadius": 15,
+    "eliteHp": 20,
+    "meleeDamage": 0.0425,
+    "meleeAttackInterval": 16
+   }
+  },
+  {
+   "label": "C e12/s15 eh20 md0.0425 mi17",
+   "patch": {
+    "engageRadius": 12,
+    "spawnRadius": 15,
+    "eliteHp": 20,
+    "meleeDamage": 0.0425,
+    "meleeAttackInterval": 17
+   }
+  },
+  {
+   "label": "C e12/s15 eh20 md0.045 mi15",
+   "patch": {
+    "engageRadius": 12,
+    "spawnRadius": 15,
+    "eliteHp": 20,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15
+   }
+  },
+  {
+   "label": "C e12/s15 eh20 md0.045 mi16",
+   "patch": {
+    "engageRadius": 12,
+    "spawnRadius": 15,
+    "eliteHp": 20,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 16
+   }
+  },
+  {
+   "label": "C e12/s15 eh20 md0.045 mi17",
+   "patch": {
+    "engageRadius": 12,
+    "spawnRadius": 15,
+    "eliteHp": 20,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 17
+   }
+  },
+  {
+   "label": "C e12/s15 eh22 md0.04 mi15",
+   "patch": {
+    "engageRadius": 12,
+    "spawnRadius": 15,
+    "eliteHp": 22,
+    "meleeDamage": 0.04,
+    "meleeAttackInterval": 15
+   }
+  },
+  {
+   "label": "C e12/s15 eh22 md0.04 mi16",
+   "patch": {
+    "engageRadius": 12,
+    "spawnRadius": 15,
+    "eliteHp": 22,
+    "meleeDamage": 0.04,
+    "meleeAttackInterval": 16
+   }
+  },
+  {
+   "label": "C e12/s15 eh22 md0.04 mi17",
+   "patch": {
+    "engageRadius": 12,
+    "spawnRadius": 15,
+    "eliteHp": 22,
+    "meleeDamage": 0.04,
+    "meleeAttackInterval": 17
+   }
+  },
+  {
+   "label": "C e12/s15 eh22 md0.0425 mi15",
+   "patch": {
+    "engageRadius": 12,
+    "spawnRadius": 15,
+    "eliteHp": 22,
+    "meleeDamage": 0.0425,
+    "meleeAttackInterval": 15
+   }
+  },
+  {
+   "label": "C e12/s15 eh22 md0.0425 mi16",
+   "patch": {
+    "engageRadius": 12,
+    "spawnRadius": 15,
+    "eliteHp": 22,
+    "meleeDamage": 0.0425,
+    "meleeAttackInterval": 16
+   }
+  },
+  {
+   "label": "C e12/s15 eh22 md0.0425 mi17",
+   "patch": {
+    "engageRadius": 12,
+    "spawnRadius": 15,
+    "eliteHp": 22,
+    "meleeDamage": 0.0425,
+    "meleeAttackInterval": 17
+   }
+  },
+  {
+   "label": "C e12/s15 eh22 md0.045 mi15",
+   "patch": {
+    "engageRadius": 12,
+    "spawnRadius": 15,
+    "eliteHp": 22,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15
+   }
+  },
+  {
+   "label": "C e12/s15 eh22 md0.045 mi16",
+   "patch": {
+    "engageRadius": 12,
+    "spawnRadius": 15,
+    "eliteHp": 22,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 16
+   }
+  },
+  {
+   "label": "C e12/s15 eh22 md0.045 mi17",
+   "patch": {
+    "engageRadius": 12,
+    "spawnRadius": 15,
+    "eliteHp": 22,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 17
+   }
+  },
+  {
+   "label": "C e12/s15 eh24 md0.04 mi15",
+   "patch": {
+    "engageRadius": 12,
+    "spawnRadius": 15,
+    "eliteHp": 24,
+    "meleeDamage": 0.04,
+    "meleeAttackInterval": 15
+   }
+  },
+  {
+   "label": "C e12/s15 eh24 md0.04 mi16",
+   "patch": {
+    "engageRadius": 12,
+    "spawnRadius": 15,
+    "eliteHp": 24,
+    "meleeDamage": 0.04,
+    "meleeAttackInterval": 16
+   }
+  },
+  {
+   "label": "C e12/s15 eh24 md0.04 mi17",
+   "patch": {
+    "engageRadius": 12,
+    "spawnRadius": 15,
+    "eliteHp": 24,
+    "meleeDamage": 0.04,
+    "meleeAttackInterval": 17
+   }
+  },
+  {
+   "label": "C e12/s15 eh24 md0.0425 mi15",
+   "patch": {
+    "engageRadius": 12,
+    "spawnRadius": 15,
+    "eliteHp": 24,
+    "meleeDamage": 0.0425,
+    "meleeAttackInterval": 15
+   }
+  },
+  {
+   "label": "C e12/s15 eh24 md0.0425 mi16",
+   "patch": {
+    "engageRadius": 12,
+    "spawnRadius": 15,
+    "eliteHp": 24,
+    "meleeDamage": 0.0425,
+    "meleeAttackInterval": 16
+   }
+  },
+  {
+   "label": "C e12/s15 eh24 md0.0425 mi17",
+   "patch": {
+    "engageRadius": 12,
+    "spawnRadius": 15,
+    "eliteHp": 24,
+    "meleeDamage": 0.0425,
+    "meleeAttackInterval": 17
+   }
+  },
+  {
+   "label": "C e12/s15 eh24 md0.045 mi15",
+   "patch": {
+    "engageRadius": 12,
+    "spawnRadius": 15,
+    "eliteHp": 24,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 15
+   }
+  },
+  {
+   "label": "C e12/s15 eh24 md0.045 mi16",
+   "patch": {
+    "engageRadius": 12,
+    "spawnRadius": 15,
+    "eliteHp": 24,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 16
+   }
+  },
+  {
+   "label": "C e12/s15 eh24 md0.045 mi17",
+   "patch": {
+    "engageRadius": 12,
+    "spawnRadius": 15,
+    "eliteHp": 24,
+    "meleeDamage": 0.045,
+    "meleeAttackInterval": 17
+   }
+  }
+ ]
+}

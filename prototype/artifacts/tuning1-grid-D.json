@@ -1,0 +1,345 @@
+{
+ "policies": "screen",
+ "candidates": [
+  {
+   "label": "D0 base (I2 .736 fl4)",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "eliteHp": 20,
+    "meleeDamage": 0.0425,
+    "meleeAttackInterval": 16
+   }
+  },
+  {
+   "label": "D1 eliteSpeed 0.11",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "eliteHp": 20,
+    "meleeDamage": 0.0425,
+    "meleeAttackInterval": 16,
+    "eliteMoveSpeed": 0.11
+   }
+  },
+  {
+   "label": "D1 eliteSpeed 0.115",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "eliteHp": 20,
+    "meleeDamage": 0.0425,
+    "meleeAttackInterval": 16,
+    "eliteMoveSpeed": 0.115
+   }
+  },
+  {
+   "label": "D1 eliteSpeed 0.12",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "eliteHp": 20,
+    "meleeDamage": 0.0425,
+    "meleeAttackInterval": 16,
+    "eliteMoveSpeed": 0.12
+   }
+  },
+  {
+   "label": "D1 eliteSpeed 0.13",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "eliteHp": 20,
+    "meleeDamage": 0.0425,
+    "meleeAttackInterval": 16,
+    "eliteMoveSpeed": 0.13
+   }
+  },
+  {
+   "label": "D1 eliteSpeed 0.15",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "eliteHp": 20,
+    "meleeDamage": 0.0425,
+    "meleeAttackInterval": 16,
+    "eliteMoveSpeed": 0.15
+   }
+  },
+  {
+   "label": "D2 eliteHp 22",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "eliteHp": 22,
+    "meleeDamage": 0.0425,
+    "meleeAttackInterval": 16
+   }
+  },
+  {
+   "label": "D2 eliteHp 24",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "eliteHp": 24,
+    "meleeDamage": 0.0425,
+    "meleeAttackInterval": 16
+   }
+  },
+  {
+   "label": "D2 eliteHp 26",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "eliteHp": 26,
+    "meleeDamage": 0.0425,
+    "meleeAttackInterval": 16
+   }
+  },
+  {
+   "label": "D2 eliteHp 28",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "eliteHp": 28,
+    "meleeDamage": 0.0425,
+    "meleeAttackInterval": 16
+   }
+  },
+  {
+   "label": "D3 tele 30/32",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "eliteHp": 20,
+    "meleeDamage": 0.0425,
+    "meleeAttackInterval": 16,
+    "eliteTelegraphTicks": 30,
+    "eliteCooldownTicks": 32
+   }
+  },
+  {
+   "label": "D3 tele 40/42",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "eliteHp": 20,
+    "meleeDamage": 0.0425,
+    "meleeAttackInterval": 16,
+    "eliteTelegraphTicks": 40,
+    "eliteCooldownTicks": 42
+   }
+  },
+  {
+   "label": "D3 tele 70/72",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "eliteHp": 20,
+    "meleeDamage": 0.0425,
+    "meleeAttackInterval": 16,
+    "eliteTelegraphTicks": 70,
+    "eliteCooldownTicks": 72
+   }
+  },
+  {
+   "label": "D3 tele 90/92",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "eliteHp": 20,
+    "meleeDamage": 0.0425,
+    "meleeAttackInterval": 16,
+    "eliteTelegraphTicks": 90,
+    "eliteCooldownTicks": 92
+   }
+  },
+  {
+   "label": "D4 blast 3",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "eliteHp": 20,
+    "meleeDamage": 0.0425,
+    "meleeAttackInterval": 16,
+    "eliteBlastRadius": 3
+   }
+  },
+  {
+   "label": "D4 blast 3.5",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "eliteHp": 20,
+    "meleeDamage": 0.0425,
+    "meleeAttackInterval": 16,
+    "eliteBlastRadius": 3.5
+   }
+  },
+  {
+   "label": "D4 blast 4",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "eliteHp": 20,
+    "meleeDamage": 0.0425,
+    "meleeAttackInterval": 16,
+    "eliteBlastRadius": 4
+   }
+  },
+  {
+   "label": "D5 eliteDmg 0.5",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "eliteHp": 20,
+    "meleeDamage": 0.0425,
+    "meleeAttackInterval": 16,
+    "eliteDamage": 0.5
+   }
+  },
+  {
+   "label": "D5 eliteDmg 0.6",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "eliteHp": 20,
+    "meleeDamage": 0.0425,
+    "meleeAttackInterval": 16,
+    "eliteDamage": 0.6
+   }
+  },
+  {
+   "label": "D5 eliteDmg 0.8",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "eliteHp": 20,
+    "meleeDamage": 0.0425,
+    "meleeAttackInterval": 16,
+    "eliteDamage": 0.8
+   }
+  },
+  {
+   "label": "D6 approach 2",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "eliteHp": 20,
+    "meleeDamage": 0.0425,
+    "meleeAttackInterval": 16,
+    "eliteApproachRange": 2
+   }
+  },
+  {
+   "label": "D6 approach 3",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "eliteHp": 20,
+    "meleeDamage": 0.0425,
+    "meleeAttackInterval": 16,
+    "eliteApproachRange": 3
+   }
+  },
+  {
+   "label": "D6 approach 4.9",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "eliteHp": 20,
+    "meleeDamage": 0.0425,
+    "meleeAttackInterval": 16,
+    "eliteApproachRange": 4.9
+   }
+  },
+  {
+   "label": "D7 eliteTick 1500",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "eliteHp": 20,
+    "meleeDamage": 0.0425,
+    "meleeAttackInterval": 16,
+    "eliteSpawnTick": 1500
+   }
+  },
+  {
+   "label": "D7 eliteTick 1650",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "eliteHp": 20,
+    "meleeDamage": 0.0425,
+    "meleeAttackInterval": 16,
+    "eliteSpawnTick": 1650
+   }
+  },
+  {
+   "label": "D7 eliteTick 1950",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "eliteHp": 20,
+    "meleeDamage": 0.0425,
+    "meleeAttackInterval": 16,
+    "eliteSpawnTick": 1950
+   }
+  },
+  {
+   "label": "D7 eliteTick 2100",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "eliteHp": 20,
+    "meleeDamage": 0.0425,
+    "meleeAttackInterval": 16,
+    "eliteSpawnTick": 2100
+   }
+  },
+  {
+   "label": "D8 meleeSpeed 0.142",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "eliteHp": 20,
+    "meleeDamage": 0.0425,
+    "meleeAttackInterval": 16,
+    "meleeMoveSpeed": 0.142
+   }
+  },
+  {
+   "label": "D8 meleeSpeed 0.145",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "eliteHp": 20,
+    "meleeDamage": 0.0425,
+    "meleeAttackInterval": 16,
+    "meleeMoveSpeed": 0.145
+   }
+  },
+  {
+   "label": "D8 meleeSpeed 0.15",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "eliteHp": 20,
+    "meleeDamage": 0.0425,
+    "meleeAttackInterval": 16,
+    "meleeMoveSpeed": 0.15
+   }
+  },
+  {
+   "label": "D8 meleeSpeed 0.155",
+   "patch": {
+    "engageRadius": 11,
+    "spawnRadius": 14,
+    "eliteHp": 20,
+    "meleeDamage": 0.0425,
+    "meleeAttackInterval": 16,
+    "meleeMoveSpeed": 0.155
+   }
+  }
+ ]
+}

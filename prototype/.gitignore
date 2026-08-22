@@ -3,3 +3,8 @@ dist/
 test-results/
 playwright-report/
 blob-report/
+# Tuning batch 1's raw per-candidate log: megabytes of per-policy detail, and
+# `scripts/tuning1.mjs --log` folds it to the committed TSV. Regenerate it by
+# re-running the committed grids.
+artifacts/tuning1-search-log.jsonl
+artifacts/tuning1-search.json
