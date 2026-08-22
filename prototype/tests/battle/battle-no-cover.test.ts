@@ -44,9 +44,16 @@ const ARCHIVED = [
 // `src/scenarios`, `src/metrics`, and the four v1 modules directly under `src/core`
 // (`simulation.ts`, `snapshot.ts`, `types.ts`, `input-log.ts`, `prng.ts`). They are the
 // renderer-comparison lab's supporting cast, not the game.
+//
+// Campaign stage 1 added the last two. `src/core/campaign` and `src/core/campaign-view` are live
+// game code — the shell drives the campaign now — so they are inside the same fence for the same
+// reason `battle-view` is: the archived cover modules must not come back through a side door, and
+// a directory that is in the game but outside the guard is exactly such a door.
 const GAME_PATH_ROOTS = [
   'src/core/battle',
   'src/core/battle-view',
+  'src/core/campaign',
+  'src/core/campaign-view',
   'src/core/harness/policy',
   'src/app',
   'src/renderers',
