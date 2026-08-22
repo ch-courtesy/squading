@@ -261,7 +261,7 @@ export type BattleInput = {
 }
 
 export type BattleState = {
-  schemaVersion: 1
+  schemaVersion: 2
   rootSeed: string
   /**
    * §3.1 of the campaign design: WHICH STAGE'S NUMBERS THIS RUN IS PLAYED UNDER.

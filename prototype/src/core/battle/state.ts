@@ -179,7 +179,7 @@ export function createInitialBattleState(
   }
 
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     rootSeed: seed,
     stageId,
     combatTick: 0,

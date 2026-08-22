@@ -86,9 +86,9 @@ describe('§1.17 the runner reproduces the digests batch H recorded', () => {
     // x 32 seeds, `damageEvents` stream hashes included) that this line is three rows of. The
     // previous digests were `8f30c06d`, `91fc34fe` and `334b1763`.
     expect(THREE_SEEDS.map((seed) => runPolicySeed(policyFactory('tactical-no-input'), seed))).toEqual([
-      { seed: 'seed-a', outcome: 'lost', endTick: 1653, kills: 159, standing: 0, digest: '5b574345' },
-      { seed: 'seed-b', outcome: 'lost', endTick: 2190, kills: 228, standing: 0, digest: '8cc08e76' },
-      { seed: 'seed-c', outcome: 'lost', endTick: 1719, kills: 170, standing: 0, digest: '12b22be3' },
+      { seed: 'seed-a', outcome: 'lost', endTick: 1653, kills: 159, standing: 0, digest: '9fa23f60' },
+      { seed: 'seed-b', outcome: 'lost', endTick: 2190, kills: 228, standing: 0, digest: 'bf98a149' },
+      { seed: 'seed-c', outcome: 'lost', endTick: 1719, kills: 170, standing: 0, digest: '699a5f76' },
     ])
   })
 })
@@ -142,9 +142,9 @@ describe('§4.1 `flees-always` on the three seeds', () => {
     // block before this one: `stageId` joined `BattleState`. `1563/147/0`, `2204/225/0` and
     // `2099/230/0` are unchanged. The previous digests were `d8f816f6`, `ffddc7d9` and `991977cd`.
     expect(THREE_SEEDS.map((seed) => runPolicySeed(policyFactory('flees-always'), seed))).toEqual([
-      { seed: 'seed-a', outcome: 'lost', endTick: 1563, kills: 147, standing: 0, digest: '0611f83e' },
-      { seed: 'seed-b', outcome: 'lost', endTick: 2204, kills: 225, standing: 0, digest: '2d46befd' },
-      { seed: 'seed-c', outcome: 'lost', endTick: 2099, kills: 230, standing: 0, digest: '65efc479' },
+      { seed: 'seed-a', outcome: 'lost', endTick: 1563, kills: 147, standing: 0, digest: '0eac8f2f' },
+      { seed: 'seed-b', outcome: 'lost', endTick: 2204, kills: 225, standing: 0, digest: '426086e8' },
+      { seed: 'seed-c', outcome: 'lost', endTick: 2099, kills: 230, standing: 0, digest: '77adaf5a' },
     ])
   })
 

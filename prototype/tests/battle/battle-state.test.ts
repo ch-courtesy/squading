@@ -467,7 +467,7 @@ describe('§1.17 determinism and digest', () => {
     // the field the digest stopped watching.
     type Mutation = [string, (state: ReturnType<typeof createInitialBattleState>) => void]
     const fields: Mutation[] = [
-      ['schemaVersion', (state) => void ((state as { schemaVersion: number }).schemaVersion = 2)],
+      ['schemaVersion', (state) => void ((state as { schemaVersion: number }).schemaVersion = 3)],
       ['rootSeed', (state) => void (state.rootSeed = 'other')],
       ['combatTick', (state) => void (state.combatTick = 1)],
       ['mode', (state) => void (state.mode = 'running')],
@@ -547,6 +547,6 @@ describe('§1.17 determinism and digest', () => {
     const canonical = canonicalizeBattleState(state) as Record<string, unknown>
     expect(Object.keys(canonical)).toEqual([...Object.keys(canonical)].sort())
     expect(canonical.rootSeed).toBe('seed-a')
-    expect(canonical.schemaVersion).toBe(1)
+    expect(canonical.schemaVersion).toBe(2)
   })
 })
