@@ -275,13 +275,17 @@ describe('the v2 controller drives §1.1 fixed steps', () => {
     const battle = test.controller.hud()
     const campaign = test.controller.campaign()
     expect(battle.mode === 'won' || battle.mode === 'lost').toBe(true)
-    expect(campaign.phase).toBe('campaign-over')
-    // §5 stage 1: one stage, so a win completes the campaign and a loss ends it (§1.4).
-    expect(campaign.end).toBe(battle.mode === 'won' ? 'complete' : 'defeat')
-    expect(campaign.outcome).toBe(battle.mode === 'won' ? 'won' : 'lost')
+    // §5 stage 2: seven stages, so stage 1 is never the end of a campaign that was WON — a win
+    // hands the squad on (`stage-cleared`) and only a loss ends it here (§1.4). Written as a
+    // branch on the battle's own verdict rather than pinned, because which way this seed goes is
+    // a balance fact and §5 stage 4 owns the balance.
+    const won = battle.mode === 'won'
+    expect(campaign.phase).toBe(won ? 'stage-cleared' : 'campaign-over')
+    expect(campaign.end).toBe(won ? null : 'defeat')
+    expect(campaign.outcome).toBe(won ? null : 'lost')
     expect(campaign.stageId).toBe(1)
-    expect(campaign.stageCount).toBe(1)
-    expect(campaign.nextStageId).toBeNull()
+    expect(campaign.stageCount).toBe(7)
+    expect(campaign.nextStageId).toBe(2)
     // The stage's kills are now the campaign's, and the dead are named.
     expect(campaign.kills).toBe(battle.kills)
     expect(campaign.fallen.length).toBe(battle.dead + battle.downed)
@@ -311,13 +315,15 @@ describe('the v2 controller drives §1.1 fixed steps', () => {
     expect(test.controller.hud().roster).toHaveLength(16)
   })
 
-  it('refuses to advance a campaign that has no next stage', async () => {
-    // With one row in `STAGES` no run can reach `stage-cleared`, so this is what the button would
-    // do if it were somehow pressed: nothing. It is a no-op rather than a throw because a screen
-    // that cannot be shown must not be able to crash the shell either.
+  it('refuses to advance a campaign that is over', async () => {
+    // A no-op rather than a throw, because a screen that cannot be shown must not be able to crash
+    // the shell either. The reachable case is a LOST stage 1, and the phase is asserted rather
+    // than assumed: if the balance ever makes this seed win, the campaign is `stage-cleared` and
+    // the button is legal, and this fixture must fail loudly rather than quietly test nothing.
     const test = await started('campaign-a')
     playToTheVerdict(test)
     const before = test.controller.campaign()
+    expect(before.phase).toBe('campaign-over')
 
     test.controller.advanceStage()
 

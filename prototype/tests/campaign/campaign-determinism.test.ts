@@ -3,6 +3,8 @@
 import { describe, expect, it } from 'vitest'
 
 import { createBattle } from '../../src/core/battle/battle'
+import { createInitialBattleState } from '../../src/core/battle/state'
+import { completeStage } from '../../src/core/campaign/transition'
 import { policyFactory } from '../../src/core/harness/policy/policies'
 import { projectPolicyView } from '../../src/core/harness/policy/view'
 import { COMBAT_TICK_LIMIT } from '../../src/core/battle/constants'
@@ -77,12 +79,36 @@ describe('§3.2 the campaign digest', () => {
     )
   })
 
-  it('separates a campaign that was won from one that was lost', () => {
-    const won = playCampaign('seed-a', 'skilled')
-    const lost = playCampaign('seed-a', 'tactical-no-input')
-    expect(won.state().end).toBe('complete')
-    expect(lost.state().end).toBe('defeat')
-    expect(won.digest()).not.toBe(lost.digest())
+  it('separates two campaigns that ended differently', () => {
+    const far = playCampaign('seed-a', 'skilled')
+    const short = playCampaign('seed-a', 'tactical-no-input')
+
+    // WHAT THIS ASSERTS AND WHAT IT DELIBERATELY DOES NOT. It used to read `end === 'complete'`
+    // off `skilled`, which was true only because there was ONE stage and winning it finished the
+    // campaign. With seven, "does `skilled` reach stage 7" is a BALANCE question — §2.4 makes it a
+    // measurement and §5 stage 4 owns it — and the campaign-2 band measures it at 0/64. Pinning it
+    // here would pin an arbitrary point of the placeholder table. What is a property of the DIGEST,
+    // and is what this fixture is for, is that two campaigns that went differently hash
+    // differently.
+    expect(short.state().end).toBe('defeat')
+    expect(short.state().stageId).toBe(1)
+    expect(far.state().stageId).toBeGreaterThan(short.state().stageId)
+    expect(far.digest()).not.toBe(short.digest())
+  })
+
+  it('separates a completed campaign from a defeated one', () => {
+    // The `complete` end, on the path that produces it whatever the balance is: the fold of a won
+    // LAST stage. `playCampaign` cannot reach stage 7 at §5 stage 2's placeholders, so this drives
+    // `completeStage` directly rather than claiming a policy gets there.
+    const finished = createInitialBattleState('seed-a', 7)
+    finished.mode = 'won'
+    finished.result = 'won'
+    const complete = completeStage({ ...createCampaignState('seed-a'), stageId: 7 }, finished)
+    expect(complete.end).toBe('complete')
+
+    const defeated = playCampaign('seed-a', 'tactical-no-input').state()
+    expect(defeated.end).toBe('defeat')
+    expect(digestCampaignState(complete)).not.toBe(digestCampaignState(defeated))
   })
 
   it('watches every field of `CampaignState`', () => {
@@ -105,7 +131,7 @@ describe('§3.2 the campaign digest', () => {
       ['cards', (s) => void s.cards.push('cover')],
       ['fallen.nameIndex', (s) => void (s.fallen[0].nameIndex = 12)],
       ['fallen.id', (s) => void (s.fallen[0].id = 10)],
-      ['fallen.stageId', (s) => void (s.fallen[0].stageId = 1 as const)],
+      ['fallen.stageId', (s) => void (s.fallen[0].stageId = 2 as const)],
       ['squad.commandUnitId', (s) => void (s.squad!.commandUnitId = 2)],
       ['squad.member.hp', (s) => void (s.squad!.members[0].hp = 4.5)],
       ['squad.member.maxHp', (s) => void (s.squad!.members[0].maxHp = 6)],
@@ -121,17 +147,16 @@ describe('§3.2 the campaign digest', () => {
       const state = structuredClone(base)
       mutate(state)
       const digest = digestCampaignState(state)
-      // `fallen.stageId` is set to the value it already had: with one stage in the table there is
-      // no second value to move it to, so this row asserts NOTHING and says so rather than
-      // pretending. §5 stage 2 is what makes it a real mutation.
-      if (label === 'fallen.stageId') {
-        expect(digest).toBe(baseline)
-        continue
-      }
+      // `fallen.stageId` used to be set to the value it already had — with one stage in the table
+      // there was no second value to move it to, so the row asserted nothing and said so. §5 stage
+      // 2 gave it six more, and it is a real mutation now like every other row here.
       expect(digest, `the campaign digest ignored ${label}`).not.toBe(baseline)
       seen.add(digest)
     }
-    expect(seen.size).toBe(fields.length)
+    // The baseline plus one distinct digest per field: no two mutations may collide, or the
+    // digest is separating fewer campaigns than it looks like it is. It was `fields.length` while
+    // `fallen.stageId` had no second value to move to and therefore added nothing to the set.
+    expect(seen.size).toBe(fields.length + 1)
   })
 
   it('is insensitive to array order but not to content', () => {

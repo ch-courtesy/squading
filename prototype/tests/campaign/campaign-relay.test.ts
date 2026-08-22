@@ -1,11 +1,17 @@
 // §5 stage 1 fixtures: the relay. What crosses a stage boundary, and what must not.
 //
-// THE ONE THING TO KNOW BEFORE READING THE HELPERS. `STAGES` has ONE row, so `nextStageIdOf(1)` is
-// null and a won stage 1 completes the campaign (§5: "스테이지가 하나뿐이므로 스테이지 1을 이기면
-// 캠페인 승리"). The relay itself is therefore exercised by carrying a finished squad into another
-// STAGE 1 battle — `enterNextStage` below — which is what a stage boundary does minus the
-// different numbers §5 stage 2 will give the second stage. `advanceStage`'s happy path cannot be
-// reached from a one-row table and is not faked here; its two guards are.
+// THE ONE THING TO KNOW BEFORE READING THE HELPERS, REWRITTEN BY §5 STAGE 2. `STAGES` has SEVEN
+// rows now, so a won stage 1 answers `stage-cleared` and `nextStageIdOf(1)` is 2. `enterNextStage`
+// below therefore walks the PRODUCTION path end to end — `advanceStage` then `startStageBattle` —
+// and every fixture in this file that used to carry a finished squad into a second STAGE 1 battle
+// now carries it into a real stage 2, on the derived seed `stageSeed(root, 2)` and under stage 2's
+// numbers.
+//
+// WHAT THAT CLOSES. Campaign stage 1 reported two branches that had never executed: `advanceStage`'s
+// happy path (only its two guards were reachable from a one-row table) and `stageSeed(root, n)` for
+// `n > 1` (`stageSeed(root, 1)` is the root itself and returns before the derivation). Both run
+// here now, in the same call the rest of the relay is measured through, rather than in a fixture
+// written to reach them.
 
 import { describe, expect, it } from 'vitest'
 
@@ -16,6 +22,7 @@ import {
 } from '../../src/core/battle/constants'
 import { nameOf } from '../../src/core/battle/names'
 import { createInitialBattleState } from '../../src/core/battle/state'
+import { stageConfigOf, type StageId } from '../../src/core/battle/stages'
 import { createStreamStates } from '../../src/core/battle/streams'
 import { resolveKillAccounting } from '../../src/core/battle/upgrades'
 import {
@@ -26,6 +33,7 @@ import {
 } from '../../src/core/battle/upgrades'
 import type { BattleState } from '../../src/core/battle/types'
 import { startStageBattle } from '../../src/core/campaign/campaign'
+import { stageSeed } from '../../src/core/campaign/seed'
 import {
   carriedSquadOf,
   createCampaignState,
@@ -35,9 +43,9 @@ import {
 } from '../../src/core/campaign/state'
 import { advanceStage, completeStage } from '../../src/core/campaign/transition'
 
-/** A finished stage-1 battle, won, with nothing else touched. */
-function wonStage(seed = 'relay-a'): BattleState {
-  const state = createInitialBattleState(seed)
+/** A finished battle, won, with nothing else touched. Stage 1 unless a stage is named. */
+function wonStage(seed = 'relay-a', stageId: StageId = 1): BattleState {
+  const state = createInitialBattleState(seed, stageId)
   state.mode = 'won'
   state.result = 'won'
   state.combatTick = 1900
@@ -54,15 +62,17 @@ function kill(state: BattleState, ids: readonly number[]): void {
 }
 
 /**
- * The next stage's battle, built from the campaign the way the shell builds it.
+ * The next stage's battle, built from the campaign exactly the way the shell builds it.
  *
- * `phase` is forced to `in-stage` because with one stage in the table `completeStage` answers
- * `campaign-over`/`complete` and `advanceStage` is unreachable. Everything below the phase — the
- * carried squad, the cards, the cumulative kills, the seed derivation — is the production path,
- * `startStageBattle` included.
+ * NO PROJECTION. `Campaign.advance()` is `advanceStage` followed by `startStageBattle` and this is
+ * the same two calls, so what the fixtures below measure is the transition itself: the stage
+ * number moves, the seed is re-derived for the new number, and the carried squad, the cards and
+ * the cumulative kills cross. Forcing `phase` here — which is what this helper did while the table
+ * had one row — would have left the stage number at 1 and quietly made every fixture below a
+ * measurement of a second stage 1.
  */
 function enterNextStage(campaign: CampaignState) {
-  return startStageBattle({ ...campaign, phase: 'in-stage' })
+  return startStageBattle(advanceStage(campaign))
 }
 
 describe('§1.1 the relay carries the squad, its names and its hp', () => {
@@ -335,7 +345,10 @@ describe('§1.2 the cards and the kill count are the campaign\'s, not the stage\
       chosen: 'firepower',
     })
 
-    const afterSecond = completeStage({ ...afterFirst, phase: 'in-stage' }, second)
+    // The campaign is on stage 2 by now because `enterNextStage` advanced it, and `completeStage`
+    // refuses a battle whose stage is not the campaign's — so this is `advanceStage`'s result and
+    // not a hand-set phase.
+    const afterSecond = completeStage(advanceStage(afterFirst), second)
 
     expect(afterSecond.kills).toBe(50)
     // The card taken in the first stage is still held, and the second stage's is behind it in the
@@ -407,13 +420,24 @@ describe('§1.4 / §1.5 the campaign ends, and there is no stage retry', () => {
     expect(() => advanceStage(campaign)).toThrow(/cannot advance from campaign-over/)
   })
 
-  it('ends the campaign when the last stage is won', () => {
-    // §5 stage 1: one stage, so this is the whole win path today.
-    expect(nextStageIdOf(1)).toBeNull()
-    const campaign = completeStage(createCampaignState('root-a'), wonStage())
-    expect(campaign.phase).toBe('campaign-over')
-    expect(campaign.end).toBe('complete')
-    expect(campaignOutcome(campaign)).toBe('won')
+  it('ends the campaign when the LAST stage is won, and not before', () => {
+    // §5 stage 2: seven rows, so `complete` belongs to stage 7 alone. Winning any earlier stage
+    // hands the squad on instead — which is the difference between a campaign and one battle.
+    expect(nextStageIdOf(1)).toBe(2)
+    expect(nextStageIdOf(7)).toBeNull()
+
+    const early = completeStage(createCampaignState('root-a'), wonStage())
+    expect(early.phase).toBe('stage-cleared')
+    expect(early.end).toBeNull()
+    expect(campaignOutcome(early)).toBeNull()
+
+    const last = completeStage(
+      { ...createCampaignState('root-a'), stageId: 7 },
+      wonStage('relay-a', 7),
+    )
+    expect(last.phase).toBe('campaign-over')
+    expect(last.end).toBe('complete')
+    expect(campaignOutcome(last)).toBe('won')
   })
 
   it('refuses to fold a stage that has not ended', () => {
@@ -426,10 +450,37 @@ describe('§1.4 / §1.5 the campaign ends, and there is no stage retry', () => {
     const campaign = createCampaignState('root-a')
     expect(campaign.phase).toBe('in-stage')
     expect(() => advanceStage(campaign)).toThrow(/cannot advance from in-stage/)
-    // The other half of the guard: a `stage-cleared` with no next stage is a state the relay
-    // cannot produce, and if one ever reached here it would be a loud failure rather than a
-    // campaign quietly restarted on the stage it just finished.
-    expect(() => advanceStage({ ...campaign, phase: 'stage-cleared' })).toThrow(/unreachable/)
+    // The other half of the guard: a `stage-cleared` on the LAST stage is a state the relay cannot
+    // produce (`completeStage` answers `campaign-over`/`complete` there), and if one ever reached
+    // here it would be a loud failure rather than a campaign quietly restarted on stage 7.
+    expect(() => advanceStage({ ...campaign, stageId: 7, phase: 'stage-cleared' })).toThrow(
+      /unreachable/,
+    )
+  })
+
+  it('advances to the next stage, on the next stage NUMBER and the derived seed', () => {
+    // §3.2's happy path. Nothing above this line in the file could reach it while `STAGES` had one
+    // row, so this is the first fixture that watches the stage number move.
+    const cleared = completeStage(createCampaignState('root-a'), wonStage())
+    expect(cleared.stageId).toBe(1)
+    expect(cleared.phase).toBe('stage-cleared')
+
+    const advanced = advanceStage(cleared)
+    expect(advanced.stageId).toBe(2)
+    expect(advanced.phase).toBe('in-stage')
+    expect(advanced.end).toBeNull()
+    // §1.1: advancing carries, it does not reset. The squad, the cards and the kills are the ones
+    // `completeStage` folded in.
+    expect(advanced.squad).toEqual(cleared.squad)
+    expect(advanced.cards).toEqual(cleared.cards)
+    expect(advanced.kills).toBe(cleared.kills)
+
+    // §3.2: the stage's seed is derived from the root and the stage number. `stageSeed(root, 1)`
+    // is the root itself, so THIS is the first derivation that actually happens in the relay.
+    const battle = startStageBattle(advanced)
+    expect(battle.state().rootSeed).toBe(stageSeed('root-a', 2))
+    expect(battle.state().rootSeed).not.toBe('root-a')
+    expect(battle.state().stageId).toBe(2)
   })
 
   it('has no squad to hand on when a won stage leaves nobody standing', () => {
@@ -444,9 +495,31 @@ describe('§1.4 / §1.5 the campaign ends, and there is no stage retry', () => {
     expect(campaign.squad).toBeNull()
     expect(carriedSquadOf(campaign)).toBeNull()
     expect(campaign.fallen).toHaveLength(16)
-    // §1.5's clause is real but it is not what fires here: this stage was the LAST one, so the
-    // campaign is complete rather than stranded. The ordering is stated in `transition.ts`.
+    // §1.5: "스테이지를 이겼으나 생존자가 0명이면 캠페인은 거기서 끝난다." This clause had no
+    // reachable case while stage 1 was the last stage — the campaign completed instead. With six
+    // stages behind it, this is what a won stage 1 with an empty roster now answers.
+    expect(campaign.end).toBe('no-survivors')
+    expect(campaignOutcome(campaign)).toBe('lost')
+  })
+
+  it('completes rather than strands when the LAST stage is the one that leaves nobody', () => {
+    // The ordering `transition.ts` states, and the only way to see it: winning the last stage is a
+    // finished campaign even if it cost the last body, because there is no next stage for §1.5's
+    // "분대가 없다" to be about.
+    const finished = wonStage('relay-a', 7)
+    kill(
+      finished,
+      finished.friendlies.map((unit) => unit.id),
+    )
+
+    const campaign = completeStage(
+      { ...createCampaignState('root-a'), stageId: 7 },
+      finished,
+    )
+
+    expect(campaign.squad).toBeNull()
     expect(campaign.end).toBe('complete')
+    expect(campaignOutcome(campaign)).toBe('won')
   })
 
   it('carries a squad that a stage cost nothing, unchanged', () => {

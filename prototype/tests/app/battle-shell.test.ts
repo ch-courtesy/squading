@@ -253,7 +253,7 @@ describe('the v2 shell prints the projection and sends §1.15 inputs', () => {
     expect(root.querySelector<HTMLElement>('[data-battle-terminal]')!.hidden).toBe(false)
     expect(root.querySelector<HTMLElement>('[data-campaign-transition]')!.hidden).toBe(true)
     expect(root.querySelector('[data-campaign-outcome]')!.textContent).toBe('캠페인 종료')
-    expect(root.querySelector('[data-campaign-reached]')!.textContent).toBe('1 / 1')
+    expect(root.querySelector('[data-campaign-reached]')!.textContent).toBe('1 / 7')
     expect(root.querySelector('[data-campaign-total-kills]')!.textContent).toBe('137')
     expect(root.querySelector('[data-campaign-held-cards]')!.textContent).toContain('화력')
     // §1.14: the dead are NAMES on this screen, which is the whole reason the roster has any.
@@ -278,10 +278,11 @@ describe('the v2 shell prints the projection and sends §1.15 inputs', () => {
   })
 
   it('shows the stage transition instead of the result when a stage is cleared (§1.1)', () => {
-    // UNREACHABLE IN PLAY while `STAGES` has one row — winning stage 1 completes the campaign, so
-    // no run can produce `stage-cleared`. This renders the projection in that phase directly,
-    // which is a test of the SCREEN and not of the relay; the relay's own fixtures are in
-    // `tests/campaign/campaign-relay.test.ts` and drive the real transition.
+    // REACHABLE IN PLAY since §5 stage 2: with seven rows in `STAGES`, winning any stage but the
+    // seventh produces `stage-cleared`. This still publishes the phase directly, because it is a
+    // test of the SCREEN and playing a stage to a win here would make it a test of the balance as
+    // well; the relay's own fixtures drive the real transition in
+    // `tests/campaign/campaign-relay.test.ts`.
     const state = running()
     state.mode = 'won'
     state.result = 'won'

@@ -134,6 +134,10 @@ const TARGET_TESTS = [
   // now starts holding, and its fixtures are all here. Measured at 0.9s for the whole directory,
   // which is why the whole directory is listed rather than the fast half of it.
   'tests/campaign',
+  // Campaign stage 2: §2.3's seven rows, and the fixtures that say what each row is FOR. This is
+  // the file that kills the stage-lookup mutation below — every comparison in it reads two ids —
+  // so leaving it out would leave that mutation MISSED for the reason it no longer has.
+  'tests/battle/battle-stages.test.ts',
 ]
 
 const VIEW = 'src/core/harness/policy/view.ts'
@@ -566,24 +570,23 @@ const MUTATIONS = [
     replace: '    { fromTick: 0, engagedCap: 14, requestInterval: 12, meleeToShooter: [5, 1] },',
   },
 
-  // --- stages.ts: the stage lookup (campaign stage 0) -----------------------------------------
-  // ONE MUTATION, AND IT IS EXPECTED TO BE MISSED. `stageConfigOf` is the whole of §3.1's
-  // "설정은 순수 표에서 유도한다": an id goes in and that stage's numbers come out. The way it
-  // can be wrong is by ignoring the id, so that is what is mutated.
+  // --- stages.ts: the stage lookup (campaign stage 0, caught by campaign stage 2) --------------
+  // `stageConfigOf` is the whole of §3.1's "설정은 순수 표에서 유도한다": an id goes in and that
+  // stage's numbers come out. The way it can be wrong is by ignoring the id, so that is what is
+  // mutated.
   //
-  // `STAGES` has exactly ONE row today, so a lookup that always returns the first row returns
-  // the right row for every input that exists. No fixture can tell the two apart, and none is
-  // written that pretends to: a test asserting that two stage ids give different configurations
-  // would have to invent the second stage, which makes it a test of its own fixture rather than
-  // of this table. The campaign's stage 2 — the seven stage VALUES — is what turns this into a
-  // catchable mutation, and it will be caught by the fixtures that stage owes rather than by a
-  // new one here.
+  // IT WAS RECORDED AS A DELIBERATE MISS, AND IT IS NOT ONE ANY MORE. Campaign stage 0 left
+  // `STAGES` with exactly one row, so a lookup that always returned the first row returned the
+  // right row for every input that existed — unfalsifiable, and recorded MISSED with that reason
+  // written down rather than papered over with a fixture that invented its own second stage.
+  // Campaign stage 2 added the other six rows, `tests/battle/battle-stages.test.ts` compares them
+  // pairwise, and this mutation is CAUGHT.
   //
-  // MEASURED, not assumed: it is reported MISSED by this harness against the whole TARGET_TESTS
-  // set, and the batch report records that reading with this reason beside it.
+  // If it ever goes back to MISSED, the seven rows have stopped being distinguishable and the
+  // campaign is one stage played seven times.
   {
     file: STAGES,
-    label: 'look the stage up by position instead of by id (MISSED while there is one stage)',
+    label: 'look the stage up by position instead of by id',
     find: '  for (const stage of STAGES) {\n    if (stage.id === stageId) return stage\n  }',
     replace: '  return STAGES[0]',
   },
