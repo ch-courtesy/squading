@@ -131,6 +131,7 @@ const POLICIES = 'src/core/harness/policy/policies.ts'
 const RUN = 'src/core/harness/policy/run.ts'
 const MOVEMENT = 'src/core/battle/movement.ts'
 const CONSTANTS = 'src/core/battle/constants.ts'
+const STAGES = 'src/core/battle/stages.ts'
 const ATTACKS = 'src/core/battle/attacks.ts'
 const TARGETING = 'src/core/battle/targeting.ts'
 const SNAPSHOT = 'src/core/battle-view/snapshot.ts'
@@ -470,8 +471,8 @@ const MUTATIONS = [
   {
     file: MOVEMENT,
     label: 'chase only the enemies OUTSIDE the leash',
-    find: '    return leashDistance <= LEASH_RADIUS',
-    replace: '    return leashDistance > LEASH_RADIUS',
+    find: '    return leashDistance <= stageOf(state).leashRadius',
+    replace: '    return leashDistance > stageOf(state).leashRadius',
   },
   {
     // THE design point of §1.4.1, and the one a reviewer should check first.
@@ -483,7 +484,7 @@ const MUTATIONS = [
   {
     file: MOVEMENT,
     label: 'stand still instead of returning to the slot',
-    find: '    stepToward(unit, slotPosition(center, assignment.slotIndex), followSpeed)',
+    find: '    stepToward(state, unit, slotPosition(center, assignment.slotIndex), followSpeed)',
     replace: '    unit.lastDisplacement = 0',
   },
 
@@ -543,10 +544,34 @@ const MUTATIONS = [
     replace: '  const far = 0',
   },
   {
-    file: CONSTANTS,
+    // The pressure curve is a STAGE number since campaign stage 0 (§2.2), so the anchor moved
+    // file. The mutation is the same one and measures the same thing.
+    file: STAGES,
     label: "put §1.10's phase-0 request interval back where batch H had it",
-    find: '  { fromTick: 0, engagedCap: 14, requestInterval: 9, meleeToShooter: [5, 1] },',
-    replace: '  { fromTick: 0, engagedCap: 14, requestInterval: 12, meleeToShooter: [5, 1] },',
+    find: '    { fromTick: 0, engagedCap: 14, requestInterval: 9, meleeToShooter: [5, 1] },',
+    replace: '    { fromTick: 0, engagedCap: 14, requestInterval: 12, meleeToShooter: [5, 1] },',
+  },
+
+  // --- stages.ts: the stage lookup (campaign stage 0) -----------------------------------------
+  // ONE MUTATION, AND IT IS EXPECTED TO BE MISSED. `stageConfigOf` is the whole of §3.1's
+  // "설정은 순수 표에서 유도한다": an id goes in and that stage's numbers come out. The way it
+  // can be wrong is by ignoring the id, so that is what is mutated.
+  //
+  // `STAGES` has exactly ONE row today, so a lookup that always returns the first row returns
+  // the right row for every input that exists. No fixture can tell the two apart, and none is
+  // written that pretends to: a test asserting that two stage ids give different configurations
+  // would have to invent the second stage, which makes it a test of its own fixture rather than
+  // of this table. The campaign's stage 2 — the seven stage VALUES — is what turns this into a
+  // catchable mutation, and it will be caught by the fixtures that stage owes rather than by a
+  // new one here.
+  //
+  // MEASURED, not assumed: it is reported MISSED by this harness against the whole TARGET_TESTS
+  // set, and the batch report records that reading with this reason beside it.
+  {
+    file: STAGES,
+    label: 'look the stage up by position instead of by id (MISSED while there is one stage)',
+    find: '  for (const stage of STAGES) {\n    if (stage.id === stageId) return stage\n  }',
+    replace: '  return STAGES[0]',
   },
 
   // --- attacks.ts / §1.4.2 the command unit's melee (batch N) --------------------------------
