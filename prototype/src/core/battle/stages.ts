@@ -39,18 +39,45 @@
 // default is a run played under rules nobody asked for.
 //
 // ---------------------------------------------------------------------------
-// THERE IS EXACTLY ONE STAGE HERE, AND ITS NUMBERS ARE TODAY'S NUMBERS
+// THERE ARE SEVEN STAGES HERE, AND STAGE 1 IS STILL TODAY'S NUMBERS (§5 stage 2)
 // ---------------------------------------------------------------------------
-// §5 stage 0 MOVES values; it does not choose them. Every number below is the value the
-// identically-named constant had at `b59b14a`, character for character. §5 stage 2 is what adds
-// the other six rows and what makes them differ.
+// §5 stage 0 MOVED values; it did not choose them. §5 stage 2 — this batch — adds the other six
+// rows and makes them DIFFER. It still does not choose them well: §5 stage 4 owns the balance,
+// and every number below is a placeholder exactly as stage 1's were before it.
 //
-// ONE CONSEQUENCE, WRITTEN DOWN BECAUSE IT IS EASY TO MISREAD AS COVERAGE: while there is one
-// row, a `stageConfigOf` that ignored its argument and returned `STAGES[0]` would behave
-// identically, and NO test can tell the difference. `scripts/mutate.mjs` carries that mutation
-// and records it as MISSED for that reason. A fixture asserting that two stage ids give
-// different configurations cannot be written against a one-row table without inventing a second
-// row, and a test that invents its own subject is not a test of this table.
+// STAGE 1 IS UNCHANGED, CHARACTER FOR CHARACTER. Every recorded band, every digest pin, both §4.4
+// browser routes and eleven fixtures that read `stageConfigOf(1)` name the run they have always
+// named. A stage-1 edit would have re-rolled all of them for values that are still arbitrary.
+//
+// WHAT EACH ROW IS FOR (§2.3's dominant axis). "무엇이 이 판을 어렵게 하는가"에 이름이 붙어야
+// 스테이지다 — so each row pushes ONE axis hard and lets the rest rise gently, and the relations
+// that make that sentence true are pinned in `tests/battle/battle-stages.test.ts`. The tests pin
+// the RELATIONS §2.3 asserts (stage 4's shooter share is above stage 1's) and not the numbers, so
+// §5 stage 4 can tune the table without rewriting the fixtures that describe it.
+//
+//   1 빨강  the baseline. The highest melee share of any stage's opening phase.
+//   2 주황  spawn density: the shortest request intervals of stages 1-3, at stage 1's enemy stats.
+//   3 노랑  many weak: the highest engaged caps, and the lowest melee/shooter hp of any stage.
+//   4 초록  shooters, and the range gap closed: the highest shooter share and the SMALLEST
+//           `rangeAdvantage` in the table. §2.3 calls this the design core, and §4 makes I4
+//           mandatory here and relaxed elsewhere.
+//   5 파랑  the board opens: 2.25x the area, and a leash cut in absolute terms as well as relative.
+//   6 남색  the elite: it arrives earlier, telegraphs and cools down in ~60% of the ticks, and its
+//           blast covers 2.25x the area of stage 1's.
+//   7 보라  everything: the largest absolute cap, the shortest intervals, the toughest elite.
+//
+// WHAT DID *NOT* MOVE, AND WHY IT IS WRITTEN HERE. `COMMANDER_START` is `{28, 16}`, the exact
+// centre of stage 1's 56x32 arena, and stages 5-7 open the arena to 84x48 — so on those three the
+// squad no longer starts in the middle. It is NOT moved and NOT made a stage axis: §2.2 lists the
+// eight axes a stage may differ on and the friendly anchor is not one of them, and `constants.ts`
+// says so at the declaration. The consequence is a fact about those stages rather than a defect,
+// and the batch report measures it (the arena clamp and how close a run gets to a wall) instead of
+// asserting it is harmless.
+//
+// THE MUTATION STAGE 0 RECORDED AS MISSED. With one row, a `stageConfigOf` that ignored its
+// argument and returned `STAGES[0]` behaved identically and no fixture could tell the difference.
+// With seven rows it cannot: the relation fixtures read two ids and compare them, so the mutation
+// is CAUGHT. If it ever goes back to MISSED, the rows have stopped being distinct.
 
 import {
   COMMANDER_MELEE_RANGE,
@@ -73,15 +100,15 @@ export type PressurePhase = {
 }
 
 /**
- * The campaign's stage numbers (§2.3). One today; §5 stage 2 widens this union to `1..7`.
+ * The campaign's stage numbers (§2.3). All seven of them since §5 stage 2.
  *
  * A union of literals rather than `number` so that a `stageId` the table has no row for is a
  * compile error at every call site that can be checked statically, and `stageConfigOf`'s throw
  * is left to cover the ones that cannot (a value parsed from a URL, a save file, a test).
  */
-export type StageId = 1
+export type StageId = 1 | 2 | 3 | 4 | 5 | 6 | 7
 
-/** The id every entry point defaults to while the campaign shell (§5 stage 1) does not exist. */
+/** The id a campaign and every default entry point starts on. */
 export const FIRST_STAGE_ID: StageId = 1
 
 /**
@@ -290,7 +317,9 @@ function buildStage(spec: StageSpec): StageConfig {
 /**
  * PLACEHOLDER, all of it — §5 stage 4 owns every number here, exactly as §5 stage 0 owned them
  * while they lived in `constants.ts`. See that file's header for what each one was chosen as and
- * what measurement (if any) stands behind it; this move changed no value.
+ * what measurement (if any) stands behind it; neither the move nor §5 stage 2 changed a value.
+ *
+ * §5 STAGE 2 DID NOT TOUCH THIS ROW. Not one character. The six rows below it are the batch.
  */
 const STAGE_ONE: StageSpec = {
   id: 1,
@@ -333,8 +362,362 @@ const STAGE_ONE: StageSpec = {
   eliteDamage: 0.4,
 }
 
-/** The whole campaign, in stage order. One row until §5 stage 2. */
-export const STAGES: readonly StageConfig[] = [buildStage(STAGE_ONE)]
+/**
+ * STAGE 2 — 주황. THE DOMINANT AXIS IS SPAWN DENSITY (§2.3: "몰리지 않게 서 있을 수 있나").
+ *
+ * The enemy stats are stage 1's, character for character, and so are the radii: the ONLY things
+ * that moved are how often a request is made, how many bodies may be engaged at once, and how big
+ * the absolute population and the backlog are. That is the point of a dominant axis — a stage 2
+ * that also changed hp and range would be "harder" without being ABOUT anything, and §5 stage 4
+ * could not tell which half of the change did what.
+ *
+ * `requestInterval` 6/5/4 against stage 1's 9/7/5 is the shortest opening interval of stages 1-3.
+ * The melee share drops one notch (5:1 -> 4:1) so that stage 1 keeps the highest melee share in
+ * the table, which is the other half of §2.3's row for stage 1.
+ */
+const STAGE_TWO: StageSpec = {
+  id: 2,
+
+  arenaWidth: 56,
+  arenaHeight: 32,
+
+  leashRadius: 10.0,
+
+  meleeHp: 1.0,
+  meleeMoveSpeed: 0.14,
+  meleeRange: 0.75,
+  meleeAttackInterval: 15,
+  meleeDamage: 0.045,
+
+  shooterHp: 0.8,
+  shooterMoveSpeed: 0.06,
+  shooterRange: 4.5,
+  shooterAttackInterval: 30,
+  shooterDamage: 0.035,
+
+  spawnRadius: 13.0,
+  engageRadius: 10.0,
+  absoluteEnemyCap: 72,
+  backlogSize: 16,
+  backlogDrainPerTick: 3,
+  pressurePhases: [
+    { fromTick: 0, engagedCap: 18, requestInterval: 6, meleeToShooter: [4, 1] },
+    { fromTick: 900, engagedCap: 24, requestInterval: 5, meleeToShooter: [3, 1] },
+    { fromTick: 1800, engagedCap: 30, requestInterval: 4, meleeToShooter: [2, 1] },
+  ],
+
+  eliteSpawnTick: 1800,
+  eliteHp: 23.0,
+  eliteMoveSpeed: 0.1,
+  eliteApproachRange: 4.5,
+  eliteTelegraphTicks: 54,
+  eliteCooldownTicks: 56,
+  eliteBlastRadius: 2.4,
+  eliteDamage: 0.4,
+}
+
+/**
+ * STAGE 3 — 노랑. MANY WEAK BODIES (§2.3: "다수 약체 — 상한 ↑, 개체 HP ↓", 화력 분산 대 집중).
+ *
+ * TWO numbers move together here and they are the row's whole identity: the engaged caps go to
+ * 24/32/40, the highest in the table, and `meleeHp`/`shooterHp` go to 0.6/0.5, the lowest in the
+ * table. Everything a soldier shoots dies in fewer shots and there are far more of them, which is
+ * the "spread fire or concentrate it" question §2.3 names.
+ *
+ * The request intervals are LONGER than stage 2's (7/6/5 against 6/5/4) on purpose. Stage 2 is
+ * the arrival-rate stage; stage 3 is the standing-population stage, and if it also had the
+ * shortest intervals the two rows would be the same stage with different hp.
+ */
+const STAGE_THREE: StageSpec = {
+  id: 3,
+
+  arenaWidth: 56,
+  arenaHeight: 32,
+
+  leashRadius: 10.0,
+
+  meleeHp: 0.6,
+  meleeMoveSpeed: 0.145,
+  meleeRange: 0.75,
+  meleeAttackInterval: 15,
+  meleeDamage: 0.04,
+
+  shooterHp: 0.5,
+  shooterMoveSpeed: 0.065,
+  shooterRange: 4.4,
+  shooterAttackInterval: 30,
+  shooterDamage: 0.03,
+
+  spawnRadius: 13.0,
+  engageRadius: 10.0,
+  absoluteEnemyCap: 90,
+  backlogSize: 20,
+  backlogDrainPerTick: 4,
+  pressurePhases: [
+    { fromTick: 0, engagedCap: 24, requestInterval: 7, meleeToShooter: [4, 1] },
+    { fromTick: 900, engagedCap: 32, requestInterval: 6, meleeToShooter: [3, 1] },
+    { fromTick: 1800, engagedCap: 40, requestInterval: 5, meleeToShooter: [2, 1] },
+  ],
+
+  eliteSpawnTick: 1800,
+  eliteHp: 25.0,
+  eliteMoveSpeed: 0.1,
+  eliteApproachRange: 4.5,
+  eliteTelegraphTicks: 54,
+  eliteCooldownTicks: 56,
+  eliteBlastRadius: 2.4,
+  eliteDamage: 0.4,
+}
+
+/**
+ * STAGE 4 — 초록. THE DESIGN CORE (§2.3: "4번이 이 캠페인의 설계적 핵심이다").
+ *
+ * Two axes move and they are the same argument twice. §1.6 made `SOLDIER_RANGE - shooterRange`
+ * the band a friendly can stand in and shoot without being shot back; §2.3 says I4 fails on a
+ * single stage because "사수 비중이 낮아 사거리 판단이 결과를 거의 안 바꾼다". So:
+ *
+ *   the shooter share goes 1:1 -> 1:2 -> 1:3, the highest of any stage in EVERY phase, and
+ *   `shooterRange` goes to 4.9 — `rangeAdvantage` 0.1, the smallest in the table.
+ *
+ * A band of 0.1m is a band a player has to aim at rather than stumble into, and it is the top of
+ * §2's stated `3.0~4.9` search range: this is the axis at its limit, not part-way along it.
+ *
+ * The shooters are also individually better here (hp 0.9, interval 26, damage 0.04) because a
+ * stage about shooters whose shooters die to one volley asks nothing. Everything else — the melee
+ * class, the radii, the arena, the leash — is stage 1's, so that I4 measured on this stage is
+ * measuring the two axes above and not five others.
+ */
+const STAGE_FOUR: StageSpec = {
+  id: 4,
+
+  arenaWidth: 56,
+  arenaHeight: 32,
+
+  leashRadius: 10.0,
+
+  meleeHp: 1.0,
+  meleeMoveSpeed: 0.14,
+  meleeRange: 0.75,
+  meleeAttackInterval: 15,
+  meleeDamage: 0.045,
+
+  shooterHp: 0.9,
+  shooterMoveSpeed: 0.07,
+  shooterRange: 4.9,
+  shooterAttackInterval: 26,
+  shooterDamage: 0.04,
+
+  spawnRadius: 13.0,
+  engageRadius: 10.0,
+  absoluteEnemyCap: 72,
+  backlogSize: 16,
+  backlogDrainPerTick: 3,
+  pressurePhases: [
+    { fromTick: 0, engagedCap: 20, requestInterval: 7, meleeToShooter: [1, 1] },
+    { fromTick: 900, engagedCap: 26, requestInterval: 6, meleeToShooter: [1, 2] },
+    { fromTick: 1800, engagedCap: 32, requestInterval: 5, meleeToShooter: [1, 3] },
+  ],
+
+  eliteSpawnTick: 1800,
+  eliteHp: 27.0,
+  eliteMoveSpeed: 0.1,
+  eliteApproachRange: 4.5,
+  eliteTelegraphTicks: 50,
+  eliteCooldownTicks: 52,
+  eliteBlastRadius: 2.6,
+  eliteDamage: 0.42,
+}
+
+/**
+ * STAGE 5 — 파랑. THE BOARD OPENS AND THE LEASH DOES NOT (§2.3: "아레나 확대 + 리쉬 상대적 축소").
+ *
+ * 84x48 is 1.5x on each side, 2.25x the area, and `leashRadius` goes DOWN from 10.0 to 8.0 — so
+ * the shrink is absolute as well as relative and the ratio of leash to board width falls from
+ * 0.179 to 0.095. §1.4.1 anchors the leash to the command unit so that where the player stands
+ * decides which fight happens; this row is that question asked on a board with far more places to
+ * stand.
+ *
+ * `COMMANDER_START` STAYS `{28, 16}` AND IS NO LONGER THE CENTRE HERE. §2.2 does not list the
+ * friendly anchor among the eight axes and `constants.ts` declares it as §1.2 structure, so this
+ * row does not move it and no field is added to carry it. The squad opens 28 from the west wall
+ * and 16 from the south — stage 1's distances exactly — with all 2.24x of the new room to the
+ * east and north. The header says what the batch measured about that rather than asserting it
+ * does not matter.
+ *
+ * `engageRadius` rises to 11.0 with `spawnRadius` to 15.0 (§1.10 wants >= engage + 2.0): on a
+ * board this size, keeping the spawn ring at 13.0 would drop enemies into a smaller fraction of
+ * the space the player just gained.
+ */
+const STAGE_FIVE: StageSpec = {
+  id: 5,
+
+  arenaWidth: 84,
+  arenaHeight: 48,
+
+  leashRadius: 8.0,
+
+  meleeHp: 1.0,
+  meleeMoveSpeed: 0.145,
+  meleeRange: 0.75,
+  meleeAttackInterval: 15,
+  meleeDamage: 0.045,
+
+  shooterHp: 0.85,
+  shooterMoveSpeed: 0.07,
+  shooterRange: 4.6,
+  shooterAttackInterval: 28,
+  shooterDamage: 0.04,
+
+  spawnRadius: 15.0,
+  engageRadius: 11.0,
+  absoluteEnemyCap: 76,
+  backlogSize: 16,
+  backlogDrainPerTick: 3,
+  pressurePhases: [
+    { fromTick: 0, engagedCap: 20, requestInterval: 7, meleeToShooter: [3, 1] },
+    { fromTick: 900, engagedCap: 26, requestInterval: 6, meleeToShooter: [2, 1] },
+    { fromTick: 1800, engagedCap: 32, requestInterval: 5, meleeToShooter: [3, 2] },
+  ],
+
+  eliteSpawnTick: 1800,
+  eliteHp: 30.0,
+  eliteMoveSpeed: 0.105,
+  eliteApproachRange: 4.6,
+  eliteTelegraphTicks: 48,
+  eliteCooldownTicks: 50,
+  eliteBlastRadius: 2.8,
+  eliteDamage: 0.45,
+}
+
+/**
+ * STAGE 6 — 남색. THE ELITE'S CLOCK (§2.3: "정예 주기 단축·범위 확대", 회피와 구조의 시간 예산).
+ *
+ * Four elite numbers move together and each one spends the same budget: the player's ticks.
+ *
+ *   `eliteSpawnTick`      1800 -> 1500   it is on the board for a third of the fight, not a fifth
+ *   `eliteTelegraphTicks`   54 -> 32     the warning is 1.07s instead of 1.8s
+ *   `eliteCooldownTicks`    56 -> 34     a blast every ~2.2s instead of every ~3.7s
+ *   `eliteBlastRadius`     2.4 -> 3.6    2.25x the area to be outside of when it lands
+ *
+ * §4.5's fourth question is whether to go back for a downed body, and the answer is a time budget:
+ * running to a body, standing over it and running out again has to fit between two blasts. This
+ * row is that budget cut roughly in half.
+ *
+ * THE EARLIER ARRIVAL CUTS BOTH WAYS AND THAT IS DELIBERATE. §1.12 makes killing the elite the
+ * only way to win, so an elite that arrives at 1500 hands the squad 1200 ticks to kill it instead
+ * of 900 — on its own, EASIER. `eliteHp` 34.0 is what is set against that, and which way the pair
+ * actually lands is a measurement in the batch report, not a claim here.
+ */
+const STAGE_SIX: StageSpec = {
+  id: 6,
+
+  arenaWidth: 84,
+  arenaHeight: 48,
+
+  leashRadius: 8.0,
+
+  meleeHp: 1.0,
+  meleeMoveSpeed: 0.145,
+  meleeRange: 0.75,
+  meleeAttackInterval: 15,
+  meleeDamage: 0.045,
+
+  shooterHp: 0.9,
+  shooterMoveSpeed: 0.07,
+  shooterRange: 4.6,
+  shooterAttackInterval: 26,
+  shooterDamage: 0.04,
+
+  spawnRadius: 14.0,
+  engageRadius: 11.0,
+  absoluteEnemyCap: 80,
+  backlogSize: 18,
+  backlogDrainPerTick: 3,
+  pressurePhases: [
+    { fromTick: 0, engagedCap: 22, requestInterval: 6, meleeToShooter: [2, 1] },
+    { fromTick: 900, engagedCap: 28, requestInterval: 5, meleeToShooter: [2, 1] },
+    { fromTick: 1800, engagedCap: 34, requestInterval: 4, meleeToShooter: [3, 2] },
+  ],
+
+  eliteSpawnTick: 1500,
+  eliteHp: 34.0,
+  eliteMoveSpeed: 0.11,
+  eliteApproachRange: 4.8,
+  eliteTelegraphTicks: 32,
+  eliteCooldownTicks: 34,
+  eliteBlastRadius: 3.6,
+  eliteDamage: 0.5,
+}
+
+/**
+ * STAGE 7 — 보라. EVERY AXIS NEAR ITS MAXIMUM (§2.3: "종합").
+ *
+ * "근처" and not "at": stage 4 keeps the smallest range gap and stage 3 keeps the weakest bodies,
+ * because a last stage that took every axis to its extreme would erase the identity of the six
+ * rows leading to it — every stage would just be stage 7 turned down. What stage 7 holds outright
+ * is the population and the elite: the largest `absoluteEnemyCap` (96), the shortest request
+ * intervals in every phase (5/4/3), the widest blast (4.0) and the toughest elite (40.0 hp).
+ *
+ * The melee class is finally above stage 1's on all three of hp, speed and damage — the only row
+ * where it is.
+ */
+const STAGE_SEVEN: StageSpec = {
+  id: 7,
+
+  arenaWidth: 84,
+  arenaHeight: 48,
+
+  leashRadius: 8.0,
+
+  meleeHp: 1.1,
+  meleeMoveSpeed: 0.15,
+  meleeRange: 0.8,
+  meleeAttackInterval: 14,
+  meleeDamage: 0.05,
+
+  shooterHp: 0.9,
+  shooterMoveSpeed: 0.075,
+  shooterRange: 4.8,
+  shooterAttackInterval: 24,
+  shooterDamage: 0.045,
+
+  spawnRadius: 15.0,
+  engageRadius: 11.0,
+  absoluteEnemyCap: 96,
+  backlogSize: 22,
+  backlogDrainPerTick: 4,
+  pressurePhases: [
+    { fromTick: 0, engagedCap: 26, requestInterval: 5, meleeToShooter: [2, 1] },
+    { fromTick: 900, engagedCap: 34, requestInterval: 4, meleeToShooter: [1, 1] },
+    { fromTick: 1800, engagedCap: 42, requestInterval: 3, meleeToShooter: [1, 2] },
+  ],
+
+  eliteSpawnTick: 1500,
+  eliteHp: 40.0,
+  eliteMoveSpeed: 0.115,
+  eliteApproachRange: 4.8,
+  eliteTelegraphTicks: 30,
+  eliteCooldownTicks: 32,
+  eliteBlastRadius: 4.0,
+  eliteDamage: 0.55,
+}
+
+/**
+ * The whole campaign, in stage order.
+ *
+ * THE ORDER IS THE CAMPAIGN. `nextStageIdOf` walks this array by position, so a row moved here
+ * moves the play order — which is why the ids are written out and ascending rather than implied
+ * by the index.
+ */
+export const STAGES: readonly StageConfig[] = [
+  buildStage(STAGE_ONE),
+  buildStage(STAGE_TWO),
+  buildStage(STAGE_THREE),
+  buildStage(STAGE_FOUR),
+  buildStage(STAGE_FIVE),
+  buildStage(STAGE_SIX),
+  buildStage(STAGE_SEVEN),
+]
 
 /**
  * §3.1: the configuration, derived from the id on the state.
@@ -466,4 +849,17 @@ for (const stage of STAGES) {
     'backlogDrainPerTick must be >= 1 (§1.10)',
   )
   assertStageRule(stage, stage.arenaWidth > 0 && stage.arenaHeight > 0, 'the arena must have area (§1.1)')
+}
+
+// §2.3: THE ARRAY ORDER IS THE CAMPAIGN ORDER, and two functions read it two different ways —
+// `stageConfigOf` finds a row by ID, `nextStageIdOf` finds the next one by POSITION. A duplicate
+// id makes the second copy unreachable through the first; a row out of order makes a campaign play
+// 1, 3, 2 while every screen prints 1, 2, 3. Neither is visible at the call site, so both are
+// import-time failures here.
+for (let index = 1; index < STAGES.length; index += 1) {
+  assertStageRule(
+    STAGES[index],
+    STAGES[index].id > STAGES[index - 1].id,
+    'stage ids must be unique and ascending in play order (§2.3)',
+  )
 }
