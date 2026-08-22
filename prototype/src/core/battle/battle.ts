@@ -29,9 +29,23 @@ import {
   type BattleCommand,
   type PointerPhase,
 } from './input'
+import { FIRST_STAGE_ID, type StageId } from './stages'
 import { createInitialBattleState } from './state'
 import { advanceBattleTick, type TickResult } from './tick'
-import type { BattleMode, BattleState, Vec2 } from './types'
+import type { BattleMode, BattleState, CarriedSquad, Vec2 } from './types'
+
+/**
+ * What a stage is, beyond its seed (campaign design §3.1, §1.1).
+ *
+ * Both fields DEFAULT to the campaign's first stage, so `createBattle(seed)` is exactly stage 1 of
+ * campaign `seed` — which is what keeps every fixture, every recorded seed band and both §4.4
+ * browser routes meaning the same run they meant before the campaign existed.
+ */
+export type BattleOptions = {
+  readonly stageId?: StageId
+  /** §1.1's relay. Null is a fresh 16 with drawn names (§1.14). */
+  readonly carried?: CarriedSquad | null
+}
 
 export type Battle = {
   /** The root seed of the run in progress (§1.17). */
@@ -59,13 +73,21 @@ export type Battle = {
   pendingInputCount(): number
   /** One tick of §1.16, or none if §1.1's clock gate refuses it. */
   step(): TickResult
-  /** A new run from the same seed, or from `seed` if one is given. */
+  /**
+   * A new run from the same seed, or from `seed` if one is given.
+   *
+   * The STAGE and the carried squad are the ones this battle was created with: restarting is
+   * replaying this stage, not restarting the campaign. Campaign §1.4 gives no stage retry — the
+   * campaign facade is what owns "start over", and it starts over at stage 1.
+   */
   restart(seed?: string): void
 }
 
-export function createBattle(seed: string): Battle {
+export function createBattle(seed: string, options: BattleOptions = {}): Battle {
+  const stageId = options.stageId ?? FIRST_STAGE_ID
+  const carried = options.carried ?? null
   let rootSeed = seed
-  let state = createInitialBattleState(rootSeed)
+  let state = createInitialBattleState(rootSeed, stageId, carried)
   const queue = new BattleInputQueue()
 
   return {
@@ -94,7 +116,7 @@ export function createBattle(seed: string): Battle {
 
     restart(nextSeed?: string): void {
       rootSeed = nextSeed ?? rootSeed
-      state = createInitialBattleState(rootSeed)
+      state = createInitialBattleState(rootSeed, stageId, carried)
       // Both halves again: pending commands from the finished run must not land on the new
       // one, and a key held through the restart must not survive as an axis nobody pressed.
       queue.reset()

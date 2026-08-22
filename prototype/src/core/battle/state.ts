@@ -11,6 +11,12 @@
 // the only stream that has moved at tick 0. `spawn` and `cards` are untouched, and must
 // stay that way: the first `spawn` draw has to be the first spawn request's angle, or
 // every recorded run diverges.
+//
+// THE NAME SHUFFLE ABOVE IS SKIPPED ENTIRELY WHEN A SQUAD IS CARRIED IN (campaign §1.1). The roster, its names
+// included, comes from the previous stage, so there is nothing to draw and the `names` stream is
+// where the seed put it — ZERO draws, not 23. `tests/battle/battle-state.test.ts` pins both counts
+// against the two paths, because "exactly 23 draws" was written as a fact about §1.14 and is a
+// fact about the FIRST stage only.
 
 import { createSlotAssignments, slotPosition } from './formation'
 import {
@@ -19,11 +25,19 @@ import {
   COMMANDER_START,
   ROSTER_SIZE,
   SOLDIER_HP,
+  UPGRADE_KILL_THRESHOLDS,
 } from './constants'
 import { FIRST_STAGE_ID, stageOf, type StageId } from './stages'
 import { assignNameIndices } from './names'
 import { createStreamStates, streamPrng } from './streams'
-import type { BattleState, EnemyKind, EnemyUnit, FriendlyUnit, Vec2 } from './types'
+import type {
+  BattleState,
+  CarriedSquad,
+  EnemyKind,
+  EnemyUnit,
+  FriendlyUnit,
+  Vec2,
+} from './types'
 
 export { ROSTER_SIZE }
 
@@ -76,13 +90,16 @@ function createFriendly(
   role: FriendlyUnit['role'],
   nameIndex: number,
   position: Vec2,
+  health: { hp: number; maxHp: number } | null = null,
 ): FriendlyUnit {
-  const maxHp = role === 'commander' ? COMMANDER_HP : SOLDIER_HP
+  const maxHp = health ? health.maxHp : role === 'commander' ? COMMANDER_HP : SOLDIER_HP
   return {
     id,
     role,
     nameIndex,
-    hp: maxHp,
+    // Campaign §1.1: "HP는 스테이지 시작 시 회복하지 않는다." A carried body opens the stage on the
+    // number it closed the last one with; only a fresh roster starts full.
+    hp: health ? health.hp : maxHp,
     maxHp,
     life: 'standing',
     position,
@@ -144,23 +161,33 @@ export function createEnemy(
 }
 
 /**
- * `stageId` DEFAULTS, and the default is the whole campaign today.
+ * §1.13/campaign §1.2: how many thresholds a squad has already spent, from the kills it has
+ * already made.
  *
- * `STAGES` has one row, so "which stage" has one answer and every existing caller means it. The
- * campaign shell is what will start passing the argument, one stage at a time; until it exists a
- * required parameter would only make ~60 call sites spell out the only value there is. The
- * default is a value, not a lookup that ignores its argument — `stageConfigOf` has no fallback.
+ * DERIVED, and that is the point: "which card round is next" is a function of the cumulative kill
+ * count and the fixed threshold table, so carrying it would be carrying scratch. A threshold at or
+ * below the carried count has been reached and is spent.
+ *
+ * ONE CONSEQUENCE, WRITTEN DOWN RATHER THAN GLOSSED: a round that opened on the very tick a stage
+ * was won is left unanswered by §1.16 (`won` outranks `awaiting-upgrade`), and this derivation
+ * treats its threshold as spent — that card is lost. Nothing in the spec says what should happen
+ * to it; this is the reading, not a rule.
  */
-export function createInitialBattleState(
-  seed: string,
-  stageId: StageId = FIRST_STAGE_ID,
-): BattleState {
-  const prng = createStreamStates(seed)
+function spentThresholdCount(priorKills: number): number {
+  let index = 0
+  while (index < UPGRADE_KILL_THRESHOLDS.length && UPGRADE_KILL_THRESHOLDS[index] <= priorKills) {
+    index += 1
+  }
+  return index
+}
 
+/** The fresh 16: §1.14 draws the names, §1.4 seats the soldiers, §1.2 gives everyone full hp. */
+function createFreshRoster(
+  prng: BattleState['prng'],
+  start: Vec2,
+): { friendlies: FriendlyUnit[]; slotAssignments: BattleState['slotAssignments'] } {
   const names = assignNameIndices(streamPrng(prng, 'names'), ROSTER_SIZE)
-
   const slotAssignments = createSlotAssignments(SOLDIER_IDS)
-  const start: Vec2 = { x: COMMANDER_START.x, y: COMMANDER_START.y }
 
   const friendlies: FriendlyUnit[] = [
     createFriendly(COMMANDER_ID, 'commander', names[0], { x: start.x, y: start.y }),
@@ -177,9 +204,83 @@ export function createInitialBattleState(
       }),
     )
   }
+  return { friendlies, slotAssignments }
+}
+
+/**
+ * The carried squad, formed up again (campaign §1.1).
+ *
+ * The command unit takes `COMMANDER_START` and everyone else takes a slot in ascending id, which
+ * is §1.4's assignment over whoever is left. Names, roles, ids and both hit-point numbers come
+ * over untouched; everything else about a body is a fact about the finished fight and is rebuilt
+ * here at its opening value.
+ */
+function createCarriedRoster(
+  carried: CarriedSquad,
+  start: Vec2,
+): { friendlies: FriendlyUnit[]; slotAssignments: BattleState['slotAssignments'] } {
+  const members = [...carried.members].sort((left, right) => left.id - right.id)
+  if (members.length === 0) {
+    throw new Error('battle/state: a carried squad with nobody in it cannot open a stage (§1.5)')
+  }
+  const command = members.find((member) => member.id === carried.commandUnitId)
+  if (!command) {
+    throw new Error(
+      `battle/state: the carried command unit ${carried.commandUnitId} is not in the carried squad`,
+    )
+  }
+
+  const slotAssignments = createSlotAssignments(
+    members.filter((member) => member.id !== command.id).map((member) => member.id),
+  )
+  const friendlies: FriendlyUnit[] = [
+    createFriendly(command.id, command.role, command.nameIndex, { x: start.x, y: start.y }, command),
+  ]
+  for (const assignment of slotAssignments) {
+    const member = members.find((entry) => entry.id === assignment.unitId)!
+    const slot = slotPosition(start, assignment.slotIndex)
+    friendlies.push(
+      createFriendly(member.id, member.role, member.nameIndex, { x: slot.x, y: slot.y }, member),
+    )
+  }
+  return { friendlies, slotAssignments }
+}
+
+/**
+ * `stageId` DEFAULTS, and the default is the whole campaign today.
+ *
+ * `STAGES` has one row, so "which stage" has one answer and every existing caller means it. The
+ * campaign passes the argument, one stage at a time; a required parameter would only make ~60 call
+ * sites spell out the only value there is. The default is a value, not a lookup that ignores its
+ * argument — `stageConfigOf` has no fallback.
+ *
+ * `carried` DEFAULTS TO NULL, which is the campaign's first stage and every existing fixture:
+ * a fresh 16 with drawn names and full hit points. Passed, it is campaign §1.1's relay, and the
+ * three things it carries are the three §1.1 says must not reset — the roster with its names, each
+ * body's hp, and the cards already taken — plus §1.2's cumulative kill count.
+ *
+ * WHAT IS NOT CARRIED, and every one of these is §1.1's "스테이지마다 초기화되는 것": the enemies,
+ * the elite and its cycle, the spawn backlog and its counters, the rescue lock, `combatTick`, and
+ * this stage's own kill and rescue counts. They are absent from `CarriedSquad`, so there is no
+ * spelling of this call that could carry one by accident.
+ */
+export function createInitialBattleState(
+  seed: string,
+  stageId: StageId = FIRST_STAGE_ID,
+  carried: CarriedSquad | null = null,
+): BattleState {
+  const prng = createStreamStates(seed)
+  const start: Vec2 = { x: COMMANDER_START.x, y: COMMANDER_START.y }
+
+  const { friendlies, slotAssignments } = carried
+    ? createCarriedRoster(carried, start)
+    : createFreshRoster(prng, start)
+  const commandUnitId = carried ? carried.commandUnitId : COMMANDER_ID
+  const priorKills = carried ? carried.priorKills : 0
+  const carriedCards = carried ? [...carried.cards] : []
 
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     rootSeed: seed,
     stageId,
     combatTick: 0,
@@ -187,8 +288,12 @@ export function createInitialBattleState(
     result: null,
     failureReason: null,
     prng,
-    commandUnitId: COMMANDER_ID,
-    originalCommanderId: COMMANDER_ID,
+    commandUnitId,
+    // §1.5 rule 1 sends command home to the ORIGINAL commander the moment it stands. A carried
+    // stage opens with the body that ended the last one in command, and that body IS this stage's
+    // original: the one it succeeded is dead (campaign §1.3 kills whoever is still down at the
+    // end), so there is nothing left to revert to.
+    originalCommanderId: commandUnitId,
     slotAssignments,
     input: { move: { x: 0, y: 0 }, spaceHeld: false },
     friendlies,
@@ -218,11 +323,15 @@ export function createInitialBattleState(
       cooldownRemaining: 0,
     },
     upgrades: {
+      // FULL, even when cards are carried. §1.13's pool is "what this battle has not handed out",
+      // and §1.2's "already held" is a different question, answered by `hasUpgrade` where the
+      // offer is drawn. See `UpgradeState.carriedCards` for why the two are not merged.
       remainingPool: [...CARD_POOL],
       rounds: [],
-      nextThresholdIndex: 0,
+      nextThresholdIndex: spentThresholdCount(priorKills),
+      carriedCards,
     },
     rescue: { active: false, targetId: null, progress: 0 },
-    stats: { kills: 0, rescues: 0 },
+    stats: { kills: 0, rescues: 0, priorKills },
   }
 }

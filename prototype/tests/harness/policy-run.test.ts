@@ -85,10 +85,20 @@ describe('§1.17 the runner reproduces the digests batch H recorded', () => {
     // stood here before, and the batch report carries the full outcome comparison (eight policies
     // x 32 seeds, `damageEvents` stream hashes included) that this line is three rows of. The
     // previous digests were `8f30c06d`, `91fc34fe` and `334b1763`.
+    //
+    // CAMPAIGN STAGE 1 MOVED ALL THREE AGAIN, AND AGAIN ONLY THE DIGESTS. `BattleState` gained the
+    // relay's two fields — `stats.priorKills` and `upgrades.carriedCards` — and `schemaVersion`
+    // went 2 -> 3 with them, so every hash on this branch is void by construction for the third
+    // time. The other four columns are the evidence that only the hash moved: `1653/159/0`,
+    // `2190/228/0` and `1719/170/0`, character for character. That is what a batch which changes
+    // only what a battle STARTS HOLDING must leave behind — these runs carry nothing, so both new
+    // fields are `0` and `[]` all the way through, and the offer filter that reads the second one
+    // removes nothing from a pool it has never taken a card out of.
+    // The previous digests were `9fa23f60`, `bf98a149` and `699a5f76`.
     expect(THREE_SEEDS.map((seed) => runPolicySeed(policyFactory('tactical-no-input'), seed))).toEqual([
-      { seed: 'seed-a', outcome: 'lost', endTick: 1653, kills: 159, standing: 0, digest: '9fa23f60' },
-      { seed: 'seed-b', outcome: 'lost', endTick: 2190, kills: 228, standing: 0, digest: 'bf98a149' },
-      { seed: 'seed-c', outcome: 'lost', endTick: 1719, kills: 170, standing: 0, digest: '699a5f76' },
+      { seed: 'seed-a', outcome: 'lost', endTick: 1653, kills: 159, standing: 0, digest: 'd304b421' },
+      { seed: 'seed-b', outcome: 'lost', endTick: 2190, kills: 228, standing: 0, digest: 'b5a643bc' },
+      { seed: 'seed-c', outcome: 'lost', endTick: 1719, kills: 170, standing: 0, digest: '43979b33' },
     ])
   })
 })
@@ -141,10 +151,14 @@ describe('§4.1 `flees-always` on the three seeds', () => {
     // CAMPAIGN STAGE 0 MOVED ALL THREE DIGESTS AND NOTHING ELSE, for the reason written above the
     // block before this one: `stageId` joined `BattleState`. `1563/147/0`, `2204/225/0` and
     // `2099/230/0` are unchanged. The previous digests were `d8f816f6`, `ffddc7d9` and `991977cd`.
+    //
+    // CAMPAIGN STAGE 1 MOVED ALL THREE AGAIN, for the reason written above the block before this
+    // one. `1563/147/0`, `2204/225/0` and `2099/230/0` are unchanged; the previous digests were
+    // `0eac8f2f`, `426086e8` and `77adaf5a`.
     expect(THREE_SEEDS.map((seed) => runPolicySeed(policyFactory('flees-always'), seed))).toEqual([
-      { seed: 'seed-a', outcome: 'lost', endTick: 1563, kills: 147, standing: 0, digest: '0eac8f2f' },
-      { seed: 'seed-b', outcome: 'lost', endTick: 2204, kills: 225, standing: 0, digest: '426086e8' },
-      { seed: 'seed-c', outcome: 'lost', endTick: 2099, kills: 230, standing: 0, digest: '77adaf5a' },
+      { seed: 'seed-a', outcome: 'lost', endTick: 1563, kills: 147, standing: 0, digest: '6a811778' },
+      { seed: 'seed-b', outcome: 'lost', endTick: 2204, kills: 225, standing: 0, digest: '4dbbc065' },
+      { seed: 'seed-c', outcome: 'lost', endTick: 2099, kills: 230, standing: 0, digest: '0cd5f95b' },
     ])
   })
 

@@ -492,9 +492,11 @@ describe('§1.13 card effects, read off the chosen cards', () => {
     // A body that is already gone is not strengthened.
     expect(dead.maxHp).toBe(1.4)
     expect(dead.hp).toBe(0)
-    // The state carries no multiplier — the numbers themselves moved.
+    // The state carries no multiplier — the numbers themselves moved. `carriedCards` is campaign
+    // stage 1's list of cards taken in EARLIER stages, and it is not a multiplier either: it names
+    // cards, and `hasUpgrade` reads it exactly as it reads `rounds[].chosen`.
     expect(Object.keys(state.upgrades).sort()).toEqual(
-      ['remainingPool', 'rounds', 'nextThresholdIndex'].sort(),
+      ['remainingPool', 'rounds', 'nextThresholdIndex', 'carriedCards'].sort(),
     )
   })
 

@@ -16,6 +16,10 @@
 //     recomputable from `rounds` is not that. So batch D adds NO field to `BattleState`:
 //     every digest recorded before it stays valid, and the key-set pins in
 //     `tests/battle/battle-state.test.ts` do not move.
+//     CAMPAIGN STAGE 1 ADDS ONE, `upgrades.carriedCards`, and it is the same argument reaching
+//     the opposite answer rather than an exception to it: the cards taken in EARLIER STAGES are
+//     not recomputable from anything this battle holds, because this battle has no round for
+//     them. The multiplier is still not stored — `hasUpgrade` simply has two places to look.
 //   * Each card is in the pool exactly once and only the chosen card leaves it, so a card
 //     can be chosen at most once in a run. `hasUpgrade` is therefore a predicate, not a
 //     count, and no effect has to define what stacking with itself would mean.
@@ -72,9 +76,14 @@ export type UpgradeAccounting = {
   openedRound: UpgradeRound | null
 }
 
-/** §1.13: the cards taken so far, in round order (§1.14's result screen lists them). */
+/**
+ * §1.13: the cards this squad holds, in the order it took them (§1.14's result screen lists them).
+ *
+ * Campaign §1.2 puts the earlier stages' cards in front of this stage's: they were taken first,
+ * and the campaign screens read this list as the squad's history.
+ */
 export function chosenUpgradeCards(state: Readonly<BattleState>): CardId[] {
-  const chosen: CardId[] = []
+  const chosen: CardId[] = [...state.upgrades.carriedCards]
   for (const round of [...state.upgrades.rounds].sort((left, right) => left.round - right.round)) {
     if (round.chosen !== null) chosen.push(round.chosen)
   }
@@ -82,16 +91,31 @@ export function chosenUpgradeCards(state: Readonly<BattleState>): CardId[] {
 }
 
 /**
- * Has this card been taken? The whole read side of §1.13.
+ * Has this card been taken? The whole read side of §1.13, and of campaign §1.2.
  *
  * A predicate rather than a count: each card exists once in the pool and only the chosen one
- * leaves it, so no card can be taken twice.
+ * leaves it, so no card can be taken twice — and §1.2 extends that from "한 판에 한 번" to "한
+ * 캠페인에 한 번", which is why a card carried in from an earlier stage answers true here. That is
+ * the whole of the inheritance: the effect functions below read this predicate, so a carried card
+ * keeps working without anything being re-applied, and `drawOfferedCards` reads it too, so a
+ * carried card is never offered again.
  */
 export function hasUpgrade(state: Readonly<BattleState>, card: CardId): boolean {
+  if (state.upgrades.carriedCards.includes(card)) return true
   for (const round of state.upgrades.rounds) {
     if (round.chosen === card) return true
   }
   return false
+}
+
+/**
+ * §1.2: the kill count §1.13's thresholds are measured against — the CAMPAIGN's, not the stage's.
+ *
+ * "처치 임계 `[15, 45, 90, 145]`는 캠페인 누적 처치에 대해 적용한다. 스테이지마다 리셋하면
+ * 스테이지 1에서 8장을 다 먹는다."
+ */
+export function campaignKills(state: Readonly<BattleState>): number {
+  return state.stats.priorKills + state.stats.kills
 }
 
 /** §1.13 `화력`: +30% on the damage a friendly deals. */
@@ -168,7 +192,12 @@ function applyVitality(state: BattleState): void {
  * two cards that were shown and refused have to be offerable again.
  */
 function drawOfferedCards(state: BattleState): CardId[] {
-  const pool = [...state.upgrades.remainingPool]
+  // §1.2: a card the squad already holds is not offered again, and the pool is filtered rather
+  // than emptied at construction — see `UpgradeState.carriedCards`. On a first stage the filter
+  // removes NOTHING: every card this battle has handed out has already left the pool, so the array
+  // below is `remainingPool` element for element, in the same order, and the partial Fisher-Yates
+  // that follows draws exactly what it drew before this batch existed.
+  const pool = state.upgrades.remainingPool.filter((card) => !hasUpgrade(state, card))
   if (pool.length < CARDS_OFFERED_PER_ROUND) {
     // Unreachable: 8 cards, at most 4 rounds, one card leaving per round, so the last round
     // still draws from 5. It throws rather than offering two, because an offer of the wrong
@@ -234,7 +263,9 @@ function openUpgradeRoundIfDue(state: BattleState): UpgradeRound | null {
   if (pendingUpgradeRound(state) !== null) return null
   const index = state.upgrades.nextThresholdIndex
   if (index >= MAX_UPGRADES) return null
-  if (state.stats.kills < UPGRADE_KILL_THRESHOLDS[index]) return null
+  // §1.2: CAMPAIGN kills, not this stage's. Twenty kills carried in means the next card lands at
+  // the 45 threshold, not at 15, and `nextThresholdIndex` was built from the same number.
+  if (campaignKills(state) < UPGRADE_KILL_THRESHOLDS[index]) return null
 
   const round: UpgradeRound = {
     round: index + 1,

@@ -26,6 +26,22 @@
 import { DIGEST_DECIMALS } from './constants'
 import type { BattleState } from './types'
 
+/**
+ * The hash, exported so the CAMPAIGN digest is the same hash and not a second one.
+ *
+ * `core/campaign/digest.ts` records a campaign the way §1.17 records a battle, and two independent
+ * implementations of "the digest" is how the two would come to disagree about what a digest even
+ * is. The direction is one-way: campaign reads battle, never the other way round.
+ */
+export function fnv1aHex(value: string): string {
+  return fnv1a(value)
+}
+
+/** The §1.17 normalization — 6-decimal floats, code-point-sorted keys — for the same reason. */
+export function normalizeForDigest(value: unknown): unknown {
+  return normalize(value)
+}
+
 function fnv1a(value: string): string {
   let hash = 2166136261
 

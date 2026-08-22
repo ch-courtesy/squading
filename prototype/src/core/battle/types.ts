@@ -26,6 +26,15 @@
 // (`movementBlockers`, `friendliesById`, the displacement returned by
 // `advanceCommandUnit`). A field belongs here only if a later tick reads it.
 //
+// WHAT THE RULE DOES NOT BAN, because campaign stage 1 had to draw the line: a value the battle
+// cannot DERIVE is not scratch, however convenient it also is. Two such values arrived with the
+// relay — `upgrades.carriedCards` and `stats.priorKills` — and each carries its own argument at
+// its declaration. The test is the same one stated above and it is not softened: a later tick
+// reads both (the card effects every tick, the threshold test on every kill), and neither is a
+// function of anything else on the state. A field that IS such a function is still scratch, which
+// is why `upgrades.nextThresholdIndex` is derived from `priorKills` at construction rather than
+// carried, and why the roster arrives as `friendlies` rows rather than as a second copy.
+//
 // This is enforced, not merely asserted: `tests/battle/battle-state.test.ts` pins the
 // exact key set of `BattleState` AND of every nested object in it — `spawn`, `elite`,
 // `upgrades`, `rescue`, `stats`, `input`, and both unit rows — so adding a field anywhere
@@ -238,6 +247,25 @@ export type UpgradeState = {
   rounds: UpgradeRound[]
   /** Index into `UPGRADE_KILL_THRESHOLDS`; at most 4 rounds ever fire. */
   nextThresholdIndex: number
+  /**
+   * Campaign §1.2: cards this squad ALREADY HELD when the stage opened.
+   *
+   * AUTHORITATIVE INPUT, NOT SCRATCH, and the test this file's header states is the one it passes:
+   * a later tick reads it — every tick that asks `hasUpgrade` does. It is not derivable from
+   * anything else on the state, because the battle's own record of what was taken is
+   * `rounds[].chosen`, and a card taken in stage 3 has no round in stage 4. Without it a carried
+   * stage would silently drop every effect the squad had earned, which is one of the three things
+   * §1.1 says must not reset.
+   *
+   * THE ONE ENCODING THAT WOULD MAKE IT DERIVABLE WAS REJECTED DELIBERATELY. `remainingPool` could
+   * have been seeded as `CARD_POOL` minus the carried cards, and then "held" would be readable as
+   * "absent from the pool" with no new field. That makes one field answer two questions — what may
+   * still be OFFERED, and what the squad OWNS — so any future rule that removes a card from the
+   * pool for a third reason would hand out its effect for free. The pool keeps its §1.13 meaning
+   * (it starts full and loses only what was chosen HERE), and §1.2's "한 캠페인에 같은 카드는 한
+   * 번만" is enforced where the offer is drawn, by filtering on `hasUpgrade`.
+   */
+  carriedCards: CardId[]
 }
 
 /**
@@ -260,8 +288,53 @@ export type BattleInput = {
   spaceHeld: boolean
 }
 
+/**
+ * One body as a campaign hands it to the next stage (campaign design §1.1).
+ *
+ * It is the carry list and nothing else: id, role, name, and the two hit-point numbers. Position,
+ * cooldown, target, `downedTicks`, `rescuedByIds` and `deathTick` are all facts about a fight that
+ * is over, and the next stage re-derives every one of them — the squad forms up at
+ * `COMMANDER_START` again, and §1.1 resets the enemies and the clock.
+ *
+ * `hp` and `maxHp` are carried VERBATIM. §1.1: "HP는 스테이지 시작 시 회복하지 않는다." A body that
+ * ended a stage at a third of its health starts the next one there, and `maxHp` is what carries
+ * §1.13's `vitality` (the card multiplies both once, at choice time, so the raised maximum IS the
+ * card's memory — there is no HP multiplier field to carry).
+ */
+export type CarriedMember = {
+  id: number
+  role: FriendlyRole
+  nameIndex: number
+  hp: number
+  maxHp: number
+}
+
+/**
+ * Everything a battle needs that it cannot derive, when the battle is not the campaign's first.
+ *
+ * A PARAMETER, not a field: it is read once by `createInitialBattleState` and what survives of it
+ * on the state is `friendlies`, `commandUnitId`, `upgrades.carriedCards` and `stats.priorKills` —
+ * see the notes on the last two for why each of those two is authoritative input rather than the
+ * scratch this file's header bans.
+ */
+export type CarriedSquad = {
+  /**
+   * §1.5's successor, as the next stage's commanding body.
+   *
+   * It is carried rather than derived because `role` is NOT rewritten by the carry: a soldier who
+   * ended a stage in command is still a soldier, so "who leads" cannot be read off the roster's
+   * roles once the original commander has died.
+   */
+  commandUnitId: number
+  members: readonly CarriedMember[]
+  /** §1.2: cards taken in earlier stages, in the order they were taken. */
+  cards: readonly CardId[]
+  /** §1.2: kills counted before this stage began. */
+  priorKills: number
+}
+
 export type BattleState = {
-  schemaVersion: 2
+  schemaVersion: 3
   rootSeed: string
   /**
    * §3.1 of the campaign design: WHICH STAGE'S NUMBERS THIS RUN IS PLAYED UNDER.
@@ -303,6 +376,30 @@ export type BattleState = {
   elite: EliteState
   upgrades: UpgradeState
   rescue: RescueLock
-  /** §1.13: elite kills are excluded from `kills` on purpose. */
-  stats: { kills: number; rescues: number }
+  /**
+   * §1.13: elite kills are excluded from `kills` on purpose.
+   *
+   * `kills` and `rescues` are THIS STAGE's. `priorKills` is campaign §1.2's carry — see below.
+   */
+  stats: {
+    kills: number
+    rescues: number
+    /**
+     * Campaign §1.2: kills counted in the stages BEFORE this one.
+     *
+     * AUTHORITATIVE INPUT, NOT SCRATCH. §1.2 puts §1.13's thresholds `[15, 45, 90, 145]` on the
+     * CAMPAIGN's cumulative kills, so the round test is `priorKills + kills` against the table
+     * (`campaignKills`) — and a battle cannot derive kills it did not make. Twenty kills in stage
+     * one means the next card arrives at 45, not at 15, and nothing inside stage two can know that
+     * without being told the twenty.
+     *
+     * ONE NUMBER, deliberately. Not a per-stage record and not a copy of the earlier stages'
+     * upgrade rounds: what §1.13 compares against is a sum, so a sum is what carries.
+     *
+     * IT IS WRITTEN ONCE, at construction, and never again — every kill of this stage lands in
+     * `kills`. `upgrades.nextThresholdIndex` is NOT carried alongside it: it is derived from this
+     * number and the threshold table when the state is built.
+     */
+    priorKills: number
+  }
 }

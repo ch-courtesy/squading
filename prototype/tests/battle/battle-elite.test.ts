@@ -590,8 +590,11 @@ describe('batch D adds no state and stays deterministic', () => {
       ['enemyId', 'spawnTick', 'attackPhase', 'telegraphCenter', 'telegraphRemaining', 'cooldownRemaining'].sort(),
     )
     expect(Object.keys(state.upgrades).sort()).toEqual(
-      ['remainingPool', 'rounds', 'nextThresholdIndex'].sort(),
+      // `carriedCards` is campaign stage 1's, and it is EMPTY here: this is a first stage, so
+      // nothing was carried and every effect in this fixture still comes off `rounds[].chosen`.
+      ['remainingPool', 'rounds', 'nextThresholdIndex', 'carriedCards'].sort(),
     )
+    expect(state.upgrades.carriedCards).toEqual([])
     expect(Object.keys(state.enemies[0]).sort()).toEqual(
       Object.keys(createEnemy(state, 101, 'melee', { x: 0, y: 0 })).sort(),
     )

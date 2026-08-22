@@ -65,11 +65,18 @@ export const FORMATION_MAX_SLOT_RADIUS = Math.max(
  * reclaims command on the very next tick it stands — has no slot to follow. Both
  * are the spec's "빈칸을 남긴다", and both are why this function takes the roster
  * once rather than the current command unit.
+ *
+ * FEWER BODIES THAN SLOTS IS LEGAL, and campaign §1.1 is what makes it reachable: a stage entered
+ * with three dead has twelve followers and the last three slots stand empty. That is the same
+ * "빈칸을 남긴다" the paragraph above describes, not a new rule — the assignment is still ascending
+ * id onto ascending slot index, and `slotPosition` still resolves each one to `command unit +
+ * offset`. MORE bodies than slots is still a throw: there would be a follower with nowhere to
+ * stand, and silently dropping it is how a body disappears from a run.
  */
 export function createSlotAssignments(soldierIds: readonly number[]): SlotAssignment[] {
-  if (soldierIds.length !== FORMATION_SLOTS.length) {
+  if (soldierIds.length > FORMATION_SLOTS.length) {
     throw new Error(
-      `battle/formation: ${FORMATION_SLOTS.length} slots need ${FORMATION_SLOTS.length} soldiers, got ${soldierIds.length}`,
+      `battle/formation: there are ${FORMATION_SLOTS.length} slots, got ${soldierIds.length} soldiers`,
     )
   }
   return [...soldierIds]

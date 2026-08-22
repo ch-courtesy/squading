@@ -35,7 +35,19 @@ const EXEMPT = [TABLE, join('tests', 'battle', 'battle-step-numbers.test.ts')]
 // second copy of the table, and the next renumber has to find it. The whole of
 // `src/core/harness` is in scope rather than the policy directory alone — the archived stage-1
 // sweep beside it names no step today, and there is no reason it should start.
-const SCANNED_ROOTS = ['src/core/battle', 'tests/battle', 'src/core/harness', 'tests/harness']
+//
+// Campaign stage 1 added `src/core/campaign` and `tests/campaign`, and they are scanned for the
+// same reason again: the campaign reads a FINISHED battle, so nothing in it has a position in
+// §1.16's order to name, and the day one of its comments claims otherwise it is a second copy of
+// the table living outside `core/battle` entirely.
+const SCANNED_ROOTS = [
+  'src/core/battle',
+  'tests/battle',
+  'src/core/harness',
+  'tests/harness',
+  'src/core/campaign',
+  'tests/campaign',
+]
 
 const STEP_REFERENCE = /\b(?:steps?\s+\d+|\d+\s*단계)/gi
 

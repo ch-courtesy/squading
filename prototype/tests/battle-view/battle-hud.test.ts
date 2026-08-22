@@ -123,7 +123,7 @@ describe('battle-view: the HUD projection', () => {
     state.mode = 'lost'
     state.result = 'lost'
     state.failureReason = 'all-units-lost'
-    state.stats = { kills: 42, rescues: 1 }
+    state.stats = { kills: 42, rescues: 1, priorKills: 0 }
 
     const fallen = unitOf(state, 9)
     fallen.life = 'dead'

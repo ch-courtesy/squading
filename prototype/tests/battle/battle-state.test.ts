@@ -218,6 +218,32 @@ describe('§1.14 names', () => {
     expect(counting.draws()).toBe(23)
   })
 
+  it('draws those 23 for THE FIRST STAGE, and none at all for a carried one', () => {
+    // "정확히 23회" is a fact about a battle that has to invent a roster. Campaign §1.1 carries the
+    // roster and its names from the previous stage, so from stage two on there is no name to
+    // draw — and the count is 0, not 23. The original pin above is untouched and unloosened:
+    // `shuffleNamePool` still takes exactly 23 whenever it runs. This is the OTHER case.
+    const fresh = createInitialBattleState('seed-a')
+    const untouched = createStreamStates('seed-a')
+    expect(fresh.prng.names).not.toBe(untouched.names)
+    // 23 draws, counted by walking the stream that far by hand.
+    const walked = createStreamStates('seed-a')
+    for (let draw = 0; draw < 23; draw += 1) nextStreamFloat(walked, 'names')
+    expect(fresh.prng.names).toBe(walked.names)
+
+    const carried = createInitialBattleState('seed-a', 1, {
+      commandUnitId: 1,
+      members: [
+        { id: 1, role: 'commander', nameIndex: 5, hp: 5, maxHp: 5 },
+        { id: 2, role: 'soldier', nameIndex: 9, hp: 1.4, maxHp: 1.4 },
+      ],
+      cards: [],
+      priorKills: 0,
+    })
+    expect(carried.prng.names).toBe(untouched.names)
+    expect(carried.friendlies.map((unit) => unit.nameIndex)).toEqual([5, 9])
+  })
+
   it('assigns the first 16 of the shuffled pool, and takes no extra draws', () => {
     const counting = countingPrng(createPrng('seed-a:names'))
     const assigned = assignNameIndices(counting.prng, ROSTER_SIZE)
@@ -377,10 +403,25 @@ describe('initial authoritative state', () => {
       ].sort(),
     )
     expect(Object.keys(state.upgrades).sort()).toEqual(
-      ['remainingPool', 'rounds', 'nextThresholdIndex'].sort(),
+      [
+        'remainingPool',
+        'rounds',
+        'nextThresholdIndex',
+        // Campaign stage 1 (§1.2): cards taken in an EARLIER STAGE. One of the two keys that batch
+        // added, and the argument for it is at its declaration — this battle has no round for a
+        // card it never offered, so nothing else on the state can answer "does the squad hold it".
+        // Note what is NOT here: no threshold carry (`nextThresholdIndex` is derived from the
+        // carried kill count) and no multiplier of any kind.
+        'carriedCards',
+      ].sort(),
     )
     expect(Object.keys(state.rescue).sort()).toEqual(['active', 'targetId', 'progress'].sort())
-    expect(Object.keys(state.stats).sort()).toEqual(['kills', 'rescues'].sort())
+    expect(Object.keys(state.stats).sort()).toEqual(
+      // Campaign stage 1 (§1.2): the other key. §1.13's thresholds are measured against the
+      // CAMPAIGN's kills, and a battle cannot derive kills it did not make. One number — not a
+      // record of the stage that made them.
+      ['kills', 'rescues', 'priorKills'].sort(),
+    )
     expect(Object.keys(state.input).sort()).toEqual(['move', 'spaceHeld'].sort())
 
     // The two row types, which grow the digest once per unit rather than once per state.
@@ -467,7 +508,7 @@ describe('§1.17 determinism and digest', () => {
     // the field the digest stopped watching.
     type Mutation = [string, (state: ReturnType<typeof createInitialBattleState>) => void]
     const fields: Mutation[] = [
-      ['schemaVersion', (state) => void ((state as { schemaVersion: number }).schemaVersion = 3)],
+      ['schemaVersion', (state) => void ((state as { schemaVersion: number }).schemaVersion = 4)],
       ['rootSeed', (state) => void (state.rootSeed = 'other')],
       ['combatTick', (state) => void (state.combatTick = 1)],
       ['mode', (state) => void (state.mode = 'running')],
@@ -524,6 +565,8 @@ describe('§1.17 determinism and digest', () => {
       ['rescue.progress', (state) => void (state.rescue.progress = 1)],
       ['stats.kills', (state) => void (state.stats.kills = 1)],
       ['stats.rescues', (state) => void (state.stats.rescues = 1)],
+      ['stats.priorKills', (state) => void (state.stats.priorKills = 20)],
+      ['upgrades.carriedCards', (state) => void state.upgrades.carriedCards.push('firepower')],
       ['prng.spawn', (state) => void (state.prng.spawn = 12345)],
       ['prng.cards', (state) => void (state.prng.cards = 12345)],
       ['prng.names', (state) => void (state.prng.names = 12345)],
@@ -547,6 +590,9 @@ describe('§1.17 determinism and digest', () => {
     const canonical = canonicalizeBattleState(state) as Record<string, unknown>
     expect(Object.keys(canonical)).toEqual([...Object.keys(canonical)].sort())
     expect(canonical.rootSeed).toBe('seed-a')
-    expect(canonical.schemaVersion).toBe(2)
+    // Campaign stage 1 changed the shape (`stats.priorKills`, `upgrades.carriedCards`), so the
+    // version moved with it — a version that stands still through a shape change states an
+    // untruth, which is what `1e1495b` decided the last time this number moved.
+    expect(canonical.schemaVersion).toBe(3)
   })
 })

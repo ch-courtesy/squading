@@ -187,7 +187,7 @@ describe('the v2 shell prints the projection and sends §1.15 inputs', () => {
     state.result = 'lost'
     state.failureReason = 'elite-survived'
     state.combatTick = 2700
-    state.stats = { kills: 200, rescues: 2 }
+    state.stats = { kills: 200, rescues: 2, priorKills: 0 }
     const fallen = state.friendlies.find((unit) => unit.id === 9)!
     fallen.life = 'dead'
     fallen.deathTick = 900
