@@ -27,6 +27,12 @@
 //   * §3's two `skilled` player models, and in particular the amended second one: "둘째 변형을
 //     v9가 실제로 가르는 축 — 어디에 멈출지(§1.6의 사거리 격차 안 어디)와 얼마나 자주 다시
 //     고를지 — 으로 재정의한다."
+//   * campaign stage 1 adds a THIRD: `2026-08-21-seven-stage-campaign-design.md` §1.1's three
+//     things that must not reset, plus §1.2, §1.3, §1.4, §1.5 and §3.2. The relay's own section
+//     below says which sentence each of its rows inverts. That section is what found the hole a
+//     one-stage fixture could not see: every relay fixture folded ONE stage into a fresh campaign,
+//     where "the campaign's kills plus this stage's" and "this stage's" are the same number, so
+//     `reset the kill count every stage` was MISSED. The fixture that catches it now folds twice.
 //
 // The mechanical rule those two produce: `PolicyRules` in `policies.ts` is the record of decision
 // points that §4.1's "한 가지만 바꾼 변형" is built out of, so EVERY ONE OF ITS FIVE KEYS CARRIES
@@ -124,6 +130,10 @@ const TARGET_TESTS = [
   'tests/battle/battle-combat.test.ts',
   'tests/battle/battle-upgrades.test.ts',
   'tests/battle-view/battle-action-events.test.ts',
+  // Campaign stage 1: the relay's rules live in `core/campaign/` and in the two things the battle
+  // now starts holding, and its fixtures are all here. Measured at 0.9s for the whole directory,
+  // which is why the whole directory is listed rather than the fast half of it.
+  'tests/campaign',
 ]
 
 const VIEW = 'src/core/harness/policy/view.ts'
@@ -135,6 +145,10 @@ const STAGES = 'src/core/battle/stages.ts'
 const ATTACKS = 'src/core/battle/attacks.ts'
 const TARGETING = 'src/core/battle/targeting.ts'
 const SNAPSHOT = 'src/core/battle-view/snapshot.ts'
+const STATE = 'src/core/battle/state.ts'
+const UPGRADES = 'src/core/battle/upgrades.ts'
+const TRANSITION = 'src/core/campaign/transition.ts'
+const CAMPAIGN_SEED = 'src/core/campaign/seed.ts'
 
 /**
  * The mutation table. Hardcoded on purpose — a generated mutation set is a different tool, and
@@ -698,6 +712,104 @@ const MUTATIONS = [
     label: 'paint a muzzle puff on the commander\'s swing',
     find: "  'friendly-melee': 'melee',",
     replace: "  'friendly-melee': 'shot',",
+  },
+
+  // --- the relay's decision points (campaign §1.1, §1.2, §1.3, §1.4, §1.5, §3.2) --------------
+  //
+  // WHERE THIS LIST COMES FROM, and it is the same rule the header states: the campaign design's
+  // own sentences, with the fixtures unread. §1.1 names THREE things that must not reset and says
+  // what happens if one of them does ("하나라도 초기화되면 일곱 판이 아니라 같은 판 일곱 번이다"),
+  // so each of the three carries a mutation that resets it. §1.2 puts the thresholds on the
+  // campaign's kills and the cards on the campaign's history; §1.3 kills whoever is still down;
+  // §1.4 refuses a stage retry; §1.5 hands command to the successor; §3.2 derives the seed. Every
+  // clause in that paragraph is one row below.
+  //
+  // A MUTATION HERE IS NOT A BUG SOMEONE MIGHT WRITE — it is the rule stated backwards. "The
+  // transition heals" is exactly §1.1's "HP는 스테이지 시작 시 회복하지 않는다" inverted, and if
+  // nothing fails when it is inverted then the sentence is decorative.
+  {
+    file: TRANSITION,
+    label: 'heal the squad on the way out of a stage (§1.1)',
+    find: '        hp: unit.hp,',
+    replace: '        hp: unit.maxHp,',
+  },
+  {
+    file: STATE,
+    label: 'refill a carried body on the way INTO a stage (§1.1)',
+    find: '    hp: health ? health.hp : maxHp,',
+    replace: '    hp: maxHp,',
+  },
+  {
+    file: TRANSITION,
+    label: 'carry the downed as if the end of a stage rescued them (§1.3)',
+    find: "    if (unit.life === 'standing') {",
+    replace: "    if (unit.life !== 'dead') {",
+  },
+  {
+    file: UPGRADES,
+    label: 'drop the cards earlier stages earned (§1.1)',
+    find: '  const chosen: CardId[] = [...state.upgrades.carriedCards]',
+    replace: '  const chosen: CardId[] = []',
+  },
+  {
+    file: UPGRADES,
+    label: 'stop reading the carried cards, so their effects lapse (§1.2)',
+    find: '  if (state.upgrades.carriedCards.includes(card)) return true',
+    replace: '  if (false) return true',
+  },
+  {
+    file: UPGRADES,
+    label: 'offer a card the squad already holds (§1.2)',
+    find: '  const pool = state.upgrades.remainingPool.filter((card) => !hasUpgrade(state, card))',
+    replace: '  const pool = [...state.upgrades.remainingPool]',
+  },
+  {
+    file: TRANSITION,
+    label: 'reset the kill count every stage (§1.2)',
+    find: '  const kills = campaign.kills + battle.stats.kills',
+    replace: '  const kills = battle.stats.kills',
+  },
+  {
+    file: TRANSITION,
+    label: 'forget the stages before this one when recording the dead (§1.14)',
+    find: '  const fallen: CampaignCasualty[] = [...campaign.fallen]',
+    replace: '  const fallen: CampaignCasualty[] = []',
+  },
+  {
+    file: UPGRADES,
+    label: 'measure §1.13 thresholds against the stage instead of the campaign (§1.2)',
+    find: '  if (campaignKills(state) < UPGRADE_KILL_THRESHOLDS[index]) return null',
+    replace: '  if (state.stats.kills < UPGRADE_KILL_THRESHOLDS[index]) return null',
+  },
+  {
+    file: STATE,
+    label: 'leave a threshold the carried kills already passed unspent (§1.2)',
+    find: '  while (index < UPGRADE_KILL_THRESHOLDS.length && UPGRADE_KILL_THRESHOLDS[index] <= priorKills) {',
+    replace: '  while (index < UPGRADE_KILL_THRESHOLDS.length && UPGRADE_KILL_THRESHOLDS[index] < priorKills) {',
+  },
+  {
+    file: TRANSITION,
+    label: 'let a lost stage be retried (§1.4)',
+    find: "    ? ({ phase: 'campaign-over', end: 'defeat' } as const)",
+    replace: "    ? ({ phase: 'stage-cleared', end: null } as const)",
+  },
+  {
+    file: TRANSITION,
+    label: 'hand on a squad with nobody in it (§1.5)',
+    find: '    commandUnitId === null ? null : { commandUnitId, members: survivors }',
+    replace: '    { commandUnitId: commandUnitId ?? 0, members: survivors }',
+  },
+  {
+    file: STATE,
+    label: "send command back to the stage's dead commander (§1.5)",
+    find: '    originalCommanderId: commandUnitId,',
+    replace: '    originalCommanderId: COMMANDER_ID,',
+  },
+  {
+    file: CAMPAIGN_SEED,
+    label: 'suffix the first stage as well, voiding every recorded seed (§3.2)',
+    find: '  if (stageId === FIRST_STAGE_ID) return rootSeed',
+    replace: '  if (false) return rootSeed',
   },
 
   // --- run.ts: the aggregation ---------------------------------------------------------------

@@ -302,6 +302,56 @@ describe('§1.2 the cards and the kill count are the campaign\'s, not the stage\
     expect(opened!.round).toBe(2)
   })
 
+  it('ACCUMULATES across stages — kills, cards and the dead all add up', () => {
+    // TWO FOLDS, and the first fixture in this file that needs two. Everything above folds ONE
+    // stage into a fresh campaign, where `campaign.kills + battle.stats.kills` and
+    // `battle.stats.kills` are the same number and `[...campaign.fallen]` and `[]` are the same
+    // list — so a relay that threw the campaign's history away every stage would pass all of them.
+    // §1.2 is about a total, and a total needs a second term.
+    const first = wonStage()
+    first.stats.kills = 20
+    kill(first, [4])
+    first.upgrades.rounds.push({
+      round: 1,
+      tick: 400,
+      offered: ['marksman', 'cover', 'rapid'],
+      chosen: 'marksman',
+    })
+
+    const afterFirst = completeStage(createCampaignState('root-a'), first)
+    expect(afterFirst.kills).toBe(20)
+    expect(afterFirst.fallen.map((entry) => entry.id)).toEqual([4])
+    expect(afterFirst.cards).toEqual(['marksman'])
+
+    const second = enterNextStage(afterFirst).state()
+    second.mode = 'won'
+    second.result = 'won'
+    second.stats.kills = 30
+    kill(second, [8])
+    second.upgrades.rounds.push({
+      round: 2,
+      tick: 900,
+      offered: ['firepower', 'cover', 'rapid'],
+      chosen: 'firepower',
+    })
+
+    const afterSecond = completeStage({ ...afterFirst, phase: 'in-stage' }, second)
+
+    expect(afterSecond.kills).toBe(50)
+    // The card taken in the first stage is still held, and the second stage's is behind it in the
+    // order it was taken.
+    expect(afterSecond.cards).toEqual(['marksman', 'firepower'])
+    // §1.14: the first stage's dead are still on the record two stages later, which is the whole
+    // reason the end screen can name them.
+    expect(afterSecond.fallen.map((entry) => entry.id)).toEqual([4, 8])
+    expect(afterSecond.squad!.members).toHaveLength(14)
+
+    const third = enterNextStage(afterSecond).state()
+    expect(third.stats.priorKills).toBe(50)
+    expect(third.upgrades.carriedCards).toEqual(['marksman', 'firepower'])
+    expect(third.upgrades.nextThresholdIndex).toBe(2)
+  })
+
   it('spends every threshold the carried kills have already passed', () => {
     const finished = wonStage()
     finished.stats.kills = UPGRADE_KILL_THRESHOLDS[2]
