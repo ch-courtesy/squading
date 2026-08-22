@@ -101,9 +101,9 @@ describe("§1.16 downed and death transitions", () => {
   it("kills an enemy at zero hp and hands the accounting its id and its kind", () => {
     const state = fixture({ [COMMANDER_ID]: { x: 28, y: 16 } })
     state.enemies = [
-      createEnemy(101, 'melee', { x: 29, y: 16 }),
-      createEnemy(102, 'shooter', { x: 30, y: 16 }),
-      createEnemy(1000, 'elite', { x: 31, y: 16 }),
+      createEnemy(state, 101, 'melee', { x: 29, y: 16 }),
+      createEnemy(state, 102, 'shooter', { x: 30, y: 16 }),
+      createEnemy(state, 1000, 'elite', { x: 31, y: 16 }),
     ]
     findEnemy(state, 101)!.hp = 0
     findEnemy(state, 101)!.contactSlotOwnerId = COMMANDER_ID

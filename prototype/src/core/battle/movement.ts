@@ -2,7 +2,7 @@
 //
 // §1.6 removed cover, and with it most of what used to be in this file. What is left:
 //
-//   leash (§1.4.1) — a soldier with a standing enemy inside `LEASH_RADIUS` OF THE COMMAND
+//   leash (§1.4.1) — a soldier with a standing enemy inside `leashRadius` OF THE COMMAND
 //                      UNIT leaves its slot and moves to ITS OWN POINT on its range band around
 //                      that enemy — the band gives the distance and the soldier's own slot
 //                      offset gives the bearing (v11), so fifteen soldiers on one target spread
@@ -33,15 +33,12 @@
 // error rather than a battle where nothing attacks.
 
 import {
-  ARENA_HEIGHT,
-  ARENA_WIDTH,
   ARRIVE_EPSILON,
   COMMANDER_MOVE_SPEED,
   FOLLOW_MAX_SPEED,
-  LEASH_RADIUS,
-  SHOOTER_RANGE,
   SOLDIER_MOVE_SPEED,
 } from './constants'
+import { stageOf } from './stages'
 import { FORMATION_SLOTS, findAssignment, slotPosition } from './formation'
 import { enemiesById, findEnemy } from './state'
 import { attackRangeOf, selectRankedEnemyId } from './targeting'
@@ -52,8 +49,13 @@ function clamp(value: number, maximum: number): number {
   return Math.max(0, Math.min(maximum, value))
 }
 
-export function clampToArena(x: number, y: number): Vec2 {
-  return { x: clamp(x, ARENA_WIDTH), y: clamp(y, ARENA_HEIGHT) }
+/**
+ * §1.7's boundary. It takes the state because the arena is §2.2's "아레나" axis and therefore a
+ * stage's — `stages.ts` holds the width and the height, and this is where they are read.
+ */
+export function clampToArena(state: BattleState, x: number, y: number): Vec2 {
+  const stage = stageOf(state)
+  return { x: clamp(x, stage.arenaWidth), y: clamp(y, stage.arenaHeight) }
 }
 
 /**
@@ -63,8 +65,8 @@ export function clampToArena(x: number, y: number): Vec2 {
  * single place a position becomes legal, and because the axis-by-axis sliding it replaced
  * was subtle enough to be worth having one obvious successor.
  */
-export function stepMove(from: Vec2, dx: number, dy: number): Vec2 {
-  return clampToArena(from.x + dx, from.y + dy)
+export function stepMove(state: BattleState, from: Vec2, dx: number, dy: number): Vec2 {
+  return clampToArena(state, from.x + dx, from.y + dy)
 }
 
 function displacementOf(from: Vec2, to: Vec2): number {
@@ -87,8 +89,8 @@ export function commandUnitOf(state: BattleState): FriendlyUnit | null {
  * is exactly "the body the player is driving moves faster", whichever body that is (§1.5).
  *
  * `mobility` is also the one card that touches §1.3's speed relation: it takes the commander to
- * `0.115 x 1.15 = 0.13225`, which is still under `MELEE_MOVE_SPEED 0.140` but would NOT be under
- * the bottom of §2's search range. See the note on `MELEE_MOVE_SPEED` in `constants.ts`.
+ * `0.115 x 1.15 = 0.13225`, which is still under stage 1's `meleeMoveSpeed 0.140` but would NOT
+ * be under the bottom of §2's search range. See the note on `meleeMoveSpeed` in `stages.ts`.
  */
 export function moveSpeedOf(state: BattleState, unit: FriendlyUnit): number {
   const base = unit.role === 'commander' ? COMMANDER_MOVE_SPEED : SOLDIER_MOVE_SPEED
@@ -136,6 +138,7 @@ export function advanceCommandUnit(state: BattleState): number {
   const speed = moveSpeedOf(state, unit)
   const from = unit.position
   const to = stepMove(
+    state,
     from,
     (state.input.move.x / magnitude) * speed,
     (state.input.move.y / magnitude) * speed,
@@ -185,12 +188,12 @@ function selectEngagementTargetIn(
       enemy.position.x - leashCenter.x,
       enemy.position.y - leashCenter.y,
     )
-    return leashDistance <= LEASH_RADIUS
+    return leashDistance <= stageOf(state).leashRadius
   })
 }
 
 /**
- * §1.4.1's "자기 사거리 밴드": `[SHOOTER_RANGE, this unit's own range]`.
+ * §1.4.1's "자기 사거리 밴드": `[the stage's shooterRange, this unit's own range]`.
  *
  * It is §1.6's range advantage measured for ONE body instead of for the formation. The far edge
  * is the unit's own attack range, because past it the unit is walking without shooting; the near
@@ -199,11 +202,11 @@ function selectEngagementTargetIn(
  * not something a friendly card changes.
  */
 export function engagementBandOf(state: BattleState, unit: FriendlyUnit): readonly [number, number] {
-  return [SHOOTER_RANGE, attackRangeOf(state, unit)]
+  return [stageOf(state).shooterRange, attackRangeOf(state, unit)]
 }
 
 /** §1.4: close on `target`, never overshooting it, and stop dead inside ARRIVE_EPSILON. */
-function stepToward(unit: FriendlyUnit, target: Vec2, speed: number): void {
+function stepToward(state: BattleState, unit: FriendlyUnit, target: Vec2, speed: number): void {
   const dx = target.x - unit.position.x
   const dy = target.y - unit.position.y
   const distance = Math.hypot(dx, dy)
@@ -216,7 +219,7 @@ function stepToward(unit: FriendlyUnit, target: Vec2, speed: number): void {
 
   const step = Math.min(distance, speed)
   const from = unit.position
-  const to = stepMove(from, (dx / distance) * step, (dy / distance) * step)
+  const to = stepMove(state, from, (dx / distance) * step, (dy / distance) * step)
   unit.position = to
   unit.lastDisplacement = displacementOf(from, to)
 }
@@ -257,8 +260,9 @@ export function engagementBearingOf(slotIndex: number): Vec2 | null {
  * 밴드 far edge`.
  *
  * The far edge is the unit's own attack range, so the goal is the furthest place it can stand and
- * still shoot; §1.6's gap is what makes that place safe, because `SHOOTER_RANGE < SOLDIER_RANGE`
- * is asserted in `constants.ts` and therefore the goal is strictly outside a shooter's reach. The
+ * still shoot; §1.6's gap is what makes that place safe, because `shooterRange < SOLDIER_RANGE`
+ * is asserted per stage in `stages.ts` and therefore the goal is strictly outside a shooter's
+ * reach. The
  * near edge of `engagementBandOf` is no longer a movement input — v10 used it to decide when to
  * back off, and a single goal point has nothing to decide — but it is still the reason the far
  * edge is the right place to stand, which is why the band is still read as a band here.
@@ -302,14 +306,14 @@ function advanceEngagement(
     unit.lastDisplacement = 0
     return
   }
-  stepToward(unit, goal, followSpeed)
+  stepToward(state, unit, goal, followSpeed)
 }
 
 /**
  * The 추종·적 이동 step, friendly half — §1.4's follow and §1.4.1's leash, which are the two
  * halves of one question asked per soldier per tick: is there anything to fight?
  *
- * ENGAGED (a standing enemy inside `LEASH_RADIUS` of the command unit): the soldier leaves its
+ * ENGAGED (a standing enemy inside the stage's `leashRadius` of the command unit): the soldier leaves its
  * slot and moves to its own range band around that enemy. NOT ENGAGED: the slot is where it goes,
  * by §1.4's follow rule exactly — capped at `followSpeedOf`, no overshoot, and no movement at all
  * inside the dead-band. The slot is a REST position, not a battle position (§1.4).
@@ -353,7 +357,7 @@ export function advanceFormationFollow(state: BattleState): void {
       continue
     }
 
-    stepToward(unit, slotPosition(center, assignment.slotIndex), followSpeed)
+    stepToward(state, unit, slotPosition(center, assignment.slotIndex), followSpeed)
   }
 }
 
@@ -392,7 +396,12 @@ export function advanceMovement(state: BattleState, moveEnemies: EnemyMovementRu
  * No stuck counter: §1.7's 30-tick retarget is withdrawn along with terrain, because the
  * arena edge is the only thing left that can stop an enemy and it cannot trap one.
  */
-export function moveEnemyTowards(enemy: EnemyUnit, target: Vec2, speed: number): number {
+export function moveEnemyTowards(
+  state: BattleState,
+  enemy: EnemyUnit,
+  target: Vec2,
+  speed: number,
+): number {
   const dx = target.x - enemy.position.x
   const dy = target.y - enemy.position.y
   const distance = Math.hypot(dx, dy)
@@ -402,7 +411,7 @@ export function moveEnemyTowards(enemy: EnemyUnit, target: Vec2, speed: number):
   }
   const step = Math.min(distance, speed)
   const from = enemy.position
-  const to = stepMove(from, (dx / distance) * step, (dy / distance) * step)
+  const to = stepMove(state, from, (dx / distance) * step, (dy / distance) * step)
   enemy.position = to
   enemy.lastDisplacement = displacementOf(from, to)
   return enemy.lastDisplacement

@@ -1,20 +1,32 @@
 import { describe, expect, it } from 'vitest'
 
 import {
-  ELITE_BLAST_RADIUS,
-  ELITE_SPAWN_TICK,
   RESCUE_RANGE,
   SOLDIER_RANGE,
 } from '../../src/core/battle/constants'
+import { stageConfigOf } from '../../src/core/battle/stages'
 import { digestBattleState } from '../../src/core/battle/digest'
 import { FORMATION_MAX_SLOT_RADIUS } from '../../src/core/battle/formation'
 import { COMMANDER_ID, ELITE_ID, createEnemy, createInitialBattleState } from '../../src/core/battle/state'
 import type { BattleState } from '../../src/core/battle/types'
 import {
   VIEW_BODY_MARGIN,
-  VIEW_REQUIRED_RADIUS,
   projectBattleSnapshot,
+  viewRequiredRadiusOf,
 } from '../../src/core/battle-view/snapshot'
+
+/**
+ * The stage numbers this fixture pins, read off the one stage there is.
+ *
+ * Campaign stage 0 moved these out of `constants.ts` (§2.2's per-stage axes). Aliased back to
+ * their old spellings so the assertions below are the same assertions, against the same values.
+ */
+const {
+  eliteBlastRadius: ELITE_BLAST_RADIUS,
+  eliteSpawnTick: ELITE_SPAWN_TICK,
+} = stageConfigOf(1)
+/** §4.4(b)'s guaranteed radius, which is a stage's since the blast radius is. */
+const VIEW_REQUIRED_RADIUS = viewRequiredRadiusOf(1)
 
 function stateAt(seed = 'view-a'): BattleState {
   const state = createInitialBattleState(seed)
@@ -43,8 +55,8 @@ describe('battle-view: the display-only projection (§6)', () => {
 
   it('gives the two enemy classes two different silhouettes', () => {
     const state = stateAt()
-    state.enemies.push(createEnemy(101, 'melee', { x: 30, y: 16 }))
-    state.enemies.push(createEnemy(102, 'shooter', { x: 32, y: 16 }))
+    state.enemies.push(createEnemy(state, 101, 'melee', { x: 30, y: 16 }))
+    state.enemies.push(createEnemy(state, 102, 'shooter', { x: 32, y: 16 }))
 
     const snapshot = projectBattleSnapshot(state)
     const melee = snapshot.units.find((unit) => unit.id === 101)!
@@ -59,11 +71,11 @@ describe('battle-view: the display-only projection (§6)', () => {
 
   it('drops an enemy once its death animation has had its ticks', () => {
     const state = stateAt()
-    const fresh = createEnemy(101, 'melee', { x: 30, y: 16 })
+    const fresh = createEnemy(state, 101, 'melee', { x: 30, y: 16 })
     fresh.life = 'dead'
     fresh.hp = 0
     fresh.deathTick = 100
-    const stale = createEnemy(102, 'melee', { x: 31, y: 16 })
+    const stale = createEnemy(state, 102, 'melee', { x: 31, y: 16 })
     stale.life = 'dead'
     stale.hp = 0
     stale.deathTick = 10
@@ -164,7 +176,7 @@ describe('battle-view: the display-only projection (§6)', () => {
 
   it('never writes to the state it projects, and hands back no reference into it', () => {
     const state = stateAt()
-    state.enemies.push(createEnemy(101, 'shooter', { x: 33, y: 16 }))
+    state.enemies.push(createEnemy(state, 101, 'shooter', { x: 33, y: 16 }))
     const body = unitOf(state, 5)
     body.life = 'downed'
     body.position = { x: 28.4, y: 16 }

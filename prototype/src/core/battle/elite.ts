@@ -19,8 +19,8 @@
 //      it could only mean an invented instant kill. So the impact collects STANDING friendlies.
 //      The damage step drops events aimed at anything else anyway; this makes the intent
 //      explicit rather than incidental.
-//   3. THE APPROACH STOPS EXACTLY AT `ELITE_APPROACH_RANGE`, rather than overshooting into it on
-//      the last step. §1.12 says "ELITE_APPROACH_RANGE에서 멈춘다" — at the range, not inside
+//   3. THE APPROACH STOPS EXACTLY AT `eliteApproachRange`, rather than overshooting into it on
+//      the last step. §1.12 says "eliteApproachRange에서 멈춘다" — at the range, not inside
 //      it — and a hand-computable resting distance is what lets a fixture assert which of the
 //      15 slots can answer back. There is no retreat: §1.12 gives the elite an approach and a
 //      stop, and nothing else.
@@ -33,15 +33,7 @@
 // attenuation inside it, no terrain to route the approach around. The blast is a plain circle
 // and the approach is a straight line.
 
-import {
-  ELITE_APPROACH_RANGE,
-  ELITE_BLAST_RADIUS,
-  ELITE_COOLDOWN_TICKS,
-  ELITE_DAMAGE,
-  ELITE_MOVE_SPEED,
-  ELITE_SPAWN_TICK,
-  ELITE_TELEGRAPH_TICKS,
-} from './constants'
+import { stageOf } from './stages'
 import { advanceEnemyMovement } from './enemy'
 import { commandUnitOf, moveEnemyTowards, type EnemyMovementRule } from './movement'
 import { drawSpawnPosition, resolveSpawnRequests } from './spawn'
@@ -65,7 +57,7 @@ function livingElite(state: BattleState): EnemyUnit | null {
 }
 
 /**
- * §1.12: "`tick 1800`에 지휘 유닛에서 반경 `SPAWN_RADIUS` 위치에 등장한다."
+ * §1.12: "`eliteSpawnTick`에 지휘 유닛에서 반경 `spawnRadius` 위치에 등장한다."
  *
  * One `spawn` draw through `drawSpawnPosition`, which is §1.10's own placement function — the
  * same draw count and the same arena clamp, so the two arrivals cannot disagree about what a
@@ -77,13 +69,15 @@ function livingElite(state: BattleState): EnemyUnit | null {
  */
 export function resolveEliteArrival(state: BattleState): void {
   if (state.elite.enemyId !== null) return
-  if (state.combatTick < ELITE_SPAWN_TICK) return
+  if (state.combatTick < stageOf(state).eliteSpawnTick) return
   const command = commandUnitOf(state)
   // Nothing to measure the radius from; the 승패 판정 is about to end this run anyway. The
   // stream stays where it is, exactly as `resolveSpawnRequests` leaves it in the same case.
   if (!command) return
 
-  state.enemies.push(createEnemy(ELITE_ID, 'elite', drawSpawnPosition(state, command.position)))
+  state.enemies.push(
+    createEnemy(state, ELITE_ID, 'elite', drawSpawnPosition(state, command.position)),
+  )
   state.elite.enemyId = ELITE_ID
   state.elite.spawnTick = state.combatTick
 }
@@ -102,7 +96,7 @@ export function resolveEnemyArrivals(state: BattleState): void {
 }
 
 /**
- * §1.12: "지휘 유닛을 향해 이동하며 `ELITE_APPROACH_RANGE`에서 멈춘다."
+ * §1.12: "지휘 유닛을 향해 이동하며 `eliteApproachRange`에서 멈춘다."
  *
  * The last step is clamped to the remaining approach, so the elite comes to rest exactly at the
  * range instead of somewhere inside it that depends on where it started. Coming to rest costs it
@@ -125,13 +119,14 @@ export function advanceEliteMovement(state: BattleState): void {
   // which is a lifecycle reset rather than a second opinion about what the elite is hunting.
   elite.targetId = command.id
 
+  const stage = stageOf(state)
   const distance = distanceBetween(elite.position, command.position)
-  const remaining = distance - ELITE_APPROACH_RANGE
+  const remaining = distance - stage.eliteApproachRange
   if (remaining <= 0) {
     elite.lastDisplacement = 0
     return
   }
-  moveEnemyTowards(elite, command.position, Math.min(ELITE_MOVE_SPEED, remaining))
+  moveEnemyTowards(state, elite, command.position, Math.min(stage.eliteMoveSpeed, remaining))
 }
 
 /**
@@ -168,12 +163,13 @@ function startTelegraph(state: BattleState, center: Vec2): void {
   // position object: sharing it would make the centre follow the body that is supposed to be
   // able to run away from it, which is the entire dodge.
   state.elite.telegraphCenter = { x: center.x, y: center.y }
-  state.elite.telegraphRemaining = ELITE_TELEGRAPH_TICKS
+  state.elite.telegraphRemaining = stageOf(state).eliteTelegraphTicks
   state.elite.cooldownRemaining = 0
 }
 
 /**
- * §1.12: the impact — every STANDING friendly inside `ELITE_BLAST_RADIUS` of the frozen centre.
+ * §1.12: the impact — every STANDING friendly inside the stage's `eliteBlastRadius` of the
+ * frozen centre.
  *
  * Measured at IMPACT time, so a body that walked into the circle during the telegraph is hit
  * and a body that walked out is not; that is what makes the telegraph a dodge rather than a
@@ -182,16 +178,17 @@ function startTelegraph(state: BattleState, center: Vec2): void {
  * amount, so nothing in here is random (§1.17).
  */
 function impactEvents(state: BattleState, elite: EnemyUnit, center: Vec2): DamageEvent[] {
+  const stage = stageOf(state)
   const events: DamageEvent[] = []
   // Ascending id: the event order is what the damage step and I2's accounting see.
   for (const unit of friendliesById(state)) {
     if (unit.life !== 'standing') continue
-    if (distanceBetween(unit.position, center) > ELITE_BLAST_RADIUS) continue
+    if (distanceBetween(unit.position, center) > stage.eliteBlastRadius) continue
     events.push({
       side: 'enemy',
       attackerId: elite.id,
       targetId: unit.id,
-      amount: ELITE_DAMAGE,
+      amount: stage.eliteDamage,
       cause: 'elite-blast',
     })
   }
@@ -203,14 +200,14 @@ function impactEvents(state: BattleState, elite: EnemyUnit, center: Vec2): Damag
  *
  * The clock, written out because the ticks are a contract a fixture hand-counts:
  *
- *   start   the telegraph is set to `ELITE_TELEGRAPH_TICKS` and does NOT decrement on the tick
- *           it starts, so the impact lands exactly `ELITE_TELEGRAPH_TICKS` ticks later. The
+ *   start   the telegraph is set to `eliteTelegraphTicks` and does NOT decrement on the tick
+ *           it starts, so the impact lands exactly `eliteTelegraphTicks` ticks later. The
  *           command unit gets that many movement steps to leave the circle — 54 x 0.115 = 6.21
  *           against a radius of 2.4 and a formation that trails 2.46.
  *   impact   the events are returned to the caller, which concatenates them onto the two attack
  *            passes' events for the damage step. The cooldown begins in the same tick.
  *   cooldown when it runs out, the next telegraph starts in the SAME tick, so a cycle is exactly
- *            `ELITE_TELEGRAPH_TICKS + ELITE_COOLDOWN_TICKS` ticks (54 + 56 = 110): an elite that
+ *            `eliteTelegraphTicks + eliteCooldownTicks` ticks (54 + 56 = 110): an elite that
  *            arrives at 1800 impacts at 1854, 1964, 2074.
  *
  * A dead elite clears the cycle and fires nothing. An elite that dies in the same tick it
@@ -255,7 +252,7 @@ export function resolveEliteCycle(state: BattleState): DamageEvent[] {
     state.elite.attackPhase = 'cooldown'
     state.elite.telegraphCenter = null
     state.elite.telegraphRemaining = 0
-    state.elite.cooldownRemaining = ELITE_COOLDOWN_TICKS
+    state.elite.cooldownRemaining = stageOf(state).eliteCooldownTicks
     return events
   }
 

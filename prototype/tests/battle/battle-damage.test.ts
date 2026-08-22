@@ -10,20 +10,30 @@ import { describe, expect, it } from 'vitest'
 import {
   COMMANDER_DAMAGE,
   COMMANDER_HP,
-  MELEE_HP,
   SOLDIER_DAMAGE,
   SOLDIER_HP,
 } from '../../src/core/battle/constants'
+import { stageConfigOf } from '../../src/core/battle/stages'
 import { applyDamage, damageTakenMultiplierOf } from '../../src/core/battle/damage'
 import { COMMANDER_ID, createEnemy, createInitialBattleState, findEnemy, findFriendly } from '../../src/core/battle/state'
 import { digestBattleState } from '../../src/core/battle/digest'
 import { resolveTransitions } from '../../src/core/battle/transitions'
 import type { BattleState, DamageEvent } from '../../src/core/battle/types'
 
+/**
+ * The stage numbers this fixture pins, read off the one stage there is.
+ *
+ * Campaign stage 0 moved these out of `constants.ts` (§2.2's per-stage axes). Aliased back to
+ * their old spellings so the assertions below are the same assertions, against the same values.
+ */
+const {
+  meleeHp: MELEE_HP,
+} = stageConfigOf(1)
+
 function battle(): BattleState {
   const state = createInitialBattleState('seed-a')
   state.mode = 'running'
-  state.enemies = [createEnemy(101, 'melee', { x: 29, y: 16 })]
+  state.enemies = [createEnemy(state, 101, 'melee', { x: 29, y: 16 })]
   return state
 }
 

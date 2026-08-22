@@ -12,7 +12,6 @@
 import { describe, expect, it } from 'vitest'
 
 import {
-  ARENA_WIDTH,
   COMMANDER_ATTACK_INTERVAL,
   COMMANDER_DAMAGE,
   COMMANDER_MELEE_DAMAGE,
@@ -20,20 +19,11 @@ import {
   COMMANDER_MELEE_RANGE,
   COMMANDER_MOVE_SPEED,
   COMMANDER_RANGE,
-  MELEE_ATTACK_INTERVAL,
-  MELEE_DAMAGE,
-  MELEE_MOVE_SPEED,
-  MELEE_RANGE,
-  RANGE_ADVANTAGE,
-  SHOOTER_ATTACK_INTERVAL,
-  SHOOTER_DAMAGE,
-  SHOOTER_MOVE_SPEED,
-  SHOOTER_RANGE,
-  SHOOTER_STANDOFF,
   SOLDIER_ATTACK_INTERVAL,
   SOLDIER_DAMAGE,
   SOLDIER_RANGE,
 } from '../../src/core/battle/constants'
+import { stageConfigOf } from '../../src/core/battle/stages'
 import { advanceCommandUnit } from '../../src/core/battle/movement'
 import {
   advanceCooldowns,
@@ -47,6 +37,26 @@ import { commandBatch } from '../../src/core/battle/input'
 import { advanceBattleTick } from '../../src/core/battle/tick'
 import type { ResolvedTick } from '../../src/core/battle/tick'
 import type { BattleState, EnemyUnit, FriendlyUnit } from '../../src/core/battle/types'
+
+/**
+ * The stage numbers this fixture pins, read off the one stage there is.
+ *
+ * Campaign stage 0 moved these out of `constants.ts` (§2.2's per-stage axes). Aliased back to
+ * their old spellings so the assertions below are the same assertions, against the same values.
+ */
+const {
+  arenaWidth: ARENA_WIDTH,
+  meleeAttackInterval: MELEE_ATTACK_INTERVAL,
+  meleeDamage: MELEE_DAMAGE,
+  meleeMoveSpeed: MELEE_MOVE_SPEED,
+  meleeRange: MELEE_RANGE,
+  rangeAdvantage: RANGE_ADVANTAGE,
+  shooterAttackInterval: SHOOTER_ATTACK_INTERVAL,
+  shooterDamage: SHOOTER_DAMAGE,
+  shooterMoveSpeed: SHOOTER_MOVE_SPEED,
+  shooterRange: SHOOTER_RANGE,
+  shooterStandoff: SHOOTER_STANDOFF,
+} = stageConfigOf(1)
 
 /**
  * A battle with only the named friendlies standing.
@@ -90,7 +100,7 @@ describe('§1.3 units attack while moving', () => {
     // melee at full speed and shoots it on the same tick.
     //   position 28 -> 27.885, so the gap goes 2.0 -> 2.115, still inside COMMANDER_RANGE 6.0.
     const state = fixture()
-    state.enemies = [createEnemy(101, 'melee', { x: 30, y: 16 })]
+    state.enemies = [createEnemy(state, 101, 'melee', { x: 30, y: 16 })]
     const commander = commanderOf(state)
     commander.attackCooldown = 1
     state.input.move = { x: -1, y: 0 }
@@ -135,7 +145,7 @@ describe('§1.3 units attack while moving', () => {
       const state = fixture()
       // Parked 2.0 away and left alone: this fixture measures the friendly's clock, so the
       // melee is a target dummy that neither moves nor dies.
-      state.enemies = [createEnemy(101, 'melee', { x: 30, y: 16 })]
+      state.enemies = [createEnemy(state, 101, 'melee', { x: 30, y: 16 })]
       const commander = commanderOf(state)
       let shots = 0
 
@@ -163,7 +173,7 @@ describe('§1.3 units attack while moving', () => {
     // "the rule judges displacement, not input"; with no such rule left it is the witness
     // that the shot does not depend on either.
     const state = fixture({ friendlies: { [COMMANDER_ID]: { x: ARENA_WIDTH, y: 12 } } })
-    state.enemies = [createEnemy(101, 'melee', { x: ARENA_WIDTH - 3, y: 12 })]
+    state.enemies = [createEnemy(state, 101, 'melee', { x: ARENA_WIDTH - 3, y: 12 })]
     const commander = commanderOf(state)
     commander.attackCooldown = 1
     state.input.move = { x: 1, y: 0 }
@@ -179,7 +189,7 @@ describe('§1.3 units attack while moving', () => {
 
   it('decrements an enemy cooldown while it closes, as it always did', () => {
     const state = fixture()
-    state.enemies = [createEnemy(101, 'melee', { x: 34, y: 16 })]
+    state.enemies = [createEnemy(state, 101, 'melee', { x: 34, y: 16 })]
     const melee = enemyOf(state, 101)
     melee.attackCooldown = 5
     melee.targetId = COMMANDER_ID
@@ -233,7 +243,7 @@ describe('§1.3 / I8 flight is futile — the melee outruns the command unit', (
 
   function fleeing(): { state: BattleState; commander: FriendlyUnit; melee: EnemyUnit } {
     const state = fixture()
-    state.enemies = [createEnemy(101, 'melee', { x: 28 + START_GAP, y: 16 })]
+    state.enemies = [createEnemy(state, 101, 'melee', { x: 28 + START_GAP, y: 16 })]
     const melee = enemyOf(state, 101)
     // Pre-claimed, so §1.16's one-tick selection lag is not part of the arithmetic: the melee
     // is already hunting on tick 1. `battle-combat`'s range-advantage fixture measures the lag
@@ -324,8 +334,8 @@ describe('§1.8 target selection', () => {
   it('takes the elite over a nearer ordinary enemy', () => {
     const state = fixture()
     state.enemies = [
-      createEnemy(101, 'melee', { x: 29, y: 16 }), // distance 1
-      createEnemy(1000, 'elite', { x: 32, y: 16 }), // distance 4
+      createEnemy(state, 101, 'melee', { x: 29, y: 16 }), // distance 1
+      createEnemy(state, 1000, 'elite', { x: 32, y: 16 }), // distance 4
     ]
     expect(selectFriendlyTargetId(state, commanderOf(state))).toBe(1000)
 
@@ -337,8 +347,8 @@ describe('§1.8 target selection', () => {
   it('breaks a distance tie by ascending id', () => {
     const state = fixture()
     state.enemies = [
-      createEnemy(101, 'melee', { x: 30, y: 16 }),
-      createEnemy(102, 'melee', { x: 26, y: 16 }),
+      createEnemy(state, 101, 'melee', { x: 30, y: 16 }),
+      createEnemy(state, 102, 'melee', { x: 26, y: 16 }),
     ]
     expect(selectFriendlyTargetId(state, commanderOf(state))).toBe(101)
   })
@@ -346,7 +356,7 @@ describe('§1.8 target selection', () => {
   it('spends nothing when there is no candidate', () => {
     const state = fixture()
     // Distance 6.5 > COMMANDER_RANGE 6.0.
-    state.enemies = [createEnemy(101, 'melee', { x: 34.5, y: 16 })]
+    state.enemies = [createEnemy(state, 101, 'melee', { x: 34.5, y: 16 })]
     const commander = commanderOf(state)
     commander.attackCooldown = 0
 
@@ -360,7 +370,7 @@ describe('§1.8 target selection', () => {
 describe('§1.9 melee', () => {
   it('closes on its target and holds at contact range', () => {
     const state = fixture()
-    state.enemies = [createEnemy(101, 'melee', { x: 30, y: 16 })]
+    state.enemies = [createEnemy(state, 101, 'melee', { x: 30, y: 16 })]
     const melee = enemyOf(state, 101)
     melee.targetId = COMMANDER_ID
     melee.contactSlotOwnerId = COMMANDER_ID
@@ -397,9 +407,9 @@ describe('§1.9 melee', () => {
       friendlies: { [COMMANDER_ID]: { x: 28, y: 16 }, 2: { x: 30, y: 16 } },
     })
     state.enemies = [
-      createEnemy(101, 'melee', { x: 28, y: 20 }),
-      createEnemy(102, 'melee', { x: 28, y: 20 }),
-      createEnemy(103, 'melee', { x: 28, y: 20 }),
+      createEnemy(state, 101, 'melee', { x: 28, y: 20 }),
+      createEnemy(state, 102, 'melee', { x: 28, y: 20 }),
+      createEnemy(state, 103, 'melee', { x: 28, y: 20 }),
     ]
 
     advanceTargeting(state)
@@ -421,8 +431,8 @@ describe('§1.9 melee', () => {
       friendlies: { [COMMANDER_ID]: { x: 28, y: 16 }, 2: { x: 30, y: 16 } },
     })
     state.enemies = [
-      createEnemy(101, 'melee', { x: 28, y: 20 }),
-      createEnemy(102, 'melee', { x: 28, y: 20 }),
+      createEnemy(state, 101, 'melee', { x: 28, y: 20 }),
+      createEnemy(state, 102, 'melee', { x: 28, y: 20 }),
     ]
 
     for (let tick = 1; tick <= 5; tick += 1) advanceTargeting(state)
@@ -446,7 +456,7 @@ describe('§1.9 shooter', () => {
 
   function shooterAt(x: number, y: number): { state: BattleState; shooter: EnemyUnit } {
     const state = fixture()
-    state.enemies = [createEnemy(201, 'shooter', { x, y })]
+    state.enemies = [createEnemy(state, 201, 'shooter', { x, y })]
     const shooter = enemyOf(state, 201)
     shooter.targetId = COMMANDER_ID
     shooter.contactSlotOwnerId = COMMANDER_ID
@@ -497,11 +507,11 @@ describe('§1.9 shooter', () => {
       friendlies: { [COMMANDER_ID]: { x: 28, y: 16 }, 2: { x: 30, y: 16 } },
     })
     state.enemies = [
-      createEnemy(201, 'shooter', { x: 28, y: 20 }),
-      createEnemy(202, 'shooter', { x: 28, y: 20 }),
-      createEnemy(203, 'shooter', { x: 28, y: 20 }),
-      createEnemy(204, 'shooter', { x: 28, y: 20 }),
-      createEnemy(205, 'shooter', { x: 28, y: 20 }),
+      createEnemy(state, 201, 'shooter', { x: 28, y: 20 }),
+      createEnemy(state, 202, 'shooter', { x: 28, y: 20 }),
+      createEnemy(state, 203, 'shooter', { x: 28, y: 20 }),
+      createEnemy(state, 204, 'shooter', { x: 28, y: 20 }),
+      createEnemy(state, 205, 'shooter', { x: 28, y: 20 }),
     ]
 
     advanceTargeting(state)
@@ -514,9 +524,9 @@ describe('§1.9 shooter', () => {
     // friendly can hold one melee and two shooters at once.
     const state = fixture()
     state.enemies = [
-      createEnemy(101, 'melee', { x: 28, y: 20 }),
-      createEnemy(201, 'shooter', { x: 28, y: 20 }),
-      createEnemy(202, 'shooter', { x: 28, y: 20 }),
+      createEnemy(state, 101, 'melee', { x: 28, y: 20 }),
+      createEnemy(state, 201, 'shooter', { x: 28, y: 20 }),
+      createEnemy(state, 202, 'shooter', { x: 28, y: 20 }),
     ]
     advanceTargeting(state)
     expect(state.enemies.map((enemy) => enemy.contactSlotOwnerId)).toEqual([1, 1, 1])
@@ -537,7 +547,7 @@ describe('§1.6 range advantage — the mechanism that replaced cover', () => {
     expect(distance).toBeGreaterThan(SHOOTER_RANGE)
 
     const state = fixture({ friendlies: { 2: { x: 28, y: 16 } } })
-    state.enemies = [createEnemy(201, 'shooter', { x: 28 + distance, y: 16 })]
+    state.enemies = [createEnemy(state, 201, 'shooter', { x: 28 + distance, y: 16 })]
     const soldier = findFriendly(state, 2)!
     const shooter = enemyOf(state, 201)
 
@@ -561,7 +571,7 @@ describe('§1.6 range advantage — the mechanism that replaced cover', () => {
   it('loses the advantage as soon as the shooter closes into its band', () => {
     // 4.2 is inside the band [2.7, 4.275] and inside the soldier's 5.0, so both fire.
     const state = fixture({ friendlies: { 2: { x: 28, y: 16 } } })
-    state.enemies = [createEnemy(201, 'shooter', { x: 32.2, y: 16 })]
+    state.enemies = [createEnemy(state, 201, 'shooter', { x: 32.2, y: 16 })]
 
     advanceTargeting(state)
     expect(resolveFriendlyAttacks(state)).toHaveLength(1)
@@ -589,7 +599,7 @@ describe('§1.6 range advantage — the mechanism that replaced cover', () => {
     // melee's speed is what buys the squad its window, and the window just got shorter.
     // The soldier's cooldown at tick 29 is 12 - (29 - 25) = 8.
     const state = fixture({ friendlies: { 2: { x: 28, y: 16 } } })
-    state.enemies = [createEnemy(101, 'melee', { x: 32.6, y: 16 })]
+    state.enemies = [createEnemy(state, 101, 'melee', { x: 32.6, y: 16 })]
     const soldier = findFriendly(state, 2)!
     const melee = enemyOf(state, 101)
 
@@ -626,8 +636,8 @@ describe('attack pass ordering and shape', () => {
       friendlies: { [COMMANDER_ID]: { x: 28, y: 16 }, 2: { x: 30, y: 16 } },
     })
     state.enemies = [
-      createEnemy(101, 'melee', { x: 28.5, y: 16 }),
-      createEnemy(102, 'melee', { x: 30.5, y: 16 }),
+      createEnemy(state, 101, 'melee', { x: 28.5, y: 16 }),
+      createEnemy(state, 102, 'melee', { x: 30.5, y: 16 }),
     ]
 
     advanceTargeting(state)
@@ -643,7 +653,7 @@ describe('attack pass ordering and shape', () => {
       friendlies: { [COMMANDER_ID]: { x: 28, y: 16 }, 2: { x: 32, y: 16 } },
     })
     commanderOf(state).life = 'downed'
-    state.enemies = [createEnemy(101, 'melee', { x: 28, y: 17 })]
+    state.enemies = [createEnemy(state, 101, 'melee', { x: 28, y: 17 })]
 
     advanceTargeting(state)
     expect(enemyOf(state, 101).targetId).toBe(2)
@@ -651,7 +661,7 @@ describe('attack pass ordering and shape', () => {
 
   it('leaves the elite row to §1.12 — it neither retargets nor moves nor contacts', () => {
     const state = fixture()
-    state.enemies = [createEnemy(1000, 'elite', { x: 30, y: 16 })]
+    state.enemies = [createEnemy(state, 1000, 'elite', { x: 30, y: 16 })]
     state.elite.enemyId = 1000
     const elite = enemyOf(state, 1000)
 
@@ -697,7 +707,7 @@ describe('§1.4.2 the command unit strikes in melee inside its melee range', () 
     commander: FriendlyUnit
   } {
     const state = fixture()
-    state.enemies = [createEnemy(101, 'shooter', { x: 28 + gap, y: 16 })]
+    state.enemies = [createEnemy(state, 101, 'shooter', { x: 28 + gap, y: 16 })]
     return { state, commander: commanderOf(state) }
   }
 
@@ -719,7 +729,7 @@ describe('§1.4.2 the command unit strikes in melee inside its melee range', () 
     const gap = COMMANDER_MELEE_RANGE - 0.01
 
     const shooter = fixture()
-    shooter.enemies = [createEnemy(101, 'shooter', { x: 28 + gap, y: 16 })]
+    shooter.enemies = [createEnemy(shooter, 101, 'shooter', { x: 28 + gap, y: 16 })]
     advanceTargeting(shooter)
     expect(commanderOf(shooter).targetId).toBe(101)
     expect(resolveFriendlyAttacks(shooter)).toEqual([
@@ -734,7 +744,7 @@ describe('§1.4.2 the command unit strikes in melee inside its melee range', () 
     expect(commanderOf(shooter).attackCooldown).toBe(COMMANDER_MELEE_INTERVAL)
 
     const closer = fixture()
-    closer.enemies = [createEnemy(101, 'melee', { x: 28 + gap, y: 16 })]
+    closer.enemies = [createEnemy(closer, 101, 'melee', { x: 28 + gap, y: 16 })]
     advanceTargeting(closer)
     expect(commanderOf(closer).targetId).toBe(101)
     expect(resolveFriendlyAttacks(closer)).toEqual([
@@ -755,7 +765,7 @@ describe('§1.4.2 the command unit strikes in melee inside its melee range', () 
     // standoff and is far outside `COMMANDER_MELEE_RANGE 1.2`, so it is the same argument as the
     // shooter's: the command unit is only ever this close because it walked there.
     const state = fixture()
-    state.enemies = [createEnemy(1000, 'elite', { x: 28 + COMMANDER_MELEE_RANGE - 0.01, y: 16 })]
+    state.enemies = [createEnemy(state, 1000, 'elite', { x: 28 + COMMANDER_MELEE_RANGE - 0.01, y: 16 })]
     state.elite.enemyId = 1000
 
     advanceTargeting(state)
@@ -816,7 +826,7 @@ describe('§1.4.2 the command unit strikes in melee inside its melee range', () 
     // `COMMANDER_MELEE_RANGE` — because `28 + 1.2 - 28` is 1.1999999999999993 in binary floating
     // point and would test the open side of the boundary while claiming to test the closed one.
     const state = fixture({ friendlies: { [COMMANDER_ID]: { x: 0, y: 16 } } })
-    state.enemies = [createEnemy(101, 'shooter', { x: COMMANDER_MELEE_RANGE, y: 16 })]
+    state.enemies = [createEnemy(state, 101, 'shooter', { x: COMMANDER_MELEE_RANGE, y: 16 })]
     expect(Math.hypot(COMMANDER_MELEE_RANGE - 0, 0)).toBe(COMMANDER_MELEE_RANGE)
 
     advanceTargeting(state)
@@ -829,7 +839,7 @@ describe('§1.4.2 the command unit strikes in melee inside its melee range', () 
     // is a `shooter` so that the v13 class clause cannot be what produces the rifle here — this
     // fixture is about the id, and a melee-class body would let it pass for the wrong reason.
     const state = fixture({ friendlies: { 2: { x: 28, y: 16 } } })
-    state.enemies = [createEnemy(101, 'shooter', { x: 28 + COMMANDER_MELEE_RANGE - 0.01, y: 16 })]
+    state.enemies = [createEnemy(state, 101, 'shooter', { x: 28 + COMMANDER_MELEE_RANGE - 0.01, y: 16 })]
 
     advanceTargeting(state)
     expect(resolveFriendlyAttacks(state)).toEqual([
@@ -854,7 +864,7 @@ describe('§1.4.2 the command unit strikes in melee inside its melee range', () 
     const state = fixture({
       friendlies: { [COMMANDER_ID]: { x: 28, y: 16 }, 2: { x: 28, y: 16 } },
     })
-    state.enemies = [createEnemy(101, 'shooter', { x: 28 + gap, y: 16 })]
+    state.enemies = [createEnemy(state, 101, 'shooter', { x: 28 + gap, y: 16 })]
     state.commandUnitId = 2
 
     advanceTargeting(state)
@@ -899,8 +909,8 @@ describe('§1.4.2 the command unit strikes in melee inside its melee range', () 
     // and the reading it means to pin would go untested.
     const state = fixture()
     state.enemies = [
-      createEnemy(101, 'shooter', { x: 28.4, y: 16 }),
-      createEnemy(1000, 'elite', { x: 32, y: 16 }),
+      createEnemy(state, 101, 'shooter', { x: 28.4, y: 16 }),
+      createEnemy(state, 1000, 'elite', { x: 32, y: 16 }),
     ]
     state.elite.enemyId = 1000
 
@@ -936,7 +946,7 @@ describe('§1.4.2 the command unit strikes in melee inside its melee range', () 
     // included: a shooter this far inside its own standoff retreats by `SHOOTER_MOVE_SPEED 0.06`
     // before the attack step, and 1.19 + 0.06 would be outside `COMMANDER_MELEE_RANGE` by the
     // time the swing is resolved. 0.5 + 0.06 is not.
-    state.enemies = [createEnemy(900, 'shooter', { x: 28.5, y: 16 })]
+    state.enemies = [createEnemy(state, 900, 'shooter', { x: 28.5, y: 16 })]
     const commander = commanderOf(state)
     commander.attackCooldown = 0
 
@@ -958,7 +968,7 @@ describe('§1.4.2 the command unit strikes in melee inside its melee range', () 
     // still swings, because it is still inside the melee range after the step.
     //   28 -> 27.885, so the gap goes 0.9 -> 1.015, still <= 1.2.
     const state = fixture()
-    state.enemies = [createEnemy(101, 'shooter', { x: 28.9, y: 16 })]
+    state.enemies = [createEnemy(state, 101, 'shooter', { x: 28.9, y: 16 })]
     const commander = commanderOf(state)
     commander.attackCooldown = 1
     state.input.move = { x: -1, y: 0 }

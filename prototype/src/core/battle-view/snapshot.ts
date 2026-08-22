@@ -44,12 +44,8 @@
 // Cooldowns, target ids, slot bookkeeping, the spawn backlog, the prng streams and the
 // remaining card pool are not here at all, for the reasons that file writes out.
 
-import {
-  ARENA_HEIGHT,
-  ARENA_WIDTH,
-  ELITE_BLAST_RADIUS,
-  SOLDIER_RANGE,
-} from '../battle/constants'
+import { SOLDIER_RANGE } from '../battle/constants'
+import { stageConfigOf, type StageId } from '../battle/stages'
 import { rescueCandidateId } from '../battle/rescue'
 import { enemiesById, friendliesById } from '../battle/state'
 import type {
@@ -83,11 +79,17 @@ export const VIEW_MARGIN = 4.0
 
 /**
  * §4.4(b): "지휘 유닛 중심 반경 `병사 사거리 + 정예 범위 + 여유`의 월드 영역이 전부 뷰포트
- * 안". 정예 범위 is read as the blast footprint (`ELITE_BLAST_RADIUS`) — the elite's area
+ * 안". 정예 범위 is read as the blast footprint (`eliteBlastRadius`) — the elite's area
  * attack is the thing a player has to see the ground for; its approach range only decides
  * where the body stops, and the body is drawn wherever it is.
+ *
+ * A FUNCTION OF THE STAGE, not a constant: the blast radius is §2.2's "정예" axis, so a stage
+ * with a bigger circle is a stage the camera has to guarantee more board for. `SOLDIER_RANGE`
+ * and the margin are not a stage's.
  */
-export const VIEW_REQUIRED_RADIUS = SOLDIER_RANGE + ELITE_BLAST_RADIUS + VIEW_MARGIN
+export function viewRequiredRadiusOf(stageId: StageId): number {
+  return SOLDIER_RANGE + stageConfigOf(stageId).eliteBlastRadius + VIEW_MARGIN
+}
 
 /** Slack around a body the camera had to widen for, so it is inside the frame and not on it. */
 export const VIEW_BODY_MARGIN = 1.5
@@ -184,20 +186,19 @@ function projectEnemy(unit: Readonly<EnemyUnit>): RenderUnit {
  * are left out because they are not drawn; including them would zoom the board out around a
  * corpse nobody can see.
  */
-function frameAround(center: Vec2, bodies: readonly Vec2[]): {
+function frameAround(stageId: StageId, center: Vec2, bodies: readonly Vec2[]): {
   worldWidth: number
   worldHeight: number
 } {
-  let halfWidth = VIEW_REQUIRED_RADIUS
-  let halfHeight = VIEW_REQUIRED_RADIUS
+  const required = viewRequiredRadiusOf(stageId)
+  let halfWidth = required
+  let halfHeight = required
   for (const body of bodies) {
     halfWidth = Math.max(halfWidth, Math.abs(body.x - center.x) + VIEW_BODY_MARGIN)
     halfHeight = Math.max(halfHeight, Math.abs(body.y - center.y) + VIEW_BODY_MARGIN)
   }
   return { worldWidth: halfWidth * 2, worldHeight: halfHeight * 2 }
 }
-
-const ARENA_CENTER: Vec2 = { x: ARENA_WIDTH / 2, y: ARENA_HEIGHT / 2 }
 
 // ---------------------------------------------------------------------------
 // THE PER-TICK CHANNEL (§액션 피드백)
@@ -339,9 +340,12 @@ export function projectBattleSnapshot(
   ticks: readonly BattleTickEvents[] = [],
 ): RenderSnapshot {
   const tick = state.combatTick
+  const stage = stageConfigOf(state.stageId)
   const units: RenderUnit[] = []
   const framedBodies: Vec2[] = []
-  let center: Vec2 = ARENA_CENTER
+  // With no command unit on the board there is nothing to follow, so the camera sits on the
+  // middle of the arena — which is a stage's rectangle now, not a module constant.
+  let center: Vec2 = { x: stage.arenaWidth / 2, y: stage.arenaHeight / 2 }
 
   for (const unit of friendliesById(state)) {
     if (unit.id === state.commandUnitId) center = copy(unit.position)
@@ -364,7 +368,7 @@ export function projectBattleSnapshot(
       team: 'enemy',
       x: telegraphCenter.x,
       y: telegraphCenter.y,
-      radius: ELITE_BLAST_RADIUS,
+      radius: stage.eliteBlastRadius,
       startedTick: tick,
       durationTicks: state.elite.telegraphRemaining,
     })
@@ -400,15 +404,19 @@ export function projectBattleSnapshot(
     projectiles: [],
     effects,
     actionEvents: projectActionEvents(state, ticks),
-    camera: { centerX: center.x, centerY: center.y, ...frameAround(center, framedBodies) },
+    camera: {
+      centerX: center.x,
+      centerY: center.y,
+      ...frameAround(state.stageId, center, framedBodies),
+    },
     // §1.7's arena, which is where play is confined and where the board's rail belongs. It is
     // NOT the camera rectangle: that follows the command unit, and a board drawn at its extent
     // paints a boundary that walks around with the player.
     playArea: {
-      centerX: ARENA_WIDTH / 2,
-      centerY: ARENA_HEIGHT / 2,
-      worldWidth: ARENA_WIDTH,
-      worldHeight: ARENA_HEIGHT,
+      centerX: stage.arenaWidth / 2,
+      centerY: stage.arenaHeight / 2,
+      worldWidth: stage.arenaWidth,
+      worldHeight: stage.arenaHeight,
     },
     // The renderer's diorama presentation is gated on this signal, and the command unit is
     // what wears it: the pulsing ring marks the body the player is driving.

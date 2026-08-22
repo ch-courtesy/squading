@@ -10,18 +10,14 @@
 import { describe, expect, it } from 'vitest'
 
 import {
-  ARENA_HEIGHT,
-  ARENA_WIDTH,
   ARRIVE_EPSILON,
   COMMANDER_MOVE_SPEED,
   COMMANDER_START,
   FOLLOW_MAX_SPEED,
-  LEASH_RADIUS,
-  MELEE_MOVE_SPEED,
-  SHOOTER_RANGE,
   SOLDIER_MOVE_SPEED,
   SOLDIER_RANGE,
 } from '../../src/core/battle/constants'
+import { stageConfigOf } from '../../src/core/battle/stages'
 import { createBattle } from '../../src/core/battle/battle'
 import {
   FORMATION_MAX_SLOT_RADIUS,
@@ -42,6 +38,20 @@ import {
 import { createEnemy, createInitialBattleState, findFriendly } from '../../src/core/battle/state'
 import type { BattleState } from '../../src/core/battle/types'
 
+/**
+ * The stage numbers this fixture pins, read off the one stage there is.
+ *
+ * Campaign stage 0 moved these out of `constants.ts` (§2.2's per-stage axes). Aliased back to
+ * their old spellings so the assertions below are the same assertions, against the same values.
+ */
+const {
+  arenaHeight: ARENA_HEIGHT,
+  arenaWidth: ARENA_WIDTH,
+  leashRadius: LEASH_RADIUS,
+  meleeMoveSpeed: MELEE_MOVE_SPEED,
+  shooterRange: SHOOTER_RANGE,
+} = stageConfigOf(1)
+
 function slotTarget(state: BattleState, unitId: number): { x: number; y: number } {
   const assignment = state.slotAssignments.find((entry) => entry.unitId === unitId)!
   const command = findFriendly(state, state.commandUnitId)!
@@ -50,15 +60,19 @@ function slotTarget(state: BattleState, unitId: number): { x: number; y: number 
 
 describe('§1.7 the arena clamp is the whole movement boundary', () => {
   it('clamps a step to the arena on both axes', () => {
-    expect(stepMove({ x: 0.05, y: 0.05 }, -1, -1)).toEqual({ x: 0, y: 0 })
-    expect(stepMove({ x: 55.9, y: 31.9 }, 1, 1)).toEqual({ x: ARENA_WIDTH, y: ARENA_HEIGHT })
-    expect(clampToArena(-3, 40)).toEqual({ x: 0, y: ARENA_HEIGHT })
+    // The arena is a stage number now (§2.2), so the boundary is read off the state the step
+    // belongs to rather than off a module constant.
+    const state = createInitialBattleState('seed-a')
+    expect(stepMove(state, { x: 0.05, y: 0.05 }, -1, -1)).toEqual({ x: 0, y: 0 })
+    expect(stepMove(state, { x: 55.9, y: 31.9 }, 1, 1)).toEqual({ x: ARENA_WIDTH, y: ARENA_HEIGHT })
+    expect(clampToArena(state, -3, 40)).toEqual({ x: 0, y: ARENA_HEIGHT })
   })
 
   it('does not otherwise interfere: an interior step lands exactly where asked', () => {
     // Nothing between (20,10) and (20.2, 10.4) any more — no rectangle, no slide, no
     // ejection.
-    const result = stepMove({ x: 20, y: 10 }, 0.2, 0.4)
+    const state = createInitialBattleState('seed-a')
+    const result = stepMove(state, { x: 20, y: 10 }, 0.2, 0.4)
     expect(result.x).toBeCloseTo(20.2, 12)
     expect(result.y).toBeCloseTo(10.4, 12)
   })
@@ -182,7 +196,7 @@ describe('§1.4.1 leash engagement — the soldiers fight for themselves', () =>
     // half; batch I raised `LEASH_RADIUS` to 10.0, so 9.0 is now INSIDE and the far case had to
     // move out with it.
     const inside = createInitialBattleState('seed-a')
-    inside.enemies = [createEnemy(101, 'melee', { x: COMMANDER_START.x + 7, y: 16 })]
+    inside.enemies = [createEnemy(inside, 101, 'melee', { x: COMMANDER_START.x + 7, y: 16 })]
     const engaged = findFriendly(inside, SOLDIER)!
     const slot = { ...engaged.position }
     expect(slot).toEqual({ x: 25.8, y: 14.9 })
@@ -193,7 +207,7 @@ describe('§1.4.1 leash engagement — the soldiers fight for themselves', () =>
     expect(engaged.lastDisplacement).toBeCloseTo(FOLLOW_MAX_SPEED, 12)
 
     const outside = createInitialBattleState('seed-a')
-    outside.enemies = [createEnemy(101, 'melee', { x: COMMANDER_START.x + 11, y: 16 })]
+    outside.enemies = [createEnemy(outside, 101, 'melee', { x: COMMANDER_START.x + 11, y: 16 })]
     const held = findFriendly(outside, SOLDIER)!
     const heldSlot = { ...held.position }
 
@@ -217,7 +231,7 @@ describe('§1.4.1 leash engagement — the soldiers fight for themselves', () =>
     // the bearing is `(-2/sqrt(5), -1/sqrt(5))` exactly. The far edge is `SOLDIER_RANGE 5.0`, so
     // the goal is `(31, 16) + 5 x bearing = (31 - 2*sqrt(5), 16 - sqrt(5))`.
     const state = createInitialBattleState('seed-a')
-    state.enemies = [createEnemy(101, 'melee', { x: 31, y: 16 })]
+    state.enemies = [createEnemy(state, 101, 'melee', { x: 31, y: 16 })]
     const unit = findFriendly(state, SOLDIER)!
     unit.position = { x: 31 - 5.3, y: 16 }
 
@@ -244,7 +258,7 @@ describe('§1.4.1 leash engagement — the soldiers fight for themselves', () =>
     // That is exactly the rule that produced the knot, so v11 must NOT hold: a soldier at the
     // right distance and the wrong angle has somewhere to go.
     const state = createInitialBattleState('seed-a')
-    state.enemies = [createEnemy(101, 'melee', { x: 31, y: 16 })]
+    state.enemies = [createEnemy(state, 101, 'melee', { x: 31, y: 16 })]
     const unit = findFriendly(state, SOLDIER)!
     // 4.7 is strictly between 4.5 and 5.0 — v10's dead-band, dead centre.
     const parked = { x: 31 - 4.7, y: 16 }
@@ -270,7 +284,7 @@ describe('§1.4.1 leash engagement — the soldiers fight for themselves', () =>
 
   it('returns to its slot when the target is gone, and settles without jitter', () => {
     const state = createInitialBattleState('seed-a')
-    state.enemies = [createEnemy(101, 'melee', { x: 34, y: 16 })]
+    state.enemies = [createEnemy(state, 101, 'melee', { x: 34, y: 16 })]
     const unit = findFriendly(state, SOLDIER)!
     const slot = { ...unit.position }
 
@@ -299,7 +313,7 @@ describe('§1.4.1 leash engagement — the soldiers fight for themselves', () =>
     function board(commandX: number) {
       const state = createInitialBattleState('seed-a')
       findFriendly(state, state.commandUnitId)!.position = { x: commandX, y: 16 }
-      state.enemies = [createEnemy(101, 'melee', { x: 35, y: 16 })]
+      state.enemies = [createEnemy(state, 101, 'melee', { x: 35, y: 16 })]
       const unit = findFriendly(state, SOLDIER)!
       unit.position = { x: 29, y: 16 }
       return { state, unit }
@@ -322,7 +336,7 @@ describe('§1.4.1 leash engagement — the soldiers fight for themselves', () =>
   it('never leashes the command unit itself — player input is its only mover (§1.4.1)', () => {
     const state = createInitialBattleState('seed-a')
     const command = findFriendly(state, state.commandUnitId)!
-    state.enemies = [createEnemy(101, 'melee', { x: command.position.x + 3, y: command.position.y })]
+    state.enemies = [createEnemy(state, 101, 'melee', { x: command.position.x + 3, y: command.position.y })]
     const before = { ...command.position }
 
     advanceFormationFollow(state)
@@ -340,7 +354,7 @@ describe('§1.4.1 leash engagement — the soldiers fight for themselves', () =>
       const state = createInitialBattleState('seed-a')
       state.commandUnitId = commandUnitId
       findFriendly(state, 5)!.position = { x: 40, y: 10 }
-      state.enemies = [createEnemy(101, 'melee', { x: 44, y: 10 })]
+      state.enemies = [createEnemy(state, 101, 'melee', { x: 44, y: 10 })]
       const unit = findFriendly(state, SOLDIER)!
       unit.position = { x: 38, y: 10 }
       return { state, unit }
@@ -382,7 +396,7 @@ describe('§1.4.1 v11 — the bearing is the slot`s, so the squad spreads around
 
   function boardWithOneEnemy() {
     const state = createInitialBattleState('seed-a')
-    state.enemies = [createEnemy(101, 'melee', { ...ENEMY })]
+    state.enemies = [createEnemy(state, 101, 'melee', { ...ENEMY })]
     return state
   }
 
@@ -699,13 +713,13 @@ describe('§1.16 추종·적 이동 composition', () => {
     const follower = findFriendly(state, 2)!
     const target = slotTarget(state, 2)
     follower.position = { x: target.x + 1, y: target.y }
-    state.enemies = [createEnemy(101, 'melee', { x: 40, y: 16 })]
+    state.enemies = [createEnemy(state, 101, 'melee', { x: 40, y: 16 })]
 
     const order: string[] = []
     advanceMovement(state, (battle) => {
       // The follower has already moved by the time the enemy rule runs.
       order.push(battle.friendlies[1].lastDisplacement > 0 ? 'after-follow' : 'before-follow')
-      moveEnemyTowards(battle.enemies[0], { x: 0, y: 16 }, MELEE_MOVE_SPEED)
+      moveEnemyTowards(battle, battle.enemies[0], { x: 0, y: 16 }, MELEE_MOVE_SPEED)
     })
 
     expect(order).toEqual(['after-follow'])
@@ -715,7 +729,7 @@ describe('§1.16 추종·적 이동 composition', () => {
 
   it('NO_ENEMY_MOVEMENT is an explicit choice, not a default', () => {
     const state = createInitialBattleState('seed-a')
-    state.enemies = [createEnemy(101, 'melee', { x: 40, y: 16 })]
+    state.enemies = [createEnemy(state, 101, 'melee', { x: 40, y: 16 })]
     advanceMovement(state, NO_ENEMY_MOVEMENT)
     expect(state.enemies[0].position).toEqual({ x: 40, y: 16 })
     expect(state.enemies[0].lastDisplacement).toBe(0)
@@ -724,8 +738,9 @@ describe('§1.16 추종·적 이동 composition', () => {
 
 describe('§1.7 moveEnemyTowards', () => {
   it('steps at its speed, never overshoots, and clamps to the arena', () => {
-    const enemy = createEnemy(101, 'melee', { x: 10, y: 16 })
-    expect(moveEnemyTowards(enemy, { x: 20, y: 16 }, MELEE_MOVE_SPEED)).toBeCloseTo(
+    const state = createInitialBattleState('seed-a')
+    const enemy = createEnemy(state, 101, 'melee', { x: 10, y: 16 })
+    expect(moveEnemyTowards(state, enemy, { x: 20, y: 16 }, MELEE_MOVE_SPEED)).toBeCloseTo(
       MELEE_MOVE_SPEED,
       12,
     )
@@ -733,16 +748,16 @@ describe('§1.7 moveEnemyTowards', () => {
 
     // Closer than one step: land exactly on the target.
     enemy.position = { x: 19.99, y: 16 }
-    expect(moveEnemyTowards(enemy, { x: 20, y: 16 }, MELEE_MOVE_SPEED)).toBeCloseTo(0.01, 12)
+    expect(moveEnemyTowards(state, enemy, { x: 20, y: 16 }, MELEE_MOVE_SPEED)).toBeCloseTo(0.01, 12)
     expect(enemy.position.x).toBeCloseTo(20, 12)
 
     // Already there: displacement exactly 0, and no counter to bump any more.
-    expect(moveEnemyTowards(enemy, { x: 20, y: 16 }, MELEE_MOVE_SPEED)).toBe(0)
+    expect(moveEnemyTowards(state, enemy, { x: 20, y: 16 }, MELEE_MOVE_SPEED)).toBe(0)
     expect(Object.keys(enemy)).not.toContain('zeroDisplacementTicks')
 
     // The arena edge clamps, and the displacement reported is the clamped one.
     enemy.position = { x: ARENA_WIDTH - 0.02, y: 16 }
-    expect(moveEnemyTowards(enemy, { x: 60, y: 16 }, MELEE_MOVE_SPEED)).toBeCloseTo(0.02, 10)
+    expect(moveEnemyTowards(state, enemy, { x: 60, y: 16 }, MELEE_MOVE_SPEED)).toBeCloseTo(0.02, 10)
     expect(enemy.position.x).toBe(ARENA_WIDTH)
   })
 })

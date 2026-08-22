@@ -81,9 +81,9 @@
 import {
   COMBAT_TICK_LIMIT,
   DOWNED_TICKS,
-  ELITE_BLAST_RADIUS,
   type CardId,
 } from '../../battle/constants'
+import { stageConfigOf, type StageId } from '../../battle/stages'
 import { rescueCandidateId } from '../../battle/rescue'
 import { enemiesById, friendliesById } from '../../battle/state'
 import { pendingUpgradeRound } from '../../battle/upgrades'
@@ -144,6 +144,17 @@ export type UpgradeChoiceView = {
 }
 
 export type PolicyView = {
+  /**
+   * Which stage's numbers this battle is being played under.
+   *
+   * NOT "on the screen" in the literal sense the two lists in this file's header are about, and
+   * it is here anyway: a policy that stands in §1.6's range advantage has to know how wide the
+   * gap IS, and the gap is a stage number now. A player knows which stage they are on; what they
+   * would not know is the enemy's exact reach, which is why the id is projected and the
+   * configuration is not — `policies.ts` derives what it needs through `stageConfigOf`, the same
+   * pure lookup the rules use.
+   */
+  stageId: StageId
   tick: number
   mode: BattleMode
   ticksRemaining: number
@@ -227,12 +238,13 @@ export function projectPolicyView(state: Readonly<BattleState>): PolicyView {
   const telegraphCenter = state.elite.telegraphCenter
   const eliteTelegraph =
     state.elite.attackPhase === 'telegraph' && telegraphCenter !== null
-      ? { center: copyPosition(telegraphCenter), radius: ELITE_BLAST_RADIUS }
+      ? { center: copyPosition(telegraphCenter), radius: stageConfigOf(state.stageId).eliteBlastRadius }
       : null
 
   const round = pendingUpgradeRound(state)
 
   return {
+    stageId: state.stageId,
     tick: state.combatTick,
     mode: state.mode,
     ticksRemaining: COMBAT_TICK_LIMIT - state.combatTick,

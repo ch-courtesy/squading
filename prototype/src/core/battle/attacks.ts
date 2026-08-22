@@ -5,7 +5,7 @@
 // consults a displacement, for either side. v6~v8 had the opposite rule — a friendly that
 // moved this tick neither fired nor decremented — and closed the "constant motion is
 // invulnerability" defect by taxing movement. v9 closes it with a speed relation instead
-// (`MELEE_MOVE_SPEED > COMMANDER_MOVE_SPEED`, asserted in `constants.ts`), so the tax is
+// (`meleeMoveSpeed > COMMANDER_MOVE_SPEED`, asserted per stage in `stages.ts`), so the tax is
 // gone: movement is positioning, and positioning is free.
 //
 // Nothing here applies damage. §1.16 keeps damage application in its own step, so the two
@@ -29,7 +29,8 @@
 // it was already resolving. No state field, no stream, no §1.16 row — see that function's own
 // comment for why each of the three is possible at all.
 
-import { COMMANDER_MELEE_RANGE, MELEE_RANGE, SHOOTER_STANDOFF } from './constants'
+import { COMMANDER_MELEE_RANGE } from './constants'
+import { stageOf } from './stages'
 import { enemyAttackIntervalOf, enemyDamageOf } from './enemy'
 import { enemiesById, findEnemy, findFriendly, friendliesById } from './state'
 import { attackDamageOf, attackIntervalOf, meleeDamageOf, meleeIntervalOf } from './targeting'
@@ -87,15 +88,15 @@ export function advanceCooldowns(state: BattleState): void {
  * 대상이 `shooter` 또는 `elite`일 때만 나간다. 근접형(`melee`)에게는 기존 사거리 공격으로
  * 친다." v12 had no such clause and claimed the melee was bought with §1.6's range advantage;
  * `i4-inversion-diagnosis.md` measured that claim false. §1.3 REQUIRES
- * `MELEE_MOVE_SPEED > COMMANDER_MOVE_SPEED`, so a melee-class enemy closes on the command unit
+ * `meleeMoveSpeed > COMMANDER_MOVE_SPEED`, so a melee-class enemy closes on the command unit
  * whatever the command unit does — 93.4 % of `skilled`'s swings and 100 % of `camps-in-place`'s
  * landed on bodies that arrived by themselves, and the two policies that never move swung three
  * times as often per run as `skilled`. Nothing was given up, so nothing was traded.
  *
- * A shooter holds `SHOOTER_STANDOFF` low `2.70` and the elite holds `ELITE_APPROACH_RANGE 4.5`,
+ * A shooter holds `shooterStandoff` low `2.70` and the elite holds `eliteApproachRange 4.5`,
  * both far outside `COMMANDER_MELEE_RANGE 1.2`. Neither will close that gap, so every swing that
  * survives this test is one the PLAYER walked into — and walking there means standing inside
- * `SHOOTER_RANGE`, which is what makes §1.4.2's own sentence true.
+ * the stage's `shooterRange`, which is what makes §1.4.2's own sentence true.
  *
  * The test is written positively (`shooter` or `elite`) rather than as `!== 'melee'` because
  * §1.4.2's word is "만" — a class the campaign's stage 4 adds later is outside the rule until
@@ -169,12 +170,13 @@ export function resolveFriendlyAttacks(state: BattleState): DamageEvent[] {
  *             thing that keeps it out of contact range is being killed on the way in.
  *   shooter — "standoff 구간이면 정지해 사격하며", so it fires from inside the band and
  *             only there: approaching and retreating cost it the shot. The band's upper
- *             bound is 0.95 x SHOOTER_RANGE, so being in the band implies being in range.
+ *             bound is 0.95 x the stage's `shooterRange`, so being in the band implies being in
+ *             range.
  *             It is SLOWER than every friendly, which §1.3 says is fine: it holds at
  *             standoff and has nobody to chase.
  *
  * Neither class tests sight, because §1.6 removed it from the game. What replaced it is
- * the range advantage: `SHOOTER_RANGE < SOLDIER_RANGE`, so a friendly standing in the gap
+ * the range advantage: `shooterRange < SOLDIER_RANGE`, so a friendly standing in the gap
  * is outside the band the shooter needs in order to fire at all, and the shooter has to
  * spend ticks closing. That gap is the whole defensive mechanism now.
  *
@@ -184,7 +186,8 @@ export function resolveFriendlyAttacks(state: BattleState): DamageEvent[] {
  */
 export function resolveEnemyAttacks(state: BattleState): DamageEvent[] {
   const events: DamageEvent[] = []
-  const [standoffLow, standoffHigh] = SHOOTER_STANDOFF
+  const stage = stageOf(state)
+  const [standoffLow, standoffHigh] = stage.shooterStandoff
 
   for (const enemy of enemiesById(state)) {
     if (enemy.life !== 'standing') continue
@@ -200,7 +203,7 @@ export function resolveEnemyAttacks(state: BattleState): DamageEvent[] {
     )
 
     if (enemy.kind === 'melee') {
-      if (distance > MELEE_RANGE) continue
+      if (distance > stage.meleeRange) continue
     } else if (distance < standoffLow || distance > standoffHigh) {
       continue
     }
@@ -209,10 +212,10 @@ export function resolveEnemyAttacks(state: BattleState): DamageEvent[] {
       side: 'enemy',
       attackerId: enemy.id,
       targetId: target.id,
-      amount: enemyDamageOf(enemy),
+      amount: enemyDamageOf(state, enemy),
       cause: enemy.kind === 'melee' ? 'melee-contact' : 'shooter-shot',
     })
-    enemy.attackCooldown = enemyAttackIntervalOf(enemy)
+    enemy.attackCooldown = enemyAttackIntervalOf(state, enemy)
   }
 
   return events

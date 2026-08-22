@@ -34,6 +34,7 @@
 // `spawn.requestsInPhase` and nothing failed.
 
 import type { CardId } from './constants'
+import type { StageId } from './stages'
 import type { BattlePrngStates } from './streams'
 
 export type Vec2 = { x: number; y: number }
@@ -262,6 +263,20 @@ export type BattleInput = {
 export type BattleState = {
   schemaVersion: 1
   rootSeed: string
+  /**
+   * §3.1 of the campaign design: WHICH STAGE'S NUMBERS THIS RUN IS PLAYED UNDER.
+   *
+   * An id and not the configuration. The digest walks this object, so a configuration held
+   * outside the state would let one digest name two runs played under different rules and §1.17's
+   * replay guarantee would be false; the whole configuration held inside it would grow the state
+   * and this file's key pins by one field per axis. The id is the smallest thing that closes the
+   * first hole without opening the second — the key set grows by exactly one — and `stages.ts`
+   * turns it back into the numbers through `stageConfigOf`, which is a pure lookup.
+   *
+   * IT IS NOT SCRATCH. It is read by a later tick — by every tick, in fact, since every rule that
+   * consults a stage number reads it — which is the test the rule above states.
+   */
+  stageId: StageId
   combatTick: number
   mode: BattleMode
   result: BattleResult

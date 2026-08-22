@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { ARENA_HEIGHT, ARENA_WIDTH } from '../src/core/battle/constants'
+import { stageConfigOf } from '../src/core/battle/stages'
 import {
   CLUTTER_FLAT_HEIGHT,
   CLUTTER_POLE_RADIUS,
@@ -12,6 +12,17 @@ import {
   planTerrainProps,
   type FieldClutterKind,
 } from '../src/renderers/three-hybrid/terrain-props'
+
+/**
+ * The stage numbers this fixture pins, read off the one stage there is.
+ *
+ * Campaign stage 0 moved these out of `constants.ts` (§2.2's per-stage axes). Aliased back to
+ * their old spellings so the assertions below are the same assertions, against the same values.
+ */
+const {
+  arenaHeight: ARENA_HEIGHT,
+  arenaWidth: ARENA_WIDTH,
+} = stageConfigOf(1)
 
 /**
  * §판 안 지형 소품, held to the one rule that makes it safe to put anything on the board at all.

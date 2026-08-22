@@ -6,29 +6,21 @@ import { createPrng, type Prng } from '../../src/core/prng'
 // Namespaced as well as named, so the test below can assert that a constant is ABSENT.
 import * as constants from '../../src/core/battle/constants'
 import {
-  ARENA_HEIGHT,
-  ARENA_WIDTH,
   ARRIVE_EPSILON,
   COMBAT_TICK_LIMIT,
   COMMANDER_ATTACK_INTERVAL,
   COMMANDER_MOVE_SPEED,
   COMMANDER_RANGE,
   COMMANDER_START,
-  ELITE_APPROACH_RANGE,
-  ENGAGE_RADIUS,
   FOLLOW_MAX_SPEED,
-  LEASH_RADIUS,
   FOLLOW_SPEED_MULTIPLIER,
   MAX_UPGRADES,
-  MELEE_MOVE_SPEED,
-  SHOOTER_MOVE_SPEED,
-  SHOOTER_RANGE,
   SOLDIER_ATTACK_INTERVAL,
   SOLDIER_MOVE_SPEED,
   SOLDIER_RANGE,
-  SPAWN_RADIUS,
   UPGRADE_KILL_THRESHOLDS,
 } from '../../src/core/battle/constants'
+import { stageConfigOf } from '../../src/core/battle/stages'
 import {
   NAME_POOL,
   NAME_POOL_SIZE,
@@ -53,6 +45,24 @@ import {
 import { canonicalizeBattleState, digestBattleState } from '../../src/core/battle/digest'
 import { FORMATION_SLOTS } from '../../src/core/gameplay/formation'
 import { FORMATION_MAX_SLOT_RADIUS } from '../../src/core/battle/formation'
+
+/**
+ * The stage numbers this fixture pins, read off the one stage there is.
+ *
+ * Campaign stage 0 moved these out of `constants.ts` (§2.2's per-stage axes). Aliased back to
+ * their old spellings so the assertions below are the same assertions, against the same values.
+ */
+const {
+  arenaHeight: ARENA_HEIGHT,
+  arenaWidth: ARENA_WIDTH,
+  eliteApproachRange: ELITE_APPROACH_RANGE,
+  engageRadius: ENGAGE_RADIUS,
+  leashRadius: LEASH_RADIUS,
+  meleeMoveSpeed: MELEE_MOVE_SPEED,
+  shooterMoveSpeed: SHOOTER_MOVE_SPEED,
+  shooterRange: SHOOTER_RANGE,
+  spawnRadius: SPAWN_RADIUS,
+} = stageConfigOf(1)
 
 function countingPrng(inner: Prng): { prng: Prng; draws: () => number } {
   let draws = 0
@@ -270,8 +280,8 @@ describe('initial authoritative state', () => {
 
     // The accessor is the contract, not the array's current order.
     state.friendlies.reverse()
-    state.enemies.push(createEnemy(102, 'melee', { x: 1, y: 1 }))
-    state.enemies.push(createEnemy(101, 'shooter', { x: 2, y: 2 }))
+    state.enemies.push(createEnemy(state, 102, 'melee', { x: 1, y: 1 }))
+    state.enemies.push(createEnemy(state, 101, 'shooter', { x: 2, y: 2 }))
     expect(friendliesById(state).map((unit) => unit.id)).toEqual(
       Array.from({ length: ROSTER_SIZE }, (_, index) => index + 1),
     )
@@ -327,6 +337,10 @@ describe('initial authoritative state', () => {
         'schemaVersion',
         'slotAssignments',
         'spawn',
+        // Campaign stage 0 (§3.1): the ONE key that batch added, and the whole of what it added.
+        // The configuration it names lives in `stages.ts`; a stage's numbers are not in the state
+        // and must not be, or this list would grow by one entry per axis per stage.
+        'stageId',
         'stats',
         'upgrades',
       ].sort(),
@@ -388,7 +402,7 @@ describe('initial authoritative state', () => {
         'lastDisplacement',
       ].sort(),
     )
-    expect(Object.keys(createEnemy(101, 'melee', { x: 0, y: 0 })).sort()).toEqual(
+    expect(Object.keys(createEnemy(state, 101, 'melee', { x: 0, y: 0 })).sort()).toEqual(
       [
         'id',
         'kind',
@@ -482,11 +496,11 @@ describe('§1.17 determinism and digest', () => {
       // note on `lastDisplacement` in `types.ts`.
       ['friendly.lastDisplacement', (state) => void (state.friendlies[2].lastDisplacement = 0.1)],
       ['slotAssignments.slotIndex', (state) => void (state.slotAssignments[0].slotIndex = 14)],
-      ['enemies (melee)', (state) => void state.enemies.push(createEnemy(900, 'melee', { x: 1, y: 1 }))],
+      ['enemies (melee)', (state) => void state.enemies.push(createEnemy(state, 900, 'melee', { x: 1, y: 1 }))],
       [
         'enemy.kind',
         (state) => {
-          state.enemies.push(createEnemy(900, 'shooter', { x: 1, y: 1 }))
+          state.enemies.push(createEnemy(state, 900, 'shooter', { x: 1, y: 1 }))
         },
       ],
       ['spawn.backlog', (state) => void state.spawn.backlog.push({ id: 900, kind: 'melee', position: { x: 3, y: 4 }, requestedTick: 7, sequence: 0 })],

@@ -1,8 +1,22 @@
 import { mkdirSync } from 'node:fs'
 import { expect, test, type Page } from '@playwright/test'
 
-import { ARRIVE_EPSILON, COMBAT_TICK_LIMIT, ELITE_SPAWN_TICK } from '../src/core/battle/constants'
+import {
+  ARRIVE_EPSILON,
+  COMBAT_TICK_LIMIT,
+} from '../src/core/battle/constants'
+import { stageConfigOf } from '../src/core/battle/stages'
 import { FORMATION_MAX_SLOT_RADIUS } from '../src/core/battle/formation'
+
+/**
+ * The stage numbers this fixture pins, read off the one stage there is.
+ *
+ * Campaign stage 0 moved these out of `constants.ts` (§2.2's per-stage axes). Aliased back to
+ * their old spellings so the assertions below are the same assertions, against the same values.
+ */
+const {
+  eliteSpawnTick: ELITE_SPAWN_TICK,
+} = stageConfigOf(1)
 
 /**
  * The capture harness behind the screenshots in `artifacts/`.

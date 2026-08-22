@@ -2,10 +2,14 @@ import * as THREE from 'three'
 import { describe, expect, it } from 'vitest'
 
 import {
-  ARRIVE_EPSILON, COMMANDER_ATTACK_INTERVAL, COMMANDER_MELEE_INTERVAL, COMMANDER_MOVE_SPEED,
-  MELEE_ATTACK_INTERVAL, MELEE_MOVE_SPEED, SHOOTER_MOVE_SPEED, SOLDIER_ATTACK_INTERVAL,
+  ARRIVE_EPSILON,
+  COMMANDER_ATTACK_INTERVAL,
+  COMMANDER_MELEE_INTERVAL,
+  COMMANDER_MOVE_SPEED,
+  SOLDIER_ATTACK_INTERVAL,
   SOLDIER_MOVE_SPEED,
 } from '../src/core/battle/constants'
+import { stageConfigOf } from '../src/core/battle/stages'
 import { tickDurationAfter } from '../src/core/battle/upgrades'
 import { CARD_EFFECTS } from '../src/core/battle/constants'
 import { FIGURE_SCALE, createMiniatureGeometries, type MiniatureArchetype } from '../src/renderers/three-hybrid/diorama-assets'
@@ -16,6 +20,18 @@ import {
   createRigPose, meleeSwing, phaseOffset, poseFigure, recoilCurve, restRigPose, rigMatrices,
   rigPivot, strideAmount, stridePhase,
 } from '../src/renderers/three-hybrid/figure-rig'
+
+/**
+ * The stage numbers this fixture pins, read off the one stage there is.
+ *
+ * Campaign stage 0 moved these out of `constants.ts` (§2.2's per-stage axes). Aliased back to
+ * their old spellings so the assertions below are the same assertions, against the same values.
+ */
+const {
+  meleeAttackInterval: MELEE_ATTACK_INTERVAL,
+  meleeMoveSpeed: MELEE_MOVE_SPEED,
+  shooterMoveSpeed: SHOOTER_MOVE_SPEED,
+} = stageConfigOf(1)
 
 /**
  * THE WALK, TESTED WITHOUT A SCREEN.

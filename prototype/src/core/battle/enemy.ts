@@ -19,24 +19,16 @@
 //      batch reintroduces by accident.
 //
 // The elite (§1.12) is skipped by both passes. It is an ordinary row in `enemies`, but
-// its movement rule is its own ("지휘 유닛을 향해 이동하며 ELITE_APPROACH_RANGE에서
+// its movement rule is its own ("지휘 유닛을 향해 이동하며 eliteApproachRange에서
 // 멈춘다") and its attack is the telegraph cycle, not a contact or a shot. §1.8 still
 // ranks it as a candidate for the friendly side, which is the only cross-cutting thing
 // it needs from this batch.
 
 import {
-  MELEE_ATTACK_INTERVAL,
   MELEE_CONTACT_SLOTS_PER_FRIENDLY,
-  MELEE_DAMAGE,
-  MELEE_MOVE_SPEED,
-  MELEE_RANGE,
-  SHOOTER_ATTACK_INTERVAL,
-  SHOOTER_DAMAGE,
-  SHOOTER_MOVE_SPEED,
-  SHOOTER_RANGE,
-  SHOOTER_STANDOFF,
   SHOOTER_TARGET_SLOTS_PER_FRIENDLY,
 } from './constants'
+import { stageOf } from './stages'
 import { moveEnemyTowards } from './movement'
 import { enemiesById, findFriendly, friendliesById } from './state'
 import type { BattleState, EnemyKind, EnemyUnit, FriendlyUnit, Vec2 } from './types'
@@ -44,31 +36,40 @@ import type { BattleState, EnemyKind, EnemyUnit, FriendlyUnit, Vec2 } from './ty
 /**
  * §1.9 movement speed by class, and the two are asymmetric ON PURPOSE (§1.3):
  *
- *   melee   — FASTER than the command unit, asserted in `constants.ts`. This is what makes
+ *   melee   — FASTER than the command unit, asserted per stage in `stages.ts`. This is what makes
  *             "run away in a straight line" lose ground every tick, and it is the reason
  *             §1.3 can let a unit fire while moving without handing out invulnerability.
  *   shooter — slower than every friendly, which §1.3 explicitly allows: "사수형은 더 느려도
  *             된다 — 멀리 서서 쏘는 역할이라 따라잡을 이유가 없다."
  */
-export function enemyMoveSpeedOf(enemy: EnemyUnit): number {
-  return enemy.kind === 'melee' ? MELEE_MOVE_SPEED : SHOOTER_MOVE_SPEED
+export function enemyMoveSpeedOf(state: BattleState, enemy: EnemyUnit): number {
+  const stage = stageOf(state)
+  return enemy.kind === 'melee' ? stage.meleeMoveSpeed : stage.shooterMoveSpeed
 }
 
 /** The distance at which the class can attack: contact for melee, weapon for shooter. */
-export function enemyAttackRangeOf(enemy: EnemyUnit): number {
-  return enemy.kind === 'melee' ? MELEE_RANGE : SHOOTER_RANGE
+export function enemyAttackRangeOf(state: BattleState, enemy: EnemyUnit): number {
+  const stage = stageOf(state)
+  return enemy.kind === 'melee' ? stage.meleeRange : stage.shooterRange
 }
 
-export function enemyAttackIntervalOf(enemy: EnemyUnit): number {
-  return enemy.kind === 'melee' ? MELEE_ATTACK_INTERVAL : SHOOTER_ATTACK_INTERVAL
+export function enemyAttackIntervalOf(state: BattleState, enemy: EnemyUnit): number {
+  const stage = stageOf(state)
+  return enemy.kind === 'melee' ? stage.meleeAttackInterval : stage.shooterAttackInterval
 }
 
-export function enemyDamageOf(enemy: EnemyUnit): number {
-  return enemy.kind === 'melee' ? MELEE_DAMAGE : SHOOTER_DAMAGE
+export function enemyDamageOf(state: BattleState, enemy: EnemyUnit): number {
+  const stage = stageOf(state)
+  return enemy.kind === 'melee' ? stage.meleeDamage : stage.shooterDamage
 }
 
 /**
  * §1.9: one contact slot per friendly for melee, two target slots for shooters.
+ *
+ * NO `state` PARAMETER, and that is the deliberate half of this batch's split. The four class
+ * numbers above are §2.2's "적 능력치" axis and became a stage's; these two are not a quantity
+ * §2.2 lists at all — §1.9 states them as structure ("접촉 슬롯" one, "표적 슬롯" two), the same
+ * way it states that the pools are separate. They stayed in `constants.ts`.
  *
  * The two are separate pools, because §1.9 names them separately ("접촉 슬롯" and
  * "표적 슬롯"): a friendly can be in contact with one melee while two shooters aim at
@@ -209,7 +210,8 @@ function holdStill(enemy: EnemyUnit): void {
  * ATTACK always uses a target chosen from post-movement positions.
  */
 export function advanceEnemyMovement(state: BattleState): void {
-  const [standoffLow, standoffHigh] = SHOOTER_STANDOFF
+  const stage = stageOf(state)
+  const [standoffLow, standoffHigh] = stage.shooterStandoff
 
   for (const enemy of activeEnemies(state)) {
     const target = targetOf(state, enemy)
@@ -218,21 +220,26 @@ export function advanceEnemyMovement(state: BattleState): void {
       continue
     }
 
-    const speed = enemyMoveSpeedOf(enemy)
+    const speed = enemyMoveSpeedOf(state, enemy)
     const distance = distanceBetween(enemy.position, target.position)
 
     if (enemy.kind === 'melee') {
-      if (distance <= MELEE_RANGE) holdStill(enemy)
-      else moveEnemyTowards(enemy, target.position, speed)
+      if (distance <= stage.meleeRange) holdStill(enemy)
+      else moveEnemyTowards(state, enemy, target.position, speed)
       continue
     }
 
     if (distance > standoffHigh) {
-      moveEnemyTowards(enemy, target.position, speed)
+      moveEnemyTowards(state, enemy, target.position, speed)
       continue
     }
     if (distance < standoffLow) {
-      moveEnemyTowards(enemy, retreatWaypoint(enemy, target.position, distance, speed), speed)
+      moveEnemyTowards(
+        state,
+        enemy,
+        retreatWaypoint(enemy, target.position, distance, speed),
+        speed,
+      )
       continue
     }
     // Inside the band: hold, and shoot when the attack step runs. The whole third state.
@@ -265,8 +272,9 @@ export function isEnemyEngaged(state: BattleState, enemy: EnemyUnit): boolean {
   if (enemy.contactSlotOwnerId !== null && enemy.kind === 'melee') return true
   const target = targetOf(state, enemy)
   if (!target) return false
+  const stage = stageOf(state)
   const distance = distanceBetween(enemy.position, target.position)
-  if (enemy.kind === 'melee') return distance <= MELEE_RANGE
-  const [standoffLow, standoffHigh] = SHOOTER_STANDOFF
+  if (enemy.kind === 'melee') return distance <= stage.meleeRange
+  const [standoffLow, standoffHigh] = stage.shooterStandoff
   return distance >= standoffLow && distance <= standoffHigh
 }

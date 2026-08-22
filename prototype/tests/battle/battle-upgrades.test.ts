@@ -27,7 +27,6 @@ import {
   COMMANDER_MELEE_RANGE,
   COMMANDER_MOVE_SPEED,
   COMMANDER_RANGE,
-  ELITE_DAMAGE,
   FOLLOW_MAX_SPEED,
   MAX_UPGRADES,
   RESCUE_REVIVE_FRACTION,
@@ -39,6 +38,7 @@ import {
   UPGRADE_KILL_THRESHOLDS,
   type CardId,
 } from '../../src/core/battle/constants'
+import { stageConfigOf } from '../../src/core/battle/stages'
 import { resolveFriendlyAttacks } from '../../src/core/battle/attacks'
 import { applyDamage, damageTakenMultiplierOf } from '../../src/core/battle/damage'
 import { resolveBattleOutcome } from '../../src/core/battle/outcome'
@@ -79,6 +79,16 @@ import {
   resolveKillAccounting,
 } from '../../src/core/battle/upgrades'
 import type { BattleState, FriendlyUnit } from '../../src/core/battle/types'
+
+/**
+ * The stage numbers this fixture pins, read off the one stage there is.
+ *
+ * Campaign stage 0 moved these out of `constants.ts` (§2.2's per-stage axes). Aliased back to
+ * their old spellings so the assertions below are the same assertions, against the same values.
+ */
+const {
+  eliteDamage: ELITE_DAMAGE,
+} = stageConfigOf(1)
 
 function fixture(seed = 'seed-a', tick = 100): BattleState {
   const state = createInitialBattleState(seed)
@@ -353,7 +363,7 @@ describe('§1.13 card effects, read off the chosen cards', () => {
     // 3.0 (still well inside `COMMANDER_RANGE` 6.0) puts the rifle back in its hands. The melee's
     // own composition with the same card is measured by its own fixture below.
     const state = withCards(fixture(), 'firepower')
-    state.enemies.push(createEnemy(101, 'melee', { x: 31, y: 16 }))
+    state.enemies.push(createEnemy(state, 101, 'melee', { x: 31, y: 16 }))
     const commander = unit(state, COMMANDER_ID)
     commander.targetId = 101
 
@@ -369,7 +379,7 @@ describe('§1.13 card effects, read off the chosen cards', () => {
   it('marksman adds a metre of range, which reaches a target the base range cannot', () => {
     const state = withCards(fixture(), 'marksman')
     const commander = unit(state, COMMANDER_ID)
-    state.enemies.push(createEnemy(101, 'melee', { x: 28 + 6.5, y: 16 }))
+    state.enemies.push(createEnemy(state, 101, 'melee', { x: 28 + 6.5, y: 16 }))
 
     expect(attackRangeOf(state, commander)).toBeCloseTo(COMMANDER_RANGE + 1, 12)
     expect(attackRangeOf(state, unit(state, 2))).toBeCloseTo(SOLDIER_RANGE + 1, 12)
@@ -410,7 +420,7 @@ describe('§1.13 card effects, read off the chosen cards', () => {
     expect(attackRangeOf(reaching, unit(reaching, COMMANDER_ID))).toBeCloseTo(COMMANDER_RANGE + 1, 12)
     // A `shooter`, not a melee-class body: §1.4.2's v13 clause would refuse the swing on class
     // alone, and this line is about the RANGE card not reaching the melee envelope.
-    reaching.enemies.push(createEnemy(101, 'shooter', { x: 28 + COMMANDER_MELEE_RANGE + 0.01, y: 16 }))
+    reaching.enemies.push(createEnemy(reaching, 101, 'shooter', { x: 28 + COMMANDER_MELEE_RANGE + 0.01, y: 16 }))
     unit(reaching, COMMANDER_ID).targetId = 101
     expect(resolveFriendlyAttacks(reaching)[0]!.cause).toBe('friendly-attack')
   })
@@ -523,6 +533,6 @@ describe('§1.13 card effects, read off the chosen cards', () => {
 /** The same board as the marksman fixture, minus the card. */
 function fixtureWithEnemy(): BattleState {
   const state = fixture()
-  state.enemies.push(createEnemy(101, 'melee', { x: 28 + 6.5, y: 16 }))
+  state.enemies.push(createEnemy(state, 101, 'melee', { x: 28 + 6.5, y: 16 }))
   return state
 }

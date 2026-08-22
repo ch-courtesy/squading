@@ -4,15 +4,15 @@
 // request can die or wait on. The order the gates run in is the rule, so it is written out
 // here rather than left implicit in the control flow below:
 //
-//   1. the backlog drains FIRST, up to `BACKLOG_DRAIN_PER_TICK`. A request that has been
+//   1. the backlog drains FIRST, up to the stage's `backlogDrainPerTick`. A request that has been
 //      waiting outranks the one this tick just made; if the tick's own request could jump
 //      the queue whenever a place opened, the stored coordinates of the older entries would
 //      go stale for as long as pressure lasted.
 //   2. the tick's request is BUILT unconditionally once the interval has elapsed — its id,
 //      its kind and its coordinate (one `spawn` draw) are all fixed at request time, per
 //      §1.10's closing line. Only then is it routed.
-//   3. routing: at `ABSOLUTE_ENEMY_CAP` it is discarded and counted; at the phase's
-//      `engagedCap` — measured ONLY inside `ENGAGE_RADIUS` — it goes to the backlog; else
+//   3. routing: at `absoluteEnemyCap` it is discarded and counted; at the phase's
+//      `engagedCap` — measured ONLY inside `engageRadius` — it goes to the backlog; else
 //      it becomes an enemy immediately.
 //
 // WHY THE REQUEST IS BUILT BEFORE IT IS ROUTED. It makes the `spawn` stream position and
@@ -23,7 +23,7 @@
 // coordinate. The cost is that a discarded request burns an id and a draw; ids only have to
 // be unique, and the draw is the price of the property.
 //
-// WHY THE ENGAGED CAP IS MEASURED, NOT TRACKED. §1.10 caps "지휘 유닛 반경 ENGAGE_RADIUS
+// WHY THE ENGAGED CAP IS MEASURED, NOT TRACKED. §1.10 caps "지휘 유닛 반경 engageRadius
 // 이내의 적", which changes every time the player moves, so it cannot be a counter — it is
 // recomputed at every gate, including between two drains inside one tick, because a
 // backlogged body can land inside the radius the moment it spawns (its coordinate was
@@ -32,15 +32,7 @@
 // There is no re-draw and no terrain discard: §1.6 left the arena empty, so the only
 // adjustment a coordinate gets is the arena clamp (§1.7).
 
-import {
-  ABSOLUTE_ENEMY_CAP,
-  BACKLOG_DRAIN_PER_TICK,
-  BACKLOG_SIZE,
-  ENGAGE_RADIUS,
-  PRESSURE_PHASES,
-  SPAWN_RADIUS,
-  type PressurePhase,
-} from './constants'
+import { stageOf, type PressurePhase } from './stages'
 import { clampToArena, commandUnitOf } from './movement'
 import { createEnemy } from './state'
 import { nextStreamRange } from './streams'
@@ -56,17 +48,19 @@ const TAU = Math.PI * 2
  * from the phase of this one. If tick `-1` resolved to phase 0 the counter would not reset
  * on the first request of a run and the melee:shooter cycle would start mid-stride.
  */
-export function pressurePhaseIndexAt(tick: number): number {
+export function pressurePhaseIndexAt(state: BattleState, tick: number): number {
+  const phases = stageOf(state).pressurePhases
   let index = -1
-  for (let candidate = 0; candidate < PRESSURE_PHASES.length; candidate += 1) {
-    if (tick >= PRESSURE_PHASES[candidate].fromTick) index = candidate
+  for (let candidate = 0; candidate < phases.length; candidate += 1) {
+    if (tick >= phases[candidate].fromTick) index = candidate
   }
   return index
 }
 
-export function pressurePhaseAt(tick: number): PressurePhase {
-  const index = pressurePhaseIndexAt(tick)
-  return PRESSURE_PHASES[index < 0 ? 0 : index]
+export function pressurePhaseAt(state: BattleState, tick: number): PressurePhase {
+  const phases = stageOf(state).pressurePhases
+  const index = pressurePhaseIndexAt(state, tick)
+  return phases[index < 0 ? 0 : index]
 }
 
 /**
@@ -88,7 +82,7 @@ function distanceBetween(from: Vec2, to: Vec2): number {
 }
 
 /**
- * §1.10: the live cap's population — standing enemies within `ENGAGE_RADIUS` of the
+ * §1.10: the live cap's population — standing enemies within the stage's `engageRadius` of the
  * command unit.
  *
  * The elite counts. It is an enemy (§1.12 gives it a row in `enemies`), it occupies the
@@ -101,7 +95,7 @@ export function engagedEnemyCount(state: BattleState): number {
   let count = 0
   for (const enemy of state.enemies) {
     if (enemy.life !== 'standing') continue
-    if (distanceBetween(command.position, enemy.position) > ENGAGE_RADIUS) continue
+    if (distanceBetween(command.position, enemy.position) > stageOf(state).engageRadius) continue
     count += 1
   }
   return count
@@ -117,15 +111,16 @@ export function liveEnemyCount(state: BattleState): number {
 }
 
 /**
- * One `spawn` draw for the angle, `SPAWN_RADIUS` for the distance, then the arena clamp.
+ * One `spawn` draw for the angle, the stage's `spawnRadius` for the distance, then the clamp.
  *
- * Exported because §1.12 places the elite by the same rule ("반경 SPAWN_RADIUS 위치에
+ * Exported because §1.12 places the elite by the same rule ("반경 spawnRadius 위치에
  * 등장한다. 각도는 spawn draw 1회에 아레나 클램프만"), and two copies of it would be two
  * chances to disagree about the draw count.
  */
 export function drawSpawnPosition(state: BattleState, center: Vec2): Vec2 {
+  const radius = stageOf(state).spawnRadius
   const angle = nextStreamRange(state.prng, 'spawn', 0, TAU)
-  return clampToArena(center.x + Math.cos(angle) * SPAWN_RADIUS, center.y + Math.sin(angle) * SPAWN_RADIUS)
+  return clampToArena(state, center.x + Math.cos(angle) * radius, center.y + Math.sin(angle) * radius)
 }
 
 function spawnFromRequest(state: BattleState, request: SpawnRequest): void {
@@ -133,11 +128,11 @@ function spawnFromRequest(state: BattleState, request: SpawnRequest): void {
   // takes `ELITE_ID = 1000` and no spawn id gets near it, so from tick 1800 on the array is NOT
   // sorted by id. Every rule that needs the ascending-id tie-break reads `enemiesById`, which is
   // where that guarantee lives.
-  state.enemies.push(createEnemy(request.id, request.kind, request.position))
+  state.enemies.push(createEnemy(state, request.id, request.kind, request.position))
 }
 
 /**
- * §1.10: "tick당 최대 BACKLOG_DRAIN_PER_TICK기 소비하며".
+ * §1.10: "tick당 최대 backlogDrainPerTick기 소비하며".
  *
  * Both caps are re-tested before every single drain. The absolute cap STOPS the drain
  * rather than discarding the entry: §1.10 gives the backlog exactly one discard rule
@@ -145,11 +140,12 @@ function spawnFromRequest(state: BattleState, request: SpawnRequest): void {
  * entry already in the queue waits for room instead of quietly evaporating.
  */
 function drainBacklog(state: BattleState): void {
-  const phase = pressurePhaseAt(state.combatTick)
+  const stage = stageOf(state)
+  const phase = pressurePhaseAt(state, state.combatTick)
   let drained = 0
 
-  while (drained < BACKLOG_DRAIN_PER_TICK && state.spawn.backlog.length > 0) {
-    if (liveEnemyCount(state) >= ABSOLUTE_ENEMY_CAP) return
+  while (drained < stage.backlogDrainPerTick && state.spawn.backlog.length > 0) {
+    if (liveEnemyCount(state) >= stage.absoluteEnemyCap) return
     if (engagedEnemyCount(state) >= phase.engagedCap) return
     const request = state.spawn.backlog.shift()
     if (!request) return
@@ -166,8 +162,8 @@ function intervalElapsed(state: BattleState, phase: PressurePhase): boolean {
 }
 
 function buildRequest(state: BattleState, center: Vec2, phase: PressurePhase): SpawnRequest {
-  const phaseIndex = pressurePhaseIndexAt(state.combatTick)
-  const lastPhaseIndex = pressurePhaseIndexAt(state.spawn.lastRequestTick)
+  const phaseIndex = pressurePhaseIndexAt(state, state.combatTick)
+  const lastPhaseIndex = pressurePhaseIndexAt(state, state.spawn.lastRequestTick)
   // §1.10's ratio is per phase, so the index it walks is phase-local. Derived from the
   // phase of the LAST request rather than kept as a second field: one counter plus the
   // comparison is one thing to keep true, and the intervals (<= 12) are far shorter than
@@ -194,8 +190,8 @@ function buildRequest(state: BattleState, center: Vec2, phase: PressurePhase): S
 
 function pushToBacklog(state: BattleState, request: SpawnRequest): void {
   state.spawn.backlog.push(request)
-  // §1.10: "총량이 BACKLOG_SIZE를 넘으면 오래된 것부터 폐기한다(수를 digest에 기록)."
-  while (state.spawn.backlog.length > BACKLOG_SIZE) {
+  // §1.10: "총량이 backlogSize를 넘으면 오래된 것부터 폐기한다(수를 digest에 기록)."
+  while (state.spawn.backlog.length > stageOf(state).backlogSize) {
     state.spawn.backlog.shift()
     state.spawn.discardedByBacklogOverflow += 1
   }
@@ -223,12 +219,13 @@ export function resolveSpawnRequests(state: BattleState): void {
 
   drainBacklog(state)
 
-  const phase = pressurePhaseAt(state.combatTick)
+  const stage = stageOf(state)
+  const phase = pressurePhaseAt(state, state.combatTick)
   if (!intervalElapsed(state, phase)) return
 
   const request = buildRequest(state, command.position, phase)
 
-  if (liveEnemyCount(state) >= ABSOLUTE_ENEMY_CAP) {
+  if (liveEnemyCount(state) >= stage.absoluteEnemyCap) {
     // §1.10: without this the engagement radius empties as the player retreats, spawning
     // accumulates without bound, and the whole accumulation arrives the moment they stop.
     state.spawn.discardedByAbsoluteCap += 1

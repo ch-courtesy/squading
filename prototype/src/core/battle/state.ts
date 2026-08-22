@@ -17,12 +17,10 @@ import {
   CARD_POOL,
   COMMANDER_HP,
   COMMANDER_START,
-  ELITE_HP,
-  MELEE_HP,
   ROSTER_SIZE,
-  SHOOTER_HP,
   SOLDIER_HP,
 } from './constants'
+import { FIRST_STAGE_ID, stageOf, type StageId } from './stages'
 import { assignNameIndices } from './names'
 import { createStreamStates, streamPrng } from './streams'
 import type { BattleState, EnemyKind, EnemyUnit, FriendlyUnit, Vec2 } from './types'
@@ -98,11 +96,19 @@ function createFriendly(
   }
 }
 
-/** §1.9/§1.12: HP by kind. The elite is an enemy, so its HP lives in the same table. */
-export const ENEMY_MAX_HP: Readonly<Record<EnemyKind, number>> = {
-  melee: MELEE_HP,
-  shooter: SHOOTER_HP,
-  elite: ELITE_HP,
+/**
+ * §1.9/§1.12: HP by kind. The elite is an enemy, so its HP lives in the same table.
+ *
+ * A FUNCTION OF THE STATE rather than a module constant, because all three numbers are §2.2's
+ * "적 능력치" / "정예" axes and therefore a stage's. The table is rebuilt on each call and never
+ * cached: `stageConfigOf` is a pure lookup and caching it here would be the one place a stale
+ * stage could survive a campaign transition.
+ */
+export function enemyMaxHpOf(state: BattleState, kind: EnemyKind): number {
+  const stage = stageOf(state)
+  if (kind === 'melee') return stage.meleeHp
+  if (kind === 'shooter') return stage.shooterHp
+  return stage.eliteHp
 }
 
 /**
@@ -111,9 +117,17 @@ export const ENEMY_MAX_HP: Readonly<Record<EnemyKind, number>> = {
  * Batches C and F both create enemies; without a shared factory they would each
  * initialise `contactSlotOwnerId` by hand, and a row that is missing it is a row the
  * digest sees differently.
+ *
+ * IT TAKES THE STATE because §1.9's HP is a stage number now, and the state is where the
+ * `stageId` is. It reads the state and never writes it — appending the row is the caller's.
  */
-export function createEnemy(id: number, kind: EnemyKind, position: Vec2): EnemyUnit {
-  const maxHp = ENEMY_MAX_HP[kind]
+export function createEnemy(
+  state: BattleState,
+  id: number,
+  kind: EnemyKind,
+  position: Vec2,
+): EnemyUnit {
+  const maxHp = enemyMaxHpOf(state, kind)
   return {
     id,
     kind,
@@ -129,7 +143,18 @@ export function createEnemy(id: number, kind: EnemyKind, position: Vec2): EnemyU
   }
 }
 
-export function createInitialBattleState(seed: string): BattleState {
+/**
+ * `stageId` DEFAULTS, and the default is the whole campaign today.
+ *
+ * `STAGES` has one row, so "which stage" has one answer and every existing caller means it. The
+ * campaign shell is what will start passing the argument, one stage at a time; until it exists a
+ * required parameter would only make ~60 call sites spell out the only value there is. The
+ * default is a value, not a lookup that ignores its argument — `stageConfigOf` has no fallback.
+ */
+export function createInitialBattleState(
+  seed: string,
+  stageId: StageId = FIRST_STAGE_ID,
+): BattleState {
   const prng = createStreamStates(seed)
 
   const names = assignNameIndices(streamPrng(prng, 'names'), ROSTER_SIZE)
@@ -156,6 +181,7 @@ export function createInitialBattleState(seed: string): BattleState {
   return {
     schemaVersion: 1,
     rootSeed: seed,
+    stageId,
     combatTick: 0,
     mode: 'ready',
     result: null,

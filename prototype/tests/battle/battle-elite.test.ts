@@ -17,22 +17,13 @@
 import { describe, expect, it } from 'vitest'
 
 import {
-  ABSOLUTE_ENEMY_CAP,
   COMBAT_TICK_LIMIT,
   COMMANDER_HP,
   COMMANDER_MOVE_SPEED,
-  ELITE_APPROACH_RANGE,
-  ELITE_BLAST_RADIUS,
-  ELITE_COOLDOWN_TICKS,
-  ELITE_DAMAGE,
-  ELITE_HP,
-  ELITE_MOVE_SPEED,
-  ELITE_SPAWN_TICK,
-  ELITE_TELEGRAPH_TICKS,
   SOLDIER_MOVE_SPEED,
   SOLDIER_RANGE,
-  SPAWN_RADIUS,
 } from '../../src/core/battle/constants'
+import { stageConfigOf } from '../../src/core/battle/stages'
 import { applyDamage } from '../../src/core/battle/damage'
 import {
   advanceCooldowns,
@@ -70,6 +61,25 @@ import { advanceFriendlyTargeting, advanceTargeting } from '../../src/core/battl
 import { resolveTransitions, type TransitionOutcome } from '../../src/core/battle/transitions'
 import type { BattleState, EnemyUnit, FriendlyUnit } from '../../src/core/battle/types'
 
+/**
+ * The stage numbers this fixture pins, read off the one stage there is.
+ *
+ * Campaign stage 0 moved these out of `constants.ts` (§2.2's per-stage axes). Aliased back to
+ * their old spellings so the assertions below are the same assertions, against the same values.
+ */
+const {
+  absoluteEnemyCap: ABSOLUTE_ENEMY_CAP,
+  eliteApproachRange: ELITE_APPROACH_RANGE,
+  eliteBlastRadius: ELITE_BLAST_RADIUS,
+  eliteCooldownTicks: ELITE_COOLDOWN_TICKS,
+  eliteDamage: ELITE_DAMAGE,
+  eliteHp: ELITE_HP,
+  eliteMoveSpeed: ELITE_MOVE_SPEED,
+  eliteSpawnTick: ELITE_SPAWN_TICK,
+  eliteTelegraphTicks: ELITE_TELEGRAPH_TICKS,
+  spawnRadius: SPAWN_RADIUS,
+} = stageConfigOf(1)
+
 const TAU = Math.PI * 2
 
 function fixture(tick = ELITE_SPAWN_TICK, seed = 'seed-a'): BattleState {
@@ -82,7 +92,7 @@ function fixture(tick = ELITE_SPAWN_TICK, seed = 'seed-a'): BattleState {
 /** The elite already on the board, so the cycle can be exercised without the arrival. */
 function withElite(position = { x: 40, y: 16 }, tick = ELITE_SPAWN_TICK): BattleState {
   const state = fixture(tick)
-  state.enemies.push(createEnemy(ELITE_ID, 'elite', position))
+  state.enemies.push(createEnemy(state, ELITE_ID, 'elite', position))
   state.elite.enemyId = ELITE_ID
   state.elite.spawnTick = tick
   return state
@@ -184,7 +194,9 @@ describe('§1.12 elite arrival', () => {
     resolveEliteArrival(state)
 
     // 3 - 6.184599 < 0 and 3 - 11.434628 < 0: both axes clamp.
-    expect(elite(state).position).toEqual(clampToArena(3 + Math.cos(angle) * SPAWN_RADIUS, 3 + Math.sin(angle) * SPAWN_RADIUS))
+    expect(elite(state).position).toEqual(
+      clampToArena(state, 3 + Math.cos(angle) * SPAWN_RADIUS, 3 + Math.sin(angle) * SPAWN_RADIUS),
+    )
     expect(elite(state).position).toEqual({ x: 0, y: 0 })
   })
 
@@ -207,7 +219,7 @@ describe('§1.12 elite arrival', () => {
   it('arrives even at the absolute enemy cap — §1.10 caps requests, not the elite', () => {
     const state = fixture()
     for (let index = 0; index < ABSOLUTE_ENEMY_CAP; index += 1) {
-      state.enemies.push(createEnemy(101 + index, 'melee', { x: 50, y: 30 }))
+      state.enemies.push(createEnemy(state, 101 + index, 'melee', { x: 50, y: 30 }))
     }
 
     resolveEliteArrival(state)
@@ -581,7 +593,7 @@ describe('batch D adds no state and stays deterministic', () => {
       ['remainingPool', 'rounds', 'nextThresholdIndex'].sort(),
     )
     expect(Object.keys(state.enemies[0]).sort()).toEqual(
-      Object.keys(createEnemy(101, 'melee', { x: 0, y: 0 })).sort(),
+      Object.keys(createEnemy(state, 101, 'melee', { x: 0, y: 0 })).sort(),
     )
   })
 

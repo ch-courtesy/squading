@@ -9,12 +9,22 @@ import { describe, expect, it } from 'vitest'
 
 import {
   DOWNED_TICKS,
-  ELITE_BLAST_RADIUS,
 } from '../../src/core/battle/constants'
+import { stageConfigOf } from '../../src/core/battle/stages'
 import { digestBattleState } from '../../src/core/battle/digest'
 import { createEnemy, createInitialBattleState } from '../../src/core/battle/state'
 import { projectPolicyView } from '../../src/core/harness/policy/view'
 import type { BattleState } from '../../src/core/battle/types'
+
+/**
+ * The stage numbers this fixture pins, read off the one stage there is.
+ *
+ * Campaign stage 0 moved these out of `constants.ts` (§2.2's per-stage axes). Aliased back to
+ * their old spellings so the assertions below are the same assertions, against the same values.
+ */
+const {
+  eliteBlastRadius: ELITE_BLAST_RADIUS,
+} = stageConfigOf(1)
 
 function freshState(): BattleState {
   return createInitialBattleState('seed-a')
@@ -35,6 +45,11 @@ describe('the policy view carries exactly what the screen carries', () => {
         'pendingUpgrade',
         'rescue',
         'rescueCandidateId',
+        // Campaign stage 0: which stage's numbers this battle runs under. It is an id and not the
+        // configuration, for the same reason `BattleState` carries an id — and because a policy
+        // that could read the configuration off the view would be reading the enemy's exact reach,
+        // which this file's header lists as something a player cannot see.
+        'stageId',
         'tick',
         'ticksRemaining',
       ].sort(),
@@ -87,7 +102,7 @@ describe('the policy view carries exactly what the screen carries', () => {
 
   it('projects an enemy as a shape in a place, with no hp and no cooldown', () => {
     const state = freshState()
-    state.enemies.push(createEnemy(101, 'shooter', { x: 10, y: 10 }))
+    state.enemies.push(createEnemy(state, 101, 'shooter', { x: 10, y: 10 }))
     const view = projectPolicyView(state)
 
     expect(view.enemies.length).toBe(1)
@@ -121,8 +136,8 @@ describe('the policy view carries exactly what the screen carries', () => {
 
   it('shows only living enemies, because a dead body is not drawn', () => {
     const state = freshState()
-    state.enemies.push(createEnemy(101, 'melee', { x: 10, y: 10 }))
-    state.enemies.push(createEnemy(102, 'melee', { x: 11, y: 10 }))
+    state.enemies.push(createEnemy(state, 101, 'melee', { x: 10, y: 10 }))
+    state.enemies.push(createEnemy(state, 102, 'melee', { x: 11, y: 10 }))
     expect(projectPolicyView(state).enemies.map((enemy) => enemy.id)).toEqual([101, 102])
 
     state.enemies[0].life = 'dead'

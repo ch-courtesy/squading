@@ -1,10 +1,25 @@
 import { expect, test, type Page } from '@playwright/test'
 
 import { createBattle } from '../src/core/battle/battle'
-import { COMBAT_TICK_LIMIT, ELITE_SPAWN_TICK } from '../src/core/battle/constants'
+import {
+  COMBAT_TICK_LIMIT,
+} from '../src/core/battle/constants'
+import { stageConfigOf } from '../src/core/battle/stages'
 import { FORMATION_MAX_SLOT_RADIUS } from '../src/core/battle/formation'
 import { replayBattleInput } from '../src/app/battle/battle-replay'
-import { VIEW_REQUIRED_RADIUS } from '../src/core/battle-view/snapshot'
+import { viewRequiredRadiusOf } from '../src/core/battle-view/snapshot'
+
+/**
+ * The stage numbers this fixture pins, read off the one stage there is.
+ *
+ * Campaign stage 0 moved these out of `constants.ts` (§2.2's per-stage axes). Aliased back to
+ * their old spellings so the assertions below are the same assertions, against the same values.
+ */
+const {
+  eliteSpawnTick: ELITE_SPAWN_TICK,
+} = stageConfigOf(1)
+/** §4.4(b)'s guaranteed radius, which is a stage's since the blast radius is. */
+const VIEW_REQUIRED_RADIUS = viewRequiredRadiusOf(1)
 
 // §4.4's 사용자 경로, in a real browser, against the v2 route.
 //

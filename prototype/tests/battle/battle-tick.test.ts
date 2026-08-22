@@ -36,10 +36,9 @@ import { describe, expect, it } from 'vitest'
 
 import {
   COMBAT_TICK_LIMIT,
-  ELITE_APPROACH_RANGE,
-  ELITE_SPAWN_TICK,
   RESCUE_RANGE,
 } from '../../src/core/battle/constants'
+import { stageConfigOf } from '../../src/core/battle/stages'
 import { digestBattleState } from '../../src/core/battle/digest'
 import { BattleInputQueue, commandBatch } from '../../src/core/battle/input'
 import type { BattleCommand } from '../../src/core/battle/input'
@@ -47,6 +46,17 @@ import { COMMANDER_ID, createInitialBattleState, findFriendly } from '../../src/
 import { advanceBattleTick } from '../../src/core/battle/tick'
 import type { ResolvedTick } from '../../src/core/battle/tick'
 import type { BattleMode, BattleState, DamageCause } from '../../src/core/battle/types'
+
+/**
+ * The stage numbers this fixture pins, read off the one stage there is.
+ *
+ * Campaign stage 0 moved these out of `constants.ts` (§2.2's per-stage axes). Aliased back to
+ * their old spellings so the assertions below are the same assertions, against the same values.
+ */
+const {
+  eliteApproachRange: ELITE_APPROACH_RANGE,
+  eliteSpawnTick: ELITE_SPAWN_TICK,
+} = stageConfigOf(1)
 
 const NO_COMMANDS: BattleCommand[] = []
 

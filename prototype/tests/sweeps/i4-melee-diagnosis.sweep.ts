@@ -17,11 +17,9 @@ import { describe, expect, it } from 'vitest'
 import { createBattle } from '../../src/core/battle/battle'
 import {
   COMMANDER_RANGE,
-  MELEE_RANGE,
-  SHOOTER_RANGE,
-  SHOOTER_STANDOFF,
   SOLDIER_RANGE,
 } from '../../src/core/battle/constants'
+import { stageConfigOf } from '../../src/core/battle/stages'
 import {
   POLICY_IDS,
   SKILLED_MODEL_IDS,
@@ -30,6 +28,18 @@ import {
 } from '../../src/core/harness/policy/policies'
 import { POLICY_BAND_SEEDS } from '../../src/core/harness/policy/run'
 import { projectPolicyView } from '../../src/core/harness/policy/view'
+
+/**
+ * The stage numbers this fixture pins, read off the one stage there is.
+ *
+ * Campaign stage 0 moved these out of `constants.ts` (§2.2's per-stage axes). Aliased back to
+ * their old spellings so the assertions below are the same assertions, against the same values.
+ */
+const {
+  meleeRange: MELEE_RANGE,
+  shooterRange: SHOOTER_RANGE,
+  shooterStandoff: SHOOTER_STANDOFF,
+} = stageConfigOf(1)
 
 const ALL_POLICIES: readonly PolicyId[] = [...POLICY_IDS, ...SKILLED_MODEL_IDS]
 const STEP_BUDGET = 5400

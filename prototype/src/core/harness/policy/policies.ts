@@ -4,16 +4,22 @@
 // `skilled` IS FIXED BEFORE THE SWEEP STARTS
 // ---------------------------------------------------------------------------
 // §3: "`skilled`는 스윕 시작 전에 확정하고, 스윕 중에 수정하지 않는다. 수정이 필요하면 스윕을
-// 처음부터 다시 돌린다." The tuning pass (§5 stages 2-8) changes `constants.ts` and NOT this
+// 처음부터 다시 돌린다." The tuning pass changes `constants.ts` and `stages.ts` and NOT this
 // file. If a gate can only be passed by editing a decision below, the sweep restarts — that is
 // the rule, and editing here instead is how a balance number gets a policy built around it.
 //
-// Every DISTANCE here is expressed against the constants rather than against a copy of their
-// current values, for the same reason: a sweep that moves `SHOOTER_RANGE` moves where `skilled`
-// stands, and a sweep that moves `ELITE_BLAST_RADIUS` moves how far outside the circle it runs,
-// without anybody editing a policy. The standoff bands are fractions of `RANGE_ADVANTAGE`, the
-// contact band is `MELEE_RANGE`, the dodge clearance is a fraction of the drawn radius, and the
-// reachability test is built out of `COMMANDER_MOVE_SPEED`, `RESCUE_RANGE` and `RESCUE_TICKS`.
+// Every DISTANCE here is expressed against the numbers rather than against a copy of their
+// current values, for the same reason: a sweep that moves the shooter's range moves where
+// `skilled` stands, and a sweep that moves the blast radius moves how far outside the circle it
+// runs, without anybody editing a policy. The standoff bands are fractions of `rangeAdvantage`,
+// the contact band is `meleeRange`, the dodge clearance is a fraction of the drawn radius, and
+// the reachability test is built out of `COMMANDER_MOVE_SPEED`, `RESCUE_RANGE` and
+// `RESCUE_TICKS`.
+//
+// FOUR OF THOSE ARE A STAGE'S NOW (`shooterRange`, `rangeAdvantage`, `meleeRange`, and the blast
+// radius the view already carried), so they are read through `stageConfigOf(view.stageId)`
+// instead of imported. The property is the one above, unchanged: a policy names the axis and
+// never the metre, so the campaign's stage 4 sweep carries it.
 //
 // THE TICK COUNTS ARE NOT, AND ARE NOT MEANT TO BE. `SKILLED_COMMIT_TICKS` and the two player
 // models' 30 and 4 name no constant and no sweep axis. They are the policy's own axis under §3
@@ -49,13 +55,11 @@
 import {
   ARRIVE_EPSILON,
   COMMANDER_MOVE_SPEED,
-  MELEE_RANGE,
-  RANGE_ADVANTAGE,
   RESCUE_RANGE,
   RESCUE_TICKS,
-  SHOOTER_RANGE,
   SOLDIER_RANGE,
 } from '../../battle/constants'
+import { stageConfigOf } from '../../battle/stages'
 import type { BattleCommand } from '../../battle/input'
 import type { Vec2 } from '../../battle/types'
 import type { EnemyView, FriendlyView, PolicyView } from './view'
@@ -180,7 +184,7 @@ function nearestEnemy(enemies: readonly EnemyView[], from: Vec2): EnemyView | nu
  * centre, and a body sitting exactly on the radius is one clamp away from being inside it.
  *
  * WHAT THE FRACTION IS, AND WHAT IT IS NOT. It is the 0.75 m this margin was first written as,
- * divided by the current `ELITE_BLAST_RADIUS` — picked so the clearance does not move today, and
+ * divided by the current `eliteBlastRadius` — picked so the clearance does not move today, and
  * NOT derived from a rule. §2 has no axis that says how much room the dodge should leave, and
  * nothing here claims to know. What the fraction buys over the raw metre value is only the
  * property the header states: a sweep of the blast radius carries the dodge with it, and 0.75 m
@@ -193,7 +197,7 @@ const ELITE_DODGE_MARGIN_FRACTION = 0.3125
 /**
  * The band `skilled` wants to stand in, as a fraction of §1.6's range advantage.
  *
- * Written as a fraction rather than as metres so a sweep of `SHOOTER_RANGE` (§2 axis 1) carries
+ * Written as a fraction rather than as metres so a sweep of `shooterRange` (§2 axis 1) carries
  * the policy with it. The lower edge sits just inside the gap so the shooter cannot answer; the
  * upper edge is soldier range, because past it the squad stops shooting at all.
  */
@@ -286,7 +290,7 @@ function skilledIntent(view: PolicyView, _memory: PolicyMemory, rules: PolicyRul
  * §1.6's range advantage, as a place to stand.
  *
  * The body it measures against is the nearest SHOOTER, because the shooter is the only enemy
- * the gap is a gap against: `SHOOTER_RANGE < SOLDIER_RANGE` is what makes a stopping point safe.
+ * the gap is a gap against: `shooterRange < SOLDIER_RANGE` is what makes a stopping point safe.
  * With no shooter on the board it falls back to the nearest body of any kind, so the policy
  * still keeps a melee at arm's length rather than standing in the middle of the board.
  */
@@ -298,9 +302,13 @@ function rangeAdvantageStandoff(view: PolicyView): StandoffGoal | null {
   const target = nearestEnemy(shooters.length > 0 ? shooters : view.enemies, command.position)
   if (target === null) return null
 
+  const stage = stageConfigOf(view.stageId)
   return {
     position: target.position,
-    band: [SHOOTER_RANGE + RANGE_ADVANTAGE * SKILLED_STANDOFF_FRACTION, SOLDIER_RANGE],
+    band: [
+      stage.shooterRange + stage.rangeAdvantage * SKILLED_STANDOFF_FRACTION,
+      SOLDIER_RANGE,
+    ],
   }
 }
 
@@ -348,7 +356,7 @@ function contactStandoff(view: PolicyView): StandoffGoal | null {
 
   const target = nearestEnemy(view.enemies, command.position)
   if (target === null) return null
-  return { position: target.position, band: [0, MELEE_RANGE] }
+  return { position: target.position, band: [0, stageConfigOf(view.stageId).meleeRange] }
 }
 
 /** §4.1 `camps-in-place`: only §1.12's blast is worth taking a step for. */
@@ -381,15 +389,23 @@ export const POLICY_OVERRIDES: Readonly<Record<string, Partial<PolicyRules>>> = 
 function conservativeStandoff(view: PolicyView): StandoffGoal | null {
   const goal = rangeAdvantageStandoff(view)
   if (goal === null) return null
-  return { position: goal.position, band: [SHOOTER_RANGE + RANGE_ADVANTAGE * 0.75, SOLDIER_RANGE] }
+  const stage = stageConfigOf(view.stageId)
+  return {
+    position: goal.position,
+    band: [stage.shooterRange + stage.rangeAdvantage * 0.75, SOLDIER_RANGE],
+  }
 }
 
 function aggressiveStandoff(view: PolicyView): StandoffGoal | null {
   const goal = rangeAdvantageStandoff(view)
   if (goal === null) return null
+  const stage = stageConfigOf(view.stageId)
   return {
     position: goal.position,
-    band: [SHOOTER_RANGE + RANGE_ADVANTAGE * 0.05, SHOOTER_RANGE + RANGE_ADVANTAGE * 0.5],
+    band: [
+      stage.shooterRange + stage.rangeAdvantage * 0.05,
+      stage.shooterRange + stage.rangeAdvantage * 0.5,
+    ],
   }
 }
 

@@ -77,10 +77,18 @@ describe('§1.17 the runner reproduces the digests batch H recorded', () => {
     // §1.4.2 at all. The equality with batch I is the strongest statement available that the
     // clause removed exactly the free half and nothing else — and it is not the rule going inert,
     // which `tests/sweeps/melee-usage.sweep.ts` measures on the other side.
+    //
+    // CAMPAIGN STAGE 0 MOVED ALL THREE DIGESTS AND NOTHING ELSE. `BattleState` gained ONE field —
+    // `stageId` — and §1.17's digest walks the whole object, so every recorded digest on this
+    // branch is void by construction. The other four columns are the evidence that only the
+    // digest moved: `1653/159/0`, `2190/228/0` and `1719/170/0` are character for character what
+    // stood here before, and the batch report carries the full outcome comparison (eight policies
+    // x 32 seeds, `damageEvents` stream hashes included) that this line is three rows of. The
+    // previous digests were `8f30c06d`, `91fc34fe` and `334b1763`.
     expect(THREE_SEEDS.map((seed) => runPolicySeed(policyFactory('tactical-no-input'), seed))).toEqual([
-      { seed: 'seed-a', outcome: 'lost', endTick: 1653, kills: 159, standing: 0, digest: '8f30c06d' },
-      { seed: 'seed-b', outcome: 'lost', endTick: 2190, kills: 228, standing: 0, digest: '91fc34fe' },
-      { seed: 'seed-c', outcome: 'lost', endTick: 1719, kills: 170, standing: 0, digest: '334b1763' },
+      { seed: 'seed-a', outcome: 'lost', endTick: 1653, kills: 159, standing: 0, digest: '5b574345' },
+      { seed: 'seed-b', outcome: 'lost', endTick: 2190, kills: 228, standing: 0, digest: '8cc08e76' },
+      { seed: 'seed-c', outcome: 'lost', endTick: 1719, kills: 170, standing: 0, digest: '12b22be3' },
     ])
   })
 })
@@ -129,10 +137,14 @@ describe('§4.1 `flees-always` on the three seeds', () => {
     // the elite often enough on this seed for some swings to survive the clause, so it is its own
     // third value. Two identical and one not is the shape the clause predicts: the melee stops
     // being free without being switched off.
+    //
+    // CAMPAIGN STAGE 0 MOVED ALL THREE DIGESTS AND NOTHING ELSE, for the reason written above the
+    // block before this one: `stageId` joined `BattleState`. `1563/147/0`, `2204/225/0` and
+    // `2099/230/0` are unchanged. The previous digests were `d8f816f6`, `ffddc7d9` and `991977cd`.
     expect(THREE_SEEDS.map((seed) => runPolicySeed(policyFactory('flees-always'), seed))).toEqual([
-      { seed: 'seed-a', outcome: 'lost', endTick: 1563, kills: 147, standing: 0, digest: 'd8f816f6' },
-      { seed: 'seed-b', outcome: 'lost', endTick: 2204, kills: 225, standing: 0, digest: 'ffddc7d9' },
-      { seed: 'seed-c', outcome: 'lost', endTick: 2099, kills: 230, standing: 0, digest: '991977cd' },
+      { seed: 'seed-a', outcome: 'lost', endTick: 1563, kills: 147, standing: 0, digest: '0611f83e' },
+      { seed: 'seed-b', outcome: 'lost', endTick: 2204, kills: 225, standing: 0, digest: '2d46befd' },
+      { seed: 'seed-c', outcome: 'lost', endTick: 2099, kills: 230, standing: 0, digest: '65efc479' },
     ])
   })
 

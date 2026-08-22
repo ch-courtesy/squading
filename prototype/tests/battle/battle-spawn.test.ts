@@ -16,14 +16,7 @@
 
 import { describe, expect, it } from 'vitest'
 
-import {
-  ABSOLUTE_ENEMY_CAP,
-  BACKLOG_DRAIN_PER_TICK,
-  BACKLOG_SIZE,
-  ENGAGE_RADIUS,
-  PRESSURE_PHASES,
-  SPAWN_RADIUS,
-} from '../../src/core/battle/constants'
+import { stageConfigOf } from '../../src/core/battle/stages'
 import {
   engagedEnemyCount,
   liveEnemyCount,
@@ -34,6 +27,21 @@ import {
 } from '../../src/core/battle/spawn'
 import { COMMANDER_ID, createEnemy, createInitialBattleState, findFriendly } from '../../src/core/battle/state'
 import type { BattleState, EnemyKind, SpawnRequest, Vec2 } from '../../src/core/battle/types'
+
+/**
+ * The stage numbers this fixture pins, read off the one stage there is.
+ *
+ * Campaign stage 0 moved these out of `constants.ts` (§2.2's per-stage axes). Aliased back to
+ * their old spellings so the assertions below are the same assertions, against the same values.
+ */
+const {
+  absoluteEnemyCap: ABSOLUTE_ENEMY_CAP,
+  backlogDrainPerTick: BACKLOG_DRAIN_PER_TICK,
+  backlogSize: BACKLOG_SIZE,
+  engageRadius: ENGAGE_RADIUS,
+  pressurePhases: PRESSURE_PHASES,
+  spawnRadius: SPAWN_RADIUS,
+} = stageConfigOf(1)
 
 function battle(): BattleState {
   const state = createInitialBattleState('seed-a')
@@ -55,7 +63,7 @@ function distance(from: Vec2, to: Vec2): number {
 function placeEnemies(state: BattleState, count: number, radius: number): void {
   const center = commanderPosition(state)
   for (let index = 0; index < count; index += 1) {
-    state.enemies.push(createEnemy(9000 + index, 'melee', { x: center.x + radius, y: center.y }))
+    state.enemies.push(createEnemy(state, 9000 + index, 'melee', { x: center.x + radius, y: center.y }))
   }
 }
 
@@ -71,21 +79,23 @@ function request(sequence: number, kind: EnemyKind = 'melee'): SpawnRequest {
 
 describe('§1.10 the request schedule and the phase-local split', () => {
   it('places the phase table on tick 0 and finds the phase for any tick', () => {
+    // The curve is a stage number now (§2.2), so the reader takes the state it belongs to.
+    const state = createInitialBattleState('seed-a')
     expect(PRESSURE_PHASES[0].fromTick).toBe(0)
-    expect(pressurePhaseIndexAt(0)).toBe(0)
-    expect(pressurePhaseIndexAt(PRESSURE_PHASES[1].fromTick - 1)).toBe(0)
-    expect(pressurePhaseIndexAt(PRESSURE_PHASES[1].fromTick)).toBe(1)
-    expect(pressurePhaseIndexAt(PRESSURE_PHASES[2].fromTick)).toBe(2)
-    expect(pressurePhaseIndexAt(9999)).toBe(PRESSURE_PHASES.length - 1)
+    expect(pressurePhaseIndexAt(state, 0)).toBe(0)
+    expect(pressurePhaseIndexAt(state, PRESSURE_PHASES[1].fromTick - 1)).toBe(0)
+    expect(pressurePhaseIndexAt(state, PRESSURE_PHASES[1].fromTick)).toBe(1)
+    expect(pressurePhaseIndexAt(state, PRESSURE_PHASES[2].fromTick)).toBe(2)
+    expect(pressurePhaseIndexAt(state, 9999)).toBe(PRESSURE_PHASES.length - 1)
     // -1 is `lastRequestTick`'s "no request yet" value: it must not resolve to phase 0,
     // or the phase-local index would fail to reset on the very first request.
-    expect(pressurePhaseIndexAt(-1)).toBe(-1)
+    expect(pressurePhaseIndexAt(state, -1)).toBe(-1)
   })
 
   it('splits melee and shooter by the phase-local index, not by a draw', () => {
     // The 5:1 cycle is what the arithmetic below counts on.
     expect([...PRESSURE_PHASES[0].meleeToShooter]).toEqual([5, 1])
-    const phase = pressurePhaseAt(0)
+    const phase = pressurePhaseAt(createInitialBattleState('seed-a'), 0)
     const kinds = Array.from({ length: 13 }, (_, index) => spawnKindForPhaseIndex(phase, index))
     expect(kinds).toEqual([
       'melee', 'melee', 'melee', 'melee', 'melee', 'shooter',
@@ -179,7 +189,7 @@ describe('§1.10 the engagement-radius cap', () => {
     const state = battle()
     placeEnemies(state, cap - 1, ENGAGE_RADIUS - 1)
     const center = commanderPosition(state)
-    state.enemies.push(createEnemy(1000, 'elite', { x: center.x + 1, y: center.y }))
+    state.enemies.push(createEnemy(state, 1000, 'elite', { x: center.x + 1, y: center.y }))
 
     expect(engagedEnemyCount(state)).toBe(cap)
 
@@ -194,7 +204,7 @@ describe('§1.10 the engagement-radius cap', () => {
     const state = battle()
     placeEnemies(state, ABSOLUTE_ENEMY_CAP - 1, ENGAGE_RADIUS + 1)
     const center = commanderPosition(state)
-    state.enemies.push(createEnemy(1000, 'elite', { x: center.x + ENGAGE_RADIUS + 1, y: center.y }))
+    state.enemies.push(createEnemy(state, 1000, 'elite', { x: center.x + ENGAGE_RADIUS + 1, y: center.y }))
 
     expect(liveEnemyCount(state)).toBe(ABSOLUTE_ENEMY_CAP)
 

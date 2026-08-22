@@ -12,12 +12,10 @@ import {
   ARRIVE_EPSILON,
   COMMANDER_MOVE_SPEED,
   DOWNED_TICKS,
-  ELITE_BLAST_RADIUS,
-  MELEE_RANGE,
   RESCUE_RANGE,
   RESCUE_TICKS,
-  SHOOTER_RANGE,
 } from '../../src/core/battle/constants'
+import { stageConfigOf } from '../../src/core/battle/stages'
 import type { BattleCommand } from '../../src/core/battle/input'
 import {
   POLICY_IDS,
@@ -29,6 +27,18 @@ import {
   type PolicyId,
 } from '../../src/core/harness/policy/policies'
 import type { FriendlyView, PolicyView } from '../../src/core/harness/policy/view'
+
+/**
+ * The stage numbers this fixture pins, read off the one stage there is.
+ *
+ * Campaign stage 0 moved these out of `constants.ts` (§2.2's per-stage axes). Aliased back to
+ * their old spellings so the assertions below are the same assertions, against the same values.
+ */
+const {
+  eliteBlastRadius: ELITE_BLAST_RADIUS,
+  meleeRange: MELEE_RANGE,
+  shooterRange: SHOOTER_RANGE,
+} = stageConfigOf(1)
 
 const ORIGIN = { x: 28, y: 16 }
 
@@ -47,6 +57,7 @@ function friendly(id: number, x: number, y: number, over: Partial<FriendlyView> 
 
 function viewOf(over: Partial<PolicyView> = {}): PolicyView {
   return {
+    stageId: 1,
     tick: 100,
     mode: 'running',
     ticksRemaining: 2600,

@@ -2,10 +2,20 @@ import { describe, expect, it } from 'vitest'
 
 import { createBattle } from '../../src/core/battle/battle'
 import { digestBattleState } from '../../src/core/battle/digest'
-import { ELITE_SPAWN_TICK } from '../../src/core/battle/constants'
+import { stageConfigOf } from '../../src/core/battle/stages'
 import { COMMANDER_ID, createEnemy, createInitialBattleState } from '../../src/core/battle/state'
 import type { BattleState, DamageEvent } from '../../src/core/battle/types'
 import { projectBattleSnapshot, type BattleTickEvents } from '../../src/core/battle-view/snapshot'
+
+/**
+ * The stage numbers this fixture pins, read off the one stage there is.
+ *
+ * Campaign stage 0 moved these out of `constants.ts` (§2.2's per-stage axes). Aliased back to
+ * their old spellings so the assertions below are the same assertions, against the same values.
+ */
+const {
+  eliteSpawnTick: ELITE_SPAWN_TICK,
+} = stageConfigOf(1)
 
 /**
  * The channel batch L exists to build: `advanceBattleTick -> ResolvedTick -> controller ->
@@ -61,7 +71,7 @@ describe('battle-view: this tick\'s blows, as display events (§액션 피드백
 
   it('turns zero damage events into zero action events', () => {
     const state = stateAt()
-    state.enemies.push(createEnemy(101, 'melee', { x: 29, y: 16 }))
+    state.enemies.push(createEnemy(state, 101, 'melee', { x: 29, y: 16 }))
 
     const snapshot = projectBattleSnapshot(state, [tickEvents(), tickEvents({ tick: 11 })])
 
@@ -70,7 +80,7 @@ describe('battle-view: this tick\'s blows, as display events (§액션 피드백
 
   it('turns N damage events into N action events, one for one', () => {
     const state = stateAt()
-    state.enemies.push(createEnemy(101, 'melee', { x: 29, y: 16 }))
+    state.enemies.push(createEnemy(state, 101, 'melee', { x: 29, y: 16 }))
     const events = [
       damage({ targetId: COMMANDER_ID }),
       damage({ targetId: 2 }),
@@ -89,8 +99,8 @@ describe('battle-view: this tick\'s blows, as display events (§액션 피드백
   it('carries the authority\'s own attacker, not the nearest body that happens to be shooting', () => {
     const state = stateAt()
     // The near enemy is the one a nearest-neighbour guess would blame. The far one struck.
-    state.enemies.push(createEnemy(101, 'melee', { x: 28.5, y: 16 }))
-    state.enemies.push(createEnemy(102, 'shooter', { x: 34, y: 16 }))
+    state.enemies.push(createEnemy(state, 101, 'melee', { x: 28.5, y: 16 }))
+    state.enemies.push(createEnemy(state, 102, 'shooter', { x: 34, y: 16 }))
 
     const [action] = projectBattleSnapshot(state, [
       tickEvents({ damageEvents: [damage({ attackerId: 102, cause: 'shooter-shot' })] }),
@@ -104,9 +114,9 @@ describe('battle-view: this tick\'s blows, as display events (§액션 피드백
 
   it('splits the five causes into the three things they look like', () => {
     const state = stateAt()
-    state.enemies.push(createEnemy(101, 'melee', { x: 29, y: 16 }))
-    state.enemies.push(createEnemy(102, 'shooter', { x: 34, y: 16 }))
-    state.enemies.push(createEnemy(103, 'elite', { x: 36, y: 16 }))
+    state.enemies.push(createEnemy(state, 101, 'melee', { x: 29, y: 16 }))
+    state.enemies.push(createEnemy(state, 102, 'shooter', { x: 34, y: 16 }))
+    state.enemies.push(createEnemy(state, 103, 'elite', { x: 36, y: 16 }))
 
     const kindOf = (event: DamageEvent) =>
       projectBattleSnapshot(state, [tickEvents({ damageEvents: [event] })]).actionEvents![0]!.kind
@@ -127,7 +137,7 @@ describe('battle-view: this tick\'s blows, as display events (§액션 피드백
 
   it('scales the blow by what fraction of the target it took', () => {
     const state = stateAt()
-    state.enemies.push(createEnemy(101, 'melee', { x: 29, y: 16 }))
+    state.enemies.push(createEnemy(state, 101, 'melee', { x: 29, y: 16 }))
     const target = state.friendlies.find((unit) => unit.id === COMMANDER_ID)!
 
     const half = projectBattleSnapshot(state, [
@@ -144,7 +154,7 @@ describe('battle-view: this tick\'s blows, as display events (§액션 피드백
 
   it('reports a death for each body that fell, on either side', () => {
     const state = stateAt()
-    state.enemies.push(createEnemy(101, 'melee', { x: 29, y: 16 }))
+    state.enemies.push(createEnemy(state, 101, 'melee', { x: 29, y: 16 }))
 
     const actions = projectBattleSnapshot(state, [
       tickEvents({
@@ -173,7 +183,7 @@ describe('battle-view: this tick\'s blows, as display events (§액션 피드백
 
   it('emits every tick that shared the frame, in tick order, and drops none of them', () => {
     const state = stateAt()
-    state.enemies.push(createEnemy(101, 'melee', { x: 29, y: 16 }))
+    state.enemies.push(createEnemy(state, 101, 'melee', { x: 29, y: 16 }))
     const ticks: BattleTickEvents[] = [
       tickEvents({ tick: 40, damageEvents: [damage({ targetId: 2 })] }),
       tickEvents({ tick: 41, damageEvents: [damage({ targetId: 3 }), damage({ targetId: 4 })] }),
@@ -195,7 +205,7 @@ describe('battle-view: this tick\'s blows, as display events (§액션 피드백
 
   it('never writes to the state it reads, and hands back no reference into it', () => {
     const state = stateAt()
-    state.enemies.push(createEnemy(101, 'melee', { x: 29, y: 16 }))
+    state.enemies.push(createEnemy(state, 101, 'melee', { x: 29, y: 16 }))
     const before = digestBattleState(state)
 
     const snapshot = projectBattleSnapshot(state, [
