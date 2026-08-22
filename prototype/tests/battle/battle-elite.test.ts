@@ -146,9 +146,11 @@ describe('§1.12 elite arrival', () => {
     expect(body.hp).toBe(ELITE_HP)
     expect(body.maxHp).toBe(ELITE_HP)
     expect(body.life).toBe('standing')
-    // Hand-computed from `seed-a:spawn`'s first float, 0.671090...
-    expect(body.position.x).toBeCloseTo(28 - 6.1845991, 6)
-    expect(body.position.y).toBeCloseTo(16 - 11.4346287, 6)
+    // Hand-computed from `seed-a:spawn`'s first float, 0.671090..., against `SPAWN_RADIUS`. The
+    // two offsets are that radius times the same cosine and sine as before: tuning batch 1 took
+    // stage 1's `spawnRadius` from 13.0 to 14.0, so both grew by 14/13 and the angle did not move.
+    expect(body.position.x).toBeCloseTo(28 - 6.6603375, 6)
+    expect(body.position.y).toBeCloseTo(16 - 12.3142155, 6)
     expect(body.position.x).toBeCloseTo(expected.x, 12)
     expect(body.position.y).toBeCloseTo(expected.y, 12)
     expect(Math.hypot(body.position.x - 28, body.position.y - 16)).toBeCloseTo(SPAWN_RADIUS, 9)

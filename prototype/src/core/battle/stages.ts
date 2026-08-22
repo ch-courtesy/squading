@@ -39,15 +39,17 @@
 // default is a run played under rules nobody asked for.
 //
 // ---------------------------------------------------------------------------
-// THERE ARE SEVEN STAGES HERE, AND STAGE 1 IS STILL TODAY'S NUMBERS (§5 stage 2)
+// SEVEN STAGES, AND STAGE 1 IS THE ONE THAT HAS BEEN TUNED (§5 stage 4)
 // ---------------------------------------------------------------------------
-// §5 stage 0 MOVED values; it did not choose them. §5 stage 2 — this batch — adds the other six
-// rows and makes them DIFFER. It still does not choose them well: §5 stage 4 owns the balance,
-// and every number below is a placeholder exactly as stage 1's were before it.
+// §5 stage 0 MOVED values; it did not choose them. §5 stage 2 added the other six rows and made
+// them DIFFER, still without choosing them. §5 stage 4 — tuning batch 1 — is the first batch to
+// CHOOSE, and its scope was stage 1 alone: stage 1 is the anchor the other six derive from, and
+// its failing I2 was inherited by all seven, so tuning a derived row first would have been getting
+// it wrong seven times.
 //
-// STAGE 1 IS UNCHANGED, CHARACTER FOR CHARACTER. Every recorded band, every digest pin, both §4.4
-// browser routes and eleven fixtures that read `stageConfigOf(1)` name the run they have always
-// named. A stage-1 edit would have re-rolled all of them for values that are still arbitrary.
+// STAGES 2-7 ARE STILL PLACEHOLDERS, character for character as §5 stage 2 wrote them. Stage 1's
+// `spawnRadius` and `engageRadius` are the only two numbers in this file that a measurement chose,
+// and the batch report (`tuning-1-report.md`) carries the 620 rows it chose them against.
 //
 // WHAT EACH ROW IS FOR (§2.3's dominant axis). "무엇이 이 판을 어렵게 하는가"에 이름이 붙어야
 // 스테이지다 — so each row pushes ONE axis hard and lets the rest rise gently, and the relations
@@ -162,10 +164,11 @@ export type StageConfig = {
    * enemies inside the leash rises from ~0.33 to ~0.46: the player's position still chooses, but it
    * chooses among more of the board than it did.
    *
-   * At stage 1 it is EQUAL TO `engageRadius` (10.0) rather than below it, so the set a soldier may
-   * chase is exactly the set §1.10 counts against the live cap around the command unit — the two
-   * radii name the same disc. §2 does not relate them and neither does §1.10; this is a coincidence
-   * of two placeholders and is written down so it is not mistaken for a rule.
+   * At stage 1 it sat EQUAL TO `engageRadius` (both 10.0) until tuning batch 1 raised the engage
+   * radius to 11.0, and the two were never related by anything: §2 does not relate them and
+   * neither does §1.10. The equality was a coincidence of two placeholders, written down here so
+   * it would not be mistaken for a rule — and the batch that broke it did so for the eight-seed
+   * band's sake without any fixture or assert having to move, which is what that note was for.
    *
    * HOW FAR A BODY CAN BE PULLED, corrected for v11. The engagement goal is `target + bearing x
    * attackRangeOf(unit)`, so with the command unit standing still the bound is
@@ -315,11 +318,21 @@ function buildStage(spec: StageSpec): StageConfig {
 }
 
 /**
- * PLACEHOLDER, all of it — §5 stage 4 owns every number here, exactly as §5 stage 0 owned them
- * while they lived in `constants.ts`. See that file's header for what each one was chosen as and
- * what measurement (if any) stands behind it; neither the move nor §5 stage 2 changed a value.
+ * STILL MOSTLY PLACEHOLDER. §5 stage 0 moved these numbers out of `constants.ts` without choosing
+ * them and §5 stage 2 did not touch the row at all; see `constants.ts`'s header for what each one
+ * was originally set to and what measurement (if any) stood behind it.
  *
- * §5 STAGE 2 DID NOT TOUCH THIS ROW. Not one character. The six rows below it are the batch.
+ * TWO OF THEM ARE NOT PLACEHOLDERS ANY MORE. Tuning batch 1 (§5 stage 4) chose `spawnRadius 14.0`
+ * and `engageRadius 11.0` off a 620-row search on the fixed eight-seed band, and the note beside
+ * them says what they bought. Everything else in this row is the value it has always had.
+ *
+ * WHAT THE BATCH COULD NOT FIX, recorded here because the next batch will meet it. §3's I2 wants
+ * `skilled`'s cumulative damage in `[0.55, 0.80]` of the roster and this row measures **0.843**.
+ * It is inside §3's own relaxed ceiling (`80% -> 85%`, the first step of §3's relaxation order) and
+ * outside the unrelaxed one. Of 620 rows the search played that stages 2-7 would have allowed, 300
+ * held `skilled` 8/8 with I2 at or under 0.80 and NOT ONE of those also held I8 — the lowest I2 of
+ * any row where `flees-always` went 0/8 was 0.840. Pure flight losing and a skilled run costing
+ * under 80% of the roster were not both reachable from this table.
  */
 const STAGE_ONE: StageSpec = {
   id: 1,
@@ -341,8 +354,14 @@ const STAGE_ONE: StageSpec = {
   shooterAttackInterval: 30,
   shooterDamage: 0.035,
 
-  spawnRadius: 13.0,
-  engageRadius: 10.0,
+  // TUNED (§5 stage 4, tuning batch 1). `13.0 / 10.0` -> `14.0 / 11.0`, and it is the only pair of
+  // numbers this batch moved. On the eight-seed band it takes `skilled` 7/8 -> 8/8 and
+  // `flees-always` 1/8 -> 0/8 (I8) while cutting the cumulative damage of I2 from 0.888 to 0.843;
+  // `tactical-no-input` and `camps-in-place` stay 0/8. It was chosen over 620 other rows that the
+  // search played on the same band, and the batch report carries why the ones that scored better
+  // on I2 could not be adopted.
+  spawnRadius: 14.0,
+  engageRadius: 11.0,
   absoluteEnemyCap: 60,
   backlogSize: 12,
   backlogDrainPerTick: 2,

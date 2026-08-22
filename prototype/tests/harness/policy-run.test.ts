@@ -95,10 +95,17 @@ describe('§1.17 the runner reproduces the digests batch H recorded', () => {
     // fields are `0` and `[]` all the way through, and the offer filter that reads the second one
     // removes nothing from a pool it has never taken a card out of.
     // The previous digests were `9fa23f60`, `bf98a149` and `699a5f76`.
+    //
+    // TUNING BATCH 1 MOVED EVERY COLUMN, AND THIS TIME THAT IS THE POINT. The four batches above
+    // moved only the hash and said so; this one moved stage 1's `spawnRadius` 13.0 -> 14.0 and
+    // `engageRadius` 10.0 -> 11.0, which is a different fight, so the ticks and the kills had to
+    // move with the digest. `1653/159/0`, `2190/228/0` and `1719/170/0` at digests `d304b421`,
+    // `b5a643bc` and `43979b33` are what stood here before. All three still lose, which is what
+    // this fixture is for; the batch report carries the eight-seed band the values were chosen on.
     expect(THREE_SEEDS.map((seed) => runPolicySeed(policyFactory('tactical-no-input'), seed))).toEqual([
-      { seed: 'seed-a', outcome: 'lost', endTick: 1653, kills: 159, standing: 0, digest: 'd304b421' },
-      { seed: 'seed-b', outcome: 'lost', endTick: 2190, kills: 228, standing: 0, digest: 'b5a643bc' },
-      { seed: 'seed-c', outcome: 'lost', endTick: 1719, kills: 170, standing: 0, digest: '43979b33' },
+      { seed: 'seed-a', outcome: 'lost', endTick: 1575, kills: 145, standing: 0, digest: '038d64de' },
+      { seed: 'seed-b', outcome: 'lost', endTick: 2185, kills: 220, standing: 0, digest: 'f4ced7d8' },
+      { seed: 'seed-c', outcome: 'lost', endTick: 1731, kills: 165, standing: 0, digest: '1b349b23' },
     ])
   })
 })
@@ -155,10 +162,19 @@ describe('§4.1 `flees-always` on the three seeds', () => {
     // CAMPAIGN STAGE 1 MOVED ALL THREE AGAIN, for the reason written above the block before this
     // one. `1563/147/0`, `2204/225/0` and `2099/230/0` are unchanged; the previous digests were
     // `0eac8f2f`, `426086e8` and `77adaf5a`.
+    //
+    // TUNING BATCH 1 MOVED EVERY COLUMN. Stage 1's `spawnRadius` went 13.0 -> 14.0 and its
+    // `engageRadius` 10.0 -> 11.0, and that pair is the one thing on the whole eight-seed band
+    // that took `flees-always` from 1/8 to 0/8 while `skilled` went 7/8 to 8/8 — so it is a
+    // different fight for this policy above all, and the ticks moved with the digests.
+    // `1563/147/0`, `2204/225/0` and `2099/230/0` at `6a811778`, `4dbbc065` and `0cd5f95b` are
+    // what stood here before. Flight lasts LONGER on all three now (1763, 2235, 1955 against
+    // 1563, 2204, 2099 — two up, one down) and still loses all three, which is the shape a spawn
+    // ring further out gives it: more distance to buy, and no more able to buy it.
     expect(THREE_SEEDS.map((seed) => runPolicySeed(policyFactory('flees-always'), seed))).toEqual([
-      { seed: 'seed-a', outcome: 'lost', endTick: 1563, kills: 147, standing: 0, digest: '6a811778' },
-      { seed: 'seed-b', outcome: 'lost', endTick: 2204, kills: 225, standing: 0, digest: '4dbbc065' },
-      { seed: 'seed-c', outcome: 'lost', endTick: 2099, kills: 230, standing: 0, digest: '0cd5f95b' },
+      { seed: 'seed-a', outcome: 'lost', endTick: 1763, kills: 162, standing: 0, digest: '6ad10ffa' },
+      { seed: 'seed-b', outcome: 'lost', endTick: 2235, kills: 229, standing: 0, digest: '23c5b84b' },
+      { seed: 'seed-c', outcome: 'lost', endTick: 1955, kills: 191, standing: 0, digest: '88336953' },
     ])
   })
 

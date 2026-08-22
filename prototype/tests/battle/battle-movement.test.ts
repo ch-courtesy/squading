@@ -559,9 +559,14 @@ describe('§1.4.1 v11 — measured on a real run, not on a board', () => {
     // from t200 on, and 0.45 at t500 INSIDE the 2.460 slot lattice.
     //
     // NOT VACUOUS, and the values are here so that can be checked rather than trusted: v11 with
-    // this batch's two balance edits measures 10.41 / 10.64 / 10.26 / 11.85 / 11.21 at the same
-    // five ticks. (With the bearing alone, before `LEASH_RADIUS` went to 10.0, it was
+    // batch I's two balance edits measures 9.48 / 10.93 / 10.94 / 11.31 / 11.35 at the same five
+    // ticks. (With the bearing alone, before `LEASH_RADIUS` went to 10.0, it was
     // 7.87 / 9.07 / 8.39 / 9.27 / 8.95 — already wider than the lattice everywhere.)
+    //
+    // The five numbers were 10.41 / 10.64 / 10.26 / 11.85 / 11.21 until tuning batch 1 moved
+    // stage 1's spawn and engage radii; a further-out spawn ring is a different set of bodies to
+    // walk toward at any given tick. What the fixture is about — the squad is WIDER than the
+    // lattice, never narrower — is unchanged, and so is every assertion below.
     const run = sample('seed-a', 601)
     const measured: number[] = []
     for (const tick of [100, 200, 300, 500, 600]) {
@@ -571,17 +576,19 @@ describe('§1.4.1 v11 — measured on a real run, not on a board', () => {
       expect(row.maxDistance, `tick ${tick}`).toBeGreaterThan(FORMATION_MAX_SLOT_RADIUS)
       measured.push(Number(row.maxDistance.toFixed(2)))
     }
-    expect(measured).toEqual([10.41, 10.64, 10.26, 11.85, 11.21])
+    expect(measured).toEqual([9.48, 10.93, 10.94, 11.31, 11.35])
 
     // And it is not a spike at five sampled ticks. Over the first 600 ticks all fifteen are
-    // engaged on 561 of them, and on EXACTLY ONE of those — t23, the first tick anything is
+    // engaged on 536 of them, and on EXACTLY ONE of those — t30, the first tick anything is
     // engaged at all, before anyone has taken a step toward a goal — is the squad still only as
-    // wide as the lattice. It is never NARROWER than the lattice, which is the shape the defect
+    // wide as the lattice. (t23 and 561 before tuning batch 1 pushed the spawn ring out: the
+    // first body arrives seven ticks later and there are 25 fewer fully-engaged ticks in the
+    // window, which is the same one-line cause and not a second effect.) It is never NARROWER than the lattice, which is the shape the defect
     // took, and from t24 on it is strictly wider on all 560.
     expect(run.minMaxWhileFullyEngaged).toBeGreaterThanOrEqual(FORMATION_MAX_SLOT_RADIUS)
     expect(run.ticksTighterThanLattice).toEqual([])
-    expect(run.ticksAtLattice).toEqual([23])
-    expect(run.fullyEngagedTicks).toBe(561)
+    expect(run.ticksAtLattice).toEqual([30])
+    expect(run.fullyEngagedTicks).toBe(536)
   })
 
   it('supplies more than one target for the bearings to spread across (§1.10)', () => {
@@ -596,16 +603,22 @@ describe('§1.4.1 v11 — measured on a real run, not on a board', () => {
     // 3.4~4.2 and 2.9~4.1, and only both together clear 5 on every policy (4.8~5.8).
     //
     // THE WINDOW BELOW IS WHERE THE GAIN IS SMALLEST, on purpose, and it is where the number is
-    // still short: over the first 900 ticks it is 2.04, against 1.61 with the leash at 8.0 and
+    // still short: over the first 900 ticks it is 1.87, against 1.61 with the leash at 8.0 and
     // 1.15 at batch H's values. An enemy has to cross from `SPAWN_RADIUS` inward before it counts
     // here, and the early game is the part of the run where the squad is at full strength and
     // kills them on the way in. §5 stage 3 owns the curve that would fix that.
+    //
+    // It was 2.04 before tuning batch 1 pushed the spawn ring out from 13.0 to 14.0 and the engage
+    // radius from 10.0 to 11.0. A longer walk in is a smaller standing population inside a leash
+    // that did not move, so this number going DOWN is the direct cost of that edit, paid in the
+    // window it was already weakest in. It still clears the floor this fixture guards.
     const run = sample('seed-a', 901)
-    expect(run.meanInLeash).toBeCloseTo(2.044, 3)
+    expect(run.meanInLeash).toBeCloseTo(1.871, 3)
     expect(run.meanInLeash).toBeGreaterThan(1.8)
-    // What the bearings actually get to spread across: six distinct targets at the peak, where
-    // the same window at batch H's supply and leash peaks at three.
-    expect(run.maxDistinctTargets).toBe(6)
+    // What the bearings actually get to spread across: five distinct targets at the peak, where
+    // the same window at batch H's supply and leash peaks at three. It was six before tuning
+    // batch 1's spawn ring moved out, and the point of the fixture is the comparison with three.
+    expect(run.maxDistinctTargets).toBe(5)
   })
 })
 

@@ -191,10 +191,15 @@ describe('§2.3: each stage is dominated by the axis it is named for', () => {
 })
 
 describe('stage 1 is the run every recorded band was measured on', () => {
-  it('is unchanged by §5 stage 2, value for value', () => {
-    // The recorded bands, the browser routes and eleven fixtures that read `stageConfigOf(1)` all
-    // name stage 1. This is the one row in the table that is pinned by NUMBER, and it is pinned
-    // because the numbers themselves are the thing being preserved.
+  it('is the row tuning batch 1 chose, value for value', () => {
+    // This is the one row in the table pinned by NUMBER rather than by relation, and it is pinned
+    // because §5 stage 4 CHOSE these numbers: two of them off a 620-row search on the eight-seed
+    // band, the rest by being left alone. Stages 2-7 are still placeholders and are pinned by the
+    // §2.3 relations above instead, so the next tuning batch can move them without touching this.
+    //
+    // `spawnRadius 14.0` / `engageRadius 11.0` are tuning batch 1's. They were `13.0` / `10.0`
+    // through §5 stages 0-2; the change takes `skilled` 7/8 -> 8/8 and `flees-always` 1/8 -> 0/8
+    // on the band, and every digest pinned anywhere in this suite moved with them.
     expect(stageConfigOf(1)).toEqual({
       id: 1,
       arenaWidth: 56,
@@ -212,8 +217,8 @@ describe('stage 1 is the run every recorded band was measured on', () => {
       shooterDamage: 0.035,
       shooterStandoff: [0.6 * 4.5, 0.95 * 4.5],
       rangeAdvantage: SOLDIER_RANGE - 4.5,
-      spawnRadius: 13.0,
-      engageRadius: 10.0,
+      spawnRadius: 14.0,
+      engageRadius: 11.0,
       absoluteEnemyCap: 60,
       backlogSize: 12,
       backlogDrainPerTick: 2,
