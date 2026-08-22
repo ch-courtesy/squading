@@ -338,14 +338,25 @@ const WIN_CIRCUIT: readonly { code: string; ticks: number }[] = [
   { code: 'KeyW', ticks: 130 },
 ]
 
+/**
+ * Drive a circuit until the run stops asking for input, and answer with the overlay that stopped it.
+ *
+ * TWO OVERLAYS END A STAGE SINCE §5 STAGE 2, not one. A LOST stage ends on the battle terminal as
+ * it always did. A WON stage that is not the seventh ends on the STAGE TRANSITION screen instead,
+ * because the campaign hands the squad on rather than finishing — so a helper that waited only for
+ * the terminal would burn its whole timeout on every winning route and then report the win as a
+ * hang.
+ */
 async function driveCircuit(
   page: Page,
   circuit: readonly { code: string; ticks: number }[],
 ) {
   const terminal = page.locator('[data-battle-terminal]')
+  const transition = page.locator('[data-campaign-transition]')
   let boundary = 0
   for (let leg = 0; leg < 32; leg += 1) {
-    if (await terminal.isVisible()) break
+    if (await terminal.isVisible()) return terminal
+    if (await transition.isVisible()) return transition
     const step = circuit[leg % circuit.length]
     boundary += step.ticks
     await page.keyboard.down(step.code)
@@ -353,19 +364,22 @@ async function driveCircuit(
     await page.keyboard.up(step.code)
     if (boundary >= COMBAT_TICK_LIMIT) break
   }
-  return terminal
+  return (await transition.isVisible()) ? transition : terminal
 }
 
-test('plays seed-h to a win with real input, and restarts to a fresh run (§4.4 완주)', async ({ page }) => {
+test('plays seed-h to a win with real input and hands the squad on to stage 2 (§4.4 완주)', async ({ page }) => {
   test.setTimeout(300_000)
   await start(page, 'seed-h')
 
-  const terminal = await driveCircuit(page, WIN_CIRCUIT)
+  const transition = await driveCircuit(page, WIN_CIRCUIT)
 
-  await expect(terminal).toBeVisible({ timeout: 120_000 })
-  await expect(page.locator('[data-battle-result-title]')).toHaveText('승리')
-  await expect(page.locator('[data-battle-result-cause]')).toHaveText('정예를 처치했습니다.')
-  await expect(page.locator('[data-battle-result-commander]')).toHaveText('생존')
+  // §5 stage 2: winning stage 1 of a SEVEN-stage campaign is not the end of a run. The battle
+  // terminal — 승리/정예를 처치했습니다 — is no longer what a browser win shows, and this route is
+  // the only place that fact is checked against the real shell rather than a published stub.
+  await expect(transition).toBeVisible({ timeout: 120_000 })
+  await expect(page.locator('[data-battle-terminal]')).toBeHidden()
+  await expect(page.locator('[data-campaign-cleared-stage]')).toHaveText('1')
+  await expect(page.locator('[data-campaign-next-stage]')).toHaveText('2')
   const endTick = await tick(page)
   expect(endTick).toBeGreaterThan(ELITE_SPAWN_TICK)
   expect(endTick).toBeLessThanOrEqual(COMBAT_TICK_LIMIT)
@@ -385,14 +399,36 @@ test('plays seed-h to a win with real input, and restarts to a fresh run (§4.4 
   expect(replay.endTick).toBe(endTick)
   expect(replay.digest).toBe(recorded.digest)
 
-  await page.getByRole('button', { name: '다시 시작' }).click()
-  await expect(terminal).toBeHidden()
-  await expect(page.locator('[data-battle-ready]')).toBeVisible()
-  expect(await tick(page)).toBe(0)
-
-  await page.getByRole('button', { name: '전투 시작' }).click()
+  // §1.1 THROUGH THE REAL SHELL: the button on the transition screen starts stage 2 with the squad
+  // that survived stage 1, on the derived seed. Everything below `stageSeed` — the roster, the hp,
+  // the cards — is checked headlessly in `tests/campaign/`; what is checked HERE is that the
+  // browser walks the same path, which nothing did before this batch.
+  const carried = Number(
+    (await page.locator('[data-campaign-survivor-count]').textContent())!.replace(/\D+/g, ''),
+  )
+  expect(carried).toBeGreaterThan(0)
+  await page.locator('[data-campaign-next]').click()
+  await expect(transition).toBeHidden()
   await expect(page.locator('[data-battle-hud]')).toBeVisible()
-  await expect(page.locator('[data-battle-remaining]')).not.toHaveText('90.0초')
+  expect(await page.evaluate(() => window.__SQUADING_TEST__!.battle!.seed())).toBe(
+    `${recorded.seed}:stage:2`,
+  )
+  expect(
+    await page.evaluate(() => window.__SQUADING_TEST__!.battle!.hud().roster.length),
+  ).toBe(carried)
+  // §1.1: the clock is the new stage's, not a continuation of the one just won. The button starts
+  // the battle immediately (there is no second ready screen for one decision), so the loop is
+  // already running by the time this reads — the assertion is that the tick is at the START of a
+  // fresh 90 seconds and not near the ~2000 the last stage ended on.
+  expect(await tick(page)).toBeLessThan(120)
+
+  // WHAT THIS ROUTE STOPPED COVERING, written down rather than dropped quietly. It used to finish
+  // by pressing 다시 시작, but that button lives inside `[data-battle-terminal]` — the CAMPAIGN-end
+  // screen — and a won stage 1 of seven does not reach it. Restart from a finished run is covered
+  // by the losing route below, which does end there. Restart after a WIN has no browser route
+  // until a run can win stage 7, and the campaign band this batch recorded says no policy gets
+  // past stage 2 at these placeholders. A transition screen with no way back to stage 1 is a SHELL
+  // question and §5 stage 1 owns the shell, so this batch reports it instead of adding a button.
 })
 
 /**
