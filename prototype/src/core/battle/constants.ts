@@ -165,6 +165,55 @@ export const MELEE_CONTACT_SLOTS_PER_FRIENDLY = 1
 export const SHOOTER_TARGET_SLOTS_PER_FRIENDLY = 2
 
 // ---------------------------------------------------------------------------
+// PLACEHOLDER — §1.10.1's floor (§2: `minPressureFraction` 0.3~0.8)
+// ---------------------------------------------------------------------------
+
+/**
+ * PLACEHOLDER — the floor under §1.10.1's pressure fraction. §2 searches `0.3 ~ 0.8`.
+ *
+ * WHAT THE FRACTION IS. §1.10.1 makes the board's size a function of the squad's:
+ * `effectiveCap = ceil(phaseCap x standing / ROSTER_SIZE)`, with the request interval divided by
+ * the same fraction. `spawn.ts` owns the arithmetic; this file owns the floor, because the floor
+ * is not a supply number — it is the clause that keeps a casualty a cost.
+ *
+ * WHY THERE IS A FLOOR AT ALL. §1.10.1 names the failure the naive rule would create: "잃을수록
+ * 판이 쉬워지면 사상자가 비용이 아니라 보상이 되고, §1.11의 구조와 §4.5 4번 질문이 무의미해진다."
+ * Without a floor the fraction goes to zero with the squad, so the last two bodies alive would
+ * face a board scaled to two bodies and a wipe would decelerate into a stalemate. The floor is
+ * what stops the relief before it becomes a reward.
+ *
+ * WHY 0.65, AND IT WAS MEASURED RATHER THAN ASSERTED. Six floors were played across §2's whole
+ * box on the fixed eight seeds — the per-stage band (448 runs each) at `0.3 / 0.5 / 0.65 / 0.7 /
+ * 0.75 / 0.8` and the campaign band (64 campaigns each) at `0.3 / 0.5 / 0.65 / 0.8`. The two
+ * things that separate the box:
+ *
+ *   §2.4's three checks (`skilled` non-increasing, 8/8 at stage 1, below 8/8 at stage 7) hold at
+ *   0.3, 0.5 and 0.65 and BREAK at 0.7, 0.75 and 0.8, all three in the same way — stage 1 falls to
+ *   7/8 and the row starts `7 · 8`, which is an increase.
+ *
+ *   I10 (`camps-in-place` at most 2/8 per stage) holds at 0.5 and above and breaks at 0.3
+ *   (`3·5·3·2·3·2·0`).
+ *
+ * That leaves 0.5 and 0.65, and 0.65 is taken because it is the LARGER — the weakest scaling that
+ * clears both. §1.10.1's whole hazard is scaling that is too strong, so where the measurement
+ * cannot separate two points the tie goes to the one nearer the absolute cap this replaced. It is
+ * also better on the two invariants that the rule damages: `flees-always` is `5·3·3·1·2·0·0` at
+ * 0.65 against `6·4·5·1·2·1·1` at 0.5.
+ *
+ * WHAT IT MEANS AT `ROSTER_SIZE` 16. The fraction tracks the squad exactly from 16 standing down
+ * to 11 (`11/16 = 0.6875`), and from 10 downward the floor holds it at 0.65. So a squad that has
+ * lost a third of itself stops being given relief: firepower keeps falling while the board stops
+ * shrinking, which is §6's death spiral put back on purpose for the part of the run where "사람을
+ * 잃는 것은 언제나 손해여야 한다" has to be visible.
+ *
+ * THE CHECK THAT SAYS WHETHER IT IS TOO STRONG is I13, not this comment: §1.10.1 makes
+ * `abandons-downed` doing worse than `skilled` the detector for scaling that pays for casualties.
+ * It does NOT invert at any floor measured — but the gap at stage 1 falls from `+3.25` to `+2.25`,
+ * under §3's `>= 3`. The batch report carries that measurement and does not round it off.
+ */
+export const MIN_PRESSURE_FRACTION = 0.65
+
+// ---------------------------------------------------------------------------
 // PLACEHOLDER — rescue (§1.11)
 // ---------------------------------------------------------------------------
 
@@ -316,6 +365,18 @@ assertRule(
 assertRule(
   HP_EPSILON > 0 && HP_EPSILON < 10 ** -DIGEST_DECIMALS,
   'HP_EPSILON must be positive and finer than the digest resolution (§1.1)',
+)
+// §1.10.1/§2: `minPressureFraction` is boxed at `0.3 ~ 0.8`, and BOTH edges are a rule rather
+// than a taste. Under 0.3 the board a two-body squad meets has shrunk by more than two thirds and
+// §1.10.1's "사상자가 비용이 아니라 보상이 되고" is the state the game is in — the floor has stopped
+// being a floor. Over 0.8 the scaling has almost no room to act before it bottoms out (at 16 bodies
+// a floor of 0.8 binds from 13 standing downward), so §1.10.1's whole purpose — a smaller squad
+// meeting a smaller board — is expressed over three bodies and the coupling it exists to break is
+// still there. This is the one assert that stands between the rule and the trap the rule names, so
+// it is checked here at module load rather than trusted to a fixture.
+assertRule(
+  MIN_PRESSURE_FRACTION >= 0.3 && MIN_PRESSURE_FRACTION <= 0.8,
+  'MIN_PRESSURE_FRACTION must be within [0.3, 0.8] (§2)',
 )
 assertRule(CARD_POOL.length === 8, 'the card pool is exactly 8 cards (§1.13)')
 assertRule(UPGRADE_KILL_THRESHOLDS.length === MAX_UPGRADES, 'there are exactly 4 upgrade thresholds (§1.13)')

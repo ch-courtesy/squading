@@ -252,15 +252,17 @@ describe('§1.17 / §4.2 the same seed and the same log replay identically', () 
     // make the comparison above true and empty.
     //
     // THIS USED TO ASSERT `CHECKPOINTS.length + 1`, i.e. that the run reached the last entry of
-    // `CHECKPOINTS`. Batch I raised §1.10's request rate and this scripted run now ends between
-    // the 1800 and 2000 entries, so the measured count is 7: the six checkpoints through 1800,
-    // plus the final digest. The number is a balance fact and will move again at §5 stage 3.
+    // `CHECKPOINTS`. Batch I raised §1.10's request rate and this scripted run then ended between
+    // the 1800 and 2000 entries, so the measured count was 7: the six checkpoints through 1800,
+    // plus the final digest. §1.10.1 (v14) puts it back to 8 — the scripted run loses bodies, the
+    // board shrinks with them, and the run survives past the 2000 entry to end at 2189. The number
+    // is a balance fact and will move again at §5 stage 3.
     //
     // WHAT THE FLOOR IS FOR, and it is why the second line is here rather than only the first:
     // the replay has to cover §1.12's elite, which arrives at 1800. A run that stopped short of
     // it would still satisfy an equality on a smaller count while quietly testing nothing about
     // the half of the battle that has the elite in it.
-    expect(first.checkpoints.length).toBe(7)
+    expect(first.checkpoints.length).toBe(8)
     expect(first.battle.state().combatTick).toBeGreaterThan(ELITE_SPAWN_TICK)
     expect(first.battle.state().result).not.toBeNull()
   })

@@ -106,9 +106,15 @@ import { FORMATION_MAX_SLOT_RADIUS } from './formation'
 export type PressurePhase = {
   /** First tick of the phase (inclusive). */
   fromTick: number
-  /** PLACEHOLDER — live cap inside `engageRadius`. */
+  /**
+   * PLACEHOLDER — live cap inside `engageRadius`, FOR A FULL SQUAD.
+   *
+   * §1.10.1 (v14) scales it every tick by how many friendlies are standing, so this number is the
+   * value at `ROSTER_SIZE` bodies and never the value the gate compares against. The arithmetic and
+   * its floor are in `spawn.ts`; the table stays a table.
+   */
   engagedCap: number
-  /** PLACEHOLDER — ticks between spawn requests. */
+  /** PLACEHOLDER — ticks between spawn requests FOR A FULL SQUAD. §1.10.1 divides it by the same fraction. */
   requestInterval: number
   /** PLACEHOLDER — melee : shooter, as a pair of integer weights. */
   meleeToShooter: readonly [number, number]

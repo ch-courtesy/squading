@@ -64,6 +64,11 @@
 //         discard and count; phase `engagedCap`, measured only inside `ENGAGE_RADIUS` ->
 //         backlog; else spawn. The backlog drains first, up to `BACKLOG_DRAIN_PER_TICK`,
 //         at the coordinates fixed when each entry was requested.
+//   §1.10.1 pressure scales with the squad (v14) ............... spawn
+//         `engagedCap` and `requestInterval` are the FULL-SQUAD values; both are scaled every
+//         tick by `standing / ROSTER_SIZE`, clamped into `[MIN_PRESSURE_FRACTION, 1]`. Derived
+//         per tick, so there is no new `BattleState` field and no new stream — and it is a
+//         change to what step 2 COMPUTES, not to the order of §1.16's sixteen steps.
 //   §1.11 rescue ............................................... rescue
 //         The lock is HELD state, the cancel is an EVENT: `resolveRescueLock(state, events)`
 //         takes `RescueInputEvents` because a held movement vector must NOT cancel (the v5

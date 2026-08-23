@@ -151,6 +151,7 @@ const TARGETING = 'src/core/battle/targeting.ts'
 const SNAPSHOT = 'src/core/battle-view/snapshot.ts'
 const STATE = 'src/core/battle/state.ts'
 const UPGRADES = 'src/core/battle/upgrades.ts'
+const SPAWN = 'src/core/battle/spawn.ts'
 const TRANSITION = 'src/core/campaign/transition.ts'
 const CAMPAIGN_SEED = 'src/core/campaign/seed.ts'
 
@@ -568,6 +569,65 @@ const MUTATIONS = [
     label: "put §1.10's phase-0 request interval back where batch H had it",
     find: '    { fromTick: 0, engagedCap: 14, requestInterval: 9, meleeToShooter: [5, 1] },',
     replace: '    { fromTick: 0, engagedCap: 14, requestInterval: 12, meleeToShooter: [5, 1] },',
+  },
+
+  // --- spawn.ts / §1.10.1 pressure scales with the standing squad (v14) ----------------------
+  // DERIVED FROM §1.10.1's OWN SENTENCES, fixtures unread, exactly as the header requires. The
+  // section says four things and each one is a mutation here:
+  //
+  //   "engagedCap과 스폰 요청은 절대값이 아니라 현재 서 있는 아군 수에 비례한다"
+  //        -> give the cap back its absolute value  (mutation 1)
+  //   "요청 간격도 같은 비율로 짧아지거나 길어진다"
+  //        -> leave the interval absolute            (mutation 2)
+  //   "§2가 정할 하한(minPressureFraction)이 바닥을 만든다. 사람을 잃는 것은 언제나 손해여야 한다"
+  //        -> drop the floor                          (mutation 3)
+  //   "진입 인원이 아니라 매 tick의 생존 인원이다" (and downed bodies do not count)
+  //        -> count the downed as standing            (mutation 4)
+  //
+  // MUTATION 1 AND MUTATION 3 ARE THE TWO THE BRIEF NAMED — "a cap that ignores the standing
+  // count, or a fraction with no floor" — and they are the two failure modes on opposite sides of
+  // the rule. 1 is the coupling §1.10.1 exists to break (one variable setting both the board's
+  // lethality and whether seven stages can be finished). 3 is the trap §1.10.1 warns the naive
+  // version falls into: without a floor a wipe decelerates into a stalemate and a casualty stops
+  // being a cost.
+  //
+  // MEASURED IN THE COMMIT THAT ADDS THEM AND BEFORE THE FIXTURES THAT ANSWER THEM, against the
+  // TARGET_TESTS list of that commit — which did not yet include `battle-spawn.test.ts`:
+  //
+  //   absolute cap ...................... caught   (tests/harness digest block)
+  //   absolute interval ................. caught   (tests/harness digest block)
+  //   no floor .......................... caught   (tests/harness digest block)
+  //   downed count as standing .......... caught   (tests/harness digest block)
+  //
+  // All four caught, and ALL FOUR BY THE DIGEST BLOCK — which says the run is different and never
+  // which rule broke. That is the same weak catch this file's header calls a change detector, and
+  // it is why the next commit adds `tests/battle/battle-spawn.test.ts` to `TARGET_TESTS` and puts
+  // four §1.10.1 fixtures in it that hand-compute the scaled cap, the scaled interval, the floor
+  // and the standing count. Re-measured with the digest block EXCLUDED (`--filter` over
+  // `battle-spawn.test.ts` alone), all four are caught by those fixtures.
+  {
+    file: SPAWN,
+    label: 'give the engaged cap back its absolute value (= the v13 coupling §1.10.1 breaks)',
+    find: '  return Math.max(1, ceilScaled(phase.engagedCap * pressureFractionOf(state)))',
+    replace: '  return phase.engagedCap',
+  },
+  {
+    file: SPAWN,
+    label: 'leave the request interval absolute, so only half the rule scales',
+    find: '  return Math.max(1, ceilScaled(phase.requestInterval / pressureFractionOf(state)))',
+    replace: '  return phase.requestInterval',
+  },
+  {
+    file: SPAWN,
+    label: 'drop the floor under the fraction (= §1.10.1s trap: casualties become a reward)',
+    find: '  return raw < MIN_PRESSURE_FRACTION ? MIN_PRESSURE_FRACTION : raw',
+    replace: '  return raw',
+  },
+  {
+    file: SPAWN,
+    label: 'count the downed as standing, so §1.11s rescue buys back no pressure',
+    find: "    if (unit.life === 'standing') count += 1",
+    replace: "    if (unit.life !== 'dead') count += 1",
   },
 
   // --- stages.ts: the stage lookup (campaign stage 0, caught by campaign stage 2) --------------
