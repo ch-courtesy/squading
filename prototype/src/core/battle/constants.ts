@@ -171,45 +171,45 @@ export const SHOOTER_TARGET_SLOTS_PER_FRIENDLY = 2
 /**
  * PLACEHOLDER — the floor under §1.10.1's pressure fraction. §2 searches `0.3 ~ 0.8`.
  *
- * WHAT THE FRACTION IS. §1.10.1 makes the board's size a function of the squad's:
- * `effectiveCap = ceil(phaseCap x standing / ROSTER_SIZE)`, with the request interval divided by
- * the same fraction. `spawn.ts` owns the arithmetic; this file owns the floor, because the floor
- * is not a supply number — it is the clause that keeps a casualty a cost.
+ * WHAT THE FRACTION IS. §1.10.1 makes the board's size a function of the squad that ENTERED the
+ * stage: `effectiveCap = ceil(phaseCap x enteringStanding / ROSTER_SIZE)`, with the request
+ * interval divided by the same fraction. `spawn.ts` owns the arithmetic; this file owns the floor.
  *
- * WHY THERE IS A FLOOR AT ALL. §1.10.1 names the failure the naive rule would create: "잃을수록
- * 판이 쉬워지면 사상자가 비용이 아니라 보상이 되고, §1.11의 구조와 §4.5 4번 질문이 무의미해진다."
- * Without a floor the fraction goes to zero with the squad, so the last two bodies alive would
- * face a board scaled to two bodies and a wipe would decelerate into a stalemate. The floor is
- * what stops the relief before it becomes a reward.
+ * WHY THERE IS A FLOOR AT ALL. §1.10.1 names the failure an unbounded fraction would create:
+ * "잃을수록 판이 쉬워지면 사상자가 비용이 아니라 보상이 되고, §1.11의 구조와 §4.5 4번 질문이
+ * 무의미해진다." Without a floor the fraction goes to zero with the squad, so a relay leg opened by
+ * two bodies would meet a board scaled to two and the campaign would decelerate into a stalemate
+ * instead of ending. Since the v14 fix the floor is the SECONDARY guard, and §1.10.1 says so: the
+ * primary one is that pressure does not move inside a battle at all.
  *
- * WHY 0.65, AND IT WAS MEASURED RATHER THAN ASSERTED. Six floors were played across §2's whole
- * box on the fixed eight seeds — the per-stage band (448 runs each) at `0.3 / 0.5 / 0.65 / 0.7 /
- * 0.75 / 0.8` and the campaign band (64 campaigns each) at `0.3 / 0.5 / 0.65 / 0.8`. The two
- * things that separate the box:
+ * WHY 0.65 — AND THE REASON THAT FIRST CHOSE IT IS VOID. It was picked as the largest floor that
+ * kept §2.4's three checks, which broke at 0.7 and above. Under the entering count that argument
+ * cannot be made: every run of the per-stage band opens with a fresh sixteen, so the fraction is 1
+ * in all 448 of them and the floor multiplies nothing. Measured, not deduced — the stage band was
+ * played at all six of `0.3 / 0.5 / 0.65 / 0.7 / 0.75 / 0.8` and all six are identical in every
+ * field of all 448 rows, so §2.4, I1, I2, I3, I8, I10 and I13 are the same number across the box.
  *
- *   §2.4's three checks (`skilled` non-increasing, 8/8 at stage 1, below 8/8 at stage 7) hold at
- *   0.3, 0.5 and 0.65 and BREAK at 0.7, 0.75 and 0.8, all three in the same way — stage 1 falls to
- *   7/8 and the row starts `7 · 8`, which is an increase.
+ * SO THE BOX WAS RE-SWEPT ON WHAT CAN STILL SEE IT, and nothing in it is excluded:
  *
- *   I10 (`camps-in-place` at most 2/8 per stage) holds at 0.5 and above and breaks at 0.3
- *   (`3·5·3·2·3·2·0`).
+ *   the campaign band (64 campaigns) at `0.3 / 0.5 / 0.65 / 0.7 / 0.75 / 0.8` gives `skilled`
+ *   `2 / 1 / 1 / 1 / 1 / 2` of 8 — every point inside §4's `1~6` target, and a spread of one
+ *   campaign, which is not a separation;
  *
- * That leaves 0.5 and 0.65, and 0.65 is taken because it is the LARGER — the weakest scaling that
- * clears both. §1.10.1's whole hazard is scaling that is too strong, so where the measurement
- * cannot separate two points the tie goes to the one nearer the absolute cap this replaced. It is
- * also better on the two invariants that the rule damages: `flees-always` is `5·3·3·1·2·0·0` at
- * 0.65 against `6·4·5·1·2·1·1` at 0.5.
+ *   `entry-cost.sweep.ts`, which plays every stage with squads that walked in at 16 down to 2,
+ *   says the clause the floor exists for holds at all six: wins fall and damage per entering body
+ *   rises as the entering squad shrinks, everywhere. Arriving short is always a cost.
  *
- * WHAT IT MEANS AT `ROSTER_SIZE` 16. The fraction tracks the squad exactly from 16 standing down
- * to 11 (`11/16 = 0.6875`), and from 10 downward the floor holds it at 0.65. So a squad that has
- * lost a third of itself stops being given relief: firepower keeps falling while the board stops
- * shrinking, which is §6's death spiral put back on purpose for the part of the run where "사람을
- * 잃는 것은 언제나 손해여야 한다" has to be visible.
+ * IT STAYS AT 0.65 BECAUSE NOTHING MEASURED MOVES IT. The box's two ends are two clauses trading
+ * off monotonically with no kink between them — a smaller floor removes more of the relay's decay
+ * (campaigns reaching stage 7: `14 / 13 / 13 / 11 / 10 / 8` of 64), a larger one makes arriving
+ * short cost more (wins for a ten-body entry: `28 / 28 / 23 / 18 / 11 / 9` of 56). 0.65 is the
+ * interior point the earlier sweep left and this one does not exclude. Moving it toward the
+ * campaign band's one-campaign spread would be tuning against noise, so it was not moved. §5 stage
+ * 4 owns the balance and this is still a placeholder.
  *
- * THE CHECK THAT SAYS WHETHER IT IS TOO STRONG is I13, not this comment: §1.10.1 makes
- * `abandons-downed` doing worse than `skilled` the detector for scaling that pays for casualties.
- * It does NOT invert at any floor measured — but the gap at stage 1 falls from `+3.25` to `+2.25`,
- * under §3's `>= 3`. The batch report carries that measurement and does not round it off.
+ * WHAT IT MEANS AT `ROSTER_SIZE` 16. The fraction tracks the entering squad exactly from 16 down
+ * to 11 (`11/16 = 0.6875`), and from 10 downward the floor holds it at 0.65. Of the 109 relay legs
+ * the campaign band played at this value, 37 opened below that knee.
  */
 export const MIN_PRESSURE_FRACTION = 0.65
 
