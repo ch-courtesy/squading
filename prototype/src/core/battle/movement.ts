@@ -202,7 +202,18 @@ function selectEngagementTargetIn(
  * not something a friendly card changes.
  */
 export function engagementBandOf(state: BattleState, unit: FriendlyUnit): readonly [number, number] {
-  return [stageOf(state).shooterRange, attackRangeOf(state, unit)]
+  const reach = attackRangeOf(state, unit)
+  // §1.2.1: THE INVERSION IS THE ANSWER, NOT A BUG TO GUARD AGAINST.
+  //
+  // The band's near edge is the shooter's range because inside it the shooter answers back and
+  // §1.6's advantage is gone. A skirmisher's reach is BELOW that edge, so the band it names is
+  // inverted — and read plainly that says the unit has no advantage to hold, which is exactly
+  // true of it. What is left is its own reach, so the band collapses to "close to contact".
+  //
+  // Written as `min` rather than a class branch on purpose. The rule is about the geometry, not
+  // about who the unit is: any friendly that stops outranging the shooter closes, whether that
+  // happens by class today or by a stage lowering someone's reach tomorrow.
+  return [Math.min(stageOf(state).shooterRange, reach), reach]
 }
 
 /** §1.4: close on `target`, never overshooting it, and stop dead inside ARRIVE_EPSILON. */

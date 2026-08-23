@@ -62,6 +62,19 @@ function scriptedLog(): LogEntry[] {
     { step: 700, act: (battle) => battle.keyUp('Space') },
     { step: 900, act: (battle) => battle.keyDown('ArrowUp') },
     { step: 1400, act: (battle) => battle.keyUp('ArrowUp') },
+    // KEEPS KITING PAST 1400, and that is not decoration. Everything above exercises §1.15's
+    // input surface; these legs exist so the replay REACHES §1.12's elite at 1800. Under
+    // §1.2.1 the old script stopped moving at 1400 and the squad was wiped at 1556, which
+    // satisfied a shorter equality while quietly testing nothing about the half of the battle
+    // that has the elite in it — exactly the failure the floor below is written against.
+    { step: 1410, act: (battle) => battle.keyDown('KeyA') },
+    { step: 1560, act: (battle) => battle.keyUp('KeyA') },
+    { step: 1570, act: (battle) => battle.keyDown('KeyW') },
+    { step: 1720, act: (battle) => battle.keyUp('KeyW') },
+    { step: 1730, act: (battle) => battle.keyDown('KeyD') },
+    { step: 1880, act: (battle) => battle.keyUp('KeyD') },
+    { step: 1890, act: (battle) => battle.keyDown('KeyS') },
+    { step: 2040, act: (battle) => battle.keyUp('KeyS') },
   ]
 }
 
@@ -241,8 +254,14 @@ describe('the facade', () => {
 
 describe('§1.17 / §4.2 the same seed and the same log replay identically', () => {
   it('agrees at every checkpoint of a whole battle, with an input log', () => {
-    const first = replay('seed-a', scriptedLog())
-    const second = replay('seed-a', scriptedLog())
+    // `seed-c`, NOT `seed-a`, and the swap is a measurement. §1.2.1 put five of the fifteen at
+    // `SKIRMISHER_RANGE`, so the squad's ranged output fell by a third and this scripted route
+    // now dies on `seed-a` at 1589 — short of §1.12's elite, which is the half of the battle
+    // the floor below exists to keep in the replay. Measured across the eight band seeds under
+    // the same script: `seed-a` 1589 is the ONLY one that falls short; the rest run 1991-2197.
+    // `seed-c` at 2055 keeps this a defeat route, which is what it was.
+    const first = replay('seed-c', scriptedLog())
+    const second = replay('seed-c', scriptedLog())
 
     expect(second.checkpoints).toEqual(first.checkpoints)
     expect(second.steps).toBe(first.steps)
@@ -263,7 +282,10 @@ describe('§1.17 / §4.2 the same seed and the same log replay identically', () 
     // the replay has to cover §1.12's elite, which arrives at 1800. A run that stopped short of
     // it would still satisfy an equality on a smaller count while quietly testing nothing about
     // the half of the battle that has the elite in it.
-    expect(first.checkpoints.length).toBe(7)
+    // Eight: all seven CHECKPOINTS fire plus the closing digest, because `seed-c` runs to 2055
+    // and clears the last one at 2000. The floor below is what this count is FOR — a shorter run
+    // would satisfy a smaller equality while testing nothing about §1.12's half of the battle.
+    expect(first.checkpoints.length).toBe(8)
     expect(first.battle.state().combatTick).toBeGreaterThan(ELITE_SPAWN_TICK)
     expect(first.battle.state().result).not.toBeNull()
   })

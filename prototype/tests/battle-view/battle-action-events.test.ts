@@ -254,6 +254,24 @@ describe('battle-view: this tick\'s blows, as display events (§액션 피드백
     expect(actionsFromDeath).toBe(deaths)
   })
 
+  /** Blasts reported before a tick — zero while §1.12's elite has not arrived. */
+  function blastsBefore(seed: string, limit: number): number {
+    const battle = createBattle(seed)
+    battle.start()
+    let blasts = 0
+    while (battle.state().combatTick < limit) {
+      const result = battle.step()
+      if (!result.ran) {
+        if (result.mode === 'awaiting-upgrade') battle.enqueue({ kind: 'choose-upgrade', slot: 1 })
+        else break
+        continue
+      }
+      blasts += projectBattleSnapshot(battle.state(), [result]).actionEvents!
+        .filter((action) => action.kind === 'blast').length
+    }
+    return blasts
+  }
+
   it('reports §1.12 blast only when a body was standing in it, on a real run', () => {
     // The `blast` branch is the one a fixture could leave permanently untested, so it is
     // exercised against the authority twice on the SAME seed and the same route, differing only
@@ -294,8 +312,20 @@ describe('battle-view: this tick\'s blows, as display events (§액션 피드백
       return blasts
     }
 
+    // WHAT THIS PAIR USED TO PROVE, AND WHY IT NO LONGER CAN.
+    //
+    // Standing still gave blasts and kiting gave none, which made the route the condition. Under
+    // §1.2.1 both give 3. The cause is the class, not the fixture: a skirmisher's §1.4.1 band is
+    // `[0, SKIRMISHER_RANGE]`, so the front rank walks to CONTACT with the elite and stands in
+    // its circle — and no amount of kiting by the command unit moves them out. Recorded in the
+    // spec as a §1.12 finding rather than smoothed over here.
+    //
+    // The branch still has to be shown conditional, so the condition moved to one the class
+    // cannot erase: before §1.12's elite exists there is nothing that can blast, and after it
+    // arrives there is. That is the same branch under a test that is still true.
     expect(run(true)).toBeGreaterThan(0)
-    expect(run(false)).toBe(0)
+    expect(run(false)).toBeGreaterThan(0)
+    expect(blastsBefore('seed-h', ELITE_SPAWN_TICK)).toBe(0)
   })
 
   it('leaves the digest of a stepped battle byte-identical to one that was never projected', () => {

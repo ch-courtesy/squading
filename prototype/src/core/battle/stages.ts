@@ -98,6 +98,7 @@ import {
   COMMANDER_MELEE_RANGE,
   COMMANDER_MOVE_SPEED,
   SHOOTER_STANDOFF_RATIO,
+  SKIRMISHER_RANGE,
   SOLDIER_RANGE,
 } from './constants'
 import { FORMATION_MAX_SLOT_RADIUS } from './formation'
@@ -924,6 +925,15 @@ for (const stage of STAGES) {
     'shooterRange must be < SOLDIER_RANGE (§1.9)',
   )
   assertStageRule(stage, stage.rangeAdvantage > 0, 'the range advantage must be positive (§1.6)')
+  // §1.2.1: the skirmisher is DEFINED by being outranged by the shooter — that is what makes
+  // its §1.4.1 band invert into "close", and what makes it the class §1.6's advantage does not
+  // apply to. A stage that outranged it the other way would quietly turn the front rank into
+  // riflemen with a different silhouette.
+  assertStageRule(
+    stage,
+    SKIRMISHER_RANGE < stage.shooterRange,
+    'SKIRMISHER_RANGE must be < shooterRange (§1.2.1)',
+  )
   // §1.3: THE relation this version of the design rests on. Units fire while moving, so the only
   // thing stopping pure flight is that the melee is faster than the body the player drives.
   // Invert this and "run in a straight line forever" is an unanswerable strategy again, which is

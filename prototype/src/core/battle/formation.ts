@@ -73,6 +73,32 @@ export const FORMATION_MAX_SLOT_RADIUS = Math.max(
  * offset`. MORE bodies than slots is still a throw: there would be a follower with nowhere to
  * stand, and silently dropping it is how a body disappears from a run.
  */
+/**
+ * §1.2.1: the five slots of the front rank, by index into `FORMATION_SLOTS`.
+ *
+ * DERIVED FROM THE LATTICE, NOT LISTED. A hand-written `[0,1,2,3,4]` would be correct today
+ * and silently wrong the first time a slot is inserted — §1.4's table is positional and its
+ * order is part of the contract, so the rank has to be read off the geometry that defines it.
+ * §1.15 fixes `-y` as up, so the front rank is the most negative row.
+ */
+const FRONT_RANK_Y = Math.min(...FORMATION_SLOTS.map((slot) => slot.y))
+export const SKIRMISHER_SLOT_INDICES: readonly number[] = FORMATION_SLOTS
+  .map((slot, index) => (slot.y === FRONT_RANK_Y ? index : -1))
+  .filter((index) => index >= 0)
+
+/**
+ * §1.2.1: which class a soldier is, from the slot it holds.
+ *
+ * Class is DERIVED and never stored. §1.4 assigns slots by ascending id and never recomputes,
+ * so a slot is a permanent property of a unit and the class comes free — which is what keeps
+ * §1.17's no-scratch rule intact. The commander is neither class; §1.4 gives it no slot, and a
+ * standing unit with no slot (the original commander after §1.5's succession) is a rifleman,
+ * because a body with no place in the front rank is not holding the front rank.
+ */
+export function isSkirmisherSlot(slotIndex: number | null): boolean {
+  return slotIndex !== null && SKIRMISHER_SLOT_INDICES.includes(slotIndex)
+}
+
 export function createSlotAssignments(soldierIds: readonly number[]): SlotAssignment[] {
   if (soldierIds.length > FORMATION_SLOTS.length) {
     throw new Error(

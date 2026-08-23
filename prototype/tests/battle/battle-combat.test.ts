@@ -32,7 +32,24 @@ import {
 } from '../../src/core/battle/attacks'
 import { advanceTargeting, selectFriendlyTargetId } from '../../src/core/battle/targeting'
 import { advanceEnemyMovement, isEnemyEngaged } from '../../src/core/battle/enemy'
-import { COMMANDER_ID, createEnemy, createInitialBattleState, findEnemy, findFriendly } from '../../src/core/battle/state'
+import {
+  COMMANDER_ID,
+  RIFLEMAN_IDS,
+  createEnemy,
+  createInitialBattleState,
+  findEnemy,
+  findFriendly,
+} from '../../src/core/battle/state'
+
+/**
+ * §1.2.1 SPLIT THE SQUAD, AND EVERY FIXTURE BELOW THAT SAYS "SOLDIER" MEANS RIFLEMAN.
+ *
+ * These used soldier id 2 because before the split every soldier outranged the shooter, so any
+ * of them showed §1.6's gap. Id 2 now holds the front rank, and a skirmisher is DEFINED by
+ * being outranged — that is §1.2.1's entire point — so id 2 can no longer demonstrate the thing
+ * these tests exist to demonstrate. Naming the class says what was always meant.
+ */
+const RIFLE = RIFLEMAN_IDS[0]
 import { commandBatch } from '../../src/core/battle/input'
 import { advanceBattleTick } from '../../src/core/battle/tick'
 import type { ResolvedTick } from '../../src/core/battle/tick'
@@ -540,15 +557,15 @@ describe('§1.6 range advantage — the mechanism that replaced cover', () => {
     // standing 4.6 away is:
     //   * inside its own 5.0 range        -> it shoots
     //   * outside the shooter's 4.5 range -> the shooter cannot reach it at all
-    // Hand-computed: place soldier 2 at (28, 16) and the shooter at (32.6, 16).
+    // Hand-computed: place the rifleman at (28, 16) and the shooter at (32.6, 16).
     expect(RANGE_ADVANTAGE).toBeCloseTo(0.5, 12)
     const distance = 4.6
     expect(distance).toBeLessThan(SOLDIER_RANGE)
     expect(distance).toBeGreaterThan(SHOOTER_RANGE)
 
-    const state = fixture({ friendlies: { 2: { x: 28, y: 16 } } })
+    const state = fixture({ friendlies: { [RIFLE]: { x: 28, y: 16 } } })
     state.enemies = [createEnemy(state, 201, 'shooter', { x: 28 + distance, y: 16 })]
-    const soldier = findFriendly(state, 2)!
+    const soldier = findFriendly(state, RIFLE)!
     const shooter = enemyOf(state, 201)
 
     advanceTargeting(state)
@@ -558,7 +575,7 @@ describe('§1.6 range advantage — the mechanism that replaced cover', () => {
     expect(resolveFriendlyAttacks(state)).toEqual([
       {
         side: 'friendly',
-        attackerId: 2,
+        attackerId: RIFLE,
         targetId: 201,
         amount: SOLDIER_DAMAGE,
         cause: 'friendly-attack',
@@ -570,7 +587,7 @@ describe('§1.6 range advantage — the mechanism that replaced cover', () => {
 
   it('loses the advantage as soon as the shooter closes into its band', () => {
     // 4.2 is inside the band [2.7, 4.275] and inside the soldier's 5.0, so both fire.
-    const state = fixture({ friendlies: { 2: { x: 28, y: 16 } } })
+    const state = fixture({ friendlies: { [RIFLE]: { x: 28, y: 16 } } })
     state.enemies = [createEnemy(state, 201, 'shooter', { x: 32.2, y: 16 })]
 
     advanceTargeting(state)
@@ -579,7 +596,7 @@ describe('§1.6 range advantage — the mechanism that replaced cover', () => {
       {
         side: 'enemy',
         attackerId: 201,
-        targetId: 2,
+        targetId: RIFLE,
         amount: SHOOTER_DAMAGE,
         cause: 'shooter-shot',
       },
@@ -598,9 +615,9 @@ describe('§1.6 range advantage — the mechanism that replaced cover', () => {
     // 무너진다"). It is two shots fewer than the same fixture measured at the old 0.075: the
     // melee's speed is what buys the squad its window, and the window just got shorter.
     // The soldier's cooldown at tick 29 is 12 - (29 - 25) = 8.
-    const state = fixture({ friendlies: { 2: { x: 28, y: 16 } } })
+    const state = fixture({ friendlies: { [RIFLE]: { x: 28, y: 16 } } })
     state.enemies = [createEnemy(state, 101, 'melee', { x: 32.6, y: 16 })]
-    const soldier = findFriendly(state, 2)!
+    const soldier = findFriendly(state, RIFLE)!
     const melee = enemyOf(state, 101)
 
     let friendlyShots = 0
@@ -838,20 +855,20 @@ describe('§1.4.2 the command unit strikes in melee inside its melee range', () 
     // first fixture, against the same enemy, and fires its rifle for `SOLDIER_DAMAGE`. The enemy
     // is a `shooter` so that the v13 class clause cannot be what produces the rifle here — this
     // fixture is about the id, and a melee-class body would let it pass for the wrong reason.
-    const state = fixture({ friendlies: { 2: { x: 28, y: 16 } } })
+    const state = fixture({ friendlies: { [RIFLE]: { x: 28, y: 16 } } })
     state.enemies = [createEnemy(state, 101, 'shooter', { x: 28 + COMMANDER_MELEE_RANGE - 0.01, y: 16 })]
 
     advanceTargeting(state)
     expect(resolveFriendlyAttacks(state)).toEqual([
       {
         side: 'friendly',
-        attackerId: 2,
+        attackerId: RIFLE,
         targetId: 101,
         amount: SOLDIER_DAMAGE,
         cause: 'friendly-attack',
       },
     ])
-    expect(findFriendly(state, 2)!.attackCooldown).toBe(SOLDIER_ATTACK_INTERVAL)
+    expect(findFriendly(state, RIFLE)!.attackCooldown).toBe(SOLDIER_ATTACK_INTERVAL)
   })
 
   it('follows the COMMAND UNIT, not the body that started as commander', () => {
@@ -862,10 +879,10 @@ describe('§1.4.2 the command unit strikes in melee inside its melee range', () 
     // of the distance.
     const gap = COMMANDER_MELEE_RANGE - 0.01
     const state = fixture({
-      friendlies: { [COMMANDER_ID]: { x: 28, y: 16 }, 2: { x: 28, y: 16 } },
+      friendlies: { [COMMANDER_ID]: { x: 28, y: 16 }, [RIFLE]: { x: 28, y: 16 } },
     })
     state.enemies = [createEnemy(state, 101, 'shooter', { x: 28 + gap, y: 16 })]
-    state.commandUnitId = 2
+    state.commandUnitId = RIFLE
 
     advanceTargeting(state)
     expect(resolveFriendlyAttacks(state)).toEqual([
@@ -878,7 +895,7 @@ describe('§1.4.2 the command unit strikes in melee inside its melee range', () 
       },
       {
         side: 'friendly',
-        attackerId: 2,
+        attackerId: RIFLE,
         targetId: 101,
         amount: COMMANDER_MELEE_DAMAGE,
         cause: 'friendly-melee',

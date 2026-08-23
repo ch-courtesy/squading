@@ -23,7 +23,21 @@ import {
   rescueCandidateId,
   resolveRescueLock,
 } from '../../src/core/battle/rescue'
-import { COMMANDER_ID, createInitialBattleState, findFriendly } from '../../src/core/battle/state'
+import {
+  COMMANDER_ID,
+  RIFLEMAN_IDS,
+  createInitialBattleState,
+  findFriendly,
+} from '../../src/core/battle/state'
+
+/**
+ * §1.2.1 split the squad; every fixture here that says "soldier" means a RIFLEMAN.
+ *
+ * Id 2 was the generic soldier because before the split there was only one kind. It now holds
+ * §1.4's front rank, so it carries the skirmisher's reach, hp and damage — which is the class
+ * these fixtures are not about.
+ */
+const RIFLE = RIFLEMAN_IDS[0]
 import type { BattleState, DamageEvent, FriendlyUnit } from '../../src/core/battle/types'
 
 const NO_EVENTS = { movementKeydown: false }
@@ -70,7 +84,7 @@ function shotAt(targetId: number, amount: number): DamageEvent {
 
 describe("§1.11 lock establishment (구조 lock 판정)", () => {
   it('does not establish while the movement input vector is non-zero', () => {
-    const state = fixture({ 2: { dx: 0.5, dy: 0 } })
+    const state = fixture({ [RIFLE]: { dx: 0.5, dy: 0 } })
     state.input.move = { x: 1, y: 0 }
 
     resolveRescueLock(state, NO_EVENTS)
@@ -81,28 +95,28 @@ describe("§1.11 lock establishment (구조 lock 판정)", () => {
     // Release the key and the same tick's three conditions are all met.
     state.input.move = { x: 0, y: 0 }
     resolveRescueLock(state, NO_EVENTS)
-    expect(state.rescue).toMatchObject({ active: true, targetId: 2, progress: 0 })
+    expect(state.rescue).toMatchObject({ active: true, targetId: RIFLE, progress: 0 })
   })
 
   it('needs Space, a candidate and a zero move vector — all three', () => {
-    const noSpace = fixture({ 2: { dx: 0.5, dy: 0 } })
+    const noSpace = fixture({ [RIFLE]: { dx: 0.5, dy: 0 } })
     noSpace.input.spaceHeld = false
     resolveRescueLock(noSpace, NO_EVENTS)
     expect(noSpace.rescue.active).toBe(false)
 
     // Out of range by a hair: RESCUE_RANGE is a radius, not a suggestion.
-    const outOfRange = fixture({ 2: { dx: RESCUE_RANGE + 0.01, dy: 0 } })
+    const outOfRange = fixture({ [RIFLE]: { dx: RESCUE_RANGE + 0.01, dy: 0 } })
     resolveRescueLock(outOfRange, NO_EVENTS)
     expect(outOfRange.rescue.active).toBe(false)
     expect(rescueCandidateId(outOfRange)).toBeNull()
 
-    const inRange = fixture({ 2: { dx: RESCUE_RANGE, dy: 0 } })
+    const inRange = fixture({ [RIFLE]: { dx: RESCUE_RANGE, dy: 0 } })
     resolveRescueLock(inRange, NO_EVENTS)
     expect(inRange.rescue.active).toBe(true)
   })
 
   it('will not establish for a command unit that is not standing', () => {
-    const state = fixture({ 2: { dx: 0.5, dy: 0 } })
+    const state = fixture({ [RIFLE]: { dx: 0.5, dy: 0 } })
     const commander = unit(state, COMMANDER_ID)
     commander.life = 'downed'
     commander.hp = 0
@@ -119,7 +133,7 @@ describe("§1.11 lock establishment (구조 lock 판정)", () => {
     commander.hp = 0
     commander.downedTicks = 240 // the longest wait by far
     commander.position = { x: 28.6, y: 16 }
-    const acting = unit(state, 2)
+    const acting = unit(state, RIFLE)
     acting.life = 'standing'
     acting.hp = SOLDIER_HP
     acting.position = { x: 28, y: 16 }
@@ -143,7 +157,7 @@ describe("§1.11 lock establishment (구조 lock 판정)", () => {
 
 describe("§1.11 cancellation (구조 lock 판정)", () => {
   it('cancels on a movement keydown event and resets progress to zero', () => {
-    const state = fixture({ 2: { dx: 0.5, dy: 0 } })
+    const state = fixture({ [RIFLE]: { dx: 0.5, dy: 0 } })
     resolveRescueLock(state, NO_EVENTS)
     state.rescue.progress = 17
 
@@ -153,7 +167,7 @@ describe("§1.11 cancellation (구조 lock 판정)", () => {
   })
 
   it('does NOT cancel on a merely held movement vector — that was the v5 defect', () => {
-    const state = fixture({ 2: { dx: 0.5, dy: 0 } })
+    const state = fixture({ [RIFLE]: { dx: 0.5, dy: 0 } })
     const commander = unit(state, COMMANDER_ID)
     resolveRescueLock(state, NO_EVENTS)
     state.rescue.progress = 9
@@ -162,7 +176,7 @@ describe("§1.11 cancellation (구조 lock 판정)", () => {
     state.input.move = { x: 0, y: -1 }
     resolveRescueLock(state, NO_EVENTS)
 
-    expect(state.rescue).toMatchObject({ active: true, targetId: 2, progress: 9 })
+    expect(state.rescue).toMatchObject({ active: true, targetId: RIFLE, progress: 9 })
 
     // §1.11: the freeze applies while the lock is held, so `advanceCommandUnit` produces none.
     const before = { ...commander.position }
@@ -177,7 +191,7 @@ describe("§1.11 cancellation (구조 lock 판정)", () => {
   })
 
   it('cancels when Space is released', () => {
-    const state = fixture({ 2: { dx: 0.5, dy: 0 } })
+    const state = fixture({ [RIFLE]: { dx: 0.5, dy: 0 } })
     resolveRescueLock(state, NO_EVENTS)
     state.rescue.progress = 30
 
@@ -188,14 +202,14 @@ describe("§1.11 cancellation (구조 lock 판정)", () => {
   })
 
   it('cancels when the target stops being downed or the command unit falls', () => {
-    const dead = fixture({ 2: { dx: 0.5, dy: 0 } })
+    const dead = fixture({ [RIFLE]: { dx: 0.5, dy: 0 } })
     resolveRescueLock(dead, NO_EVENTS)
     dead.rescue.progress = 12
-    unit(dead, 2).life = 'dead'
+    unit(dead, RIFLE).life = 'dead'
     resolveRescueLock(dead, NO_EVENTS)
     expect(dead.rescue).toMatchObject({ active: false, targetId: null, progress: 0 })
 
-    const fallen = fixture({ 2: { dx: 0.5, dy: 0 } })
+    const fallen = fixture({ [RIFLE]: { dx: 0.5, dy: 0 } })
     resolveRescueLock(fallen, NO_EVENTS)
     fallen.rescue.progress = 12
     unit(fallen, COMMANDER_ID).life = 'downed'
@@ -206,9 +220,9 @@ describe("§1.11 cancellation (구조 lock 판정)", () => {
 
 describe("§1.11 progress and completion (구조 진행)", () => {
   it('advances one tick at a time and completes on exactly RESCUE_TICKS', () => {
-    const state = fixture({ 2: { dx: 0.5, dy: 0 } })
+    const state = fixture({ [RIFLE]: { dx: 0.5, dy: 0 } })
     resolveRescueLock(state, NO_EVENTS)
-    const target = unit(state, 2)
+    const target = unit(state, RIFLE)
 
     for (let tick = 0; tick < RESCUE_TICKS - 1; tick += 1) {
       expect(advanceRescueProgress(state, applyDamage(state, []))).toBeNull()
@@ -217,7 +231,7 @@ describe("§1.11 progress and completion (구조 진행)", () => {
     expect(target.life).toBe('downed')
 
     expect(advanceRescueProgress(state, applyDamage(state, []))).toEqual({
-      targetId: 2,
+      targetId: RIFLE,
       rescuerId: COMMANDER_ID,
     })
     expect(target.life).toBe('standing')
@@ -225,9 +239,9 @@ describe("§1.11 progress and completion (구조 진행)", () => {
   })
 
   it('revives to the full fraction of maxHp, with the invulnerability window and the record', () => {
-    const state = fixture({ 2: { dx: 0.5, dy: 0 } })
+    const state = fixture({ [RIFLE]: { dx: 0.5, dy: 0 } })
     resolveRescueLock(state, NO_EVENTS)
-    const target = unit(state, 2)
+    const target = unit(state, RIFLE)
     // A raised maxHp is where the v1 review found 62.5% instead of 50%: the fraction is of
     // maxHp, never of a stored base.
     target.maxHp = 2.0
@@ -250,7 +264,7 @@ describe("§1.11 progress and completion (구조 진행)", () => {
   })
 
   it('neither advances nor rolls back progress on a hit tick, in the same tick as the hit', () => {
-    const state = fixture({ 2: { dx: 0.5, dy: 0 } })
+    const state = fixture({ [RIFLE]: { dx: 0.5, dy: 0 } })
     resolveRescueLock(state, NO_EVENTS)
     advanceRescueProgress(state, applyDamage(state, []))
     advanceRescueProgress(state, applyDamage(state, []))
@@ -271,7 +285,7 @@ describe("§1.11 progress and completion (구조 진행)", () => {
   })
 
   it('does not freeze progress for damage dealt to somebody other than the rescuer', () => {
-    const state = fixture({ 2: { dx: 0.5, dy: 0 }, 5: { dx: 0.6, dy: 0 } })
+    const state = fixture({ [RIFLE]: { dx: 0.5, dy: 0 }, 5: { dx: 0.6, dy: 0 } })
     const bystander = unit(state, 5)
     bystander.life = 'standing'
     bystander.hp = SOLDIER_HP
@@ -287,7 +301,7 @@ describe("§1.11 progress and completion (구조 진행)", () => {
   it('does not count a hit the invulnerability window absorbed as a 피격', () => {
     // The rescuer was itself rescued a moment ago, so it is inside its own window. Nothing
     // came off its hp, so §1.11's freeze has nothing to freeze.
-    const state = fixture({ 2: { dx: 0.5, dy: 0 } })
+    const state = fixture({ [RIFLE]: { dx: 0.5, dy: 0 } })
     resolveRescueLock(state, NO_EVENTS)
     const commander = unit(state, COMMANDER_ID)
     commander.invulnerableTicks = 5
@@ -301,9 +315,9 @@ describe("§1.11 progress and completion (구조 진행)", () => {
   })
 
   it('absorbs a hit for the whole invulnerability window and then stops', () => {
-    const state = fixture({ 2: { dx: 0.5, dy: 0 } })
+    const state = fixture({ [RIFLE]: { dx: 0.5, dy: 0 } })
     resolveRescueLock(state, NO_EVENTS)
-    const target = unit(state, 2)
+    const target = unit(state, RIFLE)
     state.rescue.progress = RESCUE_TICKS - 1
     advanceRescueProgress(state, applyDamage(state, []))
 

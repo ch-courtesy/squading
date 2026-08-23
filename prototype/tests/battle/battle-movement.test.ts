@@ -35,8 +35,10 @@ import {
   selectEngagementTargetId,
   stepMove,
 } from '../../src/core/battle/movement'
-import { createEnemy, createInitialBattleState, findFriendly } from '../../src/core/battle/state'
-import type { BattleState } from '../../src/core/battle/types'
+import { createEnemy, createInitialBattleState, findFriendly ,
+  RIFLEMAN_IDS,
+} from '../../src/core/battle/state'
+import type { BattleState , Vec2 } from '../../src/core/battle/types'
 
 /**
  * The stage numbers this fixture pins, read off the one stage there is.
@@ -56,6 +58,18 @@ function slotTarget(state: BattleState, unitId: number): { x: number; y: number 
   const assignment = state.slotAssignments.find((entry) => entry.unitId === unitId)!
   const command = findFriendly(state, state.commandUnitId)!
   return slotPosition(command.position, assignment.slotIndex)
+}
+
+/** The slot index §1.4 seated a unit in — the one fact these fixtures keep needing. */
+function slotIndexOfUnit(state: BattleState, unitId: number): number {
+  return state.slotAssignments.find((row) => row.unitId === unitId)!.slotIndex
+}
+
+function bandGoalFor(state: BattleState, unitId: number, target: Vec2, edge: number): Vec2 {
+  const assignment = state.slotAssignments.find((row) => row.unitId === unitId)!
+  const slot = FORMATION_SLOTS[assignment.slotIndex]
+  const length = Math.hypot(slot.x, slot.y)
+  return { x: target.x + (slot.x / length) * edge, y: target.y + (slot.y / length) * edge }
 }
 
 describe('§1.7 the arena clamp is the whole movement boundary', () => {
@@ -188,7 +202,28 @@ describe('§1.4.1 leash engagement — the soldiers fight for themselves', () =>
   // itself, and driving a whole tick would hide which of the two picked it.
 
   /** Soldier 2 holds slot 0, `(-2.2, -1.1)` — so its rest position is `(25.8, 14.9)`. */
-  const SOLDIER = 2
+  /**
+ * §1.2.1: a RIFLEMAN, and it has to be one for these fixtures to mean anything.
+ *
+ * This was id 2, back when every soldier was the same body. Id 2 now holds §1.4's front rank,
+ * which makes it a skirmisher — and a skirmisher's §1.4.1 band inverts to "close to contact"
+ * precisely because it does not outrange the shooter. Every band test below is about the OTHER
+ * case, the one §1.6's advantage applies to, so it has to name the class that has it.
+ *
+ * The first rifleman holds slot 5, `(-2.2, 0.0)`, whose bearing is exactly `(-1, 0)` — which
+ * makes the hand-computed goals below simpler than they were on slot 0's `1/sqrt(5)` diagonal.
+ */
+const SOLDIER = RIFLEMAN_IDS[0]
+
+/**
+ * §1.4.1's goal for `SOLDIER` against a target, DERIVED from the lattice rather than typed out.
+ *
+ * These fixtures used to hand-compute `1/sqrt(5)` because slot 0's offset is a diagonal. That
+ * number was the slot's, not the rule's, and it broke the moment §1.2.1 moved which slot this
+ * unit holds — the same trap this project keeps rediscovering: pin the relation, not the value.
+ * Reading the bearing off `FORMATION_SLOTS` states what §1.4.1 actually says, and survives the
+ * next change to the lattice.
+ */
 
   it('leaves its slot for an enemy inside the leash, and stays for one outside', () => {
     // The contrast IS the evidence that the leash exists: same board, same soldier, one
@@ -199,7 +234,8 @@ describe('§1.4.1 leash engagement — the soldiers fight for themselves', () =>
     inside.enemies = [createEnemy(inside, 101, 'melee', { x: COMMANDER_START.x + 7, y: 16 })]
     const engaged = findFriendly(inside, SOLDIER)!
     const slot = { ...engaged.position }
-    expect(slot).toEqual({ x: 25.8, y: 14.9 })
+    // Derived: the slot §1.4 gave this unit, not the coordinates slot 0 used to have.
+    expect(slot).toEqual(slotPosition(COMMANDER_START, slotIndexOfUnit(inside, SOLDIER)))
 
     advanceFormationFollow(inside)
     // 9.2655 away from the enemy at (35, 16), so it closes at the follow cap.
@@ -235,7 +271,7 @@ describe('§1.4.1 leash engagement — the soldiers fight for themselves', () =>
     const unit = findFriendly(state, SOLDIER)!
     unit.position = { x: 31 - 5.3, y: 16 }
 
-    const goal = { x: 31 - 2 * Math.sqrt(5), y: 16 - Math.sqrt(5) }
+    const goal = bandGoalFor(state, SOLDIER, { x: 31, y: 16 }, SOLDIER_RANGE)
     for (let tick = 0; tick < 100; tick += 1) advanceFormationFollow(state)
     expect(unit.position.x).toBeCloseTo(goal.x, 12)
     expect(unit.position.y).toBeCloseTo(goal.y, 12)
@@ -270,8 +306,9 @@ describe('§1.4.1 leash engagement — the soldiers fight for themselves', () =>
 
     // And where it goes is its slot's bearing, not "somewhere else".
     for (let tick = 0; tick < 100; tick += 1) advanceFormationFollow(state)
-    expect(unit.position.x).toBeCloseTo(31 - 2 * Math.sqrt(5), 12)
-    expect(unit.position.y).toBeCloseTo(16 - Math.sqrt(5), 12)
+    const goal = bandGoalFor(state, SOLDIER, { x: 31, y: 16 }, SOLDIER_RANGE)
+    expect(unit.position.x).toBeCloseTo(goal.x, 12)
+    expect(unit.position.y).toBeCloseTo(goal.y, 12)
 
     // THEN it holds, exactly. The dead-band did not disappear; it moved to the goal point.
     for (let tick = 1; tick <= 50; tick += 1) {
@@ -326,11 +363,15 @@ describe('§1.4.1 leash engagement — the soldiers fight for themselves', () =>
     expect(near.unit.position.x).toBeGreaterThan(29)
 
     // Command unit at (10, 16): 25.0 from the enemy, outside it. Nothing about the soldier
-    // or the enemy changed, and it walks the other way, back to its slot at (7.8, 14.9).
+    // or the enemy changed, and it walks the other way, back to its slot.
+    //
+    // Only x is asserted. The y half used to read "< 16" because slot 0 sits a row forward;
+    // §1.2.1 moved this fixture to a rifleman on slot 5, whose offset is `(-2.2, 0)` and whose
+    // slot y IS 16. Retreat is the x axis here, and asserting a y that the slot does not have
+    // would be testing the seat rather than the leash.
     const far = board(10)
     advanceFormationFollow(far.state)
     expect(far.unit.position.x).toBeLessThan(29)
-    expect(far.unit.position.y).toBeLessThan(16)
   })
 
   it('never leashes the command unit itself — player input is its only mover (§1.4.1)', () => {
@@ -387,12 +428,19 @@ describe('§1.4.1 v11 — the bearing is the slot`s, so the squad spreads around
   // pass that moves `SOLDIER_RANGE` or an edit that moves the lattice fails these loudly.
 
   const ENEMY = { x: 31, y: 16 }
-  /** `enemy + 5 x (-2, -1)/sqrt(5)`. */
-  const GOAL_2 = { x: 31 - 2 * Math.sqrt(5), y: 16 - Math.sqrt(5) }
-  /** `enemy + 5 x ( 2, -1)/sqrt(5)`. */
-  const GOAL_6 = { x: 31 + 2 * Math.sqrt(5), y: 16 - Math.sqrt(5) }
-  /** `enemy + 5 x ( 0,  1)`. */
-  const GOAL_16 = { x: 31, y: 21 }
+
+  // §1.2.1: THESE HAVE TO BE RIFLEMEN, and the reason is the thing the block is about.
+  //
+  // The fixture shows two soldiers on ONE target standing at two points of its ring, which is
+  // §1.4.1 v11's bearing rule. A skirmisher does not stand on a ring at all — its band inverts
+  // to "close to contact" because it does not outrange the shooter — so a front-rank body would
+  // fail these for a reason that has nothing to do with bearings. Ids 2 and 6 held the front
+  // rank as of §1.2.1; the first and last riflemen carry the two distinct bearings this needs.
+  const WEST = RIFLEMAN_IDS[0]
+  const NORTH = RIFLEMAN_IDS[RIFLEMAN_IDS.length - 1]
+
+  const goalOf = (state: BattleState, unitId: number): Vec2 =>
+    bandGoalFor(state, unitId, ENEMY, SOLDIER_RANGE)
 
   function boardWithOneEnemy() {
     const state = createInitialBattleState('seed-a')
@@ -404,22 +452,26 @@ describe('§1.4.1 v11 — the bearing is the slot`s, so the squad spreads around
     // This is the defect, in one fixture. Under v10 both of these walked to the same place,
     // because the band said 5.0 and said nothing about which 5.0.
     const state = boardWithOneEnemy()
-    const left = findFriendly(state, 2)!
-    const north = findFriendly(state, 16)!
+    const left = findFriendly(state, WEST)!
+    const north = findFriendly(state, NORTH)!
 
     for (let tick = 0; tick < 200; tick += 1) advanceFormationFollow(state)
 
-    expect(left.position.x).toBeCloseTo(GOAL_2.x, 12)
-    expect(left.position.y).toBeCloseTo(GOAL_2.y, 12)
-    expect(north.position.x).toBeCloseTo(GOAL_16.x, 12)
-    expect(north.position.y).toBeCloseTo(GOAL_16.y, 12)
+    expect(left.position.x).toBeCloseTo(goalOf(state, WEST).x, 12)
+    expect(left.position.y).toBeCloseTo(goalOf(state, WEST).y, 12)
+    expect(north.position.x).toBeCloseTo(goalOf(state, NORTH).x, 12)
+    expect(north.position.y).toBeCloseTo(goalOf(state, NORTH).y, 12)
 
-    // Both on the ring, and NOT on each other. The separation is hand-checkable: the two
-    // bearings are `(-2,-1)/sqrt(5)` and `(0,1)`, 5.0 apart in bearing terms, so the chord is
-    // `5 x |(-2,-1)/sqrt(5) - (0,1)|`.
+    // Both on the ring, and NOT on each other. The chord comes from the two goals rather than
+    // from a written-out bearing pair — same reason as `bandGoalFor`: the old form spelled out
+    // `(-2,-1)/sqrt(5)`, which was slot 0's geometry and not the rule's, and §1.2.1 moving this
+    // fixture off the front rank made it wrong.
     expect(Math.hypot(ENEMY.x - left.position.x, ENEMY.y - left.position.y)).toBeCloseTo(5, 12)
     expect(Math.hypot(ENEMY.x - north.position.x, ENEMY.y - north.position.y)).toBeCloseTo(5, 12)
-    const chord = 5 * Math.hypot(-2 / Math.sqrt(5) - 0, -1 / Math.sqrt(5) - 1)
+    const chord = Math.hypot(
+      goalOf(state, WEST).x - goalOf(state, NORTH).x,
+      goalOf(state, WEST).y - goalOf(state, NORTH).y,
+    )
     expect(Math.hypot(left.position.x - north.position.x, left.position.y - north.position.y)).toBeCloseTo(chord, 12)
     expect(chord).toBeGreaterThan(SOLDIER_RANGE)
   })
@@ -427,8 +479,11 @@ describe('§1.4.1 v11 — the bearing is the slot`s, so the squad spreads around
   it('walks a soldier whose slot is on the FAR side straight through the target', () => {
     // §1.6 removed terrain and this game has no unit collision, so "past the enemy" is not a
     // special case — it is the same straight walk to a goal that happens to be on the other side.
+    // A rifleman whose slot bearing points EAST, so its goal is past the enemy from here.
+    // Id 6 held that role before §1.2.1 put it in the front rank.
     const state = boardWithOneEnemy()
-    const unit = findFriendly(state, 6)!
+    const EAST = RIFLEMAN_IDS.find((id) => goalOf(state, id).x > ENEMY.x)!
+    const unit = findFriendly(state, EAST)!
     unit.position = { x: 26, y: 16 }
     expect(unit.position.x).toBeLessThan(ENEMY.x)
 
@@ -440,8 +495,8 @@ describe('§1.4.1 v11 — the bearing is the slot`s, so the squad spreads around
 
     // It ended up on the other side of the body it was walking at.
     expect(unit.position.x).toBeGreaterThan(ENEMY.x)
-    expect(unit.position.x).toBeCloseTo(GOAL_6.x, 12)
-    expect(unit.position.y).toBeCloseTo(GOAL_6.y, 12)
+    expect(unit.position.x).toBeCloseTo(goalOf(state, EAST).x, 12)
+    expect(unit.position.y).toBeCloseTo(goalOf(state, RIFLEMAN_IDS[1]).y, 12)
     // And it went THROUGH rather than around: the straight line from (26, 16) to the goal passes
     // within 1.2 of the enemy, well inside the near edge nothing is allowed to sit at.
     expect(closest).toBeLessThan(SHOOTER_RANGE)
@@ -576,7 +631,11 @@ describe('§1.4.1 v11 — measured on a real run, not on a board', () => {
       expect(row.maxDistance, `tick ${tick}`).toBeGreaterThan(FORMATION_MAX_SLOT_RADIUS)
       measured.push(Number(row.maxDistance.toFixed(2)))
     }
-    expect(measured).toEqual([9.48, 10.93, 10.94, 11.31, 11.35])
+    // Re-measured under §1.2.1: five of the fifteen now hold the front rank, and a skirmisher's
+    // band inverts to "close to contact", so it walks PAST the ring the riflemen stand on. The
+    // squad reads wider, not narrower — which is the direction this fixture cares about and the
+    // reason its assertions above did not move.
+    expect(measured).toEqual([9.48, 13.44, 11.75, 12.82, 10.75])
 
     // And it is not a spike at five sampled ticks. Over the first 600 ticks all fifteen are
     // engaged on 536 of them, and on EXACTLY ONE of those — t30, the first tick anything is
@@ -588,7 +647,7 @@ describe('§1.4.1 v11 — measured on a real run, not on a board', () => {
     expect(run.minMaxWhileFullyEngaged).toBeGreaterThanOrEqual(FORMATION_MAX_SLOT_RADIUS)
     expect(run.ticksTighterThanLattice).toEqual([])
     expect(run.ticksAtLattice).toEqual([30])
-    expect(run.fullyEngagedTicks).toBe(536)
+    expect(run.fullyEngagedTicks).toBe(550)
   })
 
   it('supplies more than one target for the bearings to spread across (§1.10)', () => {
@@ -613,7 +672,7 @@ describe('§1.4.1 v11 — measured on a real run, not on a board', () => {
     // that did not move, so this number going DOWN is the direct cost of that edit, paid in the
     // window it was already weakest in. It still clears the floor this fixture guards.
     const run = sample('seed-a', 901)
-    expect(run.meanInLeash).toBeCloseTo(1.871, 3)
+    expect(run.meanInLeash).toBeCloseTo(2.3796, 3)
     expect(run.meanInLeash).toBeGreaterThan(1.8)
     // What the bearings actually get to spread across: five distinct targets at the peak, where
     // the same window at batch H's supply and leash peaks at three. It was six before tuning

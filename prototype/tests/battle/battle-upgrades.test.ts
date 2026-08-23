@@ -37,6 +37,8 @@ import {
   SOLDIER_RANGE,
   UPGRADE_KILL_THRESHOLDS,
   type CardId,
+
+  SOLDIER_HP,
 } from '../../src/core/battle/constants'
 import { stageConfigOf } from '../../src/core/battle/stages'
 import { resolveFriendlyAttacks } from '../../src/core/battle/attacks'
@@ -57,10 +59,20 @@ import {
 import {
   COMMANDER_ID,
   ELITE_ID,
+  RIFLEMAN_IDS,
   createEnemy,
   createInitialBattleState,
   findFriendly,
 } from '../../src/core/battle/state'
+
+/**
+ * §1.2.1 split the squad; every fixture here that says "soldier" means a RIFLEMAN.
+ *
+ * Id 2 was the generic soldier because before the split there was only one kind. It now holds
+ * §1.4's front rank, so it carries the skirmisher's reach, hp and damage — which is the class
+ * these fixtures are not about.
+ */
+const RIFLE = RIFLEMAN_IDS[0]
 import { createStreamStates, nextStreamFloat } from '../../src/core/battle/streams'
 import {
   attackDamageOf,
@@ -339,7 +351,7 @@ describe('§1.13 card effects, read off the chosen cards', () => {
   it('changes nothing until a card is chosen', () => {
     const state = fixture()
     const commander = unit(state, COMMANDER_ID)
-    const soldier = unit(state, 2)
+    const soldier = unit(state, RIFLE)
 
     expect(chosenUpgradeCards(state)).toEqual([])
     expect(hasUpgrade(state, 'firepower')).toBe(false)
@@ -369,7 +381,7 @@ describe('§1.13 card effects, read off the chosen cards', () => {
 
     expect(hasUpgrade(state, 'firepower')).toBe(true)
     expect(attackDamageOf(state, commander)).toBeCloseTo(0.26, 12)
-    expect(attackDamageOf(state, unit(state, 2))).toBeCloseTo(0.156, 12)
+    expect(attackDamageOf(state, unit(state, RIFLE))).toBeCloseTo(0.156, 12)
 
     const events = resolveFriendlyAttacks(state)
     expect(events[0].attackerId).toBe(COMMANDER_ID)
@@ -382,7 +394,7 @@ describe('§1.13 card effects, read off the chosen cards', () => {
     state.enemies.push(createEnemy(state, 101, 'melee', { x: 28 + 6.5, y: 16 }))
 
     expect(attackRangeOf(state, commander)).toBeCloseTo(COMMANDER_RANGE + 1, 12)
-    expect(attackRangeOf(state, unit(state, 2))).toBeCloseTo(SOLDIER_RANGE + 1, 12)
+    expect(attackRangeOf(state, unit(state, RIFLE))).toBeCloseTo(SOLDIER_RANGE + 1, 12)
     expect(selectFriendlyTargetId(state, commander)).toBe(101)
     // Without the card the same enemy is out of reach.
     const bare = fixtureWithEnemy()
@@ -395,7 +407,7 @@ describe('§1.13 card effects, read off the chosen cards', () => {
     // 10 x 0.85 = 8.5 -> 9, and 12 x 0.85 = 10.2 -> 10. Whole ticks, because the cooldown is
     // counted down by 1 per tick and a fractional remainder would sit in the digest.
     expect(attackIntervalOf(state, unit(state, COMMANDER_ID))).toBe(9)
-    expect(attackIntervalOf(state, unit(state, 2))).toBe(10)
+    expect(attackIntervalOf(state, unit(state, RIFLE))).toBe(10)
   })
 
   it('composes firepower and rapid with §1.4.2’s melee, and marksman deliberately not', () => {
@@ -469,7 +481,7 @@ describe('§1.13 card effects, read off the chosen cards', () => {
 
   it('cohesion raises the follow speed cap (x1.2)', () => {
     const state = withCards(fixture(), 'cohesion')
-    const follower = unit(state, 2)
+    const follower = unit(state, RIFLE)
     follower.position = { x: follower.position.x - 1, y: follower.position.y }
 
     expect(followSpeedOf(state)).toBeCloseTo(0.156, 12)
@@ -482,8 +494,10 @@ describe('§1.13 card effects, read off the chosen cards', () => {
     const state = fixture()
     const commander = unit(state, COMMANDER_ID)
     commander.hp = 3.0
-    const soldier = unit(state, 2)
-    const dead = unit(state, 3)
+    const soldier = unit(state, RIFLE)
+    // §1.2.1: another RIFLEMAN, because the assertion below names `SOLDIER_HP`. Id 3 holds the
+    // front rank now and would carry the skirmisher's 2.6.
+    const dead = unit(state, RIFLEMAN_IDS[1])
     dead.life = 'dead'
     dead.hp = 0
     dead.deathTick = 50
@@ -496,7 +510,7 @@ describe('§1.13 card effects, read off the chosen cards', () => {
     expect(soldier.maxHp).toBeCloseTo(1.75, 12)
     expect(soldier.hp).toBeCloseTo(1.75, 12)
     // A body that is already gone is not strengthened.
-    expect(dead.maxHp).toBe(1.4)
+    expect(dead.maxHp).toBe(SOLDIER_HP)
     expect(dead.hp).toBe(0)
     // The state carries no multiplier — the numbers themselves moved. `carriedCards` is campaign
     // stage 1's list of cards taken in EARLIER stages, and it is not a multiplier either: it names
@@ -508,7 +522,7 @@ describe('§1.13 card effects, read off the chosen cards', () => {
 
   it('leaves a rescue reviving at half of whatever vitality made the maximum', () => {
     const state = fixture()
-    const fallen = unit(state, 2)
+    const fallen = unit(state, RIFLE)
     fallen.life = 'downed'
     fallen.hp = 0
     fallen.position = { x: 28.5, y: 16 }

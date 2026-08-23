@@ -18,12 +18,13 @@
 // against the two paths, because "exactly 23 draws" was written as a fact about §1.14 and is a
 // fact about the FIRST stage only.
 
-import { createSlotAssignments, slotPosition } from './formation'
+import { createSlotAssignments, isSkirmisherSlot, slotPosition } from './formation'
 import {
   CARD_POOL,
   COMMANDER_HP,
   COMMANDER_START,
   ROSTER_SIZE,
+  SKIRMISHER_HP,
   SOLDIER_HP,
   UPGRADE_KILL_THRESHOLDS,
 } from './constants'
@@ -47,6 +48,22 @@ export const SOLDIER_IDS: readonly number[] = Array.from(
   { length: ROSTER_SIZE - 1 },
   (_, index) => index + 2,
 )
+/**
+ * §1.2.1's two classes as id lists, derived from §1.4's seating rather than written down.
+ *
+ * Slots go to soldiers in ascending id, so the front rank is the first five ids — but that is a
+ * CONSEQUENCE of two other rules and not a fact of its own, and a hand-written `[2,3,4,5,6]`
+ * would survive a lattice change that made it false. Fixtures that mean "a rifleman" should say
+ * so with `RIFLEMAN_IDS[0]`; before §1.2.1 every soldier was one and "soldier id 2" meant it by
+ * accident.
+ */
+export const SKIRMISHER_IDS: readonly number[] = createSlotAssignments(SOLDIER_IDS)
+  .filter((assignment) => isSkirmisherSlot(assignment.slotIndex))
+  .map((assignment) => assignment.unitId)
+export const RIFLEMAN_IDS: readonly number[] = SOLDIER_IDS.filter(
+  (id) => !SKIRMISHER_IDS.includes(id),
+)
+
 /** Enemy ids start well past the roster so no lookup can confuse the two sides. */
 export const FIRST_ENEMY_ID = 101
 export const ELITE_ID = 1000
@@ -91,8 +108,11 @@ function createFriendly(
   nameIndex: number,
   position: Vec2,
   health: { hp: number; maxHp: number } | null = null,
+  /** §1.2.1: the slot decides the class, and the class decides the hp. */
+  slotIndex: number | null = null,
 ): FriendlyUnit {
-  const maxHp = health ? health.maxHp : role === 'commander' ? COMMANDER_HP : SOLDIER_HP
+  const soldierHp = isSkirmisherSlot(slotIndex) ? SKIRMISHER_HP : SOLDIER_HP
+  const maxHp = health ? health.maxHp : role === 'commander' ? COMMANDER_HP : soldierHp
   return {
     id,
     role,
@@ -185,6 +205,16 @@ function spentThresholdCount(priorKills: number): number {
   return index
 }
 
+/** A soldier seated in a slot, so §1.2.1's class — and with it the hp — follows the seat. */
+function createFriendlyInSlot(
+  slotIndex: number,
+  id: number,
+  nameIndex: number,
+  position: Vec2,
+): FriendlyUnit {
+  return createFriendly(id, 'soldier', nameIndex, position, null, slotIndex)
+}
+
 /** The fresh 16: §1.14 draws the names, §1.4 seats the soldiers, §1.2 gives everyone full hp. */
 function createFreshRoster(
   prng: BattleState['prng'],
@@ -202,7 +232,7 @@ function createFreshRoster(
     // the squad for its first few ticks.
     const slot = slotPosition(start, assignment.slotIndex)
     friendlies.push(
-      createFriendly(assignment.unitId, 'soldier', names[assignment.unitId - 1], {
+      createFriendlyInSlot(assignment.slotIndex, assignment.unitId, names[assignment.unitId - 1], {
         x: slot.x,
         y: slot.y,
       }),
