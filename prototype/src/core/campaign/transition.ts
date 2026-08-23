@@ -3,16 +3,36 @@
 // ---------------------------------------------------------------------------
 // THE THREE THINGS THAT MUST NOT RESET
 // ---------------------------------------------------------------------------
-// §1.1: "스테이지를 넘을 때 초기화되지 않는 것: 생존자 명단과 이름(§1.14), 각자의 HP, 선택한 강화
-// 카드, 누가 죽었는지의 기록." And: "이 셋이 이어달리기를 성립시킨다. 하나라도 초기화되면 일곱
-// 판이 아니라 같은 판 일곱 번이다."
+// §1.1: "스테이지를 넘을 때 초기화되지 않는 것: 생존자 명단과 이름(§1.14), 선택한 강화 카드, 누가
+// 죽었는지의 기록." And: "이 셋이 이어달리기를 성립시킨다. 하나라도 초기화되면 일곱 판이 아니라
+// 같은 판 일곱 번이다."
 //
 // Each of the three is carried by exactly one thing here, and each has a fixture named after it in
 // `tests/campaign/campaign-relay.test.ts`:
 //
 //   the roster and its names ... `CarriedMember.id` / `.role` / `.nameIndex`
-//   each body's hp ............. `CarriedMember.hp` / `.maxHp`, copied and never refilled
 //   the cards .................. `CampaignState.cards` -> `upgrades.carriedCards`
+//   the dead ................... `CampaignState.fallen`, appended to and never rebuilt
+//
+// ---------------------------------------------------------------------------
+// AND WHAT DOES RESET — §1.1 v2's HEALING CLAUSE
+// ---------------------------------------------------------------------------
+// "생존자의 HP는 스테이지 시작 시 최대치로 회복한다 (v2 정정). 죽음만 영구다."
+//
+// v1 said the opposite and tuning batch 2 measured that clause into an arithmetic impossibility:
+// seven stages each asking §3's I2 LOWER bound of a roster that is resupplied once needs 3.85
+// rosters of hp against a supply of one. §1.1 v2's reading of its own intent is that "이어달리기의
+// 비용은 사람이지 부상이 아니다" — what carries across a stage is the SQUAD SIZE, and stacking
+// wounds on top of the people already lost charges the same cost twice.
+//
+// SO THE CLAUSE IS ONE LINE, and it is deliberately inside §1.3's `standing` branch below rather
+// than beside it: the same `if` that decides who crosses is the only place a healed number is
+// written, so "회복되는 것은 서 있는 사람뿐" is structural here and not a second condition that
+// could drift from the first. A body still down when the stage ends is not healed, because it is
+// not carried at all. §1.11's rescue therefore still buys a PERSON — it just no longer buys hp.
+//
+// `maxHp` still crosses unchanged, which is where §1.13's `vitality` lives: the card raises the
+// number the next stage refills TO.
 //
 // ---------------------------------------------------------------------------
 // AND THE ONE RULING THAT COSTS SOMETHING (§1.3)
@@ -74,9 +94,10 @@ export function completeStage(
         id: unit.id,
         role: unit.role,
         nameIndex: unit.nameIndex,
-        // §1.1: no healing. These two numbers are the fight's ending values, and `maxHp` is where
-        // §1.13's `vitality` lives, so copying them is what carries both facts.
-        hp: unit.hp,
+        // §1.1 v2: "생존자의 HP는 스테이지 시작 시 최대치로 회복한다. 죽음만 영구다." The wound
+        // does not cross; the empty place in the roster does. `maxHp` crosses unchanged because
+        // §1.13's `vitality` lives there — the card raises what this line refills to.
+        hp: unit.maxHp,
         maxHp: unit.maxHp,
       })
       continue

@@ -28,7 +28,16 @@ export type CampaignSurvivorView = {
   isCommand: boolean
   hp: number
   maxHp: number
-  /** The hp bar's fill. §1.1 does not heal between stages, so this is what carried over. */
+  /**
+   * The hp bar's fill.
+   *
+   * §1.1 v2 heals the survivors at the boundary, so on the transition screen this is 1 for every
+   * body and the bar is showing what the NEXT stage opens with rather than what the last one cost.
+   * What the last one cost is on the same screen, as the list of names beside it (`fallen`) —
+   * §1.1 v2's whole point is that the relay's cost is people rather than wounds. The field stays a
+   * fraction rather than being deleted because `CampaignState` is what it reads and nothing in
+   * `CampaignState` promises hp equals maxHp.
+   */
   hp01: number
 }
 

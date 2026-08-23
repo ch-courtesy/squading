@@ -27,8 +27,11 @@
 //   §3.2  the campaign digest ................................ digest
 //         §1.17's hash and normalization, over the campaign object.
 //   §1.1  the relay .......................................... transition
-//         Roster, names, hp and cards cross; enemies, elite, backlog, rescue lock, clock and the
-//         stage's kill count do not, because `CarriedSquad` has nowhere to put them.
+//         Roster, names, maxHp and cards cross; enemies, elite, backlog, rescue lock, clock and
+//         the stage's kill count do not, because `CarriedSquad` has nowhere to put them.
+//   §1.1  v2: the standing are healed to full at the boundary . transition
+//         The wound does not cross, the empty place in the roster does. Only the standing are
+//         carried at all, so the healing cannot reach a body §1.3 has just taken.
 //   §1.3  the downed are dead at the end of a stage .......... transition
 //   §1.4  a lost stage ends the campaign ..................... transition
 //   §1.5  a won stage with no survivors ends it too .......... transition

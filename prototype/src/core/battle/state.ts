@@ -97,8 +97,12 @@ function createFriendly(
     id,
     role,
     nameIndex,
-    // Campaign §1.1: "HP는 스테이지 시작 시 회복하지 않는다." A carried body opens the stage on the
-    // number it closed the last one with; only a fresh roster starts full.
+    // A carried body opens the stage on the hp it was HANDED, and the battle does not decide what
+    // that is. Campaign §1.1 v2 heals the survivors at the boundary (`campaign/transition.ts`), so
+    // every squad the relay hands in arrives at `maxHp` and this branch and the fresh-roster one
+    // agree in play. It is still a branch rather than an assumption: `CarriedSquad` is an input
+    // this function CHECKS rather than trusts (see `createCarriedRoster` below), and a battle that
+    // silently refilled whatever it was given would make §1.1's clause unfalsifiable from here.
     hp: health ? health.hp : maxHp,
     maxHp,
     life: 'standing',

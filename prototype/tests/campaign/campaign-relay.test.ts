@@ -102,24 +102,55 @@ describe('§1.1 the relay carries the squad, its names and its hp', () => {
     expect(campaign.fallen.every((entry) => entry.stageId === 1)).toBe(true)
   })
 
-  it('does not heal: a body that ended a stage hurt starts the next one hurt', () => {
+  it('§1.1 v2 heals: a body that ended a stage hurt starts the next one full', () => {
     const finished = wonStage()
     const hurt = finished.friendlies.find((unit) => unit.id === 6)!
     hurt.hp = hurt.maxHp * 0.25
+    const other = finished.friendlies.find((unit) => unit.id === 9)!
+    other.hp = other.maxHp * 0.5
 
     const campaign = completeStage(createCampaignState('root-a'), finished)
+
+    // The healed number is in the CAMPAIGN state, not applied on the way into the battle: the
+    // squad the transition screen shows and the squad the next stage opens with are one object.
+    for (const member of campaign.squad!.members) expect(member.hp).toBe(member.maxHp)
+
     const next = enterNextStage(campaign).state()
 
     const carried = next.friendlies.find((unit) => unit.id === 6)!
-    expect(carried.hp).toBe(hurt.hp)
+    expect(carried.hp).toBe(hurt.maxHp)
     expect(carried.maxHp).toBe(hurt.maxHp)
-    expect(carried.hp).toBeLessThan(carried.maxHp)
-    // And every other body is on the number it ended with too, not on a refilled bar.
+    // The wound is gone and it is gone for everyone, not only for the one body the fixture names.
     for (const unit of next.friendlies) {
       const before = finished.friendlies.find((body) => body.id === unit.id)!
-      expect(unit.hp).toBe(before.hp)
+      expect(unit.hp).toBe(before.maxHp)
       expect(unit.maxHp).toBe(before.maxHp)
     }
+    // And it is a healing that had something to heal — a fixture where every body already ended
+    // full would pass against a relay that copies `hp` straight through.
+    expect(hurt.hp).toBeLessThan(hurt.maxHp)
+    expect(other.hp).toBeLessThan(other.maxHp)
+  })
+
+  it('opens a carried body on the hp it was HANDED, not on a number the battle picks', () => {
+    // §1.1 v2 lives in `campaign/transition.ts`, so the battle's job at this seam is to apply what
+    // it is given. `createCarriedRoster` is reached here directly because the relay above can no
+    // longer produce a wounded carried squad — which is exactly why the seam needs its own
+    // fixture: a battle that refilled whatever it was handed would make the campaign's clause
+    // impossible to observe from the battle side, and the two would agree by accident.
+    const state = createInitialBattleState('seed-a', 1, {
+      commandUnitId: 1,
+      members: [
+        { id: 1, role: 'commander', nameIndex: 0, hp: 1.25, maxHp: 5 },
+        { id: 2, role: 'soldier', nameIndex: 1, hp: 0.35, maxHp: 1.4 },
+      ],
+      cards: [],
+      priorKills: 0,
+    })
+
+    expect(state.friendlies.find((unit) => unit.id === 1)!.hp).toBe(1.25)
+    expect(state.friendlies.find((unit) => unit.id === 2)!.hp).toBe(0.35)
+    expect(state.friendlies.find((unit) => unit.id === 2)!.maxHp).toBe(1.4)
   })
 
   it('carries §1.13 `vitality` as the raised maximum, because that is where the card lives', () => {

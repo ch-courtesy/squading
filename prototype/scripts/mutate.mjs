@@ -728,13 +728,19 @@ const MUTATIONS = [
   // clause in that paragraph is one row below.
   //
   // A MUTATION HERE IS NOT A BUG SOMEONE MIGHT WRITE — it is the rule stated backwards. "The
-  // transition heals" is exactly §1.1's "HP는 스테이지 시작 시 회복하지 않는다" inverted, and if
-  // nothing fails when it is inverted then the sentence is decorative.
+  // transition heals nothing" is exactly §1.1 v2's "생존자의 HP는 스테이지 시작 시 최대치로
+  // 회복한다" inverted, and if nothing fails when it is inverted then the sentence is decorative.
+  //
+  // THE ROW BELOW CHANGED DIRECTION WHEN §1.1 DID. Until v2 the row here was `hp: unit.hp` ->
+  // `hp: unit.maxHp`, labelled "heal the squad on the way out of a stage": v1 forbade healing and
+  // the mutation was the heal. v2 corrects the clause — tuning batch 2 measured v1's version into
+  // an arithmetic impossibility — so the mutation is now the OTHER direction, and it is still one
+  // row rather than two because a rule and its inverse are one decision.
   {
     file: TRANSITION,
-    label: 'heal the squad on the way out of a stage (§1.1)',
-    find: '        hp: unit.hp,',
-    replace: '        hp: unit.maxHp,',
+    label: 'the stage boundary heals nothing, as §1.1 v1 had it (§1.1 v2)',
+    find: '        hp: unit.maxHp,',
+    replace: '        hp: unit.hp,',
   },
   {
     file: STATE,
@@ -743,8 +749,12 @@ const MUTATIONS = [
     replace: '    hp: maxHp,',
   },
   {
+    // TWO SENTENCES AT ONCE SINCE v2, and that is a property of the code rather than of this row:
+    // the healed number is written inside the `standing` branch, so widening the branch carries
+    // the downed AND hands them full hp. §1.3's "쓰러진 병사는 사망 처리한다" and §1.1 v2's
+    // "회복되는 것은 서 있는 사람뿐" fail together because they are one `if`.
     file: TRANSITION,
-    label: 'carry the downed as if the end of a stage rescued them (§1.3)',
+    label: 'carry the downed as if the end of a stage rescued them, healed (§1.3, §1.1 v2)',
     find: "    if (unit.life === 'standing') {",
     replace: "    if (unit.life !== 'dead') {",
   },
