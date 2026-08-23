@@ -312,19 +312,10 @@ describe('battle-view: this tick\'s blows, as display events (§액션 피드백
       return blasts
     }
 
-    // WHAT THIS PAIR USED TO PROVE, AND WHY IT NO LONGER CAN.
-    //
-    // Standing still gave blasts and kiting gave none, which made the route the condition. Under
-    // §1.2.1 both give 3. The cause is the class, not the fixture: a skirmisher's §1.4.1 band is
-    // `[0, SKIRMISHER_RANGE]`, so the front rank walks to CONTACT with the elite and stands in
-    // its circle — and no amount of kiting by the command unit moves them out. Recorded in the
-    // spec as a §1.12 finding rather than smoothed over here.
-    //
-    // The branch still has to be shown conditional, so the condition moved to one the class
-    // cannot erase: before §1.12's elite exists there is nothing that can blast, and after it
-    // arrives there is. That is the same branch under a test that is still true.
     expect(run(true)).toBeGreaterThan(0)
-    expect(run(false)).toBeGreaterThan(0)
+    expect(run(false)).toBe(0)
+    // A third condition, kept from the §1.2.1 round: before the elite exists nothing can blast.
+    // Cheap, and it holds whatever a future route does.
     expect(blastsBefore('seed-h', ELITE_SPAWN_TICK)).toBe(0)
   })
 

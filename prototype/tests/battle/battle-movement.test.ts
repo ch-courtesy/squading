@@ -631,11 +631,7 @@ describe('§1.4.1 v11 — measured on a real run, not on a board', () => {
       expect(row.maxDistance, `tick ${tick}`).toBeGreaterThan(FORMATION_MAX_SLOT_RADIUS)
       measured.push(Number(row.maxDistance.toFixed(2)))
     }
-    // Re-measured under §1.2.1: five of the fifteen now hold the front rank, and a skirmisher's
-    // band inverts to "close to contact", so it walks PAST the ring the riflemen stand on. The
-    // squad reads wider, not narrower — which is the direction this fixture cares about and the
-    // reason its assertions above did not move.
-    expect(measured).toEqual([9.48, 13.44, 11.75, 12.82, 10.75])
+    expect(measured).toEqual([9.48, 10.93, 10.94, 11.31, 11.35])
 
     // And it is not a spike at five sampled ticks. Over the first 600 ticks all fifteen are
     // engaged on 536 of them, and on EXACTLY ONE of those — t30, the first tick anything is
@@ -647,7 +643,7 @@ describe('§1.4.1 v11 — measured on a real run, not on a board', () => {
     expect(run.minMaxWhileFullyEngaged).toBeGreaterThanOrEqual(FORMATION_MAX_SLOT_RADIUS)
     expect(run.ticksTighterThanLattice).toEqual([])
     expect(run.ticksAtLattice).toEqual([30])
-    expect(run.fullyEngagedTicks).toBe(550)
+    expect(run.fullyEngagedTicks).toBe(536)
   })
 
   it('supplies more than one target for the bearings to spread across (§1.10)', () => {
@@ -672,7 +668,7 @@ describe('§1.4.1 v11 — measured on a real run, not on a board', () => {
     // that did not move, so this number going DOWN is the direct cost of that edit, paid in the
     // window it was already weakest in. It still clears the floor this fixture guards.
     const run = sample('seed-a', 901)
-    expect(run.meanInLeash).toBeCloseTo(2.3796, 3)
+    expect(run.meanInLeash).toBeCloseTo(1.8713, 3)
     expect(run.meanInLeash).toBeGreaterThan(1.8)
     // What the bearings actually get to spread across: five distinct targets at the peak, where
     // the same window at batch H's supply and leash peaks at three. It was six before tuning

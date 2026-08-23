@@ -20,15 +20,11 @@ import {
   COMMANDER_MELEE_DAMAGE,
   COMMANDER_MELEE_INTERVAL,
   COMMANDER_RANGE,
-  SKIRMISHER_ATTACK_INTERVAL,
-  SKIRMISHER_DAMAGE,
-  SKIRMISHER_RANGE,
   SOLDIER_ATTACK_INTERVAL,
   SOLDIER_DAMAGE,
   SOLDIER_RANGE,
 } from './constants'
 import { advanceEnemyTargeting } from './enemy'
-import { isSkirmisherSlot } from './formation'
 import { enemiesById } from './state'
 import {
   attackIntervalMultiplierOf,
@@ -45,39 +41,21 @@ import type { BattleState, EnemyUnit, FriendlyUnit, Vec2 } from './types'
 // from `state.upgrades.rounds[].chosen` — there is no stored multiplier, and no field was added
 // to `BattleState` for any of it.
 
-/**
- * §1.2.1: which class a soldier is, read off the slot §1.4 gave it.
- *
- * The commander is neither, and a standing soldier with no slot — §1.5's displaced original
- * commander — is a rifleman, because a body with no place in the front rank is not holding it.
- */
-export function isSkirmisher(state: BattleState, unit: FriendlyUnit): boolean {
-  if (unit.role === 'commander') return false
-  const assignment = state.slotAssignments.find((row) => row.unitId === unit.id)
-  return isSkirmisherSlot(assignment ? assignment.slotIndex : null)
-}
-
 export function attackRangeOf(state: BattleState, unit: FriendlyUnit): number {
-  const base = unit.role === 'commander'
-    ? COMMANDER_RANGE
-    : isSkirmisher(state, unit) ? SKIRMISHER_RANGE : SOLDIER_RANGE
+  const base = unit.role === 'commander' ? COMMANDER_RANGE : SOLDIER_RANGE
   // §1.13 `사수`: additive, so the range advantage (§1.6) widens by the same metre for the
   // commander and for a soldier instead of scaling apart.
   return base + rangeBonusOf(state)
 }
 
 export function attackIntervalOf(state: BattleState, unit: FriendlyUnit): number {
-  const base = unit.role === 'commander'
-    ? COMMANDER_ATTACK_INTERVAL
-    : isSkirmisher(state, unit) ? SKIRMISHER_ATTACK_INTERVAL : SOLDIER_ATTACK_INTERVAL
+  const base = unit.role === 'commander' ? COMMANDER_ATTACK_INTERVAL : SOLDIER_ATTACK_INTERVAL
   // §1.13 `연사`, rounded to whole ticks — see `tickDurationAfter`.
   return tickDurationAfter(base, attackIntervalMultiplierOf(state))
 }
 
 export function attackDamageOf(state: BattleState, unit: FriendlyUnit): number {
-  const base = unit.role === 'commander'
-    ? COMMANDER_DAMAGE
-    : isSkirmisher(state, unit) ? SKIRMISHER_DAMAGE : SOLDIER_DAMAGE
+  const base = unit.role === 'commander' ? COMMANDER_DAMAGE : SOLDIER_DAMAGE
   // §1.13 `화력`. Attacker-side, so it is baked into the event's `amount` (§1.16) and the
   // defender-side `cover` multiplier composes with it where damage is applied.
   return base * firepowerMultiplierOf(state)

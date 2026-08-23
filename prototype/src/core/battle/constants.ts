@@ -123,34 +123,6 @@ export const COMMANDER_HP = 5.0
 /** PLACEHOLDER */
 export const SOLDIER_HP = 1.4
 
-// ---------------------------------------------------------------------------
-// PLACEHOLDER — §1.2.1 근접병 (skirmisher). The front rank of §1.4's lattice.
-// ---------------------------------------------------------------------------
-
-/**
- * PLACEHOLDER — §2: `< shooterRange`. Being outranged by the shooter is the DEFINITION of this
- * class, not a weakness of its numbers: §1.6's advantage exists only for units that outreach
- * the shooter, so a skirmisher that held one would be a rifleman with a different silhouette.
- */
-export const SKIRMISHER_RANGE = 1.1
-/**
- * PLACEHOLDER — §2: `> SOLDIER_HP`. Taking the contact is the job.
- *
- * ONLY JUST ABOVE, and that is a measurement rather than a preference. The first placeholder was
- * 2.6, nearly double a rifleman, which lifted the squad's total hp 43% and broke I3 and I8 —
- * `tactical-no-input` and `flees-always` each took 4 of 8 against a required 0. Swept:
- * 1.9/0.18 gave 1 and 3, 1.7/0.15 gave 0 and 1, 1.6/0.14 gave 1 and 0, and 1.55/0.13 is the only
- * pair measured where I3, I8 and I10 all hold at 0 with `skilled` still at 8/8.
- *
- * What that says about the class: its worth is not in its numbers. It comes from where it
- * stands and from §1.4.1's band inverting for it — a front rank that also hit like two soldiers
- * would simply be a stronger squad, which is not what §1.2.1 was for.
- */
-export const SKIRMISHER_HP = 1.55
-/** PLACEHOLDER — §2: `> SOLDIER_DAMAGE`. Fewer targets in reach, so each blow is worth more. */
-export const SKIRMISHER_DAMAGE = 0.13
-/** PLACEHOLDER — faster than a rifle at contact range. */
-export const SKIRMISHER_ATTACK_INTERVAL = 9
 
 // ---------------------------------------------------------------------------
 // PLACEHOLDER — the settle epsilon (§2: `ARRIVE_EPSILON` 0.001~0.02)
@@ -407,11 +379,6 @@ assertRule(
   MIN_PRESSURE_FRACTION >= 0.3 && MIN_PRESSURE_FRACTION <= 0.8,
   'MIN_PRESSURE_FRACTION must be within [0.3, 0.8] (§2)',
 )
-// §1.2.1: the front rank takes the contact and hits harder for it. Both relations are what
-// distinguish the class from a rifleman standing further forward. (`SKIRMISHER_RANGE` is
-// checked per stage in `stages.ts`, because `shooterRange` is a stage axis.)
-assertRule(SKIRMISHER_HP > SOLDIER_HP, 'SKIRMISHER_HP must be > SOLDIER_HP (§1.2.1)')
-assertRule(SKIRMISHER_DAMAGE > SOLDIER_DAMAGE, 'SKIRMISHER_DAMAGE must be > SOLDIER_DAMAGE (§1.2.1)')
 
 assertRule(CARD_POOL.length === 8, 'the card pool is exactly 8 cards (§1.13)')
 assertRule(UPGRADE_KILL_THRESHOLDS.length === MAX_UPGRADES, 'there are exactly 4 upgrade thresholds (§1.13)')

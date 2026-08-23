@@ -56,7 +56,6 @@ import {
   eliteEnemy,
   findFriendly,
 
-  SKIRMISHER_IDS,
 } from '../../src/core/battle/state'
 import { createStreamStates, nextStreamRange } from '../../src/core/battle/streams'
 import { advanceFriendlyTargeting, advanceTargeting } from '../../src/core/battle/targeting'
@@ -299,14 +298,8 @@ describe('§1.12 elite movement', () => {
     advanceFriendlyTargeting(state)
 
     const answering = state.friendlies.filter((body) => body.targetId === ELITE_ID)
-    // §1.2.1 TOOK THE FRONT RANK OUT OF THIS LIST, and that is the class working rather than a
-    // regression. Ids 2-6 hold §1.4's front rank and reach `SKIRMISHER_RANGE`, far inside the
-    // distances tabulated above — a skirmisher answers an elite parked at the approach cap by
-    // walking at it, not by shooting it. What is left is the commander and the riflemen whose
-    // slots are inside `SOLDIER_RANGE`.
-    expect(answering.map((body) => body.id)).toEqual([1, 9, 10, 13, 14, 15])
-    expect(answering).toHaveLength(6)
-    expect(answering.some((body) => SKIRMISHER_IDS.includes(body.id))).toBe(false)
+    expect(answering.map((body) => body.id)).toEqual([1, 4, 5, 6, 9, 10, 13, 14, 15])
+    expect(answering).toHaveLength(9)
     // The tail slot at (0, 2.2) is sqrt(4.5^2 + 2.2^2) = sqrt(25.09) = 5.00899 away — just
     // outside 5.0, and the pin that this count is geometry rather than a coincidence.
     expect(Math.hypot(ELITE_APPROACH_RANGE, 2.2)).toBeCloseTo(5.008992, 6)

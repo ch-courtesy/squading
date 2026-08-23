@@ -203,16 +203,15 @@ function selectEngagementTargetIn(
  */
 export function engagementBandOf(state: BattleState, unit: FriendlyUnit): readonly [number, number] {
   const reach = attackRangeOf(state, unit)
-  // §1.2.1: THE INVERSION IS THE ANSWER, NOT A BUG TO GUARD AGAINST.
+  // The near edge is the shooter's range because inside it the shooter answers back and §1.6's
+  // advantage is gone. The `min` handles the case where a friendly does NOT outrange the shooter:
+  // the band would invert, and read plainly the inversion says the unit has no advantage to hold,
+  // so what is left is its own reach and the band collapses to "close to contact".
   //
-  // The band's near edge is the shooter's range because inside it the shooter answers back and
-  // §1.6's advantage is gone. A skirmisher's reach is BELOW that edge, so the band it names is
-  // inverted — and read plainly that says the unit has no advantage to hold, which is exactly
-  // true of it. What is left is its own reach, so the band collapses to "close to contact".
-  //
-  // Written as `min` rather than a class branch on purpose. The rule is about the geometry, not
-  // about who the unit is: any friendly that stops outranging the shooter closes, whether that
-  // happens by class today or by a stage lowering someone's reach tomorrow.
+  // No friendly is in that case today — §1.2.1's front rank was withdrawn in v17 after measuring
+  // that no statline for it satisfied both a human-shaped route and I3/I8. The clause stays
+  // because it is a true statement about the geometry rather than about a class, and a stage
+  // lowering someone's reach would land in it.
   return [Math.min(stageOf(state).shooterRange, reach), reach]
 }
 

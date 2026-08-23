@@ -24,7 +24,6 @@ import {
   COMMANDER_HP,
   COMMANDER_START,
   ROSTER_SIZE,
-  SKIRMISHER_HP,
   SOLDIER_HP,
   UPGRADE_KILL_THRESHOLDS,
 } from './constants'
@@ -108,11 +107,8 @@ function createFriendly(
   nameIndex: number,
   position: Vec2,
   health: { hp: number; maxHp: number } | null = null,
-  /** §1.2.1: the slot decides the class, and the class decides the hp. */
-  slotIndex: number | null = null,
 ): FriendlyUnit {
-  const soldierHp = isSkirmisherSlot(slotIndex) ? SKIRMISHER_HP : SOLDIER_HP
-  const maxHp = health ? health.maxHp : role === 'commander' ? COMMANDER_HP : soldierHp
+  const maxHp = health ? health.maxHp : role === 'commander' ? COMMANDER_HP : SOLDIER_HP
   return {
     id,
     role,
@@ -205,16 +201,6 @@ function spentThresholdCount(priorKills: number): number {
   return index
 }
 
-/** A soldier seated in a slot, so §1.2.1's class — and with it the hp — follows the seat. */
-function createFriendlyInSlot(
-  slotIndex: number,
-  id: number,
-  nameIndex: number,
-  position: Vec2,
-): FriendlyUnit {
-  return createFriendly(id, 'soldier', nameIndex, position, null, slotIndex)
-}
-
 /** The fresh 16: §1.14 draws the names, §1.4 seats the soldiers, §1.2 gives everyone full hp. */
 function createFreshRoster(
   prng: BattleState['prng'],
@@ -232,7 +218,7 @@ function createFreshRoster(
     // the squad for its first few ticks.
     const slot = slotPosition(start, assignment.slotIndex)
     friendlies.push(
-      createFriendlyInSlot(assignment.slotIndex, assignment.unitId, names[assignment.unitId - 1], {
+      createFriendly(assignment.unitId, 'soldier', names[assignment.unitId - 1], {
         x: slot.x,
         y: slot.y,
       }),
