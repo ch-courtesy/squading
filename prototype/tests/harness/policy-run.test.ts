@@ -116,9 +116,9 @@ describe('§1.17 the runner reproduces the digests batch H recorded', () => {
     // and that is the property I3 rests on: nothing a policy does to its own squad changes the
     // board it is facing. The eight-seed band is in `pressure-entry-report.md`.
     expect(THREE_SEEDS.map((seed) => runPolicySeed(policyFactory('tactical-no-input'), seed))).toEqual([
-      { seed: 'seed-a', outcome: 'lost', endTick: 1575, kills: 145, standing: 0, digest: '038d64de' },
-      { seed: 'seed-b', outcome: 'lost', endTick: 2185, kills: 220, standing: 0, digest: 'f4ced7d8' },
-      { seed: 'seed-c', outcome: 'lost', endTick: 1731, kills: 165, standing: 0, digest: '1b349b23' },
+      { seed: 'seed-a', outcome: 'lost', endTick: 1575, kills: 145, standing: 0, digest: 'e807a1ad' },
+      { seed: 'seed-b', outcome: 'lost', endTick: 2185, kills: 220, standing: 0, digest: '433fca99' },
+      { seed: 'seed-c', outcome: 'lost', endTick: 1731, kills: 165, standing: 0, digest: 'de9747d4' },
     ])
   })
 })
@@ -196,9 +196,9 @@ describe('§4.1 `flees-always` on the three seeds', () => {
     // the `tactical-no-input` block above: a stage-1 run opens with a fresh sixteen, the fraction
     // is 1 throughout, and the rule cannot be moved by what the policy does to its own squad.
     expect(THREE_SEEDS.map((seed) => runPolicySeed(policyFactory('flees-always'), seed))).toEqual([
-      { seed: 'seed-a', outcome: 'lost', endTick: 1763, kills: 162, standing: 0, digest: '6ad10ffa' },
-      { seed: 'seed-b', outcome: 'lost', endTick: 2235, kills: 229, standing: 0, digest: '23c5b84b' },
-      { seed: 'seed-c', outcome: 'lost', endTick: 1955, kills: 191, standing: 0, digest: '88336953' },
+      { seed: 'seed-a', outcome: 'lost', endTick: 1763, kills: 162, standing: 0, digest: 'e1dda15c' },
+      { seed: 'seed-b', outcome: 'lost', endTick: 2235, kills: 229, standing: 0, digest: '052ce62d' },
+      { seed: 'seed-c', outcome: 'lost', endTick: 1955, kills: 191, standing: 0, digest: '355b27e9' },
     ])
   })
 

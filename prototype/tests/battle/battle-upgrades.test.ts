@@ -426,8 +426,14 @@ describe('§1.13 card effects, read off the chosen cards', () => {
   })
 
   it('firstaid shortens the rescue (x0.7, rounded to ticks)', () => {
+    // Derived, not the literal 25 this used to hold. That number was `36 * 0.7` rounded, and it
+    // named §1.11's lock length as much as it named the card's effect — so when v15 took the
+    // lock to 20 it failed for a reason that had nothing to do with firstaid. The card's
+    // contract is the multiplier and the rounding; the base belongs to §1.11.
     const state = withCards(fixture(), 'firstaid')
-    expect(rescueTicksOf(state)).toBe(25)
+    expect(rescueTicksOf(state)).toBe(Math.round(RESCUE_TICKS * 0.7))
+    // Non-vacuous: a multiplier of 1 would pass a bare "is a number" check.
+    expect(rescueTicksOf(state)).toBeLessThan(RESCUE_TICKS)
   })
 
   it('cover reduces the damage a friendly takes by 35%', () => {

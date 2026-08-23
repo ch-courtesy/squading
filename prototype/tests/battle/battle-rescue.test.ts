@@ -1,7 +1,7 @@
 // Batch C fixtures, part 2: §1.11 rescue — the 구조 lock 판정 and 구조 진행 steps.
 //
 // Placeholders this file was hand-computed against: RESCUE_RANGE 1.5, RESCUE_TICKS 36,
-// RESCUE_INVULNERABLE_TICKS 45, RESCUE_REVIVE_FRACTION 0.5, SOLDIER_HP 1.4,
+// RESCUE_INVULNERABLE_TICKS 45, RESCUE_REVIVE_FRACTION 1.0 (§1.11 v15), SOLDIER_HP 1.4,
 // COMMANDER_MOVE_SPEED 0.115. Every count below is derived from the constant, so a tuning
 // pass moves the numbers without rewriting the claims.
 
@@ -224,7 +224,7 @@ describe("§1.11 progress and completion (구조 진행)", () => {
     expect(state.rescue).toMatchObject({ active: false, targetId: null, progress: 0 })
   })
 
-  it('revives at exactly half of maxHp, with the invulnerability window and the record', () => {
+  it('revives to the full fraction of maxHp, with the invulnerability window and the record', () => {
     const state = fixture({ 2: { dx: 0.5, dy: 0 } })
     resolveRescueLock(state, NO_EVENTS)
     const target = unit(state, 2)
@@ -236,7 +236,12 @@ describe("§1.11 progress and completion (구조 진행)", () => {
     advanceRescueProgress(state, applyDamage(state, []))
 
     expect(target.hp).toBeCloseTo(2.0 * RESCUE_REVIVE_FRACTION, 12)
-    expect(target.hp).toBeCloseTo(target.maxHp / 2, 12)
+    // The v1 review's defect was reading the fraction off a STORED BASE rather than off
+    // `maxHp`, which showed up as 62.5%. `maxHp` is raised to 2.0 above precisely so the two
+    // readings differ, and this is the assertion that tells them apart — it used to say
+    // `maxHp / 2`, which pinned the fraction's VALUE as well and had to be rewritten when §1.11
+    // (v15) took it to 1.0. The guard is "not the base", not "one half".
+    expect(target.hp).not.toBeCloseTo(SOLDIER_HP * RESCUE_REVIVE_FRACTION, 6)
     expect(target.downedTicks).toBe(0)
     expect(target.deathTick).toBeNull()
     expect(target.invulnerableTicks).toBe(RESCUE_INVULNERABLE_TICKS)

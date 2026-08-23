@@ -220,13 +220,13 @@ export const MIN_PRESSURE_FRACTION = 0.65
 /** PLACEHOLDER */
 export const RESCUE_RANGE = 1.5
 /** PLACEHOLDER — ticks of held Space required to complete a rescue. */
-export const RESCUE_TICKS = 36
+export const RESCUE_TICKS = 20
 /** PLACEHOLDER — invulnerable ticks granted on revival. */
 export const RESCUE_INVULNERABLE_TICKS = 45
 /** PLACEHOLDER — ticks a downed friendly survives before dying. */
-export const DOWNED_TICKS = 300
+export const DOWNED_TICKS = 600
 /** §1.11: revival returns the unit at half its maximum HP. */
-export const RESCUE_REVIVE_FRACTION = 0.5
+export const RESCUE_REVIVE_FRACTION = 1.0
 
 // ---------------------------------------------------------------------------
 // PLACEHOLDER — progression (§1.13)
