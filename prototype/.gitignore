@@ -16,3 +16,7 @@ artifacts/tuning1-search.json
 artifacts/tuning2-search-log.jsonl
 artifacts/tuning2-search*.json
 artifacts/tuning2-grid-*.json
+
+# The roster sweep dumps (tests/sweeps/roster). ~630KB per size x eight sizes x two schemes;
+# `tests/sweeps/roster/summarize.mjs` folds them into the committed `roster-sweep-summary.json`.
+artifacts/roster/
