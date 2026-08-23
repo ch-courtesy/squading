@@ -1,0 +1,4893 @@
+{
+  "generatedFrom": "tests/sweeps/roster",
+  "rows": [
+    {
+      "rosterSize": 16,
+      "formationScheme": "wide",
+      "scaffold": {
+        "rosterSize": 16,
+        "formationScheme": "wide",
+        "slotCount": 15,
+        "maxSlotRadius": 2.459674775249769
+      },
+      "campaign": {
+        "elapsedMs": 8411,
+        "byPolicy": {
+          "tactical-no-input": {
+            "completions": 0,
+            "clearedPerSeed": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "meanFinalSurvivors": 0
+          },
+          "flees-always": {
+            "completions": 0,
+            "clearedPerSeed": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "meanFinalSurvivors": 0
+          },
+          "camps-in-place": {
+            "completions": 0,
+            "clearedPerSeed": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "meanFinalSurvivors": 0
+          },
+          "skilled": {
+            "completions": 0,
+            "clearedPerSeed": [
+              1,
+              2,
+              1,
+              1,
+              1,
+              6,
+              1,
+              5
+            ],
+            "meanFinalSurvivors": 0
+          },
+          "ignores-range": {
+            "completions": 0,
+            "clearedPerSeed": [
+              0,
+              5,
+              1,
+              0,
+              1,
+              2,
+              0,
+              3
+            ],
+            "meanFinalSurvivors": 0
+          },
+          "abandons-downed": {
+            "completions": 0,
+            "clearedPerSeed": [
+              0,
+              2,
+              0,
+              0,
+              0,
+              6,
+              0,
+              1
+            ],
+            "meanFinalSurvivors": 0
+          },
+          "skilled-conservative": {
+            "completions": 0,
+            "clearedPerSeed": [
+              0,
+              6,
+              2,
+              1,
+              1,
+              2,
+              1,
+              2
+            ],
+            "meanFinalSurvivors": 0
+          },
+          "skilled-aggressive": {
+            "completions": 0,
+            "clearedPerSeed": [
+              0,
+              3,
+              1,
+              0,
+              1,
+              2,
+              1,
+              1
+            ],
+            "meanFinalSurvivors": 0
+          }
+        },
+        "skilledRelayRetention": [
+          {
+            "stageId": 1,
+            "legs": 8,
+            "entered": 16,
+            "standing": 8.38,
+            "retention": 0.5234
+          },
+          {
+            "stageId": 2,
+            "legs": 8,
+            "entered": 8.38,
+            "standing": 5.38,
+            "retention": 0.6418
+          },
+          {
+            "stageId": 3,
+            "legs": 3,
+            "entered": 14.33,
+            "standing": 10.33,
+            "retention": 0.7209
+          },
+          {
+            "stageId": 4,
+            "legs": 2,
+            "entered": 15.5,
+            "standing": 14,
+            "retention": 0.9032
+          },
+          {
+            "stageId": 5,
+            "legs": 2,
+            "entered": 14,
+            "standing": 11.5,
+            "retention": 0.8214
+          },
+          {
+            "stageId": 6,
+            "legs": 2,
+            "entered": 11.5,
+            "standing": 5.5,
+            "retention": 0.4783
+          },
+          {
+            "stageId": 7,
+            "legs": 1,
+            "entered": 11,
+            "standing": 0,
+            "retention": 0
+          }
+        ]
+      },
+      "stage": {
+        "elapsedMs": 36552,
+        "skilled": [
+          {
+            "stageId": 1,
+            "wins": 8,
+            "rosterHp": 26,
+            "damageTaken": 21.91,
+            "i2": 0.8425,
+            "i2Windows": [
+              0.2472,
+              0.3179,
+              0.2774
+            ],
+            "retention": 0.5234,
+            "damagePerBody": 1.3691,
+            "lost": 7.63,
+            "kills": 231,
+            "endTick": 2058
+          },
+          {
+            "stageId": 2,
+            "wins": 7,
+            "rosterHp": 26,
+            "damageTaken": 21.44,
+            "i2": 0.8248,
+            "i2Windows": [
+              0.2611,
+              0.3227,
+              0.241
+            ],
+            "retention": 0.6563,
+            "damagePerBody": 1.3402,
+            "lost": 5.5,
+            "kills": 243.8,
+            "endTick": 2049
+          },
+          {
+            "stageId": 3,
+            "wins": 7,
+            "rosterHp": 26,
+            "damageTaken": 21.81,
+            "i2": 0.8387,
+            "i2Windows": [
+              0.3145,
+              0.2285,
+              0.2956
+            ],
+            "retention": 0.5313,
+            "damagePerBody": 1.3628,
+            "lost": 7.5,
+            "kills": 358.9,
+            "endTick": 2075
+          },
+          {
+            "stageId": 4,
+            "wins": 7,
+            "rosterHp": 26,
+            "damageTaken": 21.88,
+            "i2": 0.8415,
+            "i2Windows": [
+              0.2446,
+              0.2722,
+              0.3247
+            ],
+            "retention": 0.5391,
+            "damagePerBody": 1.3674,
+            "lost": 7.38,
+            "kills": 192.6,
+            "endTick": 2116
+          },
+          {
+            "stageId": 5,
+            "wins": 6,
+            "rosterHp": 26,
+            "damageTaken": 21.97,
+            "i2": 0.8452,
+            "i2Windows": [
+              0.2431,
+              0.2411,
+              0.3611
+            ],
+            "retention": 0.5469,
+            "damagePerBody": 1.3734,
+            "lost": 7.25,
+            "kills": 229.5,
+            "endTick": 2175
+          },
+          {
+            "stageId": 6,
+            "wins": 6,
+            "rosterHp": 26,
+            "damageTaken": 24.38,
+            "i2": 0.9376,
+            "i2Windows": [
+              0.2663,
+              0.3145,
+              0.3567
+            ],
+            "retention": 0.2656,
+            "damagePerBody": 1.5235,
+            "lost": 11.75,
+            "kills": 211.6,
+            "endTick": 2070
+          },
+          {
+            "stageId": 7,
+            "wins": 4,
+            "rosterHp": 26,
+            "damageTaken": 25.34,
+            "i2": 0.9746,
+            "i2Windows": [
+              0.2148,
+              0.2293,
+              0.5305
+            ],
+            "retention": 0.3438,
+            "damagePerBody": 1.5838,
+            "lost": 10.5,
+            "kills": 291.4,
+            "endTick": 2296
+          }
+        ],
+        "winsByPolicy": {
+          "tactical-no-input": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "flees-always": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "camps-in-place": [
+            0,
+            0,
+            1,
+            0,
+            2,
+            1,
+            0
+          ],
+          "skilled": [
+            8,
+            7,
+            7,
+            7,
+            6,
+            6,
+            4
+          ],
+          "ignores-range": [
+            5,
+            7,
+            6,
+            8,
+            8,
+            3,
+            5
+          ],
+          "abandons-downed": [
+            3,
+            4,
+            6,
+            7,
+            6,
+            4,
+            4
+          ],
+          "skilled-conservative": [
+            7,
+            6,
+            6,
+            7,
+            7,
+            5,
+            6
+          ],
+          "skilled-aggressive": [
+            6,
+            8,
+            7,
+            7,
+            7,
+            5,
+            5
+          ]
+        }
+      }
+    },
+    {
+      "rosterSize": 17,
+      "formationScheme": "dense",
+      "scaffold": {
+        "rosterSize": 17,
+        "formationScheme": "dense",
+        "slotCount": 16,
+        "maxSlotRadius": 2.3815698604072066
+      },
+      "campaign": {
+        "elapsedMs": 12364,
+        "byPolicy": {
+          "tactical-no-input": {
+            "completions": 0,
+            "clearedPerSeed": [
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              1
+            ],
+            "meanFinalSurvivors": 0
+          },
+          "flees-always": {
+            "completions": 0,
+            "clearedPerSeed": [
+              0,
+              1,
+              0,
+              0,
+              0,
+              1,
+              0,
+              2
+            ],
+            "meanFinalSurvivors": 0
+          },
+          "camps-in-place": {
+            "completions": 0,
+            "clearedPerSeed": [
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              1
+            ],
+            "meanFinalSurvivors": 0
+          },
+          "skilled": {
+            "completions": 1,
+            "clearedPerSeed": [
+              1,
+              7,
+              1,
+              0,
+              1,
+              5,
+              1,
+              2
+            ],
+            "meanFinalSurvivors": 1
+          },
+          "ignores-range": {
+            "completions": 1,
+            "clearedPerSeed": [
+              1,
+              7,
+              2,
+              1,
+              1,
+              2,
+              1,
+              4
+            ],
+            "meanFinalSurvivors": 1.88
+          },
+          "abandons-downed": {
+            "completions": 0,
+            "clearedPerSeed": [
+              0,
+              5,
+              1,
+              0,
+              1,
+              4,
+              1,
+              2
+            ],
+            "meanFinalSurvivors": 0
+          },
+          "skilled-conservative": {
+            "completions": 2,
+            "clearedPerSeed": [
+              1,
+              7,
+              1,
+              1,
+              1,
+              7,
+              4,
+              3
+            ],
+            "meanFinalSurvivors": 1.75
+          },
+          "skilled-aggressive": {
+            "completions": 2,
+            "clearedPerSeed": [
+              1,
+              7,
+              5,
+              1,
+              2,
+              7,
+              1,
+              4
+            ],
+            "meanFinalSurvivors": 2.5
+          }
+        },
+        "skilledRelayRetention": [
+          {
+            "stageId": 1,
+            "legs": 8,
+            "entered": 17,
+            "standing": 8.88,
+            "retention": 0.5221
+          },
+          {
+            "stageId": 2,
+            "legs": 7,
+            "entered": 10.14,
+            "standing": 6,
+            "retention": 0.5915
+          },
+          {
+            "stageId": 3,
+            "legs": 3,
+            "entered": 14,
+            "standing": 10.67,
+            "retention": 0.7619
+          },
+          {
+            "stageId": 4,
+            "legs": 2,
+            "entered": 16,
+            "standing": 14.5,
+            "retention": 0.9063
+          },
+          {
+            "stageId": 5,
+            "legs": 2,
+            "entered": 14.5,
+            "standing": 12.5,
+            "retention": 0.8621
+          },
+          {
+            "stageId": 6,
+            "legs": 2,
+            "entered": 12.5,
+            "standing": 7,
+            "retention": 0.56
+          },
+          {
+            "stageId": 7,
+            "legs": 1,
+            "entered": 14,
+            "standing": 8,
+            "retention": 0.5714
+          }
+        ]
+      },
+      "stage": {
+        "elapsedMs": 39347,
+        "skilled": [
+          {
+            "stageId": 1,
+            "wins": 7,
+            "rosterHp": 27.4,
+            "damageTaken": 22.18,
+            "i2": 0.8093,
+            "i2Windows": [
+              0.2119,
+              0.2954,
+              0.302
+            ],
+            "retention": 0.5221,
+            "damagePerBody": 1.3044,
+            "lost": 8.13,
+            "kills": 231.5,
+            "endTick": 2061
+          },
+          {
+            "stageId": 2,
+            "wins": 8,
+            "rosterHp": 27.4,
+            "damageTaken": 18.18,
+            "i2": 0.6636,
+            "i2Windows": [
+              0.2334,
+              0.2595,
+              0.1707
+            ],
+            "retention": 0.8309,
+            "damagePerBody": 1.0696,
+            "lost": 2.88,
+            "kills": 248.3,
+            "endTick": 2017
+          },
+          {
+            "stageId": 3,
+            "wins": 8,
+            "rosterHp": 27.4,
+            "damageTaken": 18.55,
+            "i2": 0.6769,
+            "i2Windows": [
+              0.2608,
+              0.1917,
+              0.2244
+            ],
+            "retention": 0.7941,
+            "damagePerBody": 1.091,
+            "lost": 3.5,
+            "kills": 367,
+            "endTick": 2068
+          },
+          {
+            "stageId": 4,
+            "wins": 8,
+            "rosterHp": 27.4,
+            "damageTaken": 20.58,
+            "i2": 0.751,
+            "i2Windows": [
+              0.2114,
+              0.2486,
+              0.291
+            ],
+            "retention": 0.6397,
+            "damagePerBody": 1.2104,
+            "lost": 6.13,
+            "kills": 193.6,
+            "endTick": 2094
+          },
+          {
+            "stageId": 5,
+            "wins": 8,
+            "rosterHp": 27.4,
+            "damageTaken": 18.42,
+            "i2": 0.6723,
+            "i2Windows": [
+              0.2123,
+              0.1992,
+              0.2608
+            ],
+            "retention": 0.7647,
+            "damagePerBody": 1.0836,
+            "lost": 4,
+            "kills": 228.9,
+            "endTick": 2113
+          },
+          {
+            "stageId": 6,
+            "wins": 6,
+            "rosterHp": 27.4,
+            "damageTaken": 21.99,
+            "i2": 0.8027,
+            "i2Windows": [
+              0.2049,
+              0.3157,
+              0.2821
+            ],
+            "retention": 0.5809,
+            "damagePerBody": 1.2937,
+            "lost": 7.13,
+            "kills": 213.8,
+            "endTick": 2012
+          },
+          {
+            "stageId": 7,
+            "wins": 8,
+            "rosterHp": 27.4,
+            "damageTaken": 25.42,
+            "i2": 0.9277,
+            "i2Windows": [
+              0.2017,
+              0.2105,
+              0.5154
+            ],
+            "retention": 0.5221,
+            "damagePerBody": 1.4952,
+            "lost": 8.13,
+            "kills": 298.6,
+            "endTick": 2254
+          }
+        ],
+        "winsByPolicy": {
+          "tactical-no-input": [
+            2,
+            2,
+            2,
+            1,
+            3,
+            3,
+            0
+          ],
+          "flees-always": [
+            3,
+            3,
+            3,
+            1,
+            2,
+            2,
+            1
+          ],
+          "camps-in-place": [
+            2,
+            2,
+            2,
+            1,
+            3,
+            2,
+            1
+          ],
+          "skilled": [
+            7,
+            8,
+            8,
+            8,
+            8,
+            6,
+            8
+          ],
+          "ignores-range": [
+            8,
+            8,
+            8,
+            8,
+            8,
+            6,
+            7
+          ],
+          "abandons-downed": [
+            6,
+            7,
+            7,
+            6,
+            6,
+            6,
+            6
+          ],
+          "skilled-conservative": [
+            8,
+            8,
+            7,
+            8,
+            8,
+            6,
+            7
+          ],
+          "skilled-aggressive": [
+            8,
+            8,
+            8,
+            8,
+            8,
+            7,
+            5
+          ]
+        }
+      }
+    },
+    {
+      "rosterSize": 17,
+      "formationScheme": "wide",
+      "scaffold": {
+        "rosterSize": 17,
+        "formationScheme": "wide",
+        "slotCount": 16,
+        "maxSlotRadius": 2.459674775249769
+      },
+      "campaign": {
+        "elapsedMs": 16870,
+        "byPolicy": {
+          "tactical-no-input": {
+            "completions": 0,
+            "clearedPerSeed": [
+              0,
+              1,
+              0,
+              0,
+              0,
+              1,
+              0,
+              2
+            ],
+            "meanFinalSurvivors": 0
+          },
+          "flees-always": {
+            "completions": 0,
+            "clearedPerSeed": [
+              0,
+              2,
+              0,
+              0,
+              0,
+              1,
+              0,
+              2
+            ],
+            "meanFinalSurvivors": 0
+          },
+          "camps-in-place": {
+            "completions": 0,
+            "clearedPerSeed": [
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              2
+            ],
+            "meanFinalSurvivors": 0
+          },
+          "skilled": {
+            "completions": 3,
+            "clearedPerSeed": [
+              0,
+              7,
+              1,
+              1,
+              1,
+              7,
+              1,
+              7
+            ],
+            "meanFinalSurvivors": 4.38
+          },
+          "ignores-range": {
+            "completions": 2,
+            "clearedPerSeed": [
+              1,
+              7,
+              2,
+              1,
+              1,
+              2,
+              1,
+              7
+            ],
+            "meanFinalSurvivors": 3.5
+          },
+          "abandons-downed": {
+            "completions": 3,
+            "clearedPerSeed": [
+              0,
+              7,
+              1,
+              1,
+              1,
+              7,
+              1,
+              7
+            ],
+            "meanFinalSurvivors": 2.88
+          },
+          "skilled-conservative": {
+            "completions": 1,
+            "clearedPerSeed": [
+              1,
+              7,
+              4,
+              1,
+              2,
+              4,
+              1,
+              4
+            ],
+            "meanFinalSurvivors": 1
+          },
+          "skilled-aggressive": {
+            "completions": 1,
+            "clearedPerSeed": [
+              1,
+              7,
+              2,
+              1,
+              2,
+              5,
+              1,
+              3
+            ],
+            "meanFinalSurvivors": 1.13
+          }
+        },
+        "skilledRelayRetention": [
+          {
+            "stageId": 1,
+            "legs": 8,
+            "entered": 17,
+            "standing": 12.13,
+            "retention": 0.7132
+          },
+          {
+            "stageId": 2,
+            "legs": 7,
+            "entered": 13.86,
+            "standing": 7.29,
+            "retention": 0.5258
+          },
+          {
+            "stageId": 3,
+            "legs": 3,
+            "entered": 17,
+            "standing": 17,
+            "retention": 1
+          },
+          {
+            "stageId": 4,
+            "legs": 3,
+            "entered": 17,
+            "standing": 17,
+            "retention": 1
+          },
+          {
+            "stageId": 5,
+            "legs": 3,
+            "entered": 17,
+            "standing": 17,
+            "retention": 1
+          },
+          {
+            "stageId": 6,
+            "legs": 3,
+            "entered": 17,
+            "standing": 17,
+            "retention": 1
+          },
+          {
+            "stageId": 7,
+            "legs": 3,
+            "entered": 17,
+            "standing": 11.67,
+            "retention": 0.6863
+          }
+        ]
+      },
+      "stage": {
+        "elapsedMs": 51215,
+        "skilled": [
+          {
+            "stageId": 1,
+            "wins": 7,
+            "rosterHp": 27.4,
+            "damageTaken": 20.11,
+            "i2": 0.7341,
+            "i2Windows": [
+              0.2284,
+              0.2828,
+              0.2228
+            ],
+            "retention": 0.7132,
+            "damagePerBody": 1.1831,
+            "lost": 4.88,
+            "kills": 233.4,
+            "endTick": 2032
+          },
+          {
+            "stageId": 2,
+            "wins": 8,
+            "rosterHp": 27.4,
+            "damageTaken": 18.98,
+            "i2": 0.6926,
+            "i2Windows": [
+              0.2203,
+              0.2712,
+              0.2011
+            ],
+            "retention": 0.7721,
+            "damagePerBody": 1.1164,
+            "lost": 3.88,
+            "kills": 248,
+            "endTick": 2046
+          },
+          {
+            "stageId": 3,
+            "wins": 8,
+            "rosterHp": 27.4,
+            "damageTaken": 19.01,
+            "i2": 0.6939,
+            "i2Windows": [
+              0.2596,
+              0.1925,
+              0.2417
+            ],
+            "retention": 0.7941,
+            "damagePerBody": 1.1184,
+            "lost": 3.5,
+            "kills": 363.6,
+            "endTick": 2035
+          },
+          {
+            "stageId": 4,
+            "wins": 8,
+            "rosterHp": 27.4,
+            "damageTaken": 20.51,
+            "i2": 0.7484,
+            "i2Windows": [
+              0.2148,
+              0.2392,
+              0.2945
+            ],
+            "retention": 0.6544,
+            "damagePerBody": 1.2063,
+            "lost": 5.88,
+            "kills": 192,
+            "endTick": 2076
+          },
+          {
+            "stageId": 5,
+            "wins": 8,
+            "rosterHp": 27.4,
+            "damageTaken": 18.15,
+            "i2": 0.6625,
+            "i2Windows": [
+              0.1967,
+              0.2031,
+              0.2627
+            ],
+            "retention": 0.7279,
+            "damagePerBody": 1.0678,
+            "lost": 4.63,
+            "kills": 227.1,
+            "endTick": 2113
+          },
+          {
+            "stageId": 6,
+            "wins": 5,
+            "rosterHp": 27.4,
+            "damageTaken": 23.33,
+            "i2": 0.8515,
+            "i2Windows": [
+              0.2083,
+              0.3402,
+              0.303
+            ],
+            "retention": 0.4632,
+            "damagePerBody": 1.3724,
+            "lost": 9.13,
+            "kills": 211.3,
+            "endTick": 2024
+          },
+          {
+            "stageId": 7,
+            "wins": 6,
+            "rosterHp": 27.4,
+            "damageTaken": 24.72,
+            "i2": 0.9021,
+            "i2Windows": [
+              0.1886,
+              0.2243,
+              0.4892
+            ],
+            "retention": 0.5147,
+            "damagePerBody": 1.4539,
+            "lost": 8.25,
+            "kills": 303.6,
+            "endTick": 2240
+          }
+        ],
+        "winsByPolicy": {
+          "tactical-no-input": [
+            3,
+            2,
+            2,
+            1,
+            2,
+            2,
+            0
+          ],
+          "flees-always": [
+            3,
+            2,
+            3,
+            1,
+            3,
+            2,
+            1
+          ],
+          "camps-in-place": [
+            2,
+            2,
+            2,
+            1,
+            3,
+            2,
+            0
+          ],
+          "skilled": [
+            7,
+            8,
+            8,
+            8,
+            8,
+            5,
+            6
+          ],
+          "ignores-range": [
+            8,
+            8,
+            8,
+            8,
+            8,
+            3,
+            3
+          ],
+          "abandons-downed": [
+            7,
+            7,
+            7,
+            7,
+            6,
+            6,
+            6
+          ],
+          "skilled-conservative": [
+            8,
+            8,
+            8,
+            8,
+            8,
+            5,
+            5
+          ],
+          "skilled-aggressive": [
+            8,
+            8,
+            8,
+            8,
+            8,
+            4,
+            7
+          ]
+        }
+      }
+    },
+    {
+      "rosterSize": 18,
+      "formationScheme": "dense",
+      "scaffold": {
+        "rosterSize": 18,
+        "formationScheme": "dense",
+        "slotCount": 17,
+        "maxSlotRadius": 2.3104621386462165
+      },
+      "campaign": {
+        "elapsedMs": 16800,
+        "byPolicy": {
+          "tactical-no-input": {
+            "completions": 0,
+            "clearedPerSeed": [
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              2
+            ],
+            "meanFinalSurvivors": 0
+          },
+          "flees-always": {
+            "completions": 0,
+            "clearedPerSeed": [
+              0,
+              2,
+              1,
+              0,
+              0,
+              1,
+              0,
+              5
+            ],
+            "meanFinalSurvivors": 0
+          },
+          "camps-in-place": {
+            "completions": 0,
+            "clearedPerSeed": [
+              0,
+              2,
+              0,
+              0,
+              0,
+              0,
+              0,
+              2
+            ],
+            "meanFinalSurvivors": 0
+          },
+          "skilled": {
+            "completions": 2,
+            "clearedPerSeed": [
+              1,
+              7,
+              5,
+              1,
+              1,
+              5,
+              1,
+              7
+            ],
+            "meanFinalSurvivors": 2.88
+          },
+          "ignores-range": {
+            "completions": 2,
+            "clearedPerSeed": [
+              2,
+              7,
+              2,
+              1,
+              4,
+              6,
+              2,
+              7
+            ],
+            "meanFinalSurvivors": 2.38
+          },
+          "abandons-downed": {
+            "completions": 2,
+            "clearedPerSeed": [
+              1,
+              7,
+              5,
+              1,
+              1,
+              6,
+              1,
+              7
+            ],
+            "meanFinalSurvivors": 3
+          },
+          "skilled-conservative": {
+            "completions": 3,
+            "clearedPerSeed": [
+              1,
+              7,
+              3,
+              2,
+              2,
+              4,
+              7,
+              7
+            ],
+            "meanFinalSurvivors": 4
+          },
+          "skilled-aggressive": {
+            "completions": 3,
+            "clearedPerSeed": [
+              1,
+              7,
+              4,
+              2,
+              2,
+              7,
+              4,
+              7
+            ],
+            "meanFinalSurvivors": 4.38
+          }
+        },
+        "skilledRelayRetention": [
+          {
+            "stageId": 1,
+            "legs": 8,
+            "entered": 18,
+            "standing": 14,
+            "retention": 0.7778
+          },
+          {
+            "stageId": 2,
+            "legs": 8,
+            "entered": 14,
+            "standing": 8.75,
+            "retention": 0.625
+          },
+          {
+            "stageId": 3,
+            "legs": 4,
+            "entered": 17.5,
+            "standing": 17.5,
+            "retention": 1
+          },
+          {
+            "stageId": 4,
+            "legs": 4,
+            "entered": 17.5,
+            "standing": 17,
+            "retention": 0.9714
+          },
+          {
+            "stageId": 5,
+            "legs": 4,
+            "entered": 17,
+            "standing": 15.75,
+            "retention": 0.9265
+          },
+          {
+            "stageId": 6,
+            "legs": 4,
+            "entered": 15.75,
+            "standing": 8.75,
+            "retention": 0.5556
+          },
+          {
+            "stageId": 7,
+            "legs": 2,
+            "entered": 17.5,
+            "standing": 11.5,
+            "retention": 0.6571
+          }
+        ]
+      },
+      "stage": {
+        "elapsedMs": 40393,
+        "skilled": [
+          {
+            "stageId": 1,
+            "wins": 8,
+            "rosterHp": 28.8,
+            "damageTaken": 18.63,
+            "i2": 0.647,
+            "i2Windows": [
+              0.193,
+              0.2529,
+              0.2012
+            ],
+            "retention": 0.7778,
+            "damagePerBody": 1.0352,
+            "lost": 4,
+            "kills": 239.9,
+            "endTick": 2041
+          },
+          {
+            "stageId": 2,
+            "wins": 8,
+            "rosterHp": 28.8,
+            "damageTaken": 16.5,
+            "i2": 0.5728,
+            "i2Windows": [
+              0.1935,
+              0.2184,
+              0.1609
+            ],
+            "retention": 0.875,
+            "damagePerBody": 0.9165,
+            "lost": 2.25,
+            "kills": 250.9,
+            "endTick": 2020
+          },
+          {
+            "stageId": 3,
+            "wins": 8,
+            "rosterHp": 28.8,
+            "damageTaken": 16.77,
+            "i2": 0.5824,
+            "i2Windows": [
+              0.2158,
+              0.1675,
+              0.1991
+            ],
+            "retention": 0.8958,
+            "damagePerBody": 0.9318,
+            "lost": 1.88,
+            "kills": 370.8,
+            "endTick": 2041
+          },
+          {
+            "stageId": 4,
+            "wins": 8,
+            "rosterHp": 28.8,
+            "damageTaken": 17.44,
+            "i2": 0.6055,
+            "i2Windows": [
+              0.2003,
+              0.1991,
+              0.2061
+            ],
+            "retention": 0.8542,
+            "damagePerBody": 0.9688,
+            "lost": 2.63,
+            "kills": 194.3,
+            "endTick": 2056
+          },
+          {
+            "stageId": 5,
+            "wins": 8,
+            "rosterHp": 28.8,
+            "damageTaken": 17.1,
+            "i2": 0.5936,
+            "i2Windows": [
+              0.1896,
+              0.1457,
+              0.2583
+            ],
+            "retention": 0.8056,
+            "damagePerBody": 0.9498,
+            "lost": 3.5,
+            "kills": 233.6,
+            "endTick": 2137
+          },
+          {
+            "stageId": 6,
+            "wins": 7,
+            "rosterHp": 28.8,
+            "damageTaken": 21.32,
+            "i2": 0.7401,
+            "i2Windows": [
+              0.1873,
+              0.3231,
+              0.2298
+            ],
+            "retention": 0.6389,
+            "damagePerBody": 1.1842,
+            "lost": 6.5,
+            "kills": 214.6,
+            "endTick": 2002
+          },
+          {
+            "stageId": 7,
+            "wins": 7,
+            "rosterHp": 28.8,
+            "damageTaken": 22.84,
+            "i2": 0.7932,
+            "i2Windows": [
+              0.1758,
+              0.1829,
+              0.4344
+            ],
+            "retention": 0.6319,
+            "damagePerBody": 1.2691,
+            "lost": 6.63,
+            "kills": 300.9,
+            "endTick": 2192
+          }
+        ],
+        "winsByPolicy": {
+          "tactical-no-input": [
+            2,
+            2,
+            4,
+            3,
+            5,
+            3,
+            0
+          ],
+          "flees-always": [
+            4,
+            5,
+            3,
+            3,
+            4,
+            3,
+            3
+          ],
+          "camps-in-place": [
+            2,
+            4,
+            6,
+            3,
+            7,
+            4,
+            1
+          ],
+          "skilled": [
+            8,
+            8,
+            8,
+            8,
+            8,
+            7,
+            7
+          ],
+          "ignores-range": [
+            8,
+            8,
+            8,
+            8,
+            8,
+            7,
+            6
+          ],
+          "abandons-downed": [
+            8,
+            8,
+            8,
+            8,
+            8,
+            6,
+            6
+          ],
+          "skilled-conservative": [
+            8,
+            8,
+            8,
+            8,
+            8,
+            6,
+            5
+          ],
+          "skilled-aggressive": [
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            7
+          ]
+        }
+      }
+    },
+    {
+      "rosterSize": 18,
+      "formationScheme": "wide",
+      "scaffold": {
+        "rosterSize": 18,
+        "formationScheme": "wide",
+        "slotCount": 17,
+        "maxSlotRadius": 2.459674775249769
+      },
+      "campaign": {
+        "elapsedMs": 20201,
+        "byPolicy": {
+          "tactical-no-input": {
+            "completions": 0,
+            "clearedPerSeed": [
+              0,
+              3,
+              0,
+              0,
+              0,
+              1,
+              0,
+              2
+            ],
+            "meanFinalSurvivors": 0
+          },
+          "flees-always": {
+            "completions": 0,
+            "clearedPerSeed": [
+              0,
+              2,
+              0,
+              0,
+              0,
+              1,
+              1,
+              6
+            ],
+            "meanFinalSurvivors": 0
+          },
+          "camps-in-place": {
+            "completions": 2,
+            "clearedPerSeed": [
+              0,
+              7,
+              0,
+              0,
+              0,
+              1,
+              0,
+              7
+            ],
+            "meanFinalSurvivors": 2.13
+          },
+          "skilled": {
+            "completions": 3,
+            "clearedPerSeed": [
+              1,
+              7,
+              3,
+              1,
+              2,
+              7,
+              6,
+              7
+            ],
+            "meanFinalSurvivors": 4.5
+          },
+          "ignores-range": {
+            "completions": 3,
+            "clearedPerSeed": [
+              1,
+              7,
+              2,
+              2,
+              2,
+              7,
+              5,
+              7
+            ],
+            "meanFinalSurvivors": 4.88
+          },
+          "abandons-downed": {
+            "completions": 3,
+            "clearedPerSeed": [
+              1,
+              7,
+              3,
+              1,
+              2,
+              7,
+              2,
+              7
+            ],
+            "meanFinalSurvivors": 3.5
+          },
+          "skilled-conservative": {
+            "completions": 3,
+            "clearedPerSeed": [
+              1,
+              7,
+              3,
+              1,
+              4,
+              7,
+              2,
+              7
+            ],
+            "meanFinalSurvivors": 5
+          },
+          "skilled-aggressive": {
+            "completions": 2,
+            "clearedPerSeed": [
+              1,
+              7,
+              4,
+              1,
+              2,
+              7,
+              2,
+              6
+            ],
+            "meanFinalSurvivors": 3.13
+          }
+        },
+        "skilledRelayRetention": [
+          {
+            "stageId": 1,
+            "legs": 8,
+            "entered": 18,
+            "standing": 15.75,
+            "retention": 0.875
+          },
+          {
+            "stageId": 2,
+            "legs": 8,
+            "entered": 15.75,
+            "standing": 12.13,
+            "retention": 0.7698
+          },
+          {
+            "stageId": 3,
+            "legs": 6,
+            "entered": 16.17,
+            "standing": 14.17,
+            "retention": 0.8763
+          },
+          {
+            "stageId": 4,
+            "legs": 5,
+            "entered": 17,
+            "standing": 14,
+            "retention": 0.8235
+          },
+          {
+            "stageId": 5,
+            "legs": 4,
+            "entered": 17.5,
+            "standing": 17.25,
+            "retention": 0.9857
+          },
+          {
+            "stageId": 6,
+            "legs": 4,
+            "entered": 17.25,
+            "standing": 14.25,
+            "retention": 0.8261
+          },
+          {
+            "stageId": 7,
+            "legs": 4,
+            "entered": 14.25,
+            "standing": 9,
+            "retention": 0.6316
+          }
+        ]
+      },
+      "stage": {
+        "elapsedMs": 45279,
+        "skilled": [
+          {
+            "stageId": 1,
+            "wins": 8,
+            "rosterHp": 28.8,
+            "damageTaken": 17.17,
+            "i2": 0.5963,
+            "i2Windows": [
+              0.1897,
+              0.2355,
+              0.171
+            ],
+            "retention": 0.875,
+            "damagePerBody": 0.954,
+            "lost": 2.25,
+            "kills": 235.3,
+            "endTick": 2003
+          },
+          {
+            "stageId": 2,
+            "wins": 8,
+            "rosterHp": 28.8,
+            "damageTaken": 15.31,
+            "i2": 0.5317,
+            "i2Windows": [
+              0.1918,
+              0.2055,
+              0.1344
+            ],
+            "retention": 0.9444,
+            "damagePerBody": 0.8507,
+            "lost": 1,
+            "kills": 252.6,
+            "endTick": 2027
+          },
+          {
+            "stageId": 3,
+            "wins": 8,
+            "rosterHp": 28.8,
+            "damageTaken": 16.21,
+            "i2": 0.5628,
+            "i2Windows": [
+              0.2087,
+              0.1714,
+              0.1827
+            ],
+            "retention": 0.9653,
+            "damagePerBody": 0.9004,
+            "lost": 0.63,
+            "kills": 367,
+            "endTick": 2036
+          },
+          {
+            "stageId": 4,
+            "wins": 8,
+            "rosterHp": 28.8,
+            "damageTaken": 18.01,
+            "i2": 0.6253,
+            "i2Windows": [
+              0.2035,
+              0.2048,
+              0.217
+            ],
+            "retention": 0.8125,
+            "damagePerBody": 1.0005,
+            "lost": 3.38,
+            "kills": 191.6,
+            "endTick": 2042
+          },
+          {
+            "stageId": 5,
+            "wins": 8,
+            "rosterHp": 28.8,
+            "damageTaken": 15.64,
+            "i2": 0.5432,
+            "i2Windows": [
+              0.1835,
+              0.1592,
+              0.2005
+            ],
+            "retention": 0.9028,
+            "damagePerBody": 0.8691,
+            "lost": 1.75,
+            "kills": 230.9,
+            "endTick": 2089
+          },
+          {
+            "stageId": 6,
+            "wins": 6,
+            "rosterHp": 28.8,
+            "damageTaken": 21.98,
+            "i2": 0.7632,
+            "i2Windows": [
+              0.1725,
+              0.3114,
+              0.2793
+            ],
+            "retention": 0.5625,
+            "damagePerBody": 1.2211,
+            "lost": 7.88,
+            "kills": 209.4,
+            "endTick": 1998
+          },
+          {
+            "stageId": 7,
+            "wins": 6,
+            "rosterHp": 28.8,
+            "damageTaken": 25.71,
+            "i2": 0.8928,
+            "i2Windows": [
+              0.1689,
+              0.2062,
+              0.5178
+            ],
+            "retention": 0.4792,
+            "damagePerBody": 1.4285,
+            "lost": 9.38,
+            "kills": 303.6,
+            "endTick": 2262
+          }
+        ],
+        "winsByPolicy": {
+          "tactical-no-input": [
+            3,
+            3,
+            4,
+            2,
+            6,
+            3,
+            0
+          ],
+          "flees-always": [
+            4,
+            3,
+            7,
+            2,
+            4,
+            2,
+            2
+          ],
+          "camps-in-place": [
+            3,
+            3,
+            5,
+            2,
+            6,
+            4,
+            1
+          ],
+          "skilled": [
+            8,
+            8,
+            8,
+            8,
+            8,
+            6,
+            6
+          ],
+          "ignores-range": [
+            8,
+            8,
+            8,
+            8,
+            8,
+            6,
+            7
+          ],
+          "abandons-downed": [
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            6
+          ],
+          "skilled-conservative": [
+            8,
+            8,
+            8,
+            8,
+            8,
+            7,
+            6
+          ],
+          "skilled-aggressive": [
+            8,
+            8,
+            8,
+            8,
+            8,
+            7,
+            6
+          ]
+        }
+      }
+    },
+    {
+      "rosterSize": 20,
+      "formationScheme": "wide",
+      "scaffold": {
+        "rosterSize": 20,
+        "formationScheme": "wide",
+        "slotCount": 19,
+        "maxSlotRadius": 2.459674775249769
+      },
+      "campaign": {
+        "elapsedMs": 38032,
+        "byPolicy": {
+          "tactical-no-input": {
+            "completions": 1,
+            "clearedPerSeed": [
+              0,
+              7,
+              1,
+              1,
+              2,
+              4,
+              1,
+              6
+            ],
+            "meanFinalSurvivors": 0.38
+          },
+          "flees-always": {
+            "completions": 1,
+            "clearedPerSeed": [
+              1,
+              7,
+              5,
+              1,
+              2,
+              2,
+              1,
+              6
+            ],
+            "meanFinalSurvivors": 0.63
+          },
+          "camps-in-place": {
+            "completions": 2,
+            "clearedPerSeed": [
+              1,
+              7,
+              4,
+              2,
+              1,
+              3,
+              1,
+              7
+            ],
+            "meanFinalSurvivors": 2.88
+          },
+          "skilled": {
+            "completions": 4,
+            "clearedPerSeed": [
+              5,
+              7,
+              6,
+              6,
+              6,
+              7,
+              7,
+              7
+            ],
+            "meanFinalSurvivors": 7.88
+          },
+          "ignores-range": {
+            "completions": 4,
+            "clearedPerSeed": [
+              4,
+              7,
+              6,
+              6,
+              6,
+              7,
+              7,
+              7
+            ],
+            "meanFinalSurvivors": 7.63
+          },
+          "abandons-downed": {
+            "completions": 5,
+            "clearedPerSeed": [
+              2,
+              7,
+              6,
+              6,
+              7,
+              7,
+              7,
+              7
+            ],
+            "meanFinalSurvivors": 9.25
+          },
+          "skilled-conservative": {
+            "completions": 5,
+            "clearedPerSeed": [
+              4,
+              7,
+              6,
+              2,
+              7,
+              7,
+              7,
+              7
+            ],
+            "meanFinalSurvivors": 10.25
+          },
+          "skilled-aggressive": {
+            "completions": 4,
+            "clearedPerSeed": [
+              3,
+              7,
+              6,
+              5,
+              7,
+              7,
+              7,
+              6
+            ],
+            "meanFinalSurvivors": 7.13
+          }
+        },
+        "skilledRelayRetention": [
+          {
+            "stageId": 1,
+            "legs": 8,
+            "entered": 20,
+            "standing": 19.88,
+            "retention": 0.9938
+          },
+          {
+            "stageId": 2,
+            "legs": 8,
+            "entered": 19.88,
+            "standing": 19.88,
+            "retention": 1
+          },
+          {
+            "stageId": 3,
+            "legs": 8,
+            "entered": 19.88,
+            "standing": 19.75,
+            "retention": 0.9937
+          },
+          {
+            "stageId": 4,
+            "legs": 8,
+            "entered": 19.75,
+            "standing": 19.25,
+            "retention": 0.9747
+          },
+          {
+            "stageId": 5,
+            "legs": 8,
+            "entered": 19.25,
+            "standing": 17.38,
+            "retention": 0.9026
+          },
+          {
+            "stageId": 6,
+            "legs": 8,
+            "entered": 17.38,
+            "standing": 14.75,
+            "retention": 0.8489
+          },
+          {
+            "stageId": 7,
+            "legs": 7,
+            "entered": 16.86,
+            "standing": 9,
+            "retention": 0.5339
+          }
+        ]
+      },
+      "stage": {
+        "elapsedMs": 58497,
+        "skilled": [
+          {
+            "stageId": 1,
+            "wins": 8,
+            "rosterHp": 31.6,
+            "damageTaken": 13.55,
+            "i2": 0.4288,
+            "i2Windows": [
+              0.1432,
+              0.1708,
+              0.1148
+            ],
+            "retention": 0.9938,
+            "damagePerBody": 0.6775,
+            "lost": 0.13,
+            "kills": 235.8,
+            "endTick": 1986
+          },
+          {
+            "stageId": 2,
+            "wins": 8,
+            "rosterHp": 31.6,
+            "damageTaken": 13.25,
+            "i2": 0.4192,
+            "i2Windows": [
+              0.1496,
+              0.1634,
+              0.1062
+            ],
+            "retention": 0.9875,
+            "damagePerBody": 0.6623,
+            "lost": 0.25,
+            "kills": 251.1,
+            "endTick": 1987
+          },
+          {
+            "stageId": 3,
+            "wins": 8,
+            "rosterHp": 31.6,
+            "damageTaken": 14.05,
+            "i2": 0.4445,
+            "i2Windows": [
+              0.1702,
+              0.128,
+              0.1462
+            ],
+            "retention": 0.9688,
+            "damagePerBody": 0.7023,
+            "lost": 0.63,
+            "kills": 370.3,
+            "endTick": 2025
+          },
+          {
+            "stageId": 4,
+            "wins": 8,
+            "rosterHp": 31.6,
+            "damageTaken": 16.27,
+            "i2": 0.515,
+            "i2Windows": [
+              0.1618,
+              0.1566,
+              0.1966
+            ],
+            "retention": 0.925,
+            "damagePerBody": 0.8137,
+            "lost": 1.5,
+            "kills": 192,
+            "endTick": 2021
+          },
+          {
+            "stageId": 5,
+            "wins": 8,
+            "rosterHp": 31.6,
+            "damageTaken": 14.53,
+            "i2": 0.4597,
+            "i2Windows": [
+              0.1282,
+              0.1121,
+              0.2194
+            ],
+            "retention": 0.9187,
+            "damagePerBody": 0.7264,
+            "lost": 1.63,
+            "kills": 236,
+            "endTick": 2108
+          },
+          {
+            "stageId": 6,
+            "wins": 8,
+            "rosterHp": 31.6,
+            "damageTaken": 20.22,
+            "i2": 0.6399,
+            "i2Windows": [
+              0.1301,
+              0.3119,
+              0.198
+            ],
+            "retention": 0.7813,
+            "damagePerBody": 1.0111,
+            "lost": 4.38,
+            "kills": 213.9,
+            "endTick": 1954
+          },
+          {
+            "stageId": 7,
+            "wins": 7,
+            "rosterHp": 31.6,
+            "damageTaken": 25.25,
+            "i2": 0.799,
+            "i2Windows": [
+              0.1554,
+              0.1669,
+              0.4767
+            ],
+            "retention": 0.6625,
+            "damagePerBody": 1.2623,
+            "lost": 6.75,
+            "kills": 330.1,
+            "endTick": 2197
+          }
+        ],
+        "winsByPolicy": {
+          "tactical-no-input": [
+            7,
+            7,
+            7,
+            7,
+            8,
+            8,
+            0
+          ],
+          "flees-always": [
+            8,
+            8,
+            8,
+            5,
+            8,
+            6,
+            2
+          ],
+          "camps-in-place": [
+            8,
+            7,
+            8,
+            8,
+            8,
+            8,
+            2
+          ],
+          "skilled": [
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            7
+          ],
+          "ignores-range": [
+            8,
+            8,
+            8,
+            8,
+            8,
+            7,
+            7
+          ],
+          "abandons-downed": [
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            7
+          ],
+          "skilled-conservative": [
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            7
+          ],
+          "skilled-aggressive": [
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            7
+          ]
+        }
+      }
+    },
+    {
+      "rosterSize": 22,
+      "formationScheme": "wide",
+      "scaffold": {
+        "rosterSize": 22,
+        "formationScheme": "wide",
+        "slotCount": 21,
+        "maxSlotRadius": 3.1112698372208096
+      },
+      "campaign": {
+        "elapsedMs": 52209,
+        "byPolicy": {
+          "tactical-no-input": {
+            "completions": 2,
+            "clearedPerSeed": [
+              3,
+              7,
+              6,
+              6,
+              6,
+              6,
+              6,
+              7
+            ],
+            "meanFinalSurvivors": 2.38
+          },
+          "flees-always": {
+            "completions": 3,
+            "clearedPerSeed": [
+              4,
+              7,
+              6,
+              6,
+              5,
+              7,
+              6,
+              7
+            ],
+            "meanFinalSurvivors": 3.13
+          },
+          "camps-in-place": {
+            "completions": 5,
+            "clearedPerSeed": [
+              6,
+              7,
+              6,
+              6,
+              7,
+              7,
+              7,
+              7
+            ],
+            "meanFinalSurvivors": 9.13
+          },
+          "skilled": {
+            "completions": 5,
+            "clearedPerSeed": [
+              5,
+              7,
+              6,
+              6,
+              7,
+              7,
+              7,
+              7
+            ],
+            "meanFinalSurvivors": 11
+          },
+          "ignores-range": {
+            "completions": 6,
+            "clearedPerSeed": [
+              7,
+              7,
+              6,
+              6,
+              7,
+              7,
+              7,
+              7
+            ],
+            "meanFinalSurvivors": 11.38
+          },
+          "abandons-downed": {
+            "completions": 6,
+            "clearedPerSeed": [
+              6,
+              7,
+              7,
+              7,
+              6,
+              7,
+              7,
+              7
+            ],
+            "meanFinalSurvivors": 9.75
+          },
+          "skilled-conservative": {
+            "completions": 5,
+            "clearedPerSeed": [
+              5,
+              7,
+              6,
+              6,
+              7,
+              7,
+              7,
+              7
+            ],
+            "meanFinalSurvivors": 9.25
+          },
+          "skilled-aggressive": {
+            "completions": 5,
+            "clearedPerSeed": [
+              5,
+              7,
+              6,
+              6,
+              7,
+              7,
+              7,
+              7
+            ],
+            "meanFinalSurvivors": 10.63
+          }
+        },
+        "skilledRelayRetention": [
+          {
+            "stageId": 1,
+            "legs": 8,
+            "entered": 22,
+            "standing": 21.88,
+            "retention": 0.9943
+          },
+          {
+            "stageId": 2,
+            "legs": 8,
+            "entered": 21.88,
+            "standing": 21.88,
+            "retention": 1
+          },
+          {
+            "stageId": 3,
+            "legs": 8,
+            "entered": 21.88,
+            "standing": 21.88,
+            "retention": 1
+          },
+          {
+            "stageId": 4,
+            "legs": 8,
+            "entered": 21.88,
+            "standing": 21.38,
+            "retention": 0.9771
+          },
+          {
+            "stageId": 5,
+            "legs": 8,
+            "entered": 21.38,
+            "standing": 20.25,
+            "retention": 0.9474
+          },
+          {
+            "stageId": 6,
+            "legs": 8,
+            "entered": 20.25,
+            "standing": 16.88,
+            "retention": 0.8333
+          },
+          {
+            "stageId": 7,
+            "legs": 7,
+            "entered": 19.29,
+            "standing": 12.57,
+            "retention": 0.6519
+          }
+        ]
+      },
+      "stage": {
+        "elapsedMs": 57460,
+        "skilled": [
+          {
+            "stageId": 1,
+            "wins": 8,
+            "rosterHp": 34.4,
+            "damageTaken": 10.9,
+            "i2": 0.3169,
+            "i2Windows": [
+              0.0959,
+              0.1309,
+              0.0902
+            ],
+            "retention": 0.9943,
+            "damagePerBody": 0.4956,
+            "lost": 0.13,
+            "kills": 236.3,
+            "endTick": 1973
+          },
+          {
+            "stageId": 2,
+            "wins": 8,
+            "rosterHp": 34.4,
+            "damageTaken": 10.95,
+            "i2": 0.3184,
+            "i2Windows": [
+              0.1187,
+              0.1241,
+              0.0755
+            ],
+            "retention": 0.9943,
+            "damagePerBody": 0.4978,
+            "lost": 0.13,
+            "kills": 252.4,
+            "endTick": 1978
+          },
+          {
+            "stageId": 3,
+            "wins": 8,
+            "rosterHp": 34.4,
+            "damageTaken": 12.23,
+            "i2": 0.3555,
+            "i2Windows": [
+              0.136,
+              0.0945,
+              0.125
+            ],
+            "retention": 1,
+            "damagePerBody": 0.5559,
+            "lost": 0,
+            "kills": 374.6,
+            "endTick": 2030
+          },
+          {
+            "stageId": 4,
+            "wins": 8,
+            "rosterHp": 34.4,
+            "damageTaken": 13.56,
+            "i2": 0.3941,
+            "i2Windows": [
+              0.1297,
+              0.1245,
+              0.1399
+            ],
+            "retention": 0.983,
+            "damagePerBody": 0.6163,
+            "lost": 0.38,
+            "kills": 196.4,
+            "endTick": 2019
+          },
+          {
+            "stageId": 5,
+            "wins": 8,
+            "rosterHp": 34.4,
+            "damageTaken": 11.17,
+            "i2": 0.3248,
+            "i2Windows": [
+              0.096,
+              0.0809,
+              0.1479
+            ],
+            "retention": 0.9602,
+            "damagePerBody": 0.5079,
+            "lost": 0.88,
+            "kills": 233.5,
+            "endTick": 2080
+          },
+          {
+            "stageId": 6,
+            "wins": 8,
+            "rosterHp": 34.4,
+            "damageTaken": 19.18,
+            "i2": 0.5575,
+            "i2Windows": [
+              0.0912,
+              0.298,
+              0.1684
+            ],
+            "retention": 0.875,
+            "damagePerBody": 0.8717,
+            "lost": 2.75,
+            "kills": 218.3,
+            "endTick": 1960
+          },
+          {
+            "stageId": 7,
+            "wins": 8,
+            "rosterHp": 34.4,
+            "damageTaken": 26.22,
+            "i2": 0.7622,
+            "i2Windows": [
+              0.1292,
+              0.1637,
+              0.4693
+            ],
+            "retention": 0.6591,
+            "damagePerBody": 1.1919,
+            "lost": 7.5,
+            "kills": 348.5,
+            "endTick": 2165
+          }
+        ],
+        "winsByPolicy": {
+          "tactical-no-input": [
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            2
+          ],
+          "flees-always": [
+            8,
+            8,
+            8,
+            8,
+            8,
+            7,
+            4
+          ],
+          "camps-in-place": [
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            5
+          ],
+          "skilled": [
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8
+          ],
+          "ignores-range": [
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8
+          ],
+          "abandons-downed": [
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            6
+          ],
+          "skilled-conservative": [
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            7
+          ],
+          "skilled-aggressive": [
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8
+          ]
+        }
+      }
+    },
+    {
+      "rosterSize": 24,
+      "formationScheme": "wide",
+      "scaffold": {
+        "rosterSize": 24,
+        "formationScheme": "wide",
+        "slotCount": 23,
+        "maxSlotRadius": 3.1112698372208096
+      },
+      "campaign": {
+        "elapsedMs": 46754,
+        "byPolicy": {
+          "tactical-no-input": {
+            "completions": 4,
+            "clearedPerSeed": [
+              4,
+              7,
+              6,
+              6,
+              7,
+              7,
+              6,
+              7
+            ],
+            "meanFinalSurvivors": 4.88
+          },
+          "flees-always": {
+            "completions": 5,
+            "clearedPerSeed": [
+              5,
+              7,
+              6,
+              7,
+              6,
+              7,
+              7,
+              7
+            ],
+            "meanFinalSurvivors": 7
+          },
+          "camps-in-place": {
+            "completions": 5,
+            "clearedPerSeed": [
+              6,
+              7,
+              6,
+              6,
+              7,
+              7,
+              7,
+              7
+            ],
+            "meanFinalSurvivors": 10.5
+          },
+          "skilled": {
+            "completions": 6,
+            "clearedPerSeed": [
+              7,
+              7,
+              6,
+              6,
+              7,
+              7,
+              7,
+              7
+            ],
+            "meanFinalSurvivors": 14.13
+          },
+          "ignores-range": {
+            "completions": 8,
+            "clearedPerSeed": [
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7
+            ],
+            "meanFinalSurvivors": 15.5
+          },
+          "abandons-downed": {
+            "completions": 8,
+            "clearedPerSeed": [
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7
+            ],
+            "meanFinalSurvivors": 18
+          },
+          "skilled-conservative": {
+            "completions": 8,
+            "clearedPerSeed": [
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7
+            ],
+            "meanFinalSurvivors": 16.75
+          },
+          "skilled-aggressive": {
+            "completions": 8,
+            "clearedPerSeed": [
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7
+            ],
+            "meanFinalSurvivors": 17.13
+          }
+        },
+        "skilledRelayRetention": [
+          {
+            "stageId": 1,
+            "legs": 8,
+            "entered": 24,
+            "standing": 24,
+            "retention": 1
+          },
+          {
+            "stageId": 2,
+            "legs": 8,
+            "entered": 24,
+            "standing": 24,
+            "retention": 1
+          },
+          {
+            "stageId": 3,
+            "legs": 8,
+            "entered": 24,
+            "standing": 24,
+            "retention": 1
+          },
+          {
+            "stageId": 4,
+            "legs": 8,
+            "entered": 24,
+            "standing": 23.75,
+            "retention": 0.9896
+          },
+          {
+            "stageId": 5,
+            "legs": 8,
+            "entered": 23.75,
+            "standing": 23,
+            "retention": 0.9684
+          },
+          {
+            "stageId": 6,
+            "legs": 8,
+            "entered": 23,
+            "standing": 21.38,
+            "retention": 0.9293
+          },
+          {
+            "stageId": 7,
+            "legs": 8,
+            "entered": 21.38,
+            "standing": 14.13,
+            "retention": 0.6608
+          }
+        ]
+      },
+      "stage": {
+        "elapsedMs": 48396,
+        "skilled": [
+          {
+            "stageId": 1,
+            "wins": 8,
+            "rosterHp": 37.2,
+            "damageTaken": 8.69,
+            "i2": 0.2336,
+            "i2Windows": [
+              0.0819,
+              0.0883,
+              0.0635
+            ],
+            "retention": 1,
+            "damagePerBody": 0.3621,
+            "lost": 0,
+            "kills": 240.9,
+            "endTick": 1987
+          },
+          {
+            "stageId": 2,
+            "wins": 8,
+            "rosterHp": 37.2,
+            "damageTaken": 9.1,
+            "i2": 0.2446,
+            "i2Windows": [
+              0.0845,
+              0.1078,
+              0.0523
+            ],
+            "retention": 1,
+            "damagePerBody": 0.3791,
+            "lost": 0,
+            "kills": 254.3,
+            "endTick": 1980
+          },
+          {
+            "stageId": 3,
+            "wins": 8,
+            "rosterHp": 37.2,
+            "damageTaken": 11.08,
+            "i2": 0.2979,
+            "i2Windows": [
+              0.1039,
+              0.0838,
+              0.1102
+            ],
+            "retention": 1,
+            "damagePerBody": 0.4617,
+            "lost": 0,
+            "kills": 381.4,
+            "endTick": 2035
+          },
+          {
+            "stageId": 4,
+            "wins": 8,
+            "rosterHp": 37.2,
+            "damageTaken": 12.37,
+            "i2": 0.3326,
+            "i2Windows": [
+              0.1118,
+              0.1154,
+              0.1054
+            ],
+            "retention": 0.9844,
+            "damagePerBody": 0.5155,
+            "lost": 0.38,
+            "kills": 194,
+            "endTick": 1996
+          },
+          {
+            "stageId": 5,
+            "wins": 8,
+            "rosterHp": 37.2,
+            "damageTaken": 13.11,
+            "i2": 0.3523,
+            "i2Windows": [
+              0.0783,
+              0.069,
+              0.205
+            ],
+            "retention": 0.9583,
+            "damagePerBody": 0.5461,
+            "lost": 1,
+            "kills": 238.9,
+            "endTick": 2112
+          },
+          {
+            "stageId": 6,
+            "wins": 8,
+            "rosterHp": 37.2,
+            "damageTaken": 17.49,
+            "i2": 0.4703,
+            "i2Windows": [
+              0.0705,
+              0.2479,
+              0.1519
+            ],
+            "retention": 0.9375,
+            "damagePerBody": 0.7289,
+            "lost": 1.5,
+            "kills": 217.3,
+            "endTick": 1938
+          },
+          {
+            "stageId": 7,
+            "wins": 8,
+            "rosterHp": 37.2,
+            "damageTaken": 24.02,
+            "i2": 0.6457,
+            "i2Windows": [
+              0.1169,
+              0.1388,
+              0.39
+            ],
+            "retention": 0.8177,
+            "damagePerBody": 1.0009,
+            "lost": 4.38,
+            "kills": 368.1,
+            "endTick": 2138
+          }
+        ],
+        "winsByPolicy": {
+          "tactical-no-input": [
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            5
+          ],
+          "flees-always": [
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            7
+          ],
+          "camps-in-place": [
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            6
+          ],
+          "skilled": [
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8
+          ],
+          "ignores-range": [
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            7
+          ],
+          "abandons-downed": [
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8
+          ],
+          "skilled-conservative": [
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8
+          ],
+          "skilled-aggressive": [
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8
+          ]
+        }
+      }
+    },
+    {
+      "rosterSize": 32,
+      "formationScheme": "dense",
+      "scaffold": {
+        "rosterSize": 32,
+        "formationScheme": "dense",
+        "slotCount": 31,
+        "maxSlotRadius": 2.4196773978523294
+      },
+      "campaign": {
+        "elapsedMs": 60291,
+        "byPolicy": {
+          "tactical-no-input": {
+            "completions": 7,
+            "clearedPerSeed": [
+              6,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7
+            ],
+            "meanFinalSurvivors": 20.25
+          },
+          "flees-always": {
+            "completions": 6,
+            "clearedPerSeed": [
+              6,
+              7,
+              6,
+              7,
+              7,
+              7,
+              7,
+              7
+            ],
+            "meanFinalSurvivors": 20.5
+          },
+          "camps-in-place": {
+            "completions": 8,
+            "clearedPerSeed": [
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7
+            ],
+            "meanFinalSurvivors": 25.75
+          },
+          "skilled": {
+            "completions": 8,
+            "clearedPerSeed": [
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7
+            ],
+            "meanFinalSurvivors": 27.63
+          },
+          "ignores-range": {
+            "completions": 8,
+            "clearedPerSeed": [
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7
+            ],
+            "meanFinalSurvivors": 21.13
+          },
+          "abandons-downed": {
+            "completions": 8,
+            "clearedPerSeed": [
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7
+            ],
+            "meanFinalSurvivors": 27.13
+          },
+          "skilled-conservative": {
+            "completions": 8,
+            "clearedPerSeed": [
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7
+            ],
+            "meanFinalSurvivors": 24.75
+          },
+          "skilled-aggressive": {
+            "completions": 8,
+            "clearedPerSeed": [
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7
+            ],
+            "meanFinalSurvivors": 28
+          }
+        },
+        "skilledRelayRetention": [
+          {
+            "stageId": 1,
+            "legs": 8,
+            "entered": 32,
+            "standing": 32,
+            "retention": 1
+          },
+          {
+            "stageId": 2,
+            "legs": 8,
+            "entered": 32,
+            "standing": 32,
+            "retention": 1
+          },
+          {
+            "stageId": 3,
+            "legs": 8,
+            "entered": 32,
+            "standing": 32,
+            "retention": 1
+          },
+          {
+            "stageId": 4,
+            "legs": 8,
+            "entered": 32,
+            "standing": 31.88,
+            "retention": 0.9961
+          },
+          {
+            "stageId": 5,
+            "legs": 8,
+            "entered": 31.88,
+            "standing": 31.88,
+            "retention": 1
+          },
+          {
+            "stageId": 6,
+            "legs": 8,
+            "entered": 31.88,
+            "standing": 31.63,
+            "retention": 0.9922
+          },
+          {
+            "stageId": 7,
+            "legs": 8,
+            "entered": 31.63,
+            "standing": 27.63,
+            "retention": 0.8735
+          }
+        ]
+      },
+      "stage": {
+        "elapsedMs": 62332,
+        "skilled": [
+          {
+            "stageId": 1,
+            "wins": 8,
+            "rosterHp": 48.4,
+            "damageTaken": 4.28,
+            "i2": 0.0885,
+            "i2Windows": [
+              0.0258,
+              0.0322,
+              0.0305
+            ],
+            "retention": 1,
+            "damagePerBody": 0.1338,
+            "lost": 0,
+            "kills": 240,
+            "endTick": 1948
+          },
+          {
+            "stageId": 2,
+            "wins": 8,
+            "rosterHp": 48.4,
+            "damageTaken": 6.73,
+            "i2": 0.1391,
+            "i2Windows": [
+              0.0449,
+              0.0454,
+              0.0487
+            ],
+            "retention": 1,
+            "damagePerBody": 0.2104,
+            "lost": 0,
+            "kills": 256.8,
+            "endTick": 1962
+          },
+          {
+            "stageId": 3,
+            "wins": 8,
+            "rosterHp": 48.4,
+            "damageTaken": 7.62,
+            "i2": 0.1574,
+            "i2Windows": [
+              0.0527,
+              0.0446,
+              0.0601
+            ],
+            "retention": 1,
+            "damagePerBody": 0.238,
+            "lost": 0,
+            "kills": 371.8,
+            "endTick": 1973
+          },
+          {
+            "stageId": 4,
+            "wins": 8,
+            "rosterHp": 48.4,
+            "damageTaken": 9.13,
+            "i2": 0.1885,
+            "i2Windows": [
+              0.0653,
+              0.0616,
+              0.0617
+            ],
+            "retention": 1,
+            "damagePerBody": 0.2852,
+            "lost": 0,
+            "kills": 194.1,
+            "endTick": 1959
+          },
+          {
+            "stageId": 5,
+            "wins": 8,
+            "rosterHp": 48.4,
+            "damageTaken": 9.51,
+            "i2": 0.1965,
+            "i2Windows": [
+              0.029,
+              0.029,
+              0.1385
+            ],
+            "retention": 1,
+            "damagePerBody": 0.2972,
+            "lost": 0,
+            "kills": 235.5,
+            "endTick": 2049
+          },
+          {
+            "stageId": 6,
+            "wins": 8,
+            "rosterHp": 48.4,
+            "damageTaken": 16.81,
+            "i2": 0.3474,
+            "i2Windows": [
+              0.0285,
+              0.2863,
+              0.0326
+            ],
+            "retention": 0.9961,
+            "damagePerBody": 0.5254,
+            "lost": 0.13,
+            "kills": 215.1,
+            "endTick": 1856
+          },
+          {
+            "stageId": 7,
+            "wins": 8,
+            "rosterHp": 48.4,
+            "damageTaken": 30.35,
+            "i2": 0.6272,
+            "i2Windows": [
+              0.0539,
+              0.0642,
+              0.5091
+            ],
+            "retention": 0.7969,
+            "damagePerBody": 0.9486,
+            "lost": 6.5,
+            "kills": 397.3,
+            "endTick": 2088
+          }
+        ],
+        "winsByPolicy": {
+          "tactical-no-input": [
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8
+          ],
+          "flees-always": [
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            7
+          ],
+          "camps-in-place": [
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8
+          ],
+          "skilled": [
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8
+          ],
+          "ignores-range": [
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8
+          ],
+          "abandons-downed": [
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            7
+          ],
+          "skilled-conservative": [
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8
+          ],
+          "skilled-aggressive": [
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8
+          ]
+        }
+      }
+    },
+    {
+      "rosterSize": 32,
+      "formationScheme": "wide",
+      "scaffold": {
+        "rosterSize": 32,
+        "formationScheme": "wide",
+        "slotCount": 31,
+        "maxSlotRadius": 3.478505426185218
+      },
+      "campaign": {
+        "elapsedMs": 62773,
+        "byPolicy": {
+          "tactical-no-input": {
+            "completions": 7,
+            "clearedPerSeed": [
+              6,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7
+            ],
+            "meanFinalSurvivors": 23.38
+          },
+          "flees-always": {
+            "completions": 6,
+            "clearedPerSeed": [
+              6,
+              7,
+              6,
+              7,
+              7,
+              7,
+              7,
+              7
+            ],
+            "meanFinalSurvivors": 19.25
+          },
+          "camps-in-place": {
+            "completions": 8,
+            "clearedPerSeed": [
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7
+            ],
+            "meanFinalSurvivors": 24.25
+          },
+          "skilled": {
+            "completions": 8,
+            "clearedPerSeed": [
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7
+            ],
+            "meanFinalSurvivors": 24.88
+          },
+          "ignores-range": {
+            "completions": 8,
+            "clearedPerSeed": [
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7
+            ],
+            "meanFinalSurvivors": 26.63
+          },
+          "abandons-downed": {
+            "completions": 7,
+            "clearedPerSeed": [
+              7,
+              7,
+              6,
+              7,
+              7,
+              7,
+              7,
+              7
+            ],
+            "meanFinalSurvivors": 23.63
+          },
+          "skilled-conservative": {
+            "completions": 8,
+            "clearedPerSeed": [
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7
+            ],
+            "meanFinalSurvivors": 26.25
+          },
+          "skilled-aggressive": {
+            "completions": 8,
+            "clearedPerSeed": [
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7
+            ],
+            "meanFinalSurvivors": 26.5
+          }
+        },
+        "skilledRelayRetention": [
+          {
+            "stageId": 1,
+            "legs": 8,
+            "entered": 32,
+            "standing": 32,
+            "retention": 1
+          },
+          {
+            "stageId": 2,
+            "legs": 8,
+            "entered": 32,
+            "standing": 32,
+            "retention": 1
+          },
+          {
+            "stageId": 3,
+            "legs": 8,
+            "entered": 32,
+            "standing": 32,
+            "retention": 1
+          },
+          {
+            "stageId": 4,
+            "legs": 8,
+            "entered": 32,
+            "standing": 32,
+            "retention": 1
+          },
+          {
+            "stageId": 5,
+            "legs": 8,
+            "entered": 32,
+            "standing": 32,
+            "retention": 1
+          },
+          {
+            "stageId": 6,
+            "legs": 8,
+            "entered": 32,
+            "standing": 30.5,
+            "retention": 0.9531
+          },
+          {
+            "stageId": 7,
+            "legs": 8,
+            "entered": 30.5,
+            "standing": 24.88,
+            "retention": 0.8156
+          }
+        ]
+      },
+      "stage": {
+        "elapsedMs": 70373,
+        "skilled": [
+          {
+            "stageId": 1,
+            "wins": 8,
+            "rosterHp": 48.4,
+            "damageTaken": 4.82,
+            "i2": 0.0995,
+            "i2Windows": [
+              0.027,
+              0.0327,
+              0.0398
+            ],
+            "retention": 1,
+            "damagePerBody": 0.1505,
+            "lost": 0,
+            "kills": 236.5,
+            "endTick": 1937
+          },
+          {
+            "stageId": 2,
+            "wins": 8,
+            "rosterHp": 48.4,
+            "damageTaken": 6.13,
+            "i2": 0.1266,
+            "i2Windows": [
+              0.045,
+              0.048,
+              0.0336
+            ],
+            "retention": 1,
+            "damagePerBody": 0.1915,
+            "lost": 0,
+            "kills": 250.5,
+            "endTick": 1932
+          },
+          {
+            "stageId": 3,
+            "wins": 8,
+            "rosterHp": 48.4,
+            "damageTaken": 7.35,
+            "i2": 0.1519,
+            "i2Windows": [
+              0.0511,
+              0.0456,
+              0.0552
+            ],
+            "retention": 1,
+            "damagePerBody": 0.2298,
+            "lost": 0,
+            "kills": 378.1,
+            "endTick": 1992
+          },
+          {
+            "stageId": 4,
+            "wins": 8,
+            "rosterHp": 48.4,
+            "damageTaken": 9.27,
+            "i2": 0.1916,
+            "i2Windows": [
+              0.0643,
+              0.0659,
+              0.0614
+            ],
+            "retention": 1,
+            "damagePerBody": 0.2898,
+            "lost": 0,
+            "kills": 198.5,
+            "endTick": 1988
+          },
+          {
+            "stageId": 5,
+            "wins": 8,
+            "rosterHp": 48.4,
+            "damageTaken": 8.89,
+            "i2": 0.1836,
+            "i2Windows": [
+              0.0339,
+              0.035,
+              0.1147
+            ],
+            "retention": 0.9883,
+            "damagePerBody": 0.2777,
+            "lost": 0.38,
+            "kills": 234.3,
+            "endTick": 2018
+          },
+          {
+            "stageId": 6,
+            "wins": 8,
+            "rosterHp": 48.4,
+            "damageTaken": 17.84,
+            "i2": 0.3687,
+            "i2Windows": [
+              0.0342,
+              0.2223,
+              0.1121
+            ],
+            "retention": 0.9492,
+            "damagePerBody": 0.5576,
+            "lost": 1.63,
+            "kills": 220,
+            "endTick": 1905
+          },
+          {
+            "stageId": 7,
+            "wins": 8,
+            "rosterHp": 48.4,
+            "damageTaken": 27.33,
+            "i2": 0.5646,
+            "i2Windows": [
+              0.0598,
+              0.0814,
+              0.4234
+            ],
+            "retention": 0.8555,
+            "damagePerBody": 0.854,
+            "lost": 4.63,
+            "kills": 407.5,
+            "endTick": 2096
+          }
+        ],
+        "winsByPolicy": {
+          "tactical-no-input": [
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8
+          ],
+          "flees-always": [
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            7
+          ],
+          "camps-in-place": [
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8
+          ],
+          "skilled": [
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8
+          ],
+          "ignores-range": [
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8
+          ],
+          "abandons-downed": [
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8
+          ],
+          "skilled-conservative": [
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8
+          ],
+          "skilled-aggressive": [
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8
+          ]
+        }
+      }
+    },
+    {
+      "rosterSize": 48,
+      "formationScheme": "wide",
+      "scaffold": {
+        "rosterSize": 48,
+        "formationScheme": "wide",
+        "slotCount": 47,
+        "maxSlotRadius": 4.4
+      },
+      "campaign": {
+        "elapsedMs": 91834,
+        "byPolicy": {
+          "tactical-no-input": {
+            "completions": 8,
+            "clearedPerSeed": [
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7
+            ],
+            "meanFinalSurvivors": 45.13
+          },
+          "flees-always": {
+            "completions": 8,
+            "clearedPerSeed": [
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7
+            ],
+            "meanFinalSurvivors": 44.38
+          },
+          "camps-in-place": {
+            "completions": 8,
+            "clearedPerSeed": [
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7
+            ],
+            "meanFinalSurvivors": 41.63
+          },
+          "skilled": {
+            "completions": 8,
+            "clearedPerSeed": [
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7
+            ],
+            "meanFinalSurvivors": 39
+          },
+          "ignores-range": {
+            "completions": 8,
+            "clearedPerSeed": [
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7
+            ],
+            "meanFinalSurvivors": 42.25
+          },
+          "abandons-downed": {
+            "completions": 8,
+            "clearedPerSeed": [
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7
+            ],
+            "meanFinalSurvivors": 33.5
+          },
+          "skilled-conservative": {
+            "completions": 8,
+            "clearedPerSeed": [
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7
+            ],
+            "meanFinalSurvivors": 40.13
+          },
+          "skilled-aggressive": {
+            "completions": 8,
+            "clearedPerSeed": [
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7
+            ],
+            "meanFinalSurvivors": 39.88
+          }
+        },
+        "skilledRelayRetention": [
+          {
+            "stageId": 1,
+            "legs": 8,
+            "entered": 48,
+            "standing": 48,
+            "retention": 1
+          },
+          {
+            "stageId": 2,
+            "legs": 8,
+            "entered": 48,
+            "standing": 48,
+            "retention": 1
+          },
+          {
+            "stageId": 3,
+            "legs": 8,
+            "entered": 48,
+            "standing": 48,
+            "retention": 1
+          },
+          {
+            "stageId": 4,
+            "legs": 8,
+            "entered": 48,
+            "standing": 47.88,
+            "retention": 0.9974
+          },
+          {
+            "stageId": 5,
+            "legs": 8,
+            "entered": 47.88,
+            "standing": 47.88,
+            "retention": 1
+          },
+          {
+            "stageId": 6,
+            "legs": 8,
+            "entered": 47.88,
+            "standing": 46.63,
+            "retention": 0.9739
+          },
+          {
+            "stageId": 7,
+            "legs": 8,
+            "entered": 46.63,
+            "standing": 39,
+            "retention": 0.8365
+          }
+        ]
+      },
+      "stage": {
+        "elapsedMs": 81155,
+        "skilled": [
+          {
+            "stageId": 1,
+            "wins": 8,
+            "rosterHp": 70.8,
+            "damageTaken": 3.54,
+            "i2": 0.0501,
+            "i2Windows": [
+              0.0091,
+              0.0119,
+              0.029
+            ],
+            "retention": 1,
+            "damagePerBody": 0.0738,
+            "lost": 0,
+            "kills": 237.4,
+            "endTick": 1917
+          },
+          {
+            "stageId": 2,
+            "wins": 8,
+            "rosterHp": 70.8,
+            "damageTaken": 6.06,
+            "i2": 0.0856,
+            "i2Windows": [
+              0.0222,
+              0.0236,
+              0.0397
+            ],
+            "retention": 1,
+            "damagePerBody": 0.1262,
+            "lost": 0,
+            "kills": 254.9,
+            "endTick": 1930
+          },
+          {
+            "stageId": 3,
+            "wins": 8,
+            "rosterHp": 70.8,
+            "damageTaken": 6.54,
+            "i2": 0.0924,
+            "i2Windows": [
+              0.0259,
+              0.0235,
+              0.043
+            ],
+            "retention": 1,
+            "damagePerBody": 0.1363,
+            "lost": 0,
+            "kills": 374.1,
+            "endTick": 1946
+          },
+          {
+            "stageId": 4,
+            "wins": 8,
+            "rosterHp": 70.8,
+            "damageTaken": 8.46,
+            "i2": 0.1194,
+            "i2Windows": [
+              0.0395,
+              0.039,
+              0.0409
+            ],
+            "retention": 1,
+            "damagePerBody": 0.1762,
+            "lost": 0,
+            "kills": 195.1,
+            "endTick": 1930
+          },
+          {
+            "stageId": 5,
+            "wins": 8,
+            "rosterHp": 70.8,
+            "damageTaken": 6.7,
+            "i2": 0.0946,
+            "i2Windows": [
+              0.0172,
+              0.0205,
+              0.0569
+            ],
+            "retention": 1,
+            "damagePerBody": 0.1396,
+            "lost": 0,
+            "kills": 232.8,
+            "endTick": 1975
+          },
+          {
+            "stageId": 6,
+            "wins": 8,
+            "rosterHp": 70.8,
+            "damageTaken": 17.95,
+            "i2": 0.2536,
+            "i2Windows": [
+              0.0167,
+              0.2238,
+              0.0131
+            ],
+            "retention": 0.9948,
+            "damagePerBody": 0.374,
+            "lost": 0.25,
+            "kills": 211.5,
+            "endTick": 1802
+          },
+          {
+            "stageId": 7,
+            "wins": 8,
+            "rosterHp": 70.8,
+            "damageTaken": 30.59,
+            "i2": 0.4321,
+            "i2Windows": [
+              0.025,
+              0.0318,
+              0.3752
+            ],
+            "retention": 0.9635,
+            "damagePerBody": 0.6373,
+            "lost": 1.75,
+            "kills": 426.8,
+            "endTick": 2003
+          }
+        ],
+        "winsByPolicy": {
+          "tactical-no-input": [
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8
+          ],
+          "flees-always": [
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            7
+          ],
+          "camps-in-place": [
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8
+          ],
+          "skilled": [
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8
+          ],
+          "ignores-range": [
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8
+          ],
+          "abandons-downed": [
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8
+          ],
+          "skilled-conservative": [
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8
+          ],
+          "skilled-aggressive": [
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8
+          ]
+        }
+      }
+    },
+    {
+      "rosterSize": 64,
+      "formationScheme": "dense",
+      "scaffold": {
+        "rosterSize": 64,
+        "formationScheme": "dense",
+        "slotCount": 63,
+        "maxSlotRadius": 2.4003967925959167
+      },
+      "campaign": {
+        "elapsedMs": 97724,
+        "byPolicy": {
+          "tactical-no-input": {
+            "completions": 8,
+            "clearedPerSeed": [
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7
+            ],
+            "meanFinalSurvivors": 61.25
+          },
+          "flees-always": {
+            "completions": 8,
+            "clearedPerSeed": [
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7
+            ],
+            "meanFinalSurvivors": 60.13
+          },
+          "camps-in-place": {
+            "completions": 8,
+            "clearedPerSeed": [
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7
+            ],
+            "meanFinalSurvivors": 55.13
+          },
+          "skilled": {
+            "completions": 8,
+            "clearedPerSeed": [
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7
+            ],
+            "meanFinalSurvivors": 55.13
+          },
+          "ignores-range": {
+            "completions": 8,
+            "clearedPerSeed": [
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7
+            ],
+            "meanFinalSurvivors": 53.63
+          },
+          "abandons-downed": {
+            "completions": 8,
+            "clearedPerSeed": [
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7
+            ],
+            "meanFinalSurvivors": 54.63
+          },
+          "skilled-conservative": {
+            "completions": 8,
+            "clearedPerSeed": [
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7
+            ],
+            "meanFinalSurvivors": 56.38
+          },
+          "skilled-aggressive": {
+            "completions": 8,
+            "clearedPerSeed": [
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7
+            ],
+            "meanFinalSurvivors": 50.25
+          }
+        },
+        "skilledRelayRetention": [
+          {
+            "stageId": 1,
+            "legs": 8,
+            "entered": 64,
+            "standing": 64,
+            "retention": 1
+          },
+          {
+            "stageId": 2,
+            "legs": 8,
+            "entered": 64,
+            "standing": 64,
+            "retention": 1
+          },
+          {
+            "stageId": 3,
+            "legs": 8,
+            "entered": 64,
+            "standing": 64,
+            "retention": 1
+          },
+          {
+            "stageId": 4,
+            "legs": 8,
+            "entered": 64,
+            "standing": 64,
+            "retention": 1
+          },
+          {
+            "stageId": 5,
+            "legs": 8,
+            "entered": 64,
+            "standing": 64,
+            "retention": 1
+          },
+          {
+            "stageId": 6,
+            "legs": 8,
+            "entered": 64,
+            "standing": 64,
+            "retention": 1
+          },
+          {
+            "stageId": 7,
+            "legs": 8,
+            "entered": 64,
+            "standing": 55.13,
+            "retention": 0.8613
+          }
+        ]
+      },
+      "stage": {
+        "elapsedMs": 99391,
+        "skilled": [
+          {
+            "stageId": 1,
+            "wins": 8,
+            "rosterHp": 93.2,
+            "damageTaken": 2.94,
+            "i2": 0.0316,
+            "i2Windows": [
+              0.0037,
+              0.0039,
+              0.024
+            ],
+            "retention": 1,
+            "damagePerBody": 0.046,
+            "lost": 0,
+            "kills": 235.6,
+            "endTick": 1893
+          },
+          {
+            "stageId": 2,
+            "wins": 8,
+            "rosterHp": 93.2,
+            "damageTaken": 5.03,
+            "i2": 0.054,
+            "i2Windows": [
+              0.0098,
+              0.0101,
+              0.034
+            ],
+            "retention": 1,
+            "damagePerBody": 0.0786,
+            "lost": 0,
+            "kills": 250.6,
+            "endTick": 1896
+          },
+          {
+            "stageId": 3,
+            "wins": 8,
+            "rosterHp": 93.2,
+            "damageTaken": 5.13,
+            "i2": 0.055,
+            "i2Windows": [
+              0.0107,
+              0.007,
+              0.0373
+            ],
+            "retention": 1,
+            "damagePerBody": 0.0801,
+            "lost": 0,
+            "kills": 367.6,
+            "endTick": 1931
+          },
+          {
+            "stageId": 4,
+            "wins": 8,
+            "rosterHp": 93.2,
+            "damageTaken": 6.2,
+            "i2": 0.0665,
+            "i2Windows": [
+              0.0153,
+              0.0133,
+              0.0379
+            ],
+            "retention": 1,
+            "damagePerBody": 0.0969,
+            "lost": 0,
+            "kills": 190.6,
+            "endTick": 1900
+          },
+          {
+            "stageId": 5,
+            "wins": 8,
+            "rosterHp": 93.2,
+            "damageTaken": 6.01,
+            "i2": 0.0645,
+            "i2Windows": [
+              0.0087,
+              0.0053,
+              0.0505
+            ],
+            "retention": 1,
+            "damagePerBody": 0.0939,
+            "lost": 0,
+            "kills": 229.6,
+            "endTick": 1959
+          },
+          {
+            "stageId": 6,
+            "wins": 8,
+            "rosterHp": 93.2,
+            "damageTaken": 26.88,
+            "i2": 0.2885,
+            "i2Windows": [
+              0.008,
+              0.2484,
+              0.032
+            ],
+            "retention": 0.9453,
+            "damagePerBody": 0.4201,
+            "lost": 3.5,
+            "kills": 209.9,
+            "endTick": 1798
+          },
+          {
+            "stageId": 7,
+            "wins": 8,
+            "rosterHp": 93.2,
+            "damageTaken": 46.43,
+            "i2": 0.4982,
+            "i2Windows": [
+              0.0097,
+              0.0079,
+              0.4806
+            ],
+            "retention": 0.7852,
+            "damagePerBody": 0.7255,
+            "lost": 13.75,
+            "kills": 426.5,
+            "endTick": 2026
+          }
+        ],
+        "winsByPolicy": {
+          "tactical-no-input": [
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8
+          ],
+          "flees-always": [
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            7
+          ],
+          "camps-in-place": [
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8
+          ],
+          "skilled": [
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8
+          ],
+          "ignores-range": [
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8
+          ],
+          "abandons-downed": [
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8
+          ],
+          "skilled-conservative": [
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8
+          ],
+          "skilled-aggressive": [
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8
+          ]
+        }
+      }
+    },
+    {
+      "rosterSize": 64,
+      "formationScheme": "wide",
+      "scaffold": {
+        "rosterSize": 64,
+        "formationScheme": "wide",
+        "slotCount": 63,
+        "maxSlotRadius": 4.919349550499538
+      },
+      "campaign": {
+        "elapsedMs": 95386,
+        "byPolicy": {
+          "tactical-no-input": {
+            "completions": 8,
+            "clearedPerSeed": [
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7
+            ],
+            "meanFinalSurvivors": 62.75
+          },
+          "flees-always": {
+            "completions": 8,
+            "clearedPerSeed": [
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7
+            ],
+            "meanFinalSurvivors": 63.88
+          },
+          "camps-in-place": {
+            "completions": 8,
+            "clearedPerSeed": [
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7
+            ],
+            "meanFinalSurvivors": 57.13
+          },
+          "skilled": {
+            "completions": 8,
+            "clearedPerSeed": [
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7
+            ],
+            "meanFinalSurvivors": 55.75
+          },
+          "ignores-range": {
+            "completions": 8,
+            "clearedPerSeed": [
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7
+            ],
+            "meanFinalSurvivors": 53.5
+          },
+          "abandons-downed": {
+            "completions": 8,
+            "clearedPerSeed": [
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7
+            ],
+            "meanFinalSurvivors": 55.63
+          },
+          "skilled-conservative": {
+            "completions": 8,
+            "clearedPerSeed": [
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7
+            ],
+            "meanFinalSurvivors": 59
+          },
+          "skilled-aggressive": {
+            "completions": 8,
+            "clearedPerSeed": [
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7,
+              7
+            ],
+            "meanFinalSurvivors": 55.88
+          }
+        },
+        "skilledRelayRetention": [
+          {
+            "stageId": 1,
+            "legs": 8,
+            "entered": 64,
+            "standing": 64,
+            "retention": 1
+          },
+          {
+            "stageId": 2,
+            "legs": 8,
+            "entered": 64,
+            "standing": 64,
+            "retention": 1
+          },
+          {
+            "stageId": 3,
+            "legs": 8,
+            "entered": 64,
+            "standing": 64,
+            "retention": 1
+          },
+          {
+            "stageId": 4,
+            "legs": 8,
+            "entered": 64,
+            "standing": 63.88,
+            "retention": 0.998
+          },
+          {
+            "stageId": 5,
+            "legs": 8,
+            "entered": 63.88,
+            "standing": 63.88,
+            "retention": 1
+          },
+          {
+            "stageId": 6,
+            "legs": 8,
+            "entered": 63.88,
+            "standing": 63.63,
+            "retention": 0.9961
+          },
+          {
+            "stageId": 7,
+            "legs": 8,
+            "entered": 63.63,
+            "standing": 55.75,
+            "retention": 0.8762
+          }
+        ]
+      },
+      "stage": {
+        "elapsedMs": 90540,
+        "skilled": [
+          {
+            "stageId": 1,
+            "wins": 8,
+            "rosterHp": 93.2,
+            "damageTaken": 3.3,
+            "i2": 0.0354,
+            "i2Windows": [
+              0.006,
+              0.0079,
+              0.0216
+            ],
+            "retention": 1,
+            "damagePerBody": 0.0516,
+            "lost": 0,
+            "kills": 235.6,
+            "endTick": 1896
+          },
+          {
+            "stageId": 2,
+            "wins": 8,
+            "rosterHp": 93.2,
+            "damageTaken": 4.6,
+            "i2": 0.0494,
+            "i2Windows": [
+              0.0155,
+              0.017,
+              0.0169
+            ],
+            "retention": 1,
+            "damagePerBody": 0.0719,
+            "lost": 0,
+            "kills": 249.6,
+            "endTick": 1888
+          },
+          {
+            "stageId": 3,
+            "wins": 8,
+            "rosterHp": 93.2,
+            "damageTaken": 6.07,
+            "i2": 0.0651,
+            "i2Windows": [
+              0.0175,
+              0.0158,
+              0.0318
+            ],
+            "retention": 1,
+            "damagePerBody": 0.0948,
+            "lost": 0,
+            "kills": 367.1,
+            "endTick": 1909
+          },
+          {
+            "stageId": 4,
+            "wins": 8,
+            "rosterHp": 93.2,
+            "damageTaken": 8.04,
+            "i2": 0.0862,
+            "i2Windows": [
+              0.0307,
+              0.0274,
+              0.0281
+            ],
+            "retention": 1,
+            "damagePerBody": 0.1256,
+            "lost": 0,
+            "kills": 193.3,
+            "endTick": 1902
+          },
+          {
+            "stageId": 5,
+            "wins": 8,
+            "rosterHp": 93.2,
+            "damageTaken": 8.4,
+            "i2": 0.0901,
+            "i2Windows": [
+              0.0136,
+              0.0149,
+              0.0617
+            ],
+            "retention": 1,
+            "damagePerBody": 0.1312,
+            "lost": 0,
+            "kills": 230.4,
+            "endTick": 1945
+          },
+          {
+            "stageId": 6,
+            "wins": 8,
+            "rosterHp": 93.2,
+            "damageTaken": 24.94,
+            "i2": 0.2676,
+            "i2Windows": [
+              0.0131,
+              0.2118,
+              0.0427
+            ],
+            "retention": 0.998,
+            "damagePerBody": 0.3897,
+            "lost": 0.13,
+            "kills": 216,
+            "endTick": 1815
+          },
+          {
+            "stageId": 7,
+            "wins": 8,
+            "rosterHp": 93.2,
+            "damageTaken": 42.04,
+            "i2": 0.451,
+            "i2Windows": [
+              0.0167,
+              0.0217,
+              0.4127
+            ],
+            "retention": 0.9121,
+            "damagePerBody": 0.6568,
+            "lost": 5.63,
+            "kills": 447.6,
+            "endTick": 2005
+          }
+        ],
+        "winsByPolicy": {
+          "tactical-no-input": [
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8
+          ],
+          "flees-always": [
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8
+          ],
+          "camps-in-place": [
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8
+          ],
+          "skilled": [
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8
+          ],
+          "ignores-range": [
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8
+          ],
+          "abandons-downed": [
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8
+          ],
+          "skilled-conservative": [
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8
+          ],
+          "skilled-aggressive": [
+            8,
+            8,
+            8,
+            8,
+            8,
+            8,
+            8
+          ]
+        }
+      }
+    }
+  ]
+}
