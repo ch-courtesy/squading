@@ -8,3 +8,6 @@ blob-report/
 # re-running the committed grids.
 artifacts/tuning1-search-log.jsonl
 artifacts/tuning1-search.json
+# Tuning batch 2's raw per-candidate log, same reason as batch 1's above.
+artifacts/tuning2-search-log.jsonl
+artifacts/tuning2-search.json
