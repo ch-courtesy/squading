@@ -222,6 +222,31 @@ describe('§1.1 the relay carries the squad, its names and its hp', () => {
 })
 
 describe('§1.3 a body still down when the stage ends is dead', () => {
+  it('does not let §1.1 v2\'s healing reach them — the ground is not a wound', () => {
+    // WHERE THE TWO CLAUSES MEET, stated once. §1.1 v2 heals and §1.3 kills, and both read the
+    // same `life`: a body on 0 hp on the ground is not a body at 0 hp who needs topping up. The
+    // mutation this was written after ("heal the downed as well, so the end of a stage is a free
+    // rescue") was already caught by the fixture below, which counts bodies; this one says WHY,
+    // by putting the healed survivors and the abandoned body in the same assertion.
+    const finished = wonStage()
+    const down = finished.friendlies.find((unit) => unit.id === 11)!
+    down.life = 'downed'
+    down.hp = 0
+    down.downedTicks = 120
+    const hurt = finished.friendlies.find((unit) => unit.id === 3)!
+    hurt.hp = hurt.maxHp * 0.1
+
+    const campaign = completeStage(createCampaignState('root-a'), finished)
+
+    // Everyone who crosses is full — including the body that was one hit from the ground.
+    expect(campaign.squad!.members).toHaveLength(15)
+    for (const member of campaign.squad!.members) expect(member.hp).toBe(member.maxHp)
+    expect(campaign.squad!.members.find((member) => member.id === 3)!.hp).toBe(hurt.maxHp)
+    // And the one who was ON the ground crosses as a name, not as a full bar.
+    expect(campaign.squad!.members.some((member) => member.id === 11)).toBe(false)
+    expect(campaign.fallen.map((entry) => entry.id)).toEqual([11])
+  })
+
   it('leaves the downed behind, so nobody can wait out a rescue', () => {
     const finished = wonStage()
     const down = finished.friendlies.find((unit) => unit.id === 11)!

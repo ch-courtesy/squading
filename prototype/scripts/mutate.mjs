@@ -759,6 +759,24 @@ const MUTATIONS = [
     replace: "    if (unit.life !== 'dead') {",
   },
   {
+    // The other half of the same seam, and the reason it is a SECOND row: the one above widens
+    // the branch, so it also carries the DEAD and any fixture counting bodies notices. This one
+    // touches only the `downed`, on the exact path §1.3 sends them down — the boundary picks them
+    // up, heals them to full and never writes them to the record. It is §1.1 v2's "회복되는 것은
+    // 서 있는 사람뿐이고, 쓰러진 채 스테이지가 끝나면 §1.3대로 죽는다" with the "서 있는" removed,
+    // which is the reading a relay would drift into if healing were written beside §1.3's `if`
+    // rather than inside it.
+    file: TRANSITION,
+    label: 'heal the downed as well, so the end of a stage is a free rescue (§1.1 v2, §1.3)',
+    find: '    fallen.push({ id: unit.id, nameIndex: unit.nameIndex, stageId: battle.stageId })',
+    replace:
+      '    if (unit.life === \'downed\') {\n' +
+      '      survivors.push({ id: unit.id, role: unit.role, nameIndex: unit.nameIndex, hp: unit.maxHp, maxHp: unit.maxHp })\n' +
+      '      continue\n' +
+      '    }\n' +
+      '    fallen.push({ id: unit.id, nameIndex: unit.nameIndex, stageId: battle.stageId })',
+  },
+  {
     file: UPGRADES,
     label: 'drop the cards earlier stages earned (§1.1)',
     find: '  const chosen: CardId[] = [...state.upgrades.carriedCards]',
