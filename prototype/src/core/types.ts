@@ -51,7 +51,20 @@ export type RenderProjectile = {
 
 export type RenderEffect = {
   readonly id: number
-  readonly kind: 'hit' | 'rescue' | 'morale-break' | 'rescue-signal' | 'elite-telegraph'
+  /**
+   * `downed-marker` is the pin light §1.11's decision needs and `rescue-signal` is not.
+   * `rescue-signal` marks the body `Space` would pick up RIGHT NOW (within `RESCUE_RANGE`
+   * 1.5) — by the time it appears the choice is already made. The marker attaches the tick a
+   * body falls, at any distance, because the leash is 10.0 and the whole span where "do I go
+   * back" is a live question sits outside 1.5.
+   */
+  readonly kind:
+    | 'hit'
+    | 'rescue'
+    | 'morale-break'
+    | 'rescue-signal'
+    | 'elite-telegraph'
+    | 'downed-marker'
   readonly team: Team | null
   readonly x: number
   readonly y: number
@@ -63,6 +76,12 @@ export type RenderEffect = {
   readonly radius?: number
   readonly startedTick: number
   readonly durationTicks: number
+  /**
+   * §1.11's countdown, as a fraction from 1 (just fell) to 0 (about to die). Only
+   * `downed-marker` carries it: reaching a body in time or not is the whole decision, so the
+   * time left is the decision's input and has to be on screen, not merely implied.
+   */
+  readonly urgency01?: number
 }
 
 /**

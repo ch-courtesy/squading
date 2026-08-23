@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  DOWNED_TICKS,
   RESCUE_RANGE,
   SOLDIER_RANGE,
 } from '../../src/core/battle/constants'
@@ -196,6 +197,43 @@ describe('battle-view: the display-only projection (§6)', () => {
       expect(typeof effect.x).toBe('number')
     }
     expect(snapshot.units.every((unit) => typeof unit.x === 'number')).toBe(true)
+  })
+
+  it('lights every downed body, at any distance, and none while all sixteen stand', () => {
+    // THE NON-VACUITY IS THE POINT AND IT RUNS BOTH WAYS. Zero downed must give zero markers,
+    // or a projection that emitted one unconditionally would pass the half of this that says
+    // "a downed body is lit".
+    const state = stateAt()
+    const before = projectBattleSnapshot(state).effects.filter((e) => e.kind === 'downed-marker')
+    expect(before).toEqual([])
+
+    // Two bodies, one at arm's reach and one most of the leash away. The far one is the case
+    // that matters: `rescue-signal` only ever attaches inside RESCUE_RANGE, so before this
+    // marker existed the body you had to DECIDE about was the one with no mark on it.
+    const commander = unitOf(state, COMMANDER_ID)
+    const near = state.friendlies.find((unit) => unit.id !== COMMANDER_ID)!
+    const far = state.friendlies.find((unit) => unit.id !== COMMANDER_ID && unit.id !== near.id)!
+    for (const [unit, distance] of [[near, RESCUE_RANGE / 2], [far, 9]] as const) {
+      unit.life = 'downed'
+      unit.hp = 0
+      unit.position = { x: commander.position.x + distance, y: commander.position.y }
+    }
+    near.downedTicks = 0
+    far.downedTicks = Math.floor(DOWNED_TICKS / 2)
+
+    const markers = projectBattleSnapshot(state).effects.filter((e) => e.kind === 'downed-marker')
+    expect(markers.map((marker) => marker.id).sort()).toEqual([near.id, far.id].sort())
+
+    // §1.11's countdown reaches the screen as a fraction, and it is the decision's input: the
+    // half-drained body reads half. A marker without it would say "someone is down" and leave
+    // out whether you can still get there.
+    const byId = new Map(markers.map((marker) => [marker.id, marker]))
+    expect(byId.get(near.id)!.urgency01).toBeCloseTo(1, 6)
+    expect(byId.get(far.id)!.urgency01).toBeCloseTo(0.5, 2)
+
+    // And the pickup pillar stays the SEPARATE, nearer signal — the far body has no say in it.
+    const signals = projectBattleSnapshot(state).effects.filter((e) => e.kind === 'rescue-signal')
+    expect(signals.map((signal) => signal.id)).toEqual([near.id])
   })
 
   it('keeps every slot of §1.4 inside the guaranteed region', () => {

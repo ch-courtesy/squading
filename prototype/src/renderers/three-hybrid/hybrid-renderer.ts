@@ -91,6 +91,9 @@ type EffectVisual = {
   readonly halo?: THREE.Mesh
   /** §정예 예고: the same circle again, painted over whatever is standing on it. */
   readonly overlay?: THREE.Mesh
+  /** §1.11 pin light: the beam over a body on the ground, and its ground pool. */
+  readonly beam?: THREE.Mesh
+  readonly pool?: THREE.Mesh
 }
 type TelegraphTrack = { remaining: number; longest: number; x: number; z: number; radius: number }
 /**
@@ -552,7 +555,7 @@ const muzzleScratch = new THREE.Vector3()
 /** Where the warm-up parks its throwaway copies: far under the table, out of every shot. */
 const WARM_UP_DEPTH = -80
 /** Effect dressing built at mount rather than mid-battle. Both are pooled, never disposed. */
-const WARM_UP_EFFECTS: readonly RenderEffect['kind'][] = ['elite-telegraph', 'rescue-signal']
+const WARM_UP_EFFECTS: readonly RenderEffect['kind'][] = ['elite-telegraph', 'rescue-signal', 'downed-marker']
 /** Ids the authority can never publish, so a warm-up copy can never collide with a real effect. */
 const WARM_UP_EFFECT_ID = -1
 
@@ -611,6 +614,18 @@ const RESCUE_GOLD = 0xffb52e
 // the carry, not stand in front of them.
 const RESCUE_PILLAR_RADIUS = 0.34
 const RESCUE_PILLAR_HEIGHT = 2.8
+
+/**
+ * §1.11's pin light. Cold white at full countdown, hot amber as it runs out — the colour IS the
+ * timer, so a glance answers "can I still get there" without reading a number. Taller and far
+ * thinner than the rescue pillar so the two never read as the same signal at a distance.
+ */
+const DOWNED_PIN_COLD = 0x35e0ff
+const DOWNED_PIN_HOT = 0xff3a10
+const DOWNED_PIN_HEIGHT = 4.6
+const DOWNED_PIN_RADIUS = 0.26
+/** Above the telegraph overlay: a body on the ground must not be hidden by the ground warning. */
+const DOWNED_PIN_RENDER_ORDER = 9
 
 // The legibility probe (`measureTelegraphLegibility`). Diagnostic-only constants.
 /** Points taken around the warning's circumference. 64 puts one every 5.6 degrees. */
@@ -2230,6 +2245,10 @@ class ThreeHybridRenderer implements HybridGameRenderer {
       this.animateTelegraph(visual, effect, radius)
       return
     }
+    if (visual.kind === 'downed-marker' && visual.beam) {
+      this.animateDownedPin(visual, effect)
+      return
+    }
     if (visual.kind === 'rescue-signal' && visual.pillar) {
       this.animateRescueToken(visual)
       return
@@ -2274,6 +2293,44 @@ class ThreeHybridRenderer implements HybridGameRenderer {
   }
 
   /** The gold token: a dashed ring on the board, a light pillar, and a rising halo. */
+  /**
+   * §1.11's countdown, expressed as colour and height rather than as a number.
+   *
+   * `urgency01` arrives 1 on the tick a body falls and 0 as it is about to die. The pin cools
+   * from white to amber and shortens as it drains, and the pulse quickens — three channels on
+   * one fact because the board is busy and the glance is short. A number would be exact and
+   * unreadable at the distance this signal exists to be read from.
+   *
+   * The projection sends `urgency01` only for this kind; the fallback of 1 keeps a marker
+   * visible rather than invisible if it ever arrives without one, which is the failure that
+   * costs a life rather than a frame.
+   */
+  private animateDownedPin(visual: EffectVisual, effect: RenderEffect): void {
+    const urgency = effect.urgency01 ?? 1
+    const beam = visual.beam!
+    const pool = visual.pool!
+    // Faster as it runs out: 2.2 rad/s at full, 7 rad/s at the end.
+    const pulse = 0.72 + 0.28 * Math.sin(this.clock * (2.2 + 5 * (1 - urgency)))
+    const tint = new THREE.Color(DOWNED_PIN_HOT).lerp(new THREE.Color(DOWNED_PIN_COLD), urgency)
+    const beamMaterial = beam.material as THREE.MeshBasicMaterial
+    const poolMaterial = pool.material as THREE.MeshBasicMaterial
+    beamMaterial.color.copy(tint)
+    poolMaterial.color.copy(tint)
+    // NOT dimmer when calmer. The first version faded with urgency, which put the pin at its
+    // faintest at full countdown — exactly the moment the player still HAS the choice. The
+    // pulse now rides on top of a floor that never drops out of sight.
+    beamMaterial.opacity = 0.72 + 0.24 * pulse
+    poolMaterial.opacity = 0.6 + 0.3 * pulse
+    // Sinks as the countdown drains — full height at 1, three fifths at 0.
+    const height = DOWNED_PIN_HEIGHT * (0.6 + 0.4 * urgency)
+    beam.scale.set(DOWNED_PIN_RADIUS, height, DOWNED_PIN_RADIUS)
+    beam.position.y = height / 2
+    pool.scale.setScalar(1.05 + 0.25 * pulse)
+    visual.root.quaternion.copy(this.camera!.quaternion)
+    visual.root.rotation.x = 0
+    visual.root.rotation.z = 0
+  }
+
   private animateRescueToken(visual: EffectVisual): void {
     if (visual.ring) visual.ring.rotation.z = this.clock * 0.055
     if (visual.pillar) {
@@ -2345,6 +2402,36 @@ class ThreeHybridRenderer implements HybridGameRenderer {
       } else {
         visual = { root, kind: effect.kind, overlay }
       }
+    } else if (effect.kind === 'downed-marker' && fx) {
+      // THE PIN IS DELIBERATELY NOT THE GOLD PILLAR, and the difference carries meaning rather
+      // than taste. The pillar means "press Space now" — it only ever attaches inside
+      // `RESCUE_RANGE`. The pin means "somebody is on the ground out there", which is a
+      // question and not an instruction. So: thin and cold against the pillar's wide warm gold.
+      //
+      // `depthTest: false` is load-bearing, not polish. A downed body lies ON the tabletop at a
+      // 23-degree camera, so the miniatures still standing hide it exactly when the board is
+      // busiest — which is the only time anyone goes down. The beam is drawn through them.
+      const beam = new THREE.Mesh(fx.pillarGeometry, new THREE.MeshBasicMaterial({
+        // NORMAL BLENDING, not additive like every other effect in this file, and the board is
+        // why. Additive can only ADD to what is behind it, and §디오라마's tabletop is a bright
+        // sandy tan — a cold beam added to it washes toward white and disappears. Measured on a
+        // real down at tick 1475: the additive version was a pale streak most of a screen-width
+        // from the commander and easy to miss entirely. Normal blending lets the pin be a
+        // colour the sand is not.
+        map: fx.pillarTexture, color: DOWNED_PIN_COLD, transparent: true, opacity: 0.92,
+        depthTest: false, depthWrite: false, side: THREE.DoubleSide,
+      }))
+      beam.position.y = DOWNED_PIN_HEIGHT / 2
+      beam.scale.set(DOWNED_PIN_RADIUS, DOWNED_PIN_HEIGHT, DOWNED_PIN_RADIUS)
+      beam.renderOrder = DOWNED_PIN_RENDER_ORDER
+      const pool = new THREE.Mesh(fx.quadGeometry, new THREE.MeshBasicMaterial({
+        map: fx.rescueRingTexture, color: DOWNED_PIN_COLD, transparent: true, opacity: 0.85,
+        depthTest: false, depthWrite: false,
+      }))
+      pool.rotation.x = -Math.PI / 2; pool.position.y = 0.06; pool.scale.setScalar(1.15)
+      pool.renderOrder = DOWNED_PIN_RENDER_ORDER
+      root.add(beam, pool)
+      visual = { root, kind: effect.kind, beam, pool }
     } else if (effect.kind === 'rescue-signal' && fx) {
       const ring = new THREE.Mesh(fx.quadGeometry, new THREE.MeshBasicMaterial({ map: fx.rescueRingTexture, color: RESCUE_GOLD, transparent: true, opacity: 0.95, depthWrite: false, blending: THREE.AdditiveBlending }))
       ring.rotation.x = -Math.PI / 2; ring.position.y = 0.05; ring.scale.setScalar(2.6); ring.renderOrder = 2

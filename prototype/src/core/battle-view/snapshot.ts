@@ -44,7 +44,7 @@
 // Cooldowns, target ids, slot bookkeeping, the spawn backlog, the prng streams and the
 // remaining card pool are not here at all, for the reasons that file writes out.
 
-import { SOLDIER_RANGE } from '../battle/constants'
+import { DOWNED_TICKS, SOLDIER_RANGE } from '../battle/constants'
 import { stageConfigOf, type StageId } from '../battle/stages'
 import { rescueCandidateId } from '../battle/rescue'
 import { enemiesById, friendliesById } from '../battle/state'
@@ -371,6 +371,31 @@ export function projectBattleSnapshot(
       radius: stage.eliteBlastRadius,
       startedTick: tick,
       durationTicks: state.elite.telegraphRemaining,
+    })
+  }
+
+  // EVERY BODY ON THE GROUND IS LIT, from the tick it falls until it stands or dies.
+  //
+  // The pickup pillar below is not this and cannot stand in for it: it attaches inside
+  // `RESCUE_RANGE` 1.5, which is close enough that the decision has already been made. §1.4.1's
+  // leash is 10.0 and §4.5's fourth question ("did you agonise over going back") lives in the
+  // metres between — unmarked until now, which is why that question has never had an answer.
+  //
+  // `urgency01` carries §1.11's countdown because the countdown IS the decision: reach them
+  // inside `DOWNED_TICKS` or they die. A light that says "someone is down" without saying "for
+  // how much longer" leaves out the half that makes it a choice rather than a chore.
+  for (const unit of state.friendlies) {
+    if (unit.life !== 'downed') continue
+    const remaining = Math.max(0, DOWNED_TICKS - unit.downedTicks)
+    effects.push({
+      id: unit.id,
+      kind: 'downed-marker',
+      team: SQUAD,
+      x: unit.position.x,
+      y: unit.position.y,
+      startedTick: tick,
+      durationTicks: remaining,
+      urgency01: remaining / DOWNED_TICKS,
     })
   }
 
