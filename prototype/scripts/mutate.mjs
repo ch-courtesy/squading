@@ -138,6 +138,11 @@ const TARGET_TESTS = [
   // the file that kills the stage-lookup mutation below — every comparison in it reads two ids —
   // so leaving it out would leave that mutation MISSED for the reason it no longer has.
   'tests/battle/battle-stages.test.ts',
+  // §1.10.1 (v14): the four spawn mutations below were caught by the digest block alone when they
+  // were added, which says a run is different and never which rule broke. This file hand-computes
+  // the scaled cap, the scaled interval, the floor and the standing count, so it catches all four
+  // BY NAME. Verified with the digest block excluded — see the section header for the numbers.
+  'tests/battle/battle-spawn.test.ts',
 ]
 
 const VIEW = 'src/core/harness/policy/view.ts'
@@ -601,10 +606,23 @@ const MUTATIONS = [
   //
   // All four caught, and ALL FOUR BY THE DIGEST BLOCK — which says the run is different and never
   // which rule broke. That is the same weak catch this file's header calls a change detector, and
-  // it is why the next commit adds `tests/battle/battle-spawn.test.ts` to `TARGET_TESTS` and puts
-  // four §1.10.1 fixtures in it that hand-compute the scaled cap, the scaled interval, the floor
-  // and the standing count. Re-measured with the digest block EXCLUDED (`--filter` over
-  // `battle-spawn.test.ts` alone), all four are caught by those fixtures.
+  // it is why the commit after them added `tests/battle/battle-spawn.test.ts` to `TARGET_TESTS`
+  // and put eleven §1.10.1 fixtures in it that hand-compute the scaled cap, the scaled interval,
+  // the floor and the standing count from `ROSTER_SIZE` 16, `MIN_PRESSURE_FRACTION` 0.65 and stage
+  // 1's phase 0.
+  //
+  // RE-MEASURED AGAINST THAT FILE ALONE, every other target excluded — so the digest block cannot
+  // be what answers:
+  //
+  //   absolute cap ...................... caught
+  //   absolute interval ................. caught
+  //   no floor .......................... caught
+  //   downed count as standing .......... caught
+  //
+  // The failure now names the rule instead of naming a hash. The third row is the one that had to
+  // be built for rather than found: a floored fraction and an unfloored one agree at every count
+  // from 16 down to 11, so only a fixture that takes fourteen bodies off their feet — where 0.65
+  // stands against 0.125 — can see the clause at all.
   {
     file: SPAWN,
     label: 'give the engaged cap back its absolute value (= the v13 coupling §1.10.1 breaks)',
