@@ -121,7 +121,11 @@ function push(draw) {
   const key = JSON.stringify(draw)
   if (seen.has(key)) return
   seen.add(key)
-  candidates.push({ label: labelOf(draw), patches: { ...HOLD, [STAGE]: patchOf(draw) } })
+  candidates.push({
+    label: labelOf(draw),
+    patches: { ...HOLD, [STAGE]: patchOf(draw) },
+    ...(spec.diagnostic ? { diagnostic: true } : {}),
+  })
 }
 
 if (mode === 'full') {

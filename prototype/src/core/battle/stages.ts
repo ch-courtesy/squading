@@ -47,9 +47,18 @@
 // its failing I2 was inherited by all seven, so tuning a derived row first would have been getting
 // it wrong seven times.
 //
-// STAGES 2-7 ARE STILL PLACEHOLDERS, character for character as §5 stage 2 wrote them. Stage 1's
-// `spawnRadius` and `engageRadius` are the only two numbers in this file that a measurement chose,
-// and the batch report (`tuning-1-report.md`) carries the 620 rows it chose them against.
+// TUNING BATCH 2 CHOSE STAGES 2-7. Every row below now carries values a measurement picked, on the
+// same fixed eight-seed band with a fresh roster, and each one says beside itself what it bought.
+// `tuning-2-report.md` carries the ~1,050 candidate tables the search played, the three walls it
+// hit, and the two per-stage gates the table still misses (I2 at stages 6 and 7).
+//
+// WHAT THE TABLE DOES NOT DO, SAID HERE BECAUSE IT IS THE FIRST THING A READER WILL ASK. The
+// CAMPAIGN is still not completable: `skilled` finishes 0 of 8 relays. That is not a property of
+// these six rows — batch 2 measured a deliberately trivial table (I2 0.04~0.12 at stages 3-7) and
+// it completed at most 1 of 8, because stage 1 is frozen at a cost of 7.6 of its 16 bodies and
+// §3's I2 asks every later stage to cost 55~85% of a FULL roster that never refills. Seven stages
+// at I2's own floor is 3.85 rosters of damage against a supply of one. The report states that as
+// arithmetic rather than as a tuning failure.
 //
 // WHAT EACH ROW IS FOR (§2.3's dominant axis). "무엇이 이 판을 어렵게 하는가"에 이름이 붙어야
 // 스테이지다 — so each row pushes ONE axis hard and lets the rest rise gently, and the relations
@@ -58,15 +67,19 @@
 // §5 stage 4 can tune the table without rewriting the fixtures that describe it.
 //
 //   1 빨강  the baseline. The highest melee share of any stage's opening phase.
-//   2 주황  spawn density: the shortest request intervals of stages 1-3, at stage 1's enemy stats.
-//   3 노랑  many weak: the highest engaged caps, and the lowest melee/shooter hp of any stage.
-//   4 초록  shooters, and the range gap closed: the highest shooter share and the SMALLEST
-//           `rangeAdvantage` in the table. §2.3 calls this the design core, and §4 makes I4
-//           mandatory here and relaxed elsewhere.
+//   2 주황  spawn density: more spawn requests over the fight than any of stages 1-4, at stage 1's
+//           enemy stats, radii, arena and leash — derived from stage 1 rather than restated.
+//   3 노랑  many weak: the highest engaged caps, the lowest melee/shooter hp of any stage, and the
+//           most bodies actually standing on the board (mean engaged 18.9 against stage 1's 11.7).
+//   4 초록  shooters, and the range gap WIDENED: the highest shooter share in every phase and a
+//           `rangeAdvantage` of 0.8 against stage 1's 0.5. §2.3 records v1's "격차 축소" as
+//           self-cancelling; §4 makes I4 mandatory here and relaxed elsewhere.
 //   5 파랑  the board opens: 2.25x the area, and a leash cut in absolute terms as well as relative.
 //   6 남색  the elite: it arrives earlier, telegraphs and cools down in ~60% of the ticks, and its
-//           blast covers 2.25x the area of stage 1's.
-//   7 보라  everything: the largest absolute cap, the shortest intervals, the toughest elite.
+//           blast covers 2.8x the area of stage 1's.
+//   7 보라  everything: the largest absolute cap, the shortest intervals, the toughest elite and
+//           the widest blast — and, because the intervals are forced rather than chosen, the
+//           smallest engaged cap. The row says why.
 //
 // WHAT DID *NOT* MOVE, AND WHY IT IS WRITTEN HERE. `COMMANDER_START` is `{28, 16}`, the exact
 // centre of stage 1's 56x32 arena, and stages 5-7 open the arena to 84x48 — so on those three the
@@ -390,9 +403,10 @@ const STAGE_ONE: StageSpec = {
  * that also changed hp and range would be "harder" without being ABOUT anything, and §5 stage 4
  * could not tell which half of the change did what.
  *
- * `requestInterval` 6/5/4 against stage 1's 9/7/5 is the shortest opening interval of stages 1-3.
- * The melee share drops one notch (5:1 -> 4:1) so that stage 1 keeps the highest melee share in
- * the table, which is the other half of §2.3's row for stage 1.
+ * `requestInterval` 8/6/4 against stage 1's 9/7/5 is shorter in every phase, and over the whole
+ * fight this row makes 450 spawn requests against stage 1's 409. The melee share drops far more
+ * than one notch — see the note on the pressure curve, which is where tuning batch 2 argues for
+ * the three numbers it moved and admits what they cost.
  */
 const STAGE_TWO: StageSpec = {
   id: 2,
@@ -422,13 +436,40 @@ const STAGE_TWO: StageSpec = {
 
   spawnRadius: STAGE_ONE.spawnRadius,
   engageRadius: STAGE_ONE.engageRadius,
-  absoluteEnemyCap: 72,
-  backlogSize: 16,
-  backlogDrainPerTick: 3,
+  // TUNED (§5 stage 4, tuning batch 2). See the note above the pressure curve.
+  absoluteEnemyCap: 61,
+  backlogSize: 8,
+  backlogDrainPerTick: 1,
+  // TUNED (§5 stage 4, tuning batch 2). `18/24/30 | 6/5/4 | 4:1,3:1,2:1` at `0/900/1800` was
+  // UNWINNABLE — `skilled` 0/8 on the eight-seed band, wiped at tick 1497, I2 1.239 — and it was
+  // the single thing stopping every campaign. Three numbers moved and the batch report carries the
+  // 350 rows behind them:
+  //
+  //   the phase EDGES  0/900/1800 -> 0/1200/2100   the ramp is later and steeper
+  //   the RATIO        4:1,3:1,2:1 -> 1:1,1:2,1:3  the bodies are mostly shooters
+  //   the caps         18/24/30 -> 15/21/27        the legal floor, and they never bind
+  //
+  // WHY THE EDGES MOVED, WHICH IS THE PART THAT NEEDS DEFENDING. §2.3 makes stage 2 strictly denser
+  // than stage 1 in every phase, and the guard reads that phase by INDEX: interval 6 in the middle
+  // phase against stage 1's 7. A ladder measured one axis at a time (report §3) found that middle
+  // interval IS the cliff — 9/7/5 -> 9/6/5 alone takes `skilled` 7/8 -> 3/8 and I2 0.917 -> 1.077,
+  // while the first and last phases cost one seed each. Moving the edge does not soften the phase;
+  // it arrives later. Over the whole 2700-tick fight this row still makes MORE requests than stage
+  // 1 (450 against 409) and `tests/battle/battle-stages.test.ts` now pins that as a number rather
+  // than trusting the per-index comparison, because the honest cost of the shift is two windows
+  // (900-1200 and 1800-2100) in which stage 2 is momentarily THINNER than stage 1.
+  //
+  // WHY THE RATIO MOVED SO FAR. A melee body deals 0.045/15 = 0.0030 per tick and a shooter
+  // 0.035/30 = 0.0012, so trading melee for shooters is the only lever on this row that changes
+  // the incoming damage at all — the caps, `absoluteEnemyCap` and the backlog were swept across
+  // their whole §2 ranges and moved I2 by 0.005 in total. The cost is that stage 2 is now a
+  // shooter-heavy row, which the report records as design drift rather than a win.
+  //
+  // The elite is stage 1's, untouched, exactly as the header claims.
   pressurePhases: [
-    { fromTick: 0, engagedCap: 18, requestInterval: 6, meleeToShooter: [4, 1] },
-    { fromTick: 900, engagedCap: 24, requestInterval: 5, meleeToShooter: [3, 1] },
-    { fromTick: 1800, engagedCap: 30, requestInterval: 4, meleeToShooter: [2, 1] },
+    { fromTick: 0, engagedCap: 15, requestInterval: 8, meleeToShooter: [1, 1] },
+    { fromTick: 1200, engagedCap: 21, requestInterval: 6, meleeToShooter: [1, 2] },
+    { fromTick: 2100, engagedCap: 27, requestInterval: 4, meleeToShooter: [1, 3] },
   ],
 
   eliteSpawnTick: 1800,
@@ -444,14 +485,16 @@ const STAGE_TWO: StageSpec = {
 /**
  * STAGE 3 — 노랑. MANY WEAK BODIES (§2.3: "다수 약체 — 상한 ↑, 개체 HP ↓", 화력 분산 대 집중).
  *
- * TWO numbers move together here and they are the row's whole identity: the engaged caps go to
- * 24/32/40, the highest in the table, and `meleeHp`/`shooterHp` go to 0.6/0.5, the lowest in the
- * table. Everything a soldier shoots dies in fewer shots and there are far more of them, which is
- * the "spread fire or concentrate it" question §2.3 names.
+ * TWO numbers move together here and they are the row's whole identity: the engaged caps are the
+ * highest in the table apart from stage 7's, and `meleeHp`/`shooterHp` are the lowest anywhere.
+ * Everything a soldier shoots dies in fewer shots and there are far more of them, which is the
+ * "spread fire or concentrate it" question §2.3 names.
  *
- * The request intervals are LONGER than stage 2's (7/6/5 against 6/5/4) on purpose. Stage 2 is
- * the arrival-rate stage; stage 3 is the standing-population stage, and if it also had the
- * shortest intervals the two rows would be the same stage with different hp.
+ * TUNING BATCH 2 HAD TO FIX WHAT "MANY" MEANT. §5 stage 2's 0.6/0.5 made the row measure FEWER
+ * live bodies than stage 1 (6.9 against 11.7), because standing population is arrival rate times
+ * dwell time and hp is dwell — the caps rose 71% and nothing reached them. The row now buys its
+ * population with hp AND with the shortest intervals of stages 1-5, and that is why stage 2 is
+ * distinguished from it by REQUESTS OVER THE FIGHT rather than by interval alone.
  */
 const STAGE_THREE: StageSpec = {
   id: 3,
@@ -461,31 +504,53 @@ const STAGE_THREE: StageSpec = {
 
   leashRadius: 10.0,
 
-  meleeHp: 0.6,
+  // TUNED (§5 stage 4, tuning batch 2). `0.6 / 0.5` made "many weak" produce FEWER bodies, not
+  // more: at 0.6 hp the squad killed everything on arrival, so the standing population was 6.9
+  // against stage 1's 11.7 even though the caps were 71% higher. Standing population is arrival
+  // rate x dwell time, and hp IS dwell. 0.70 / 0.55 is still the lowest pair in the table — the
+  // relation §2.3 asks for — while the mean live engaged count is now 18.9, the highest of any
+  // stage the batch measured.
+  meleeHp: 0.7,
   meleeMoveSpeed: 0.145,
   meleeRange: 0.75,
   meleeAttackInterval: 15,
-  meleeDamage: 0.04,
+  meleeDamage: 0.035,
 
-  shooterHp: 0.5,
+  shooterHp: 0.55,
   shooterMoveSpeed: 0.065,
   shooterRange: 4.4,
   shooterAttackInterval: 30,
-  shooterDamage: 0.03,
+  shooterDamage: 0.035,
 
-  spawnRadius: 13.0,
-  engageRadius: 10.0,
-  absoluteEnemyCap: 90,
+  // TUNED. The radii are stage 1's, so that stage 3 is a measurement of population and not of
+  // geometry as well. `absoluteEnemyCap` came DOWN from 90 to 62 and the eight-seed band does not
+  // move by a digit: the cap was never the binding constraint at any stage the batch measured. It
+  // is 62 rather than 90 because stage 7's cap has to sit above every other row's, and stage 7 is
+  // the row where a population cap finally does bind.
+  spawnRadius: 14.0,
+  engageRadius: 11.0,
+  absoluteEnemyCap: 62,
   backlogSize: 20,
   backlogDrainPerTick: 4,
+  // TUNED. `24/32/40 | 7/6/5 | 4:1,3:1,2:1` -> `24/30/36 | 5/5/4 | 1:1,1:2,1:3`. The intervals are
+  // what puts bodies on the board (with hp above, the mean engaged count goes 6.9 -> 18.9); the
+  // ratio is what pays for them, exactly as at stage 2. The caps are still the highest in the table
+  // apart from stage 7's, which is §2.3's "상한 ↑" — but the batch measured them as INERT here as
+  // everywhere else, so the caps are the row's identity on paper and the intervals are its identity
+  // in play. That gap is reported rather than papered over.
+  //
+  // THE COST, AND IT IS PAID BY STAGE 7. §2.3 gives stage 7 the shortest interval in every phase,
+  // so this row's 5/5/4 caps stage 7 at 4/4/3 — see stage 7's note.
   pressurePhases: [
-    { fromTick: 0, engagedCap: 24, requestInterval: 7, meleeToShooter: [4, 1] },
-    { fromTick: 900, engagedCap: 32, requestInterval: 6, meleeToShooter: [3, 1] },
-    { fromTick: 1800, engagedCap: 40, requestInterval: 5, meleeToShooter: [2, 1] },
+    { fromTick: 0, engagedCap: 24, requestInterval: 5, meleeToShooter: [1, 1] },
+    { fromTick: 900, engagedCap: 30, requestInterval: 5, meleeToShooter: [1, 2] },
+    { fromTick: 1800, engagedCap: 36, requestInterval: 4, meleeToShooter: [1, 3] },
   ],
 
   eliteSpawnTick: 1800,
-  eliteHp: 25.0,
+  // TUNED. 25.0 -> 29.0. The elite is the only thing that makes a stage of weak bodies a fight at
+  // all: with 25 hp every policy including `tactical-no-input` killed it, and I3/I8/I10 all failed.
+  eliteHp: 29.0,
   eliteMoveSpeed: 0.1,
   eliteApproachRange: 4.5,
   eliteTelegraphTicks: 54,
@@ -501,13 +566,16 @@ const STAGE_THREE: StageSpec = {
  * the band a friendly can stand in and shoot without being shot back; §2.3 says I4 fails on a
  * single stage because "사수 비중이 낮아 사거리 판단이 결과를 거의 안 바꾼다". So:
  *
- *   the shooter share goes 1:1 -> 1:2 -> 1:3, the highest of any stage in EVERY phase, and
- *   `shooterRange` goes to 4.9 — `rangeAdvantage` 0.1, the smallest in the table.
+ *   the shooter share goes 1:3 -> 1:4 -> 1:5, the highest of any stage in EVERY phase, and
+ *   `shooterRange` goes DOWN to 4.2 — `rangeAdvantage` 0.8, against stage 1's 0.5.
  *
- * A band of 0.1m is a band a player has to aim at rather than stumble into, and it is the top of
- * §2's stated `3.0~4.9` search range: this is the axis at its limit, not part-way along it.
+ * THE SECOND HALF REVERSED DIRECTION AND §2.3 IS WHY. v1 of the campaign spec said "격차 축소" and
+ * §5 stage 2 implemented it as 4.9 / advantage 0.1; the measured I4 damage gap there was +0.001,
+ * because closing the gap deletes the advantage `ignores-range` is supposed to be ignoring. §2.3
+ * now says "격차는 유지하거나 넓힌다", and `battle-stages.test.ts` was changed in the same commit
+ * from "the smallest advantage in the table" to "at least stage 1's".
  *
- * The shooters are also individually better here (hp 0.9, interval 26, damage 0.04) because a
+ * The shooters are also individually better here (hp 0.9, interval 24, damage 0.055) because a
  * stage about shooters whose shooters die to one volley asks nothing. Everything else — the melee
  * class, the radii, the arena, the leash — is stage 1's, so that I4 measured on this stage is
  * measuring the two axes above and not five others.
@@ -526,25 +594,44 @@ const STAGE_FOUR: StageSpec = {
   meleeAttackInterval: 15,
   meleeDamage: 0.045,
 
+  // TUNED (§5 stage 4, tuning batch 2). The shooters are better than any other row's on cadence
+  // and damage (24 ticks, 0.055) because a stage about shooters whose shooters are harmless asks
+  // nothing — and because I4's objective function is the damage gap, which only exists if shooter
+  // damage is worth avoiding.
   shooterHp: 0.9,
   shooterMoveSpeed: 0.07,
-  shooterRange: 4.9,
-  shooterAttackInterval: 26,
-  shooterDamage: 0.04,
+  // TUNED, AND THE DIRECTION IS REVERSED FROM §5 stage 2's. `4.9` (advantage 0.1) was v1 of the
+  // campaign spec's "사거리 격차 축소", which §2.3 now records as SELF-CANCELLING: closing the gap
+  // removes the advantage there is to ignore, and the measured I4 gap at 0.1 was +0.001. §2.3's
+  // correction is "격차는 유지하거나 넓힌다", so this row WIDENS it: 4.2 is an advantage of 0.8
+  // against stage 1's 0.5. Swept against 3.4/3.8/4.0/4.2/4.5 at the adopted pressure, 4.2 gave the
+  // largest I4 damage gap of any row that also held I1/I2/I3/I8/I10.
+  shooterRange: 4.2,
+  shooterAttackInterval: 24,
+  shooterDamage: 0.055,
 
-  spawnRadius: 13.0,
-  engageRadius: 10.0,
-  absoluteEnemyCap: 72,
+  spawnRadius: 14.0,
+  engageRadius: 11.0,
+  absoluteEnemyCap: 63,
   backlogSize: 16,
   backlogDrainPerTick: 3,
+  // TUNED. The ratio goes further than §5 stage 2's `1:1 -> 1:2 -> 1:3`, to `1:3 -> 1:4 -> 1:5`,
+  // because stages 2 and 3 both had to buy their survivability with shooters and stage 4 has to
+  // stay strictly above both in every phase. The intervals are the LONGEST in the table (10/9/7):
+  // shooters stand off instead of dying, so the same request rate leaves far more of them alive.
+  //
+  // WHAT IT BOUGHT AND WHAT IT DID NOT. The share of `skilled`'s incoming damage that comes from
+  // shooters is 65~90% on this row against the 17% `i4-inversion-diagnosis.md` measured on a
+  // single stage — §2.3's remedy for I4 works on the ratio it names. The I4 damage gap still comes
+  // out at +0.086 against the +0.20 the gate wants. The batch report argues what that means.
   pressurePhases: [
-    { fromTick: 0, engagedCap: 20, requestInterval: 7, meleeToShooter: [1, 1] },
-    { fromTick: 900, engagedCap: 26, requestInterval: 6, meleeToShooter: [1, 2] },
-    { fromTick: 1800, engagedCap: 32, requestInterval: 5, meleeToShooter: [1, 3] },
+    { fromTick: 0, engagedCap: 16, requestInterval: 10, meleeToShooter: [1, 3] },
+    { fromTick: 900, engagedCap: 22, requestInterval: 9, meleeToShooter: [1, 4] },
+    { fromTick: 1800, engagedCap: 28, requestInterval: 7, meleeToShooter: [1, 5] },
   ],
 
   eliteSpawnTick: 1800,
-  eliteHp: 27.0,
+  eliteHp: 31.0,
   eliteMoveSpeed: 0.1,
   eliteApproachRange: 4.5,
   eliteTelegraphTicks: 50,
@@ -587,25 +674,33 @@ const STAGE_FIVE: StageSpec = {
   meleeAttackInterval: 15,
   meleeDamage: 0.045,
 
-  shooterHp: 0.85,
+  // TUNED (§5 stage 4, tuning batch 2). `shooterHp` 0.85 -> 0.94 is the number that separated
+  // `tactical-no-input` from `skilled` on this row: on a board 2.25x the size a standing player is
+  // safer, so I3 was the gate that failed everywhere until shooters lived long enough to punish
+  // standing still. Below 0.94 no-input takes a seed; above it `skilled` starts losing more than
+  // two.
+  shooterHp: 0.94,
   shooterMoveSpeed: 0.07,
-  shooterRange: 4.6,
+  shooterRange: 4.4,
   shooterAttackInterval: 28,
-  shooterDamage: 0.04,
+  shooterDamage: 0.042,
 
   spawnRadius: 15.0,
   engageRadius: 11.0,
-  absoluteEnemyCap: 76,
+  absoluteEnemyCap: 64,
   backlogSize: 16,
   backlogDrainPerTick: 3,
+  // TUNED. `20/26/32 | 7/6/5 | 3:1,2:1,3:2` -> `16/22/28 | 8/8/8 | 2:1,1:1,1:2`. A FLAT interval,
+  // which no other row has: the open board is this stage's difficulty and a rising spawn rate on
+  // top of it put I2 past 1.0 in every configuration the search played.
   pressurePhases: [
-    { fromTick: 0, engagedCap: 20, requestInterval: 7, meleeToShooter: [3, 1] },
-    { fromTick: 900, engagedCap: 26, requestInterval: 6, meleeToShooter: [2, 1] },
-    { fromTick: 1800, engagedCap: 32, requestInterval: 5, meleeToShooter: [3, 2] },
+    { fromTick: 0, engagedCap: 16, requestInterval: 8, meleeToShooter: [2, 1] },
+    { fromTick: 900, engagedCap: 22, requestInterval: 8, meleeToShooter: [1, 1] },
+    { fromTick: 1800, engagedCap: 28, requestInterval: 8, meleeToShooter: [1, 2] },
   ],
 
   eliteSpawnTick: 1800,
-  eliteHp: 30.0,
+  eliteHp: 33.0,
   eliteMoveSpeed: 0.105,
   eliteApproachRange: 4.6,
   eliteTelegraphTicks: 48,
@@ -619,19 +714,19 @@ const STAGE_FIVE: StageSpec = {
  *
  * Four elite numbers move together and each one spends the same budget: the player's ticks.
  *
- *   `eliteSpawnTick`      1800 -> 1500   it is on the board for a third of the fight, not a fifth
+ *   `eliteSpawnTick`      1800 -> 1650   it is on the board sooner than on any other row
  *   `eliteTelegraphTicks`   54 -> 32     the warning is 1.07s instead of 1.8s
  *   `eliteCooldownTicks`    56 -> 34     a blast every ~2.2s instead of every ~3.7s
- *   `eliteBlastRadius`     2.4 -> 3.6    2.25x the area to be outside of when it lands
+ *   `eliteBlastRadius`     2.4 -> 4.0    2.8x the area to be outside of when it lands
  *
  * §4.5's fourth question is whether to go back for a downed body, and the answer is a time budget:
  * running to a body, standing over it and running out again has to fit between two blasts. This
  * row is that budget cut roughly in half.
  *
  * THE EARLIER ARRIVAL CUTS BOTH WAYS AND THAT IS DELIBERATE. §1.12 makes killing the elite the
- * only way to win, so an elite that arrives at 1500 hands the squad 1200 ticks to kill it instead
- * of 900 — on its own, EASIER. `eliteHp` 34.0 is what is set against that, and which way the pair
- * actually lands is a measurement in the batch report, not a claim here.
+ * only way to win, so an elite that arrives at 1650 hands the squad 1050 ticks to kill it instead
+ * of 900 — on its own, EASIER. `eliteHp` 35.0 is what is set against that, and the pair lands with
+ * `skilled` at 6/8 and every losing policy at 0.
  */
 const STAGE_SIX: StageSpec = {
   id: 6,
@@ -649,42 +744,53 @@ const STAGE_SIX: StageSpec = {
 
   shooterHp: 0.9,
   shooterMoveSpeed: 0.07,
-  shooterRange: 4.6,
+  shooterRange: 4.4,
   shooterAttackInterval: 26,
-  shooterDamage: 0.04,
+  shooterDamage: 0.041,
 
-  spawnRadius: 14.0,
+  spawnRadius: 15.0,
   engageRadius: 11.0,
-  absoluteEnemyCap: 80,
+  absoluteEnemyCap: 65,
   backlogSize: 18,
   backlogDrainPerTick: 3,
+  // TUNED (§5 stage 4, tuning batch 2). `22/28/34 | 6/5/4` -> `17/23/29 | 8/8/7`. The old curve
+  // wiped the squad at tick 1608 before the elite's clock could be the question — this row's whole
+  // point is the elite, so the bodies had to stop being the answer.
   pressurePhases: [
-    { fromTick: 0, engagedCap: 22, requestInterval: 6, meleeToShooter: [2, 1] },
-    { fromTick: 900, engagedCap: 28, requestInterval: 5, meleeToShooter: [2, 1] },
-    { fromTick: 1800, engagedCap: 34, requestInterval: 4, meleeToShooter: [3, 2] },
+    { fromTick: 0, engagedCap: 17, requestInterval: 8, meleeToShooter: [2, 1] },
+    { fromTick: 900, engagedCap: 23, requestInterval: 8, meleeToShooter: [1, 1] },
+    { fromTick: 1800, engagedCap: 29, requestInterval: 7, meleeToShooter: [1, 2] },
   ],
 
-  eliteSpawnTick: 1500,
-  eliteHp: 34.0,
+  // TUNED. `1500` -> `1650` and the blast `3.6` -> `4.0`. The earlier arrival is still earlier than
+  // every other row's (§2.3), but at 1500 the elite's first two blasts landed inside §3's SECOND
+  // I2 window and pushed it past 0.45 on its own; 1650 keeps the identity and moves the accounting.
+  eliteSpawnTick: 1650,
+  eliteHp: 35.0,
   eliteMoveSpeed: 0.11,
   eliteApproachRange: 4.8,
   eliteTelegraphTicks: 32,
   eliteCooldownTicks: 34,
-  eliteBlastRadius: 3.6,
+  eliteBlastRadius: 4.0,
   eliteDamage: 0.5,
 }
 
 /**
  * STAGE 7 — 보라. EVERY AXIS NEAR ITS MAXIMUM (§2.3: "종합").
  *
- * "근처" and not "at": stage 4 keeps the smallest range gap and stage 3 keeps the weakest bodies,
- * because a last stage that took every axis to its extreme would erase the identity of the six
- * rows leading to it — every stage would just be stage 7 turned down. What stage 7 holds outright
- * is the population and the elite: the largest `absoluteEnemyCap` (96), the shortest request
- * intervals in every phase (5/4/3), the widest blast (4.0) and the toughest elite (40.0 hp).
+ * "근처" and not "at": stage 3 keeps the weakest bodies and the highest engaged caps, because a
+ * last stage that took every axis to its extreme would erase the identity of the six rows leading
+ * to it. What stage 7 holds outright is the population and the elite: the largest
+ * `absoluteEnemyCap` (66), the shortest request intervals in every phase (4/4/3), the widest blast
+ * (4.2) and the toughest elite (40.0 hp).
  *
- * The melee class is finally above stage 1's on all three of hp, speed and damage — the only row
- * where it is.
+ * AND ONE THING IT NO LONGER HOLDS, WHICH TUNING BATCH 2 OWES THE READER. The interval relation
+ * makes this row's request rate a CONSEQUENCE of every other row rather than a choice — 4/4/3 is
+ * the loosest curve the table permits — and at four times stage 1's opening rate no combination of
+ * enemy stats inside §2's ranges made it playable. What made it playable was the engaged cap going
+ * DOWN to the smallest in the table, behind an engage radius wide enough for that cap to bind. So
+ * stage 7 is the fastest arrival rate in the campaign against the hardest population ceiling, and
+ * the sentence "모든 축이 최댓값 근처" is true of five axes and false of one.
  */
 const STAGE_SEVEN: StageSpec = {
   id: 7,
@@ -694,36 +800,62 @@ const STAGE_SEVEN: StageSpec = {
 
   leashRadius: 8.0,
 
-  meleeHp: 1.1,
+  // TUNED (§5 stage 4, tuning batch 2). The melee class is NO LONGER above stage 1's on hp — see
+  // the pressure note: this row's request rate is fixed by a §2.3 relation at four times stage 1's,
+  // and the only way to make that survivable was to make the bodies it delivers cheaper. It is
+  // still above stage 3's, which is the relation the table actually asserts.
+  meleeHp: 0.8,
   meleeMoveSpeed: 0.15,
   meleeRange: 0.8,
   meleeAttackInterval: 14,
-  meleeDamage: 0.05,
+  meleeDamage: 0.04,
 
-  shooterHp: 0.9,
+  shooterHp: 0.8,
   shooterMoveSpeed: 0.075,
-  shooterRange: 4.8,
-  shooterAttackInterval: 24,
-  shooterDamage: 0.045,
+  shooterRange: 4.4,
+  shooterAttackInterval: 26,
+  shooterDamage: 0.035,
 
-  spawnRadius: 15.0,
-  engageRadius: 11.0,
-  absoluteEnemyCap: 96,
+  // TUNED, AND THIS PAIR IS THE ROW'S ACTUAL MECHANISM. `15/11` -> `18/16`. §1.10 measures the
+  // per-phase `engagedCap` ONLY inside `engageRadius` of the command unit, so at radius 11 the cap
+  // never bound and the flood arriving at interval 4 simply piled up outside it: every candidate
+  // at 15/11 measured `skilled` 0/8 with I2 between 1.19 and 1.31, whatever the caps, the absolute
+  // cap or the backlog were set to. At radius 16 nearly every live body is inside the measured
+  // radius, the cap binds, the backlog fills and §1.10's overflow discards the rest. The same row
+  // then measures `skilled` 4/8 with I2 0.975.
+  spawnRadius: 18.0,
+  engageRadius: 16.0,
+  absoluteEnemyCap: 66,
   backlogSize: 22,
   backlogDrainPerTick: 4,
+  // TUNED. `26/34/42 | 5/4/3` -> `11/13/15 | 4/4/3`.
+  //
+  // THE INTERVALS ARE NOT A CHOICE. §2.3 gives stage 7 the shortest request interval in every
+  // phase and `battle-stages.test.ts` pins it against EVERY other row, so this row is capped by the
+  // shortest interval anywhere else in the table: stage 3's 5/5/4 in phases 0 and 1, stage 2's 4 in
+  // phase 2 (itself forced under stage 1's frozen 5). 4/4/3 is therefore the LOOSEST legal curve,
+  // not a tuned one — and 4/4/3 is four times stage 1's opening rate, far past the density cliff
+  // the batch measured at stage 2.
+  //
+  // SO THE CAPS ARE THE ROW'S TUNING AND THEY WENT DOWN, NOT UP. 11/13/15 is the smallest engaged
+  // cap in the table, on the stage §2.3 calls "모든 축이 최댓값 근처". That is a real contradiction
+  // between the row's name and its numbers and the batch report states it as one: what stage 7
+  // holds outright is the largest `absoluteEnemyCap`, the toughest elite and the widest blast —
+  // the three things the fixture actually asserts — plus a request rate nothing else comes near,
+  // against a population ceiling that is permanently saturated.
   pressurePhases: [
-    { fromTick: 0, engagedCap: 26, requestInterval: 5, meleeToShooter: [2, 1] },
-    { fromTick: 900, engagedCap: 34, requestInterval: 4, meleeToShooter: [1, 1] },
-    { fromTick: 1800, engagedCap: 42, requestInterval: 3, meleeToShooter: [1, 2] },
+    { fromTick: 0, engagedCap: 11, requestInterval: 4, meleeToShooter: [2, 1] },
+    { fromTick: 900, engagedCap: 13, requestInterval: 4, meleeToShooter: [1, 1] },
+    { fromTick: 1800, engagedCap: 15, requestInterval: 3, meleeToShooter: [1, 2] },
   ],
 
-  eliteSpawnTick: 1500,
+  eliteSpawnTick: 1800,
   eliteHp: 40.0,
   eliteMoveSpeed: 0.115,
   eliteApproachRange: 4.8,
   eliteTelegraphTicks: 30,
   eliteCooldownTicks: 32,
-  eliteBlastRadius: 4.0,
+  eliteBlastRadius: 4.2,
   eliteDamage: 0.55,
 }
 

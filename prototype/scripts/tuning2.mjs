@@ -44,7 +44,8 @@ function fmt(result) {
   for (const campaign of result.campaigns) {
     cells.push(`CAMP:${campaign.policy} done ${campaign.completed}/8 [${campaign.clearedBySeed.join('')}]`)
   }
-  return `${result.label.padEnd(40)}  ${cells.join('  |  ')}`
+  const label = result.relationBreaks ? `DIAG ${result.label}` : result.label
+  return `${label.padEnd(40)}  ${cells.join('  |  ')}${result.relationBreaks ? `  <<${result.relationBreaks}` : ''}`
 }
 
 function failCount(result) {
@@ -136,10 +137,12 @@ if (args[0] === '--log') {
           stage.i4DamageGap === null ? '' : num(stage.i4DamageGap),
           camp ? camp.completed : '',
           camp ? camp.clearedBySeed.join('') : '',
-          Object.entries(stage.verdict)
-            .filter(([name, held]) => !held && name !== 'I2 strict')
-            .map(([name]) => name)
-            .join(';'),
+          [
+            ...Object.entries(stage.verdict)
+              .filter(([name, held]) => !held && name !== 'I2 strict')
+              .map(([name]) => name),
+            ...(result.relationBreaks ? [`DIAGNOSTIC ${result.relationBreaks}`] : []),
+          ].join(';'),
         ].join('\t'),
       )
     }

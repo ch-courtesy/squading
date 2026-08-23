@@ -136,6 +136,17 @@ function engagedEnemies(state: BattleState): number {
 type Candidate = {
   readonly label: string
   readonly patches: Record<string, Record<string, unknown>>
+  /**
+   * DIAGNOSTIC ONLY. §2.3's relation guard is still evaluated, but a break is RECORDED on the
+   * result instead of rejecting it, and the candidate is played anyway.
+   *
+   * This exists because "what does the relation cost" is a question the guard cannot answer by
+   * refusing — batch 1's most useful finding was a measurement of what its own guard was hiding.
+   * §2's ranges and §1's relations are NOT diagnosable: those are the rules, not the campaign's
+   * shape. A row measured this way carries `relationBreaks` in the log and in `--log`'s `failed`
+   * column, so it can never be read as an adoptable result.
+   */
+  readonly diagnostic?: boolean
 }
 
 /** §2's search ranges and §1's relations, on one row of the virtual table. */
@@ -340,9 +351,18 @@ function materialise(candidate: Candidate): StageConfig[] {
     }
   })
   for (const row of table) assertWithinSpec(row)
-  assertTableRelations(table)
+  if (candidate.diagnostic) {
+    try {
+      assertTableRelations(table)
+    } catch (error) {
+      relationBreak = error instanceof Error ? error.message : String(error)
+    }
+  } else assertTableRelations(table)
   return table
 }
+
+/** Set by `materialise` for a diagnostic candidate whose table breaks a §2.3 relation. */
+let relationBreak: string | null = null
 
 function install(table: readonly StageConfig[]): void {
   const byId: Record<number, StageConfig> = {}
@@ -502,11 +522,32 @@ type CampaignSummary = {
   /** How many campaigns died on each stage. */
   diedOnStage: Record<string, number>
   meanFinalSurvivors: number
+  /**
+   * One row per stage actually PLAYED, over all eight root seeds.
+   *
+   * The relay's whole question is what the squad is carrying when it arrives, and a `cleared`
+   * count cannot answer it: "died on stage 3" is a different fact when the squad entered with
+   * fourteen bodies than when it entered with two, and only one of the two is the stage's fault.
+   */
+  legs: {
+    stageId: number
+    played: number
+    won: number
+    meanEntered: number
+    meanStanding: number
+    meanEndTick: number
+    /** Fraction of the ENTERING squad's current hp that came off during the stage. */
+    meanDamageRatio: number
+  }[]
 }
 
 function measureCampaign(policyId: PolicyId): CampaignSummary {
   const clearedBySeed: number[] = []
   const diedOnStage: Record<string, number> = {}
+  const legs = new Map<
+    number,
+    { played: number; won: number; entered: number; standing: number; endTick: number; ratio: number }
+  >()
   let completed = 0
   let survivors = 0
 
@@ -518,6 +559,9 @@ function measureCampaign(policyId: PolicyId): CampaignSummary {
       const stageId = campaign.state().stageId
       const policy = policyFactory(policyId)(`${rootSeed}:stage:${stageId}`)
       battle.start()
+      const entered = battle.state().friendlies.length
+      const enteringHp = battle.state().friendlies.reduce((total, unit) => total + unit.hp, 0)
+      let taken = 0
       let steps = 0
       while (battle.mode() !== 'won' && battle.mode() !== 'lost') {
         if (steps >= STEP_BUDGET) {
@@ -527,10 +571,24 @@ function measureCampaign(policyId: PolicyId): CampaignSummary {
           )
         }
         for (const command of policy.decide(projectPolicyView(battle.state()))) battle.enqueue(command)
-        battle.step()
+        const result = battle.step()
+        if (result.ran) {
+          for (const applied of result.damage.applied) {
+            if (applied.event.side !== 'friendly') taken += applied.dealt
+          }
+        }
         steps += 1
       }
-      const won = battle.state().mode === 'won'
+      const ended = battle.state()
+      const won = ended.mode === 'won'
+      const leg = legs.get(stageId) ?? { played: 0, won: 0, entered: 0, standing: 0, endTick: 0, ratio: 0 }
+      leg.played += 1
+      leg.won += won ? 1 : 0
+      leg.entered += entered
+      leg.standing += ended.friendlies.filter((unit) => unit.life === 'standing').length
+      leg.endTick += ended.combatTick
+      leg.ratio += enteringHp === 0 ? 0 : taken / enteringHp
+      legs.set(stageId, leg)
       campaign.finishStage()
       if (won) cleared = stageId
       else diedOnStage[String(stageId)] = (diedOnStage[String(stageId)] ?? 0) + 1
@@ -549,6 +607,17 @@ function measureCampaign(policyId: PolicyId): CampaignSummary {
     clearedBySeed,
     diedOnStage,
     meanFinalSurvivors: survivors / POLICY_BAND_SEEDS.length,
+    legs: [...legs.entries()]
+      .sort((left, right) => left[0] - right[0])
+      .map(([stageId, leg]) => ({
+        stageId,
+        played: leg.played,
+        won: leg.won,
+        meanEntered: leg.entered / leg.played,
+        meanStanding: leg.standing / leg.played,
+        meanEndTick: leg.endTick / leg.played,
+        meanDamageRatio: leg.ratio / leg.played,
+      })),
   }
 }
 
@@ -559,6 +628,8 @@ type CandidateResult = {
   campaigns: CampaignSummary[]
   elapsedMs: number
   rejected?: string
+  /** Set only on a `diagnostic` candidate: the §2.3 relation the played table broke. */
+  relationBreaks?: string
 }
 
 type Grid = {
@@ -588,7 +659,7 @@ function stagesOf(grid: Grid, candidate: Candidate): StageId[] {
 
 function line(result: CandidateResult): string {
   if (result.rejected) return `${result.label.padEnd(38)}  REJECTED  ${result.rejected}`
-  const parts = [result.label.padEnd(38)]
+  const parts = [(result.relationBreaks ? `DIAG ${result.label}` : result.label).padEnd(38)]
   for (const stage of result.stages) {
     const skilled = stage.policies['skilled']
     const wins = (id: string) => stage.policies[id]?.wins ?? '-'
@@ -625,6 +696,7 @@ describe('tuning 2 — the stage and campaign search', () => {
       const candidateStartedAt = Date.now()
       let result: CandidateResult
       try {
+        relationBreak = null
         const table = materialise(candidate)
         install(table)
         const stages = stagesOf(grid, candidate).map((stageId) => measureStage(stageId, policies))
@@ -635,6 +707,7 @@ describe('tuning 2 — the stage and campaign search', () => {
           stages,
           campaigns,
           elapsedMs: Date.now() - candidateStartedAt,
+          ...(relationBreak === null ? {} : { relationBreaks: relationBreak }),
         }
       } catch (error) {
         result = {

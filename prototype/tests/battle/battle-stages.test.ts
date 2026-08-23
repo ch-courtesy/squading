@@ -25,13 +25,33 @@
 
 import { describe, expect, it } from 'vitest'
 
-import { SOLDIER_RANGE } from '../../src/core/battle/constants'
+import { COMBAT_TICK_LIMIT, SOLDIER_RANGE } from '../../src/core/battle/constants'
 import { STAGES, stageConfigOf, type StageConfig } from '../../src/core/battle/stages'
 
 /** §1.10's ratio as the fraction of requests that are shooters. */
 function shooterShare(stage: StageConfig, phase: number): number {
   const [melee, shooter] = stage.pressurePhases[phase].meleeToShooter
   return shooter / (melee + shooter)
+}
+
+/**
+ * How many spawn requests §1.10 makes over a whole 90-second fight.
+ *
+ * WHY THIS EXISTS. The per-phase comparisons below read `pressurePhases[i]` by INDEX, and every
+ * row used the same `fromTick` edges until tuning batch 2 moved stage 2's — so "stage 2's interval
+ * is shorter in phase 1" stopped being the same sentence as "stage 2 is denser at tick 1000". This
+ * counts the schedule instead of trusting the index, and it is the number stage 2's identity is
+ * actually about: `9/7/5` at `0/900/1800` is 409 requests, `8/6/4` at `0/1200/2100` is 450.
+ */
+function spawnRequestsOverTheFight(stage: StageConfig): number {
+  let total = 0
+  for (let index = 0; index < stage.pressurePhases.length; index += 1) {
+    const phase = stage.pressurePhases[index]
+    const next = stage.pressurePhases[index + 1]
+    const until = next ? next.fromTick : COMBAT_TICK_LIMIT
+    total += Math.max(0, until - phase.fromTick) / phase.requestInterval
+  }
+  return total
 }
 
 const ALL = STAGES
@@ -88,6 +108,13 @@ describe('§2.3: each stage is dominated by the axis it is named for', () => {
       )
     }
     expect(two.absoluteEnemyCap).toBeGreaterThan(one.absoluteEnemyCap)
+    // AND THE CLAIM THE INDEX COMPARISON STOPPED MAKING. Tuning batch 2 moved this row's phase
+    // edges to `0/1200/2100`, so "shorter interval in phase 1" no longer means "denser at tick
+    // 1000" — between 900 and 1200 stage 2 is at interval 8 while stage 1 has already gone to 7.
+    // What stage 2 IS, over the fight, is more bodies asked for; that is a number, so it is pinned
+    // as one. Without this line the row could satisfy every comparison above while scheduling
+    // fewer spawns than stage 1.
+    expect(spawnRequestsOverTheFight(two)).toBeGreaterThan(spawnRequestsOverTheFight(one))
     // And the density is the ONLY axis: the bodies arriving are stage 1's bodies. That is what
     // makes stage 2 a measurement of density rather than of density plus five other things.
     //
@@ -149,12 +176,17 @@ describe('§2.3: each stage is dominated by the axis it is named for', () => {
     expect(shooterShare(four, 0)).toBeGreaterThan(shooterShare(stageConfigOf(1), 0))
   })
 
-  it('4 초록 — and the smallest range advantage in the table, §1.6 intact', () => {
+  it(`4 초록 — and a range advantage no smaller than stage 1's, §1.6 intact`, () => {
     const four = stageConfigOf(4)
-    for (const stage of ALL) {
-      if (stage.id === 4) continue
-      expect(four.rangeAdvantage, `stage ${stage.id}`).toBeLessThan(stage.rangeAdvantage)
-    }
+    // THIS RELATION WAS INVERTED, AND THE SPEC IS WHY. Until tuning batch 2 it read "the SMALLEST
+    // `rangeAdvantage` in the table", which was v1 of the campaign spec's "사거리 격차 축소". §2.3
+    // now records that prescription as self-cancelling and measured: closing the gap removes the
+    // advantage `ignores-range` exists to ignore, and the implementation at advantage 0.1 produced
+    // an I4 damage gap of +0.001, a two-hundredth of the gate. The corrected instruction is "격차는
+    // 유지하거나 넓힌다", so what stage 4 owes the table is a gap AT LEAST stage 1's — the axis it
+    // pushes is the shooter SHARE above, which is what §2.3 says changes the fraction of damage the
+    // range judgement governs. The value chosen against this relation is 4.2, an advantage of 0.8.
+    expect(four.rangeAdvantage).toBeGreaterThanOrEqual(stageConfigOf(1).rangeAdvantage)
     // §1.6 is a rule and not an axis: the band shrinks, it never inverts. The module asserts this
     // at import for every row; here it is stated where stage 4's identity is, because stage 4 is
     // the row that could take it past the edge.
