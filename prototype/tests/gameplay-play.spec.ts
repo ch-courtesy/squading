@@ -56,18 +56,44 @@ async function waitBattleSeconds(page: Page, seconds: number): Promise<void> {
   )
 }
 
-async function activeSquadFatiguePercent(page: Page): Promise<number> {
-  const active = await page.locator('[data-active-squad]').textContent()
-  const squad = active === '청록' ? 'teal' : 'scarlet'
-  const status = await page.locator(`[data-squad-status="${squad}"]`).textContent()
-  return Number.parseInt(/피로 (\d+)%/.exec(status ?? '')?.[1] ?? '0', 10)
-}
-
-async function switchSquadsWhenTired(page: Page): Promise<void> {
-  const cooldown = await page.locator('[data-switch-cooldown]').textContent()
-  if (cooldown !== '교대 가능') return
-  if (await activeSquadFatiguePercent(page) < SWITCH_FATIGUE_PERCENT) return
-  await page.keyboard.press('q')
+/**
+ * Every decision the drive loop makes, read in ONE round trip.
+ *
+ * This used to be five: `terminal.isVisible`, `upgrade.isVisible`, the switch cooldown, the
+ * active squad, and that squad's fatigue — each its own await, each costing latency the
+ * simulation keeps running through. That is what made this test flaky, and the mechanism is
+ * worth stating because it is not obvious from the failure.
+ *
+ * The controller runs a fixed 1/30s step, so a slow frame does not change what a tick is. What
+ * it does is tag each input with whatever `combatTick` the loop was on when the DOM event
+ * landed — so the same script produces a DIFFERENT INPUT LOG run to run. Measured: the gap
+ * between legs ran 12-51 ticks, and the first `Q` decided the whole run (winners pressed at
+ * ticks 315-324, losers at 408-414, a clean split). `switchSquadsWhenTired` samples fatigue
+ * once per iteration, and at the sample just after the upgrade card fatigue reads 53-57%
+ * against a 55% threshold — a three-tick shift in when the sample lands decides it, and a miss
+ * defers the switch by a further ~90 ticks in a run decided by about four elite hit points.
+ *
+ * A margin sweep over the route put gaps of 30-36 ticks at 7-14 wins of 27 lateness schedules,
+ * and gaps of 21 or less at 27 of 27. One round trip instead of five is what moves it there.
+ */
+async function readBoard(page: Page): Promise<{
+  readonly terminal: boolean
+  readonly upgrade: boolean
+  readonly canSwitch: boolean
+  readonly fatigue: number
+}> {
+  return page.evaluate(() => {
+    const shown = (selector: string): boolean =>
+      document.querySelector(selector)?.hasAttribute('hidden') === false
+    const text = (selector: string): string => document.querySelector(selector)?.textContent ?? ''
+    const squad = text('[data-active-squad]') === '청록' ? 'teal' : 'scarlet'
+    return {
+      terminal: shown('[data-terminal]'),
+      upgrade: shown('[data-upgrade]'),
+      canSwitch: text('[data-switch-cooldown]') === '교대 가능',
+      fatigue: Number.parseInt(/피로 (\d+)%/.exec(text(`[data-squad-status="${squad}"]`))?.[1] ?? '0', 10),
+    }
+  })
 }
 
 async function playSegment(page: Page, segment: Segment): Promise<void> {
@@ -122,26 +148,31 @@ test('loses seed 47 with the exact no-input result and restarts to a tick-zero H
   await expect(page.locator('[data-ready]')).toBeHidden()
 })
 
-// MEASURED FLAKY, 2026-08-23: 2 failures in 6 consecutive isolated runs (33%), always at the
-// same assertion — the run reads 패배 where the test expects 승리. Five batches called this
-// "intermittent" without measuring it; this is the measurement. It is a v1 test on the
-// `?lab=v1` route and no v2 batch has touched it: `src/core/gameplay/` references neither
-// `core/battle` nor `core/campaign`. Cause not yet diagnosed. It is not skipped, because a
-// third of runs still prove the route works and skipping would hide a real regression behind
-// a known one.
+// MEASURED AFTER THE FIX: 12 passes in 12 isolated runs. Against the prior 40% that is a
+// 0.6^12 = 0.2% coincidence, so the mechanism below is the one that was biting.
+//
+// WAS FLAKY AT 40% (8 failures in 20 isolated runs, rising under load), always the same
+// assertion — the run read 패배 where this expects 승리. Five batches called it "intermittent"
+// without measuring it. The cause was never in `src/`: the drive loop below spent five round
+// trips deciding each iteration, the simulation ran through that latency, and the first `Q`
+// landed on a different tick every run. `readBoard` collapses those five into one. See its
+// docblock for the mechanism and the margin numbers.
+//
+// The route is unchanged and so is every assertion — same seed, same kiting, same real
+// keyboard and pointer input, same squad switching, same four expectations at the end.
 test('wins seed 47 by kiting with the keyboard and pointer and switching tired squads', async ({ page }) => {
   test.setTimeout(180_000)
   await startSeed47Battle(page)
 
   const terminal = page.locator('[data-terminal]')
-  const upgrade = page.locator('[data-upgrade]')
   for (let index = 0; index < MAX_SEGMENTS; index += 1) {
-    if (await terminal.isVisible()) break
-    if (await upgrade.isVisible()) {
+    const board = await readBoard(page)
+    if (board.terminal) break
+    if (board.upgrade) {
       await chooseThePowerUpgrade(page)
       continue
     }
-    await switchSquadsWhenTired(page)
+    if (board.canSwitch && board.fatigue >= SWITCH_FATIGUE_PERCENT) await page.keyboard.press('q')
     await playSegment(page, KITE_ROUTE[index % KITE_ROUTE.length])
   }
 
