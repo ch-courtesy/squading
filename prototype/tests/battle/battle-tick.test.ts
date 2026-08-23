@@ -212,45 +212,35 @@ describe('§1.11 / §1.15 the reducer wires the movement keydown through', () =>
     expect(state.rescue.progress).toBe(3)
   })
 
-  it('cancels on a movement keydown and returns the progress to zero', () => {
+  it('survives a movement keydown, and ends on the one input that does end it', () => {
+    // BOTH HALVES INVERTED BY §1.11 v19, which is why they are one fixture now. Through v18 a
+    // movement keydown cancelled a running lock and a held axis blocked a new one, so rescuing
+    // meant taking your hand off the keys first. That procedure was half of why a person said
+    // rescue did not feel like rescuing. Space beats movement now; the command unit still does
+    // not move while locked, so the cost is the same and the rule pays it instead of the hand.
     const state = withDownedNeighbour()
     const queue = new BattleInputQueue()
 
-    queue.keyDown(state, 'Space')
-    advanceBattleTick(state, queue.drain())
-    advanceBattleTick(state, queue.drain())
-    expect(state.rescue.progress).toBe(2)
-
-    queue.keyDown(state, 'KeyW')
-    advanceBattleTick(state, queue.drain())
-
-    // §1.11's cancel is the EVENT, and the reducer is the only thing that can hand it over:
-    // a loop that dropped the events argument would still compile if the argument had a
-    // default, and this rescue would run to completion under a key the player pressed.
-    expect(state.rescue.active).toBe(false)
-    expect(state.rescue.progress).toBe(0)
-  })
-
-  it('does not cancel on the held axis of the ticks after that keydown', () => {
-    const state = withDownedNeighbour()
-    const queue = new BattleInputQueue()
-
-    // The key goes down first, the rescue is attempted after: the axis is non-zero, so the
-    // lock never establishes at all. That is §1.11's establishment rule, not its cancel.
+    // Walk in ON the key and press Space: the lock establishes on that tick, and §1.16 puts
+    // 구조 진행 later in the same tick, so it earns its first point there.
     queue.keyDown(state, 'KeyW')
     queue.keyDown(state, 'Space')
     advanceBattleTick(state, queue.drain())
-    expect(state.rescue.active).toBe(false)
+    expect(state.rescue.active).toBe(true)
+    expect(state.rescue.progress).toBe(1)
 
-    // Release the key. The axis is 0 again and no keydown happens, so the lock establishes on
-    // that tick — and, because §1.16 puts 구조 진행 later in the same tick, it also earns its
-    // first point of progress there — and then survives the following tick of held Space.
-    queue.keyUp(state, 'KeyW')
+    // A fresh movement keydown mid-lock does not touch it.
+    queue.keyDown(state, 'KeyD')
     advanceBattleTick(state, queue.drain())
-    advanceBattleTick(state, queue.drain())
-
     expect(state.rescue.active).toBe(true)
     expect(state.rescue.progress).toBe(2)
+
+    // Non-vacuous: releasing Space still ends it, so this is a fixture about WHICH input ends a
+    // rescue and not one that would pass against a lock nothing can break.
+    queue.keyUp(state, 'Space')
+    advanceBattleTick(state, queue.drain())
+    expect(state.rescue.active).toBe(false)
+    expect(state.rescue.progress).toBe(0)
   })
 })
 

@@ -239,7 +239,7 @@ export const MIN_PRESSURE_FRACTION = 0.65
 /** PLACEHOLDER */
 export const RESCUE_RANGE = 1.5
 /** PLACEHOLDER — ticks of held Space required to complete a rescue. */
-export const RESCUE_TICKS = 20
+export const RESCUE_TICKS = 45
 /** PLACEHOLDER — invulnerable ticks granted on revival. */
 export const RESCUE_INVULNERABLE_TICKS = 45
 /** PLACEHOLDER — ticks a downed friendly survives before dying. */

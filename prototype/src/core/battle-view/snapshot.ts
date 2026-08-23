@@ -233,6 +233,8 @@ export type BattleTickEvents = {
      */
     readonly friendlyDowns: readonly number[]
   }
+  /** §1.11's completion on this tick, or `null`. `ResolvedTick` has carried it since batch C. */
+  readonly rescue?: { readonly targetId: number; readonly rescuerId: number } | null
 }
 
 /**
@@ -323,6 +325,27 @@ function projectActionEvents(
     }
     for (const fallen of resolved.transitions.enemyDeaths) death(resolved.tick, fallen.id)
     for (const fallen of resolved.transitions.friendlyDeaths) death(resolved.tick, fallen)
+    // §1.11's completion. `ResolvedTick.rescue` has carried it since batch C and nothing drew it,
+    // so a body stood up in silence — the one beat in this game that costs a walk and 45 ticks of
+    // standing still had no moment, while every blow and every death had one. `sourceId` is the
+    // rescuer because the pair is the picture: somebody went and got somebody.
+    if (resolved.rescue) {
+      const revived = bodies.get(resolved.rescue.targetId)
+      const rescuer = bodies.get(resolved.rescue.rescuerId)
+      if (revived && rescuer) {
+        events.push({
+          kind: 'revive',
+          tick: resolved.tick,
+          sourceId: resolved.rescue.rescuerId,
+          sourceX: rescuer.position.x,
+          sourceY: rescuer.position.y,
+          targetId: resolved.rescue.targetId,
+          targetX: revived.position.x,
+          targetY: revived.position.y,
+          strength01: 1,
+        })
+      }
+    }
   }
   return events
 }

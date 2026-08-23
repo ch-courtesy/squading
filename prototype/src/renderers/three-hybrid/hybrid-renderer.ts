@@ -38,6 +38,8 @@ type UnitAnim = {
   hitBearing: number
   flash: number
   flashScale: number
+  /** §1.11's revive: when the stand-up began, so the lift can ease out of it. */
+  reviveStart: number
   deathStart: number
   deathFromTopple: number
   dead: boolean
@@ -614,6 +616,11 @@ const RESCUE_GOLD = 0xffb52e
 // the carry, not stand in front of them.
 const RESCUE_PILLAR_RADIUS = 0.34
 const RESCUE_PILLAR_HEIGHT = 2.8
+
+/** §1.11's revive flash: brighter than a hit, because it is the opposite of one. */
+const REVIVE_FLASH_SCALE = 1.6
+/** How long the stand-up takes on screen, in seconds. */
+const REVIVE_LIFT_SECONDS = 0.45
 
 /**
  * §1.11's pin light. Cold white at full countdown, hot amber as it runs out — the colour IS the
@@ -1650,8 +1657,15 @@ class ThreeHybridRenderer implements HybridGameRenderer {
     ;(visual.marker.material as THREE.MeshBasicMaterial).color.setHex(markerColor(unit, marksActiveSquad))
     // A downed card is laid across the tabletop and dropped towards it, so it reads
     // as a fallen counter rather than a standing one that happens to be rotated.
-    visual.card.rotation.z = downed ? Math.PI / 2 : 0
-    visual.card.position.y = downed ? DOWNED_CARD_HEIGHT : STANDING_CARD_HEIGHT
+    //
+    // §1.11's revive EASES OUT of that pose rather than snapping upright. The authority stands
+    // the body up on one tick — correct, and unreadable at 30Hz on a busy board, which is the
+    // "구조한 느낌이 안 남" this exists to answer. The lift is display-only: the unit is already
+    // standing in the state while these frames play.
+    const lifting = clamp01((this.clock - visual.anim.reviveStart) / REVIVE_LIFT_SECONDS)
+    const laid = downed ? 1 : 1 - easeTopple(lifting)
+    visual.card.rotation.z = laid * (Math.PI / 2)
+    visual.card.position.y = DOWNED_CARD_HEIGHT + (1 - laid) * (STANDING_CARD_HEIGHT - DOWNED_CARD_HEIGHT)
   }
 
   /**
@@ -1851,6 +1865,10 @@ class ThreeHybridRenderer implements HybridGameRenderer {
         if (!visual.anim.dead) this.beginDeath(target, visual, at)
         continue
       }
+      if (event.kind === 'revive') {
+        this.beginRevive(visual, at)
+        continue
+      }
       const dx = event.targetX - event.sourceX
       const dz = event.targetY - event.sourceY
       const length = Math.hypot(dx, dz)
@@ -1864,6 +1882,29 @@ class ThreeHybridRenderer implements HybridGameRenderer {
       }
       this.applyHit(visual, event.strength01, -towardsX, -towardsZ, at)
     }
+  }
+
+  /**
+   * §1.11's completion — the one beat in this game that had none.
+   *
+   * Death gets a topple and a burst of paper; the opposite of death got a body quietly changing
+   * which way it was lying. A person played it and said rescue did not feel like rescuing, and
+   * half of that was the input (§1.11 v19 took that half); this is the other half.
+   *
+   * Three things at once, because the moment is short and the board is busy: the figure clears
+   * whatever death animation it was mid-way through and stands, it flashes bright the way a hit
+   * flashes but upward and warm, and it throws the same paper the death burst throws — the same
+   * pooled particles, so the payoff costs no new draw call.
+   */
+  private beginRevive(visual: UnitVisual, at: number = this.clock): void {
+    const anim = visual.anim
+    anim.dead = false
+    anim.buried = false
+    anim.deathStart = Number.NEGATIVE_INFINITY
+    anim.deathFromTopple = 0
+    anim.flash = 1
+    anim.flashScale = REVIVE_FLASH_SCALE
+    anim.reviveStart = at
   }
 
   private beginDeath(unit: RenderUnit, visual: UnitVisual, at: number = this.clock): void {
@@ -2657,6 +2698,7 @@ function createUnitAnim(unit: RenderUnit): UnitAnim {
     yaw: Math.PI / 2 - unit.facingRadians,
     aimUntil: Number.NEGATIVE_INFINITY,
     lungeStart: Number.NEGATIVE_INFINITY,
+    reviveStart: Number.NEGATIVE_INFINITY,
     lungeX: 0,
     lungeZ: 1,
     lungeOffset: 0,

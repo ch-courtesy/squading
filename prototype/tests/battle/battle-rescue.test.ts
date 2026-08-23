@@ -83,16 +83,21 @@ function shotAt(targetId: number, amount: number): DamageEvent {
 }
 
 describe("§1.11 lock establishment (구조 lock 판정)", () => {
-  it('does not establish while the movement input vector is non-zero', () => {
+  it('establishes WITH a movement key held — §1.11 v19 dropped that condition', () => {
+    // The inverse of what this fixture used to assert, and the inversion is the change. Through
+    // v18 a non-zero axis blocked the lock, so reaching a body meant releasing every movement
+    // key before pressing Space. A person played it and said rescue did not feel like rescuing;
+    // that hand-shuffle was half of it. Space beats movement now, and the command unit still
+    // does not move while locked, so the cost is unchanged and the RULE pays it.
     const state = fixture({ [RIFLE]: { dx: 0.5, dy: 0 } })
     state.input.move = { x: 1, y: 0 }
 
     resolveRescueLock(state, NO_EVENTS)
 
-    expect(state.rescue.active).toBe(false)
-    expect(state.rescue.targetId).toBeNull()
+    expect(state.rescue).toMatchObject({ active: true, targetId: RIFLE, progress: 0 })
 
-    // Release the key and the same tick's three conditions are all met.
+    // And releasing the key changes nothing, which is what makes the axis irrelevant rather
+    // than merely tolerated.
     state.input.move = { x: 0, y: 0 }
     resolveRescueLock(state, NO_EVENTS)
     expect(state.rescue).toMatchObject({ active: true, targetId: RIFLE, progress: 0 })
@@ -156,13 +161,21 @@ describe("§1.11 lock establishment (구조 lock 판정)", () => {
 })
 
 describe("§1.11 cancellation (구조 lock 판정)", () => {
-  it('cancels on a movement keydown event and resets progress to zero', () => {
+  it('does NOT cancel on a movement keydown — §1.11 v19 took it off the list', () => {
+    // Also an inversion. v19 lets Space override movement, and a rule where Space beats movement
+    // while movement cancels Space is a rule arguing with itself. Only releasing Space, the
+    // target leaving, or the performer going down end a lock now.
     const state = fixture({ [RIFLE]: { dx: 0.5, dy: 0 } })
     resolveRescueLock(state, NO_EVENTS)
     state.rescue.progress = 17
 
     resolveRescueLock(state, MOVE_KEYDOWN)
 
+    expect(state.rescue).toMatchObject({ active: true, targetId: RIFLE, progress: 17 })
+
+    // Non-vacuous: the one input that DOES end it still does.
+    state.input.spaceHeld = false
+    resolveRescueLock(state, NO_EVENTS)
     expect(state.rescue).toMatchObject({ active: false, targetId: null, progress: 0 })
   })
 

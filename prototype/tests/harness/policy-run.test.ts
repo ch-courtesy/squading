@@ -237,11 +237,12 @@ describe('§4.1 `flees-always` on the three seeds', () => {
     // reasoned: `scripts/mutate.mjs`'s "count no wins" went from caught to MISSED the moment the
     // band above reached 0.
     //
-    // So the non-vacuity comes from a second policy that still wins. `skilled` is 3/3 on these
-    // three seeds at batch I's values, which is also what §4.1 asks of it (`>= 6/8`).
+    // So the non-vacuity comes from a second policy that still wins. `skilled` is 2/3 on these
+    // three seeds since §1.11 v19 lengthened the lock to 45 ticks — non-zero is all this needs,
+    // and over the full eight-seed band `skilled` is 8/8, which is what §4.1 actually asks.
     const skilled = runPolicyBand(policyFactory('skilled'), THREE_SEEDS)
     expect(skilled.policyId).toBe('skilled')
-    expect(skilled.wins).toBe(3)
+    expect(skilled.wins).toBe(2)
     expect(skilled.total).toBe(3)
   })
 })

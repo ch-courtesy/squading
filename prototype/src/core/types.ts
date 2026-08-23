@@ -97,7 +97,12 @@ export type RenderEffect = {
  * melee attacker that puffed smoke would be reading its own animation off the wrong verb.
  * `blast` is the elite's area strike, which has no attacker at the point of impact.
  */
-export type RenderActionEventKind = 'shot' | 'melee' | 'blast' | 'death'
+/**
+ * `revive` is §1.11's completion, and it is here because its absence was measurable in play: a
+ * body stood up and the screen said nothing, so the thing the player had just spent a walk and
+ * 45 ticks of standing still on had no moment. Death had one; the opposite of death did not.
+ */
+export type RenderActionEventKind = 'shot' | 'melee' | 'blast' | 'death' | 'revive'
 
 export type RenderActionEvent = {
   readonly kind: RenderActionEventKind

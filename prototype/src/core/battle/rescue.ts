@@ -153,9 +153,9 @@ export function cancelRescueIfBroken(state: BattleState): void {
  */
 export function resolveRescueLock(state: BattleState, events: RescueInputEvents): void {
   if (state.rescue.active) {
-    // §1.11's cancel list, in order: Space released, movement keydown, target gone,
-    // performer down. A merely HELD movement vector is not on it — see note 1 above.
-    if (!state.input.spaceHeld || events.movementKeydown) {
+    // §1.11 (v19) cancel list: Space released, target gone, performer down. MOVEMENT IS NOT ON
+    // IT any more, in either direction — see the establishment note below.
+    if (!state.input.spaceHeld) {
       cancelRescue(state)
       return
     }
@@ -163,9 +163,18 @@ export function resolveRescueLock(state: BattleState, events: RescueInputEvents)
     return
   }
 
-  // §1.11's three establishment conditions.
+  // §1.11 (v19): TWO conditions, and the one that left was about the player's fingers.
+  //
+  // Through v18 a third condition required the movement vector to be exactly zero, so arriving
+  // at a body meant releasing every movement key BEFORE pressing Space. A person played it and
+  // said rescue did not feel like rescuing; half of that is this — it made the thing a
+  // keying procedure rather than a decision.
+  //
+  // Space now beats movement. The command unit still does not move while locked (§1.11), so
+  // rescue still costs exactly what it cost; the difference is that the RULE pays that cost
+  // instead of the player's hand. And movement no longer cancels, because a rule where Space
+  // overrides movement while movement cancels Space is a rule arguing with itself.
   if (!state.input.spaceHeld) return
-  if (state.input.move.x !== 0 || state.input.move.y !== 0) return
   const candidateId = rescueCandidateId(state)
   if (candidateId === null) return
 
