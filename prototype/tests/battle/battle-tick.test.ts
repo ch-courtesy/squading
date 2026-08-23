@@ -505,29 +505,31 @@ describe('§1.16 the reducer runs a whole battle to a verdict', () => {
     expect(run.killMismatches).toEqual([])
     expect(run.unclaimedWins).toEqual([])
 
-    // HAZARD 4b's SELF-ALARM RANG A SECOND TIME, AND IN THE OTHER DIRECTION — which is the whole
-    // reason the previous round wrote the balance claim down instead of deleting it.
+    // HAZARD 4b's SELF-ALARM HAS FIRED TWICE, ONCE IN EACH DIRECTION, and both times the balance
+    // claim below is what made that visible instead of silent.
     //
-    // The history, because both halves matter. Batch I's change made `tactical-no-input` lose on
-    // all eight band seeds, so no tick in this run had an elite death on it and `unclaimedWins`
-    // above was VACUOUS — it passed because nothing could have filled it. The round that noticed
-    // wrote three lines saying exactly that (`eliteDeathTicks` empty, result `lost`, the elite
-    // still standing) so that a later tune would have to come back here.
+    // `unclaimedWins` above is the only thing in this run that can see a verdict built from a
+    // SECOND `resolveTransitions` call, and it is filled in only on a tick where the elite dies.
+    // Batch I's balance change made `tactical-no-input` lose on all eight band seeds (which is what
+    // §3 I3 wants), so there is no such tick on any seed and `unclaimedWins` is VACUOUS — it passes
+    // because nothing could have filled it. The three lines below say that out loud: the run loses,
+    // there is no elite death in it, and the elite is still standing when the squad is wiped.
     //
-    // §1.10.1 (v14) is that tune. A card-only squad on `seed-b` now loses bodies, the board shrinks
-    // with them, and the survivors kill the elite at tick 2189. So the alarm fired as designed and
-    // this block is its replacement: `unclaimedWins` is a LIVE detector again — there is exactly
-    // one elite death in the run and the verdict on that tick is the win. Row 16 is no longer
-    // being checked only by the hand-built fixture above.
+    // §1.10.1's FIRST FORM (the live standing count) flipped all four of them — the squad lost
+    // bodies, the board shrank with them, and the survivors killed the elite at tick 2189. The
+    // alarm rang exactly as designed, and it was ringing about a real defect: a `tactical-no-input`
+    // win is §3's I3 failing. The entering-count fix removes the mechanism and these lines are back
+    // to what they were, so `unclaimedWins` is vacuous again and this note is again the reason a
+    // reader knows it.
     //
-    // THE BALANCE CLAIM STAYS WRITTEN DOWN, in the opposite direction, and it is not a good one:
-    // `tactical-no-input` winning is §3's I3 failing, which §3 lists among the invariants that are
-    // NOT relaxation candidates. This fixture is not where that is argued — the eight-seed band is
-    // — but it is where the fact is visible, so it says so rather than reading as a pass.
-    expect(run.eliteDeathTicks).toHaveLength(1)
-    expect(run.state.result).toBe('won')
-    expect(run.state.failureReason).toBeNull()
-    expect(run.state.enemies.find((enemy) => enemy.kind === 'elite')?.life).toBe('dead')
+    // Row 16's live detector is `§1.16 the verdict reads the transition row that actually ran`
+    // above, which kills the elite by hand and does not depend on the verdict at all. If a later
+    // tune gives `tactical-no-input` a win back, these lines fail rather than going quiet, and the
+    // `toBe('lost')` in the middle is the balance claim that makes that possible.
+    expect(run.eliteDeathTicks).toEqual([])
+    expect(run.state.result).toBe('lost')
+    expect(run.state.failureReason).toBe('all-units-lost')
+    expect(run.state.enemies.find((enemy) => enemy.kind === 'elite')?.life).toBe('standing')
   })
 
   it('replays the same seed to the same digest, and two seeds apart', () => {

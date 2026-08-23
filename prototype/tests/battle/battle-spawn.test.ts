@@ -16,19 +16,24 @@
 
 import { describe, expect, it } from 'vitest'
 
-import { MIN_PRESSURE_FRACTION, ROSTER_SIZE } from '../../src/core/battle/constants'
+import {
+  COMMANDER_HP,
+  MIN_PRESSURE_FRACTION,
+  ROSTER_SIZE,
+  SOLDIER_HP,
+} from '../../src/core/battle/constants'
 import { stageConfigOf } from '../../src/core/battle/stages'
 import {
   effectiveEngagedCapOf,
   effectiveRequestIntervalOf,
   engagedEnemyCount,
+  enteringFriendlyCount,
   liveEnemyCount,
   pressureFractionOf,
   pressurePhaseAt,
   pressurePhaseIndexAt,
   resolveSpawnRequests,
   spawnKindForPhaseIndex,
-  standingFriendlyCount,
 } from '../../src/core/battle/spawn'
 import { COMMANDER_ID, createEnemy, createInitialBattleState, findFriendly } from '../../src/core/battle/state'
 import type { BattleState, EnemyKind, SpawnRequest, Vec2 } from '../../src/core/battle/types'
@@ -83,11 +88,41 @@ function request(sequence: number, kind: EnemyKind = 'melee'): SpawnRequest {
 }
 
 /**
+ * A stage opened by `entering` bodies — campaign §1.1's relay, which is the only way a battle
+ * begins with fewer than `ROSTER_SIZE`.
+ *
+ * Built through `CarriedSquad` rather than by deleting rows from a fresh roster, because the
+ * question §1.10.1 asks is "how many walked in", and the relay is what makes that number anything
+ * other than sixteen. Ids climb from `COMMANDER_ID`, which is also the carried command unit.
+ */
+function enteredWith(entering: number): BattleState {
+  if (entering < 1 || entering > ROSTER_SIZE) {
+    throw new Error(`fixture wanted an entering squad of ${entering}, which is not a squad`)
+  }
+  const members = Array.from({ length: entering }, (_, index) => {
+    const id = COMMANDER_ID + index
+    const maxHp = id === COMMANDER_ID ? COMMANDER_HP : SOLDIER_HP
+    return { id, role: id === COMMANDER_ID ? ('commander' as const) : ('soldier' as const), nameIndex: index, hp: maxHp, maxHp }
+  })
+  const state = createInitialBattleState('seed-a', 1, {
+    commandUnitId: COMMANDER_ID,
+    members,
+    cards: [],
+    priorKills: 0,
+  })
+  state.mode = 'running'
+  // The whole premise of the derivation: a stage opens with everybody standing.
+  expect(state.friendlies.filter((unit) => unit.life === 'standing')).toHaveLength(entering)
+  return state
+}
+
+/**
  * Take `count` SOLDIERS off their feet, leaving the commander standing.
  *
  * The commander is left up on purpose: `resolveSpawnRequests` returns early with no command unit,
  * and §1.5's succession is a transition-step rule that these fixtures do not drive. Downing
- * soldiers is the smallest thing that moves the standing count without moving anything else.
+ * soldiers is the smallest thing that moves the STANDING count — which, since the v14 fix, is the
+ * count §1.10.1 must NOT be a function of.
  */
 function fell(state: BattleState, count: number, life: 'downed' | 'dead' = 'downed'): void {
   let felled = 0
@@ -105,21 +140,27 @@ function fell(state: BattleState, count: number, life: 'downed' | 'dead' = 'down
 }
 
 // ---------------------------------------------------------------------------
-// §1.10.1 — pressure scales with the standing squad (v14)
+// §1.10.1 — pressure scales with the squad that ENTERED the stage (v14, fixed)
 // ---------------------------------------------------------------------------
 // Every number below is HAND-COMPUTED from `ROSTER_SIZE` 16, `MIN_PRESSURE_FRACTION` 0.65 and
 // stage 1's phase 0 (`engagedCap` 14, `requestInterval` 9), and the four constants are asserted
 // first so a retune fails loudly instead of silently passing a different claim:
 //
-//   standing 16 -> 16/16 = 1       -> cap ceil(14 x 1)      = 14, interval ceil(9 / 1)      =  9
-//   standing 12 -> 12/16 = 0.75    -> cap ceil(14 x 0.75)   = 11, interval ceil(9 / 0.75)   = 12
-//   standing  8 -> 8/16  = 0.5     -> FLOORED to 0.65
-//                                  -> cap ceil(14 x 0.65)   = 10, interval ceil(9 / 0.65)   = 14
-//   standing  2 -> 2/16  = 0.125   -> FLOORED to 0.65       -> the same 10 and 14
+//   entered 16 -> 16/16 = 1       -> cap ceil(14 x 1)      = 14, interval ceil(9 / 1)      =  9
+//   entered 12 -> 12/16 = 0.75    -> cap ceil(14 x 0.75)   = 11, interval ceil(9 / 0.75)   = 12
+//   entered 11 -> 11/16 = 0.6875  -> cap ceil(14 x 0.6875) = 10, interval ceil(9 / 0.6875) = 14
+//   entered 10 -> 10/16 = 0.625   -> FLOORED to 0.65       -> the same 10 and 14
+//   entered  8 ->  8/16 = 0.5     -> FLOORED to 0.65       -> the same 10 and 14
+//   entered  2 ->  2/16 = 0.125   -> FLOORED to 0.65       -> the same 10 and 14
 //
 // The last row is the one that carries the floor: without it a two-body squad would face
 // `ceil(14 x 0.125) = 2` enemies at `ceil(9 / 0.125) = 72` ticks apart, which is §1.10.1's trap
-// written out — a wipe that decelerates into a stalemate and a casualty that stops being a cost.
+// written out — a stage that decelerates into a stalemate and a loss that stops being a cost.
+//
+// AND THE FIXTURE THAT MATTERS MOST IS THE ONE THAT ASSERTS NOTHING MOVES. The first form of v14
+// read the LIVE standing count, and the measured result was I3 `0/8 -> 1~2/8` and I8 `0/8 ->
+// 1~5/8` on every stage: the two policies that lose bodies fastest were handed a smaller board for
+// losing them. So `fell()` appears below only inside tests that require the numbers NOT to change.
 
 describe('§1.10.1 the pressure fraction', () => {
   it('is stated against the constants these fixtures hand-compute from', () => {
@@ -129,100 +170,99 @@ describe('§1.10.1 the pressure fraction', () => {
     expect(PRESSURE_PHASES[0].requestInterval).toBe(9)
   })
 
-  it('counts the STANDING squad — the commander included, the downed and the dead not', () => {
-    const state = battle()
-    expect(standingFriendlyCount(state)).toBe(ROSTER_SIZE)
-
-    fell(state, 4, 'downed')
-    expect(standingFriendlyCount(state)).toBe(12)
-
-    // §1.11 makes a downed body a decision the player stops and pays for. If it still held
-    // pressure down there would be nothing to buy back by rescuing it, so `downed` is not
-    // `standing` — and neither is `dead`, which the second call fixes at a different life value so
-    // that a reader of `life !== 'dead'` cannot pass this.
-    fell(state, 3, 'dead')
-    expect(standingFriendlyCount(state)).toBe(9)
+  it('counts the bodies that OPENED the stage, commander included', () => {
+    expect(enteringFriendlyCount(battle())).toBe(ROSTER_SIZE)
+    expect(enteringFriendlyCount(enteredWith(12))).toBe(12)
+    expect(enteringFriendlyCount(enteredWith(1))).toBe(1)
   })
 
-  it('tracks the squad above the floor and stops at it below', () => {
-    const full = battle()
-    expect(pressureFractionOf(full)).toBe(1)
+  it('does not move when the squad is cut down mid-battle — the whole of the v14 fix', () => {
+    // Casualties must buy nothing back. Downed and dead are checked separately so that a reader
+    // of either life value cannot pass, and the commander is left standing so the run is still
+    // one the spawn step would act on.
+    const state = enteredWith(12)
+    expect(enteringFriendlyCount(state)).toBe(12)
+    expect(pressureFractionOf(state)).toBe(0.75)
 
-    const twelve = battle()
-    fell(twelve, 4)
-    expect(pressureFractionOf(twelve)).toBe(0.75)
+    fell(state, 4, 'downed')
+    expect(state.friendlies.filter((unit) => unit.life === 'standing')).toHaveLength(8)
+    expect(enteringFriendlyCount(state)).toBe(12)
+    expect(pressureFractionOf(state)).toBe(0.75)
+
+    fell(state, 7, 'dead')
+    expect(state.friendlies.filter((unit) => unit.life === 'standing')).toHaveLength(1)
+    expect(enteringFriendlyCount(state)).toBe(12)
+    expect(pressureFractionOf(state)).toBe(0.75)
+  })
+
+  it('tracks the entering squad above the floor and stops at it below', () => {
+    expect(pressureFractionOf(battle())).toBe(1)
+    expect(pressureFractionOf(enteredWith(12))).toBe(0.75)
 
     // 11/16 = 0.6875 is the last count above the floor; 10/16 = 0.625 is the first below it.
-    const eleven = battle()
-    fell(eleven, 5)
-    expect(pressureFractionOf(eleven)).toBe(0.6875)
-
-    const ten = battle()
-    fell(ten, 6)
-    expect(pressureFractionOf(ten)).toBe(MIN_PRESSURE_FRACTION)
+    expect(pressureFractionOf(enteredWith(11))).toBe(0.6875)
+    expect(pressureFractionOf(enteredWith(10))).toBe(MIN_PRESSURE_FRACTION)
 
     // The floor, at the size where its absence would be loudest.
-    const two = battle()
-    fell(two, 14)
-    expect(standingFriendlyCount(two)).toBe(2)
+    const two = enteredWith(2)
     expect(pressureFractionOf(two)).toBe(MIN_PRESSURE_FRACTION)
     expect(pressureFractionOf(two)).toBeGreaterThan(2 / ROSTER_SIZE)
   })
 })
 
 describe('§1.10.1 the scaled cap and the scaled interval', () => {
-  it('scales the engaged cap by the standing squad, floored', () => {
+  it('scales the engaged cap by the entering squad, floored', () => {
     const phase = PRESSURE_PHASES[0]
 
-    const full = battle()
-    expect(effectiveEngagedCapOf(full, phase)).toBe(14)
-
-    const twelve = battle()
-    fell(twelve, 4)
-    expect(effectiveEngagedCapOf(twelve, phase)).toBe(11)
-
-    const eight = battle()
-    fell(eight, 8)
-    expect(effectiveEngagedCapOf(eight, phase)).toBe(10)
+    expect(effectiveEngagedCapOf(battle(), phase)).toBe(14)
+    expect(effectiveEngagedCapOf(enteredWith(12), phase)).toBe(11)
+    expect(effectiveEngagedCapOf(enteredWith(11), phase)).toBe(10)
+    expect(effectiveEngagedCapOf(enteredWith(8), phase)).toBe(10)
 
     // Without the floor this would be 2. The gap between 10 and 2 is the whole of the clause.
-    const two = battle()
-    fell(two, 14)
+    const two = enteredWith(2)
     expect(effectiveEngagedCapOf(two, phase)).toBe(10)
     expect(effectiveEngagedCapOf(two, phase)).toBeGreaterThan(Math.ceil(phase.engagedCap * (2 / ROSTER_SIZE)))
   })
 
-  it('divides the request interval by the same fraction, so half a squad waits longer', () => {
+  it('divides the request interval by the same fraction, so a short squad waits longer', () => {
     const phase = PRESSURE_PHASES[0]
 
-    const full = battle()
-    expect(effectiveRequestIntervalOf(full, phase)).toBe(9)
-
-    const twelve = battle()
-    fell(twelve, 4)
-    expect(effectiveRequestIntervalOf(twelve, phase)).toBe(12)
-
-    const eight = battle()
-    fell(eight, 8)
-    expect(effectiveRequestIntervalOf(eight, phase)).toBe(14)
+    expect(effectiveRequestIntervalOf(battle(), phase)).toBe(9)
+    expect(effectiveRequestIntervalOf(enteredWith(12), phase)).toBe(12)
+    expect(effectiveRequestIntervalOf(enteredWith(11), phase)).toBe(14)
+    expect(effectiveRequestIntervalOf(enteredWith(8), phase)).toBe(14)
 
     // Without the floor this would be 72 — one request every two and a half seconds.
-    const two = battle()
-    fell(two, 14)
+    const two = enteredWith(2)
     expect(effectiveRequestIntervalOf(two, phase)).toBe(14)
     expect(effectiveRequestIntervalOf(two, phase)).toBeLessThan(
       Math.ceil(phase.requestInterval / (2 / ROSTER_SIZE)),
     )
   })
 
-  it('never lets a smaller squad meet a BIGGER board, whatever the count', () => {
-    // §1.10.1: "비율은 1을 넘지 않는다." Every count from the full roster down to one body, against
-    // the two numbers a full squad meets. A rule that inverted anywhere in that range would be
-    // paying the player for keeping people alive.
+  it('holds both numbers fixed for the whole battle, whatever happens to the squad', () => {
+    // §1.10.1: "한 판 안에서 압력은 불변이다." Stated as the property rather than as two more
+    // hand-computed rows, because the property is what the first form of v14 did not have.
     const phase = PRESSURE_PHASES[0]
-    for (let down = 0; down < ROSTER_SIZE - 1; down += 1) {
-      const state = battle()
-      if (down > 0) fell(state, down)
+    const state = enteredWith(14)
+    const cap = effectiveEngagedCapOf(state, phase)
+    const interval = effectiveRequestIntervalOf(state, phase)
+
+    for (let down = 0; down < 13; down += 1) {
+      fell(state, 1)
+      expect(effectiveEngagedCapOf(state, phase)).toBe(cap)
+      expect(effectiveRequestIntervalOf(state, phase)).toBe(interval)
+    }
+  })
+
+  it('never lets a smaller squad meet a BIGGER board, whatever the entering count', () => {
+    // §1.10.1: "비율은 1을 넘지 않는다." Every entering size from the full roster down to one body,
+    // against the two numbers a full squad meets. A rule that inverted anywhere in that range
+    // would be paying the campaign for arriving short.
+    const phase = PRESSURE_PHASES[0]
+    for (let entering = 1; entering <= ROSTER_SIZE; entering += 1) {
+      const state = enteredWith(entering)
       expect(effectiveEngagedCapOf(state, phase)).toBeLessThanOrEqual(phase.engagedCap)
       expect(effectiveRequestIntervalOf(state, phase)).toBeGreaterThanOrEqual(phase.requestInterval)
     }
@@ -230,10 +270,9 @@ describe('§1.10.1 the scaled cap and the scaled interval', () => {
 })
 
 describe('§1.10.1 the rule as the spawn step actually applies it', () => {
-  it('backlogs at the SCALED cap, so a half squad fills the board eleven bodies sooner', () => {
+  it('backlogs at the SCALED cap, so a short squad fills the board four bodies sooner', () => {
     const phase = PRESSURE_PHASES[0]
-    const state = battle()
-    fell(state, 8)
+    const state = enteredWith(8)
 
     // Ten bodies inside the radius: below the absolute 14 and AT the scaled 10.
     placeEnemies(state, 10, ENGAGE_RADIUS - 1)
@@ -248,8 +287,7 @@ describe('§1.10.1 the rule as the spawn step actually applies it', () => {
   })
 
   it('holds the backlog drain at the SCALED cap too, not only the tick’s own request', () => {
-    const state = battle()
-    fell(state, 8)
+    const state = enteredWith(8)
     placeEnemies(state, 10, ENGAGE_RADIUS - 1)
     state.spawn.backlog = [request(0), request(1)]
     state.spawn.nextRequestSequence = 2
@@ -263,8 +301,7 @@ describe('§1.10.1 the rule as the spawn step actually applies it', () => {
   })
 
   it('waits the SCALED interval between requests', () => {
-    const state = battle()
-    fell(state, 8)
+    const state = enteredWith(8)
     state.spawn.lastRequestTick = 0
     state.spawn.requestsInPhase = 1
     state.spawn.nextRequestSequence = 1
@@ -286,12 +323,31 @@ describe('§1.10.1 the rule as the spawn step actually applies it', () => {
     expect(state.spawn.lastRequestTick).toBe(14)
   })
 
+  it('keeps the SAME interval after the squad is cut down — no request is bought by dying', () => {
+    // The defect, driven through the step rather than through the helper: a full sixteen enters,
+    // twelve go down, and the schedule stays on the sixteen-body 9. Under the live count the
+    // interval would have become 14 and the request below would not have gone out.
+    const state = battle()
+    state.spawn.lastRequestTick = 0
+    state.spawn.requestsInPhase = 1
+    state.spawn.nextRequestSequence = 1
+    fell(state, 12)
+
+    state.combatTick = 8
+    resolveSpawnRequests(state)
+    expect(state.enemies).toHaveLength(0)
+
+    state.combatTick = PRESSURE_PHASES[0].requestInterval
+    resolveSpawnRequests(state)
+    expect(state.enemies).toHaveLength(1)
+    expect(state.spawn.lastRequestTick).toBe(PRESSURE_PHASES[0].requestInterval)
+  })
+
   it('leaves the ABSOLUTE cap alone — §1.10 gives it a different job', () => {
     // §1.10's absolute cap exists to stop an unbounded pile accumulating while a player retreats,
-    // which has nothing to do with how many friendlies are standing. A scaled absolute cap would
-    // also make a shrinking squad unable to hold the bodies already in transit toward it.
-    const state = battle()
-    fell(state, 14)
+    // which has nothing to do with how many friendlies walked in. A scaled absolute cap would
+    // also make a short squad unable to hold the bodies already in transit toward it.
+    const state = enteredWith(2)
     placeEnemies(state, ABSOLUTE_ENEMY_CAP, ENGAGE_RADIUS + 1)
     expect(liveEnemyCount(state)).toBe(ABSOLUTE_ENEMY_CAP)
 

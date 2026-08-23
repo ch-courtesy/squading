@@ -298,14 +298,14 @@ describe('the v2 controller drives §1.1 fixed steps', () => {
   })
 
   it('restarts the CAMPAIGN, not the stage (§1.4)', async () => {
-    // §1.10.1 (v14) MOVED THIS SEED. Both this fixture and the one below need a stage 1 that a
-    // no-input run LOSES, because `campaign-over` is only reachable through §1.4's defeat. Under
-    // the absolute cap `campaign-a` lost; scaling the board to the standing squad makes a squad
-    // that has lost half its bodies meet half a board, and `campaign-a` now WINS at tick 2143.
-    // `campaign-b` loses at 2290 and is the seed these two now drive. The seed is the fixture's,
-    // not the band's — §4.1's eight are untouched — and the other fixture on this path branches on
-    // the verdict instead of pinning it, which is why it did not have to move.
-    const test = await started('campaign-b')
+    // §1.10.1 (v14) MOVED THIS SEED AND THE FIX MOVED IT BACK. Both this fixture and the one below
+    // need a stage 1 that a no-input run LOSES, because `campaign-over` is only reachable through
+    // §1.4's defeat. Under the first form of §1.10.1 — the live standing count — a squad that had
+    // lost half its bodies met half a board and `campaign-a` WON at tick 2143, so these two ran on
+    // `campaign-b` for one batch. Scaling by the ENTERING count makes stage 1 the fight it was
+    // (a fresh sixteen, fraction 1) and `campaign-a` loses again. §4.1's eight band seeds were not
+    // touched in either direction.
+    const test = await started('campaign-a')
     playToTheVerdict(test)
     expect(test.controller.campaign().phase).toBe('campaign-over')
 
@@ -327,8 +327,8 @@ describe('the v2 controller drives §1.1 fixed steps', () => {
     // the shell either. The reachable case is a LOST stage 1, and the phase is asserted rather
     // than assumed: if the balance ever makes this seed win, the campaign is `stage-cleared` and
     // the button is legal, and this fixture must fail loudly rather than quietly test nothing.
-    // See the seed note on the fixture above: `campaign-b` since §1.10.1 (v14).
-    const test = await started('campaign-b')
+    // See the seed note on the fixture above: back on `campaign-a` since the §1.10.1 fix.
+    const test = await started('campaign-a')
     playToTheVerdict(test)
     const before = test.controller.campaign()
     expect(before.phase).toBe('campaign-over')

@@ -103,22 +103,22 @@ describe('§1.17 the runner reproduces the digests batch H recorded', () => {
     // `b5a643bc` and `43979b33` are what stood here before. All three still lose, which is what
     // this fixture is for; the batch report carries the eight-seed band the values were chosen on.
     //
-    // §1.10.1 (v14) MOVED EVERY COLUMN AND FLIPPED ONE VERDICT. The rule makes `engagedCap` and
-    // `requestInterval` functions of how many friendlies are standing, so a squad that is being
-    // wiped meets a board that shrinks with it. This policy is the one that loses bodies fastest,
-    // so it is the one the rule changes most: all three runs last longer, and `seed-b` WINS —
-    // three bodies alive at 2200, the elite killed. `1575/145/0/038d64de`, `2185/220/0/f4ced7d8`
-    // and `1731/165/0/1b349b23` are what stood here before.
+    // §1.10.1 (v14) MOVED EVERY COLUMN AND FLIPPED ONE VERDICT, AND THEN THE FIX PUT THEM BACK.
+    // The first form of the rule scaled the board by the LIVE standing count, so a squad being
+    // wiped met a board that shrank with it — and this policy is the one that loses bodies fastest,
+    // so it was the one the rule changed most. `seed-b` WON, three bodies alive at tick 2200, which
+    // is §3's I3 failing. `1904/169/0/a092026e`, `2200/227/3/62118b75` and `2045/180/0/1f716af9`
+    // are what stood here for one batch.
     //
-    // A `tactical-no-input` WIN IS §3's I3 FAILING, and this fixture is not the place that is
-    // argued — the eight-seed band is, and `pressure-scaling-report.md` carries it (`2·2·2·1·2·2·0`
-    // over the seven stages, against `0` everywhere before). What this block does is refuse to let
-    // it pass silently: the `outcome: 'won'` on the middle row is the fact, written where a reader
-    // of the pins will meet it.
+    // Scaling by the ENTERING count instead restores all three rows to the digit — these are the
+    // values from before §1.10.1 existed at all, because a stage-1 run opens with a fresh sixteen
+    // and the fraction is 1 for the whole of it. The rule is inert on this fixture BY CONSTRUCTION,
+    // and that is the property I3 rests on: nothing a policy does to its own squad changes the
+    // board it is facing. The eight-seed band is in `pressure-entry-report.md`.
     expect(THREE_SEEDS.map((seed) => runPolicySeed(policyFactory('tactical-no-input'), seed))).toEqual([
-      { seed: 'seed-a', outcome: 'lost', endTick: 1904, kills: 169, standing: 0, digest: 'a092026e' },
-      { seed: 'seed-b', outcome: 'won', endTick: 2200, kills: 227, standing: 3, digest: '62118b75' },
-      { seed: 'seed-c', outcome: 'lost', endTick: 2045, kills: 180, standing: 0, digest: '1f716af9' },
+      { seed: 'seed-a', outcome: 'lost', endTick: 1575, kills: 145, standing: 0, digest: '038d64de' },
+      { seed: 'seed-b', outcome: 'lost', endTick: 2185, kills: 220, standing: 0, digest: 'f4ced7d8' },
+      { seed: 'seed-c', outcome: 'lost', endTick: 1731, kills: 165, standing: 0, digest: '1b349b23' },
     ])
   })
 })
@@ -185,41 +185,40 @@ describe('§4.1 `flees-always` on the three seeds', () => {
     // 1563, 2204, 2099 — two up, one down) and still loses all three, which is the shape a spawn
     // ring further out gives it: more distance to buy, and no more able to buy it.
     //
-    // §1.10.1 (v14) MOVED EVERY COLUMN AND FLIPPED TWO VERDICTS. `1763/162/0/6ad10ffa`,
-    // `2235/229/0/23c5b84b` and `1955/191/0/88336953` are what stood here before. Pure flight now
-    // WINS on `seed-b` (9 standing) and on `seed-c` (1 standing): flight is the policy that spends
-    // bodies fastest after `tactical-no-input`, and §1.10.1 hands a shrinking squad a shrinking
-    // board, so the survivors reach the elite with enough firepower left to kill it.
+    // §1.10.1 (v14) MOVED EVERY COLUMN AND FLIPPED TWO VERDICTS, AND THEN THE FIX PUT THEM BACK.
+    // Under the first form of the rule — the live standing count — pure flight WON on `seed-b`
+    // (9 standing) and on `seed-c` (1 standing), because flight is the policy that spends bodies
+    // fastest after `tactical-no-input` and a shrinking squad was handed a shrinking board. That is
+    // §3's I8 failing. `2005/168/0/6f1d6fcb`, `2028/217/9/59b657fe` and `2041/189/1/59912a86` are
+    // what stood here for one batch.
     //
-    // THAT IS §3's I8 FAILING, and §3 lists I8 among the invariants that are NOT relaxation
-    // candidates. The fixture below this one used to record the opposite and now records this;
-    // see the note there. The eight-seed measurement is in `pressure-scaling-report.md`.
+    // Scaling by the ENTERING count restores all three rows to the digit, for the same reason as
+    // the `tactical-no-input` block above: a stage-1 run opens with a fresh sixteen, the fraction
+    // is 1 throughout, and the rule cannot be moved by what the policy does to its own squad.
     expect(THREE_SEEDS.map((seed) => runPolicySeed(policyFactory('flees-always'), seed))).toEqual([
-      { seed: 'seed-a', outcome: 'lost', endTick: 2005, kills: 168, standing: 0, digest: '6f1d6fcb' },
-      { seed: 'seed-b', outcome: 'won', endTick: 2028, kills: 217, standing: 9, digest: '59b657fe' },
-      { seed: 'seed-c', outcome: 'won', endTick: 2041, kills: 189, standing: 1, digest: '59912a86' },
+      { seed: 'seed-a', outcome: 'lost', endTick: 1763, kills: 162, standing: 0, digest: '6ad10ffa' },
+      { seed: 'seed-b', outcome: 'lost', endTick: 2235, kills: 229, standing: 0, digest: '23c5b84b' },
+      { seed: 'seed-c', outcome: 'lost', endTick: 1955, kills: 191, standing: 0, digest: '88336953' },
     ])
   })
 
-  it('wins TWO of the three, which is I8 failing on these three seeds', () => {
+  it('wins NONE of the three, which is I8 holding on these three seeds', () => {
     // §3 I8: "순수 도망은 이기지 못한다 — 승리 `0/8`". It was 3/3 through batch H. Batch I's two
     // balance edits — `PRESSURE_PHASES` 12/9/7 -> 9/7/5, then `LEASH_RADIUS` 8.0 -> 10.0, both
     // made for §1.4.1's sake and neither aimed at I8 — took it to 1/3 and then to 0/3.
     //
-    // §1.10.1 (v14) TOOK IT BACK TO 2/3, and this fixture's title changed with the number rather
-    // than the number being explained away. The rule scales the board to the standing squad, so a
-    // policy that loses bodies is handed a smaller fight; flight loses bodies. Over the full
-    // eight-seed per-stage band it is `5·3·3·1·2·0·0` against `0` on every stage before, so this
-    // is not three unlucky seeds — `pressure-scaling-report.md` carries the band.
+    // §1.10.1's FIRST FORM TOOK IT TO 2/3 and this title said so; the entering-count fix takes it
+    // back to 0/3, and the title moved back with the number rather than the number being explained
+    // away in either direction. Over the full eight-seed per-stage band `flees-always` is `0` on
+    // all seven stages again — `pressure-entry-report.md` carries it.
     //
-    // WHAT THIS FIXTURE IS FOR IS UNCHANGED. It never asserted that I8 HOLDS — I8 is measured over
-    // eight seeds and this runs three, and §5 stage 4 owns it. It asserts what pure flight does on
-    // the seeds this file has records for, and pins the win counter while doing it. The
-    // non-vacuity note on the fixture below is now satisfied by this line instead of by `skilled`,
-    // because a 2 pins the arithmetic that a 0 could not.
+    // THAT IS NOT I8 SATISFIED. I8 is measured over EIGHT seeds and this runs three, and §5 stage
+    // 4 is the stage that owns it; three seeds cannot distinguish "the invariant holds" from "the
+    // three seeds this branch has always used happen to lose". What the line below is, is the
+    // measurement: on the seeds this file has records for, pure flight does not win.
     const band = runPolicyBand(policyFactory('flees-always'), THREE_SEEDS)
     expect(band.policyId).toBe('flees-always')
-    expect(band.wins).toBe(2)
+    expect(band.wins).toBe(0)
     expect(band.total).toBe(3)
   })
 

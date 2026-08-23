@@ -140,7 +140,7 @@ const TARGET_TESTS = [
   'tests/battle/battle-stages.test.ts',
   // §1.10.1 (v14): the four spawn mutations below were caught by the digest block alone when they
   // were added, which says a run is different and never which rule broke. This file hand-computes
-  // the scaled cap, the scaled interval, the floor and the standing count, so it catches all four
+  // the scaled cap, the scaled interval, the floor and the ENTERING count, so it catches all four
   // BY NAME. Verified with the digest block excluded — see the section header for the numbers.
   'tests/battle/battle-spawn.test.ts',
 ]
@@ -576,53 +576,39 @@ const MUTATIONS = [
     replace: '    { fromTick: 0, engagedCap: 14, requestInterval: 12, meleeToShooter: [5, 1] },',
   },
 
-  // --- spawn.ts / §1.10.1 pressure scales with the standing squad (v14) ----------------------
+  // --- spawn.ts / §1.10.1 pressure scales with the ENTERING squad (v14, fixed) ----------------
   // DERIVED FROM §1.10.1's OWN SENTENCES, fixtures unread, exactly as the header requires. The
   // section says four things and each one is a mutation here:
   //
-  //   "engagedCap과 스폰 요청은 절대값이 아니라 현재 서 있는 아군 수에 비례한다"
-  //        -> give the cap back its absolute value  (mutation 1)
+  //   "engagedCap과 스폰 요청은 절대값이 아니라 이 스테이지에 들어온 인원에 비례한다"
+  //        -> give the cap back its absolute value   (mutation 1)
   //   "요청 간격도 같은 비율로 짧아지거나 길어진다"
-  //        -> leave the interval absolute            (mutation 2)
-  //   "§2가 정할 하한(minPressureFraction)이 바닥을 만든다. 사람을 잃는 것은 언제나 손해여야 한다"
+  //        -> leave the interval absolute             (mutation 2)
+  //   "§2의 minPressureFraction이 바닥을 만든다. 사람을 잃는 것은 언제나 손해여야 한다"
   //        -> drop the floor                          (mutation 3)
-  //   "진입 인원이 아니라 매 tick의 생존 인원이다" (and downed bodies do not count)
-  //        -> count the downed as standing            (mutation 4)
+  //   "매 tick의 생존 인원이 아니라 스테이지 시작 시점에 고정된 수다"
+  //        -> read the LIVE standing count instead    (mutation 4)
   //
-  // MUTATION 1 AND MUTATION 3 ARE THE TWO THE BRIEF NAMED — "a cap that ignores the standing
-  // count, or a fraction with no floor" — and they are the two failure modes on opposite sides of
-  // the rule. 1 is the coupling §1.10.1 exists to break (one variable setting both the board's
-  // lethality and whether seven stages can be finished). 3 is the trap §1.10.1 warns the naive
-  // version falls into: without a floor a wipe decelerates into a stalemate and a casualty stops
-  // being a cost.
+  // MUTATION 4 IS THE DEFECT THIS BATCH FIXED, PUT IN THE HARNESS. The first form of v14 scaled by
+  // the live standing count and it was measured wrong: I3 went `0/8` to `1~2/8` and I8 went `0/8`
+  // to `1~5/8` on every one of the seven stages, because the two policies that lose bodies fastest
+  // were handed a smaller board for losing them. It replaces the old fourth mutation ("count the
+  // downed as standing"), whose target line no longer exists — nothing in this rule reads `life`
+  // any more, which is the point.
   //
-  // MEASURED IN THE COMMIT THAT ADDS THEM AND BEFORE THE FIXTURES THAT ANSWER THEM, against the
-  // TARGET_TESTS list of that commit — which did not yet include `battle-spawn.test.ts`:
+  // MUTATION 1 AND MUTATION 3 ARE THE TWO THE ORIGINAL BRIEF NAMED and they are the two failure
+  // modes on opposite sides of the rule. 1 is the coupling §1.10.1 exists to break (one variable
+  // setting both the board's lethality and whether seven stages can be finished). 3 is the trap
+  // §1.10.1 warns about: without a floor a squad that walked in with two bodies meets a board
+  // scaled to two, and arriving short stops being a cost.
   //
-  //   absolute cap ...................... caught   (tests/harness digest block)
-  //   absolute interval ................. caught   (tests/harness digest block)
-  //   no floor .......................... caught   (tests/harness digest block)
-  //   downed count as standing .......... caught   (tests/harness digest block)
+  // MEASURED AGAINST `tests/battle/battle-spawn.test.ts` ALONE, every other target excluded — so
+  // the digest block, which says a run is different and never which rule broke, cannot be what
+  // answers. See the batch report for the run.
   //
-  // All four caught, and ALL FOUR BY THE DIGEST BLOCK — which says the run is different and never
-  // which rule broke. That is the same weak catch this file's header calls a change detector, and
-  // it is why the commit after them added `tests/battle/battle-spawn.test.ts` to `TARGET_TESTS`
-  // and put eleven §1.10.1 fixtures in it that hand-compute the scaled cap, the scaled interval,
-  // the floor and the standing count from `ROSTER_SIZE` 16, `MIN_PRESSURE_FRACTION` 0.65 and stage
-  // 1's phase 0.
-  //
-  // RE-MEASURED AGAINST THAT FILE ALONE, every other target excluded — so the digest block cannot
-  // be what answers:
-  //
-  //   absolute cap ...................... caught
-  //   absolute interval ................. caught
-  //   no floor .......................... caught
-  //   downed count as standing .......... caught
-  //
-  // The failure now names the rule instead of naming a hash. The third row is the one that had to
-  // be built for rather than found: a floored fraction and an unfloored one agree at every count
-  // from 16 down to 11, so only a fixture that takes fourteen bodies off their feet — where 0.65
-  // stands against 0.125 — can see the clause at all.
+  // MUTATION 3 IS THE ONE THAT HAD TO BE BUILT FOR rather than found: a floored fraction and an
+  // unfloored one agree at every entering count from 16 down to 11, so only a fixture that opens a
+  // stage with two bodies — where 0.65 stands against 0.125 — can see the clause at all.
   {
     file: SPAWN,
     label: 'give the engaged cap back its absolute value (= the v13 coupling §1.10.1 breaks)',
@@ -637,15 +623,15 @@ const MUTATIONS = [
   },
   {
     file: SPAWN,
-    label: 'drop the floor under the fraction (= §1.10.1s trap: casualties become a reward)',
+    label: 'drop the floor under the fraction (= §1.10.1s trap: arriving short stops costing)',
     find: '  return raw < MIN_PRESSURE_FRACTION ? MIN_PRESSURE_FRACTION : raw',
     replace: '  return raw',
   },
   {
     file: SPAWN,
-    label: 'count the downed as standing, so §1.11s rescue buys back no pressure',
-    find: "    if (unit.life === 'standing') count += 1",
-    replace: "    if (unit.life !== 'dead') count += 1",
+    label: 'scale by the LIVE standing count, not the entering one (= the measured v14 defect)',
+    find: '  return state.friendlies.length',
+    replace: "  return state.friendlies.filter((unit) => unit.life === 'standing').length",
   },
 
   // --- stages.ts: the stage lookup (campaign stage 0, caught by campaign stage 2) --------------

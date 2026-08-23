@@ -12,14 +12,15 @@
 //      its kind and its coordinate (one `spawn` draw) are all fixed at request time, per
 //      §1.10's closing line. Only then is it routed.
 //   3. routing: at `absoluteEnemyCap` it is discarded and counted; at the phase's
-//      `engagedCap` — measured ONLY inside `engageRadius`, and SCALED to the standing squad by
-//      §1.10.1 — it goes to the backlog; else it becomes an enemy immediately.
+//      `engagedCap` — measured ONLY inside `engageRadius`, and SCALED to the squad that ENTERED
+//      the stage by §1.10.1 — it goes to the backlog; else it becomes an enemy immediately.
 //
 // TWO OF THOSE NUMBERS ARE NOT THE TABLE'S ANY MORE. Since v14 the phase's `engagedCap` and
 // `requestInterval` are the values for a FULL squad, and §1.10.1 scales both by how many
-// friendlies are standing on the tick they are read. The section below the helpers is that rule;
-// nothing else in this file changed, and §1.16's order did not either — this module still runs in
-// the 스폰 row, exactly where it did, computing something different once it gets there.
+// friendlies OPENED this stage — a number fixed at stage start, not a live count. The section
+// below the helpers is that rule; nothing else in this file changed, and §1.16's order did not
+// either — this module still runs in the 스폰 row, exactly where it did, computing something
+// different once it gets there.
 //
 // WHY THE REQUEST IS BUILT BEFORE IT IS ROUTED. It makes the `spawn` stream position and
 // `nextEnemyId` functions of the request SCHEDULE alone — of the tick, never of how many
@@ -106,10 +107,24 @@ function distanceBetween(from: Vec2, to: Vec2): number {
 }
 
 // ---------------------------------------------------------------------------
-// §1.10.1 — pressure is a function of the STANDING squad (v14)
+// §1.10.1 — pressure is a function of the squad that ENTERED the stage (v14)
 // ---------------------------------------------------------------------------
-// "engagedCap과 스폰 요청은 절대값이 아니라 현재 서 있는 아군 수에 비례한다. 진입 인원이 아니라
-// 매 tick의 생존 인원이다."
+// "engagedCap과 스폰 요청은 절대값이 아니라 이 스테이지에 들어온 인원에 비례한다. 매 tick의 생존
+// 인원이 아니라 스테이지 시작 시점에 고정된 수다."
+//
+// THE FIRST FORM OF THIS RULE USED THE LIVE STANDING COUNT AND IT WAS WRONG, MEASURED. I3 went
+// `0/8` to `1~2/8` and I8 went `0/8` to `1~5/8` on every one of the seven stages. The mechanism is
+// the hazard this very section names: `tactical-no-input` and `flees-always` lose bodies fastest,
+// a lost body shrank the board from that tick on, and so they survived. Losing paid for itself.
+// The floor did not stop it — across the whole of §2's `0.3~0.8` box `flees-always` took 10 to 14
+// wins of 56 — because the floor is a bound on the fraction and the defect was in what the
+// fraction was a function of.
+//
+// FIXING IT AT ENTRY SEPARATES THE TWO PROPERTIES THE RULE EXISTS TO SEPARATE. Inside one battle
+// the effective cap and interval never move, so a casualty buys nothing back and I3, I8 and I10
+// keep the constant lethality their rationale rests on. Between stages the number falls with the
+// squad, so the relay stops decaying exponentially. The floor stays, demoted to what it always
+// should have been: a secondary guard behind the in-battle invariance.
 //
 // WHY IT EXISTS. Until v13 `engagedCap` was an absolute number, so a bigger squad brought more
 // guns to the same enemies and the whole board got less lethal. The roster sweep measured the
@@ -120,57 +135,69 @@ function distanceBetween(from: Vec2, to: Vec2): number {
 // is an integer and 16 and 17 are adjacent. Scaling the board to the squad separates them: a
 // smaller squad meets a smaller board, so lethality PER BODY holds while absolute losses shrink.
 //
-// WHY IT IS DERIVED AND NOT STORED. §1.17's digest walks the whole of `BattleState`, and a
-// standing count kept as a field would be a second copy of something `friendlies` already says —
-// one that can disagree with it for a tick and one that every rule touching `life` would have to
-// remember to update. It is recomputed at the two gates that read it, exactly as
-// `engagedEnemyCount` is and for the same reason.
+// WHY IT IS DERIVED AND NOT STORED. `state.friendlies.length` ALREADY IS the entering count, so a
+// field would be a second copy of something the roster says — and §1.17 bans exactly that. See
+// `enteringFriendlyCount` for why the array's length cannot drift from the number that walked in.
 //
 // THE TRAP THIS MUST NOT FALL INTO, which §1.10.1 names: if losing people made the board easier
 // without limit, casualties would be a REWARD, §1.11's rescue would stop mattering and §4.5's
-// fourth question would have no answer. Three clauses hold it off, and all three are here:
-//   * the fraction never exceeds 1 — losing people never makes the board bigger per body either;
-//   * the fraction never falls below `MIN_PRESSURE_FRACTION` (§2) — losing people always costs;
+// fourth question would have no answer. Four clauses hold it off, and all four are here:
+//   * pressure does not move INSIDE a battle — a casualty changes nothing this module reads, and
+//     that is the primary device, the one the first form of the rule did not have;
+//   * the fraction never exceeds 1 — a smaller squad never makes the board bigger per body either;
+//   * the fraction never falls below `MIN_PRESSURE_FRACTION` (§2) — entering short always costs;
 //   * §1.12's elite is NOT scaled. Nothing below touches it: its hp, cycle and blast radius are
 //     stage numbers read in `elite.ts`, and its arrival is composed after this module. So a
 //     smaller squad meets a proportionally HEAVIER elite, which §1.10.1 calls the price of loss.
-// The detector for all three is I13 — `abandons-downed` must still do worse than `skilled`.
+// The detector has two halves (§1.10.1): I13 — `abandons-downed` must still do worse than
+// `skilled` — and I3/I8 staying `0/8` on every stage, which is the half that caught the first form.
 
 /**
- * §1.10.1's "매 tick의 생존 인원": how many friendlies are on their feet right now.
+ * §1.10.1's "이 스테이지에 들어온 인원": how many bodies opened this stage.
  *
- * The command unit counts. §1.10.1 says "서 있는 아군 수" without carving anyone out, and the
- * commander is a body that shoots — excluding it would make a fifteen-soldier squad and a
- * fifteen-soldier-plus-commander squad meet the same board.
+ * DERIVED FROM THE ROSTER'S LENGTH, AND THAT IS EXACT RATHER THAN CLOSE ENOUGH. Two facts make it
+ * so, and both are checked elsewhere rather than assumed here:
+ *
+ *   * every body `createInitialBattleState` builds opens at `life: 'standing'` — `createFriendly`
+ *     hard-codes it for the fresh sixteen and for campaign §1.1's carried squad alike, and §1.3
+ *     lets only standing bodies carry, so a stage never opens with a corpse in the roster;
+ *   * nothing after construction changes the array's LENGTH. A death rewrites `life`; it does not
+ *     remove the row, because §1.5's succession, §1.11's rescue and the digest all need the row to
+ *     still be there. `friendlies.push` appears twice in the whole of `src/`, both inside the two
+ *     roster builders.
+ *
+ * So the length is the entering standing count and cannot disagree with it for a tick, which is
+ * precisely what a stored field could do. The command unit counts, like every other body: §1.10.1
+ * carves nobody out, and the commander is a body that shoots.
  */
-export function standingFriendlyCount(state: BattleState): number {
-  let count = 0
-  for (const unit of state.friendlies) {
-    if (unit.life === 'standing') count += 1
-  }
-  return count
+export function enteringFriendlyCount(state: BattleState): number {
+  return state.friendlies.length
 }
 
 /**
- * §1.10.1's ratio: `standing / ROSTER_SIZE`, clamped into `[MIN_PRESSURE_FRACTION, 1]`.
+ * §1.10.1's ratio: `enteringStanding / ROSTER_SIZE`, clamped into `[MIN_PRESSURE_FRACTION, 1]`.
  *
- * THE DENOMINATOR IS `ROSTER_SIZE`, NOT THE BODIES THE STAGE OPENED WITH. §1.10.1 writes the
- * formula that way and the difference is the whole of the campaign case: a relay leg entered with
- * eight bodies is meant to meet HALF a board from its first tick, not a full one that only shrinks
- * once it starts losing people again. Anchoring to what walked in would restore the absolute cap
- * one stage at a time.
+ * IT IS CONSTANT FOR THE WHOLE OF A BATTLE. That is the rule, not an optimisation: it is what
+ * makes a casualty pay for nothing, and the measured reason the live count was wrong. Nothing here
+ * is memoised — the value is recomputed at each of the three gates, and it is equal at all of them
+ * because its input cannot move.
  *
- * Downed bodies do not count. §1.11 makes a downed body a decision the player has to stop and pay
- * for; if it still held pressure down there would be nothing to buy back by rescuing it.
+ * THE DENOMINATOR IS `ROSTER_SIZE`, the full squad the campaign starts with, so a relay leg
+ * entered with eight bodies meets half a board from its first tick to its last.
+ *
+ * THE UPPER CLAMP IS UNREACHABLE ON EVERY PATH THIS GAME HAS — a fresh roster is exactly
+ * `ROSTER_SIZE` and a carried one is a subset of it — and it is kept because §1.10.1 states it
+ * ("비율은 1을 넘지 않는다"). It is a written clause, not a measured one, and this comment says so
+ * rather than claiming a test proves it.
  */
 export function pressureFractionOf(state: BattleState): number {
-  const raw = standingFriendlyCount(state) / ROSTER_SIZE
+  const raw = enteringFriendlyCount(state) / ROSTER_SIZE
   if (raw > 1) return 1
   return raw < MIN_PRESSURE_FRACTION ? MIN_PRESSURE_FRACTION : raw
 }
 
 /**
- * §1.10.1: `ceil(phaseCap x standing / ROSTER_SIZE)`, floored at one enemy.
+ * §1.10.1: `ceil(phaseCap x enteringStanding / ROSTER_SIZE)`, floored at one enemy.
  *
  * The floor of 1 is not the same floor as `MIN_PRESSURE_FRACTION` and is not a substitute for it:
  * `stages.ts` already asserts `engagedCap >= 1`, and this keeps that true after scaling so that a
@@ -184,9 +211,9 @@ export function effectiveEngagedCapOf(state: BattleState, phase: PressurePhase):
  * §1.10.1: "요청 간격도 같은 비율로 짧아지거나 길어진다."
  *
  * The interval is what the cap is the reciprocal of — pressure is arrivals per tick — so the same
- * fraction DIVIDES here where it multiplies above. Half a squad waits twice as long between
- * requests. Floored at one tick because §1.10's schedule is walked by integer ticks and an
- * interval of zero is a request every tick forever.
+ * fraction DIVIDES here where it multiplies above. A squad that walked in at half strength waits
+ * twice as long between requests, for the whole battle. Floored at one tick because §1.10's
+ * schedule is walked by integer ticks and an interval of zero is a request every tick forever.
  */
 export function effectiveRequestIntervalOf(state: BattleState, phase: PressurePhase): number {
   return Math.max(1, ceilScaled(phase.requestInterval / pressureFractionOf(state)))
@@ -257,8 +284,9 @@ function drainBacklog(state: BattleState): void {
 
   while (drained < stage.backlogDrainPerTick && state.spawn.backlog.length > 0) {
     if (liveEnemyCount(state) >= stage.absoluteEnemyCap) return
-    // §1.10.1: the SCALED cap, re-derived here for the same reason the engaged count is — a drain
-    // can kill nobody, but the count it is tested against is a live measurement either side.
+    // §1.10.1: the SCALED cap. The cap itself cannot move between two drains — it is a function of
+    // who entered — but `engagedEnemyCount` can, since each drain puts a body on the board, so the
+    // comparison is still re-run every time round.
     if (engagedEnemyCount(state) >= effectiveEngagedCapOf(state, phase)) return
     const request = state.spawn.backlog.shift()
     if (!request) return
@@ -271,11 +299,10 @@ function intervalElapsed(state: BattleState, phase: PressurePhase): boolean {
   const last = state.spawn.lastRequestTick
   // `< 0` is the first request of a run: it goes out on the first tick that runs, so the
   // schedule is `0, interval, 2 x interval, ...` and a fixture can hand-count it.
-  // §1.10.1 scales the interval by the standing squad, so the schedule is `0, i(t0), ...` — the
-  // gap a request waits out is the one measured on the tick the wait ENDS, not the one that held
-  // when the last request went out. Reading it forward like this means a squad that loses people
-  // mid-gap waits longer for the request already pending, which is the rule acting on the tick it
-  // is stated for ("매 tick의 생존 인원") rather than one interval late.
+  // §1.10.1 scales the interval by the squad that ENTERED, so within one battle the gap is a
+  // single number and the schedule is an arithmetic sequence a fixture can hand-count all the way
+  // to tick 2400. When the count was live this was not true — the gap depended on which tick the
+  // wait happened to end on — and that difference is the whole of the fix.
   return last < 0 || state.combatTick - last >= effectiveRequestIntervalOf(state, phase)
 }
 
