@@ -122,6 +122,13 @@ test('loses seed 47 with the exact no-input result and restarts to a tick-zero H
   await expect(page.locator('[data-ready]')).toBeHidden()
 })
 
+// MEASURED FLAKY, 2026-08-23: 2 failures in 6 consecutive isolated runs (33%), always at the
+// same assertion — the run reads 패배 where the test expects 승리. Five batches called this
+// "intermittent" without measuring it; this is the measurement. It is a v1 test on the
+// `?lab=v1` route and no v2 batch has touched it: `src/core/gameplay/` references neither
+// `core/battle` nor `core/campaign`. Cause not yet diagnosed. It is not skipped, because a
+// third of runs still prove the route works and skipping would hide a real regression behind
+// a known one.
 test('wins seed 47 by kiting with the keyboard and pointer and switching tired squads', async ({ page }) => {
   test.setTimeout(180_000)
   await startSeed47Battle(page)
