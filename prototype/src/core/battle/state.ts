@@ -18,7 +18,7 @@
 // against the two paths, because "exactly 23 draws" was written as a fact about §1.14 and is a
 // fact about the FIRST stage only.
 
-import { createSlotAssignments, isSkirmisherSlot, slotPosition } from './formation'
+import { createSlotAssignments, isChargerSlot, slotPosition } from './formation'
 import {
   CARD_POOL,
   COMMANDER_HP,
@@ -56,11 +56,11 @@ export const SOLDIER_IDS: readonly number[] = Array.from(
  * so with `RIFLEMAN_IDS[0]`; before §1.2.1 every soldier was one and "soldier id 2" meant it by
  * accident.
  */
-export const SKIRMISHER_IDS: readonly number[] = createSlotAssignments(SOLDIER_IDS)
-  .filter((assignment) => isSkirmisherSlot(assignment.slotIndex))
+export const CHARGER_IDS: readonly number[] = createSlotAssignments(SOLDIER_IDS)
+  .filter((assignment) => isChargerSlot(assignment.slotIndex))
   .map((assignment) => assignment.unitId)
 export const RIFLEMAN_IDS: readonly number[] = SOLDIER_IDS.filter(
-  (id) => !SKIRMISHER_IDS.includes(id),
+  (id) => !CHARGER_IDS.includes(id),
 )
 
 /** Enemy ids start well past the roster so no lookup can confuse the two sides. */

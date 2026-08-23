@@ -123,6 +123,24 @@ export const COMMANDER_HP = 5.0
 /** PLACEHOLDER */
 export const SOLDIER_HP = 1.4
 
+// ---------------------------------------------------------------------------
+// PLACEHOLDER — §1.2.1 돌격병 (charger). The front rank of §1.4's lattice.
+// ---------------------------------------------------------------------------
+
+/** PLACEHOLDER — melee reach. A charger closes; it does not hold §1.6's band. */
+export const CHARGER_RANGE = 1.1
+/**
+ * PLACEHOLDER — §1.2.1: BELOW `SOLDIER_DAMAGE`. A charger standing still is worse than a rifle,
+ * and that is the rule rather than a weakness: v17 measured that any front rank which is simply
+ * stronger makes doing NOTHING stronger by the same amount, because §1.3 and §1.4.1 have the
+ * squad fighting on its own. The value has to live somewhere a still squad cannot reach.
+ */
+export const CHARGER_DAMAGE = 0.10
+/** PLACEHOLDER — §1.2.1: the blow that lands while CLOSING. This is the whole class. */
+export const CHARGE_DAMAGE = 1.0
+/** PLACEHOLDER — a swing is faster than a rifle's cycle. */
+export const CHARGER_ATTACK_INTERVAL = 9
+
 
 // ---------------------------------------------------------------------------
 // PLACEHOLDER — the settle epsilon (§2: `ARRIVE_EPSILON` 0.001~0.02)
@@ -379,6 +397,12 @@ assertRule(
   MIN_PRESSURE_FRACTION >= 0.3 && MIN_PRESSURE_FRACTION <= 0.8,
   'MIN_PRESSURE_FRACTION must be within [0.3, 0.8] (§2)',
 )
+
+// §1.2.1: the two halves of the charger, and the relation between them IS the class. A charger
+// that is not worse standing still would be a rifleman with a shorter reach; one that is not
+// much better while closing would be a rifleman that gave up its range for nothing.
+assertRule(CHARGER_DAMAGE < SOLDIER_DAMAGE, 'CHARGER_DAMAGE must be < SOLDIER_DAMAGE (§1.2.1)')
+assertRule(CHARGE_DAMAGE > SOLDIER_DAMAGE, 'CHARGE_DAMAGE must be > SOLDIER_DAMAGE (§1.2.1)')
 
 assertRule(CARD_POOL.length === 8, 'the card pool is exactly 8 cards (§1.13)')
 assertRule(UPGRADE_KILL_THRESHOLDS.length === MAX_UPGRADES, 'there are exactly 4 upgrade thresholds (§1.13)')

@@ -20,11 +20,16 @@ import {
   COMMANDER_MELEE_DAMAGE,
   COMMANDER_MELEE_INTERVAL,
   COMMANDER_RANGE,
+  CHARGER_ATTACK_INTERVAL,
+  CHARGER_DAMAGE,
+  CHARGER_RANGE,
+  CHARGE_DAMAGE,
   SOLDIER_ATTACK_INTERVAL,
   SOLDIER_DAMAGE,
   SOLDIER_RANGE,
 } from './constants'
 import { advanceEnemyTargeting } from './enemy'
+import { isChargerSlot } from './formation'
 import { enemiesById } from './state'
 import {
   attackIntervalMultiplierOf,
@@ -41,21 +46,98 @@ import type { BattleState, EnemyUnit, FriendlyUnit, Vec2 } from './types'
 // from `state.upgrades.rounds[].chosen` — there is no stored multiplier, and no field was added
 // to `BattleState` for any of it.
 
+/** §1.2.1: a front-rank body, read off the slot §1.4 gave it. The commander is neither class. */
+export function isCharger(state: BattleState, unit: FriendlyUnit): boolean {
+  if (unit.role === 'commander') return false
+  const assignment = state.slotAssignments.find((row) => row.unitId === unit.id)
+  return isChargerSlot(assignment ? assignment.slotIndex : null)
+}
+
 export function attackRangeOf(state: BattleState, unit: FriendlyUnit): number {
-  const base = unit.role === 'commander' ? COMMANDER_RANGE : SOLDIER_RANGE
+  const base = unit.role === 'commander'
+    ? COMMANDER_RANGE
+    : isCharger(state, unit) ? CHARGER_RANGE : SOLDIER_RANGE
   // §1.13 `사수`: additive, so the range advantage (§1.6) widens by the same metre for the
   // commander and for a soldier instead of scaling apart.
   return base + rangeBonusOf(state)
 }
 
 export function attackIntervalOf(state: BattleState, unit: FriendlyUnit): number {
-  const base = unit.role === 'commander' ? COMMANDER_ATTACK_INTERVAL : SOLDIER_ATTACK_INTERVAL
+  const base = unit.role === 'commander'
+    ? COMMANDER_ATTACK_INTERVAL
+    : isCharger(state, unit) ? CHARGER_ATTACK_INTERVAL : SOLDIER_ATTACK_INTERVAL
   // §1.13 `연사`, rounded to whole ticks — see `tickDurationAfter`.
   return tickDurationAfter(base, attackIntervalMultiplierOf(state))
 }
 
+/**
+ * §1.2.1: is this charger's blow a CHARGE, or the weak one it throws standing around?
+ *
+ * Two conditions, and each rules out one way of getting the strong blow for free.
+ *
+ * IT MOVED THIS TICK. `lastDisplacement` is written every tick by §1.16's movement row and has
+ * sat in §1.17's digest all along — §1.3 recorded that no rule read it any more; this one does.
+ * A still squad never charges: the enemies walk to IT, and §1.4's settle band parks the front
+ * rank, so the displacement is zero and the blow is weak. That is what keeps §3's I3 and I10 at
+ * zero, which v16's statline version could not do.
+ *
+ * AND THE PLAYER IS PUSHING INTO IT — the movement axis they are holding points at the body
+ * being hit, not away from it.
+ *
+ * Movement alone is not enough, and that is the whole lesson of the two versions before this
+ * one. FLEEING IS MOVEMENT: a run-away squad's front rank closes on whatever the leash drags
+ * past, so "it moved" paid the charge to a policy §3 requires to lose, and I8 read 2 of 8. Then
+ * gating on the commander being within its own range of the target zeroed every invariant but
+ * starved the fixed route to 3 of 8, because a commander is rarely that close.
+ *
+ * `state.input.move` is what separates them, and it is the only thing that does: it is the
+ * player's INTENT, before any of it has become position. Running away and pressing in are the
+ * same displacement with opposite signs, and this reads the sign. No history and no new field —
+ * §1.15's axis is already in the state and already in §1.17's digest.
+ */
+function isPressingCharge(state: BattleState, unit: FriendlyUnit): boolean {
+  if (unit.lastDisplacement <= 0) return false
+  if (unit.targetId === null) return false
+  const command = state.friendlies.find((body) => body.id === state.commandUnitId)
+  if (!command) return false
+  // THE NEAREST LIVE ENEMY, not the one this body happens to be hitting. Backing off is a fact
+  // about the FIGHT, not about one target: measured, testing against each charger's own target
+  // let flight keep the charge on 3-4 of 8 seeds, because running from the enemy at your heels
+  // is running toward some other one. §4.1's `flees-always` is defined as moving away from the
+  // nearest enemy, so this is the same quantity the invariant is written in.
+  let toward: { x: number; y: number } | null = null
+  let nearest = Infinity
+  for (const enemy of state.enemies) {
+    if (enemy.hp <= 0) continue
+    const dx = enemy.position.x - command.position.x
+    const dy = enemy.position.y - command.position.y
+    const distance = Math.hypot(dx, dy)
+    if (distance >= nearest) continue
+    nearest = distance
+    toward = { x: dx, y: dy }
+  }
+  if (!toward) return false
+  // TWO CLAUSES, and dropping either one was measured to break a different invariant.
+  //
+  // The axis must be HELD. A hand off the keys reads `(0, 0)`, whose dot with anything is 0 —
+  // so a "not retreating" test alone counts standing there as not retreating, and I3 went to 4
+  // of 8 on exactly that. Doing nothing is not a way of pressing.
+  //
+  // And it must not point AWAY. Strictly toward was tried and is too strict: a kiting player
+  // circles the fight, which is sideways, and paying only for a head-on push starved the fixed
+  // route to 1 of 8 while barely touching flight. Sideways keeps the charge; turning your back
+  // gives it up, which is the difference between kiting and running.
+  const axis = state.input.move
+  if (axis.x === 0 && axis.y === 0) return false
+  return axis.x * toward.x + axis.y * toward.y >= 0
+}
+
 export function attackDamageOf(state: BattleState, unit: FriendlyUnit): number {
-  const base = unit.role === 'commander' ? COMMANDER_DAMAGE : SOLDIER_DAMAGE
+  const base = unit.role === 'commander'
+    ? COMMANDER_DAMAGE
+    : isCharger(state, unit)
+      ? (isPressingCharge(state, unit) ? CHARGE_DAMAGE : CHARGER_DAMAGE)
+      : SOLDIER_DAMAGE
   // §1.13 `화력`. Attacker-side, so it is baked into the event's `amount` (§1.16) and the
   // defender-side `cover` multiplier composes with it where damage is applied.
   return base * firepowerMultiplierOf(state)

@@ -208,10 +208,9 @@ export function engagementBandOf(state: BattleState, unit: FriendlyUnit): readon
   // the band would invert, and read plainly the inversion says the unit has no advantage to hold,
   // so what is left is its own reach and the band collapses to "close to contact".
   //
-  // No friendly is in that case today — §1.2.1's front rank was withdrawn in v17 after measuring
-  // that no statline for it satisfied both a human-shaped route and I3/I8. The clause stays
-  // because it is a true statement about the geometry rather than about a class, and a stage
-  // lowering someone's reach would land in it.
+  // §1.2.1's charger is exactly that case: its reach is melee, so the band collapses and it
+  // closes. Which is the point — a charger's damage (§1.2.1) is paid on the tick it MOVED, so
+  // the band that keeps it moving is the same rule that makes it worth anything.
   return [Math.min(stageOf(state).shooterRange, reach), reach]
 }
 

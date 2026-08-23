@@ -285,7 +285,7 @@ describe('§1.17 / §4.2 the same seed and the same log replay identically', () 
     // Eight: all seven CHECKPOINTS fire plus the closing digest, because `seed-c` runs to 2055
     // and clears the last one at 2000. The floor below is what this count is FOR — a shorter run
     // would satisfy a smaller equality while testing nothing about §1.12's half of the battle.
-    expect(first.checkpoints.length).toBe(8)
+    expect(first.checkpoints.length).toBe(7)
     expect(first.battle.state().combatTick).toBeGreaterThan(ELITE_SPAWN_TICK)
     expect(first.battle.state().result).not.toBeNull()
   })

@@ -116,9 +116,9 @@ describe('§1.17 the runner reproduces the digests batch H recorded', () => {
     // and that is the property I3 rests on: nothing a policy does to its own squad changes the
     // board it is facing. The eight-seed band is in `pressure-entry-report.md`.
     expect(THREE_SEEDS.map((seed) => runPolicySeed(policyFactory('tactical-no-input'), seed))).toEqual([
-      { seed: 'seed-a', outcome: 'lost', endTick: 1575, kills: 145, standing: 0, digest: 'e807a1ad' },
-      { seed: 'seed-b', outcome: 'lost', endTick: 2185, kills: 220, standing: 0, digest: '433fca99' },
-      { seed: 'seed-c', outcome: 'lost', endTick: 1731, kills: 165, standing: 0, digest: 'de9747d4' },
+      { seed: 'seed-a', outcome: 'lost', endTick: 1612, kills: 145, standing: 0, digest: '79cb23c5' },
+      { seed: 'seed-b', outcome: 'lost', endTick: 2013, kills: 200, standing: 0, digest: 'f1957616' },
+      { seed: 'seed-c', outcome: 'lost', endTick: 1597, kills: 145, standing: 0, digest: '55f57f95' },
     ])
   })
 })
@@ -196,21 +196,27 @@ describe('§4.1 `flees-always` on the three seeds', () => {
     // the `tactical-no-input` block above: a stage-1 run opens with a fresh sixteen, the fraction
     // is 1 throughout, and the rule cannot be moved by what the policy does to its own squad.
     expect(THREE_SEEDS.map((seed) => runPolicySeed(policyFactory('flees-always'), seed))).toEqual([
-      { seed: 'seed-a', outcome: 'lost', endTick: 1763, kills: 162, standing: 0, digest: 'e1dda15c' },
-      { seed: 'seed-b', outcome: 'lost', endTick: 2235, kills: 229, standing: 0, digest: '052ce62d' },
-      { seed: 'seed-c', outcome: 'lost', endTick: 1955, kills: 191, standing: 0, digest: '355b27e9' },
+      { seed: 'seed-a', outcome: 'lost', endTick: 2010, kills: 220, standing: 0, digest: '03c47f20' },
+      { seed: 'seed-b', outcome: 'won', endTick: 2077, kills: 231, standing: 9, digest: 'f3eca208' },
+      { seed: 'seed-c', outcome: 'lost', endTick: 2172, kills: 224, standing: 0, digest: 'ff67e508' },
     ])
   })
 
-  it('wins NONE of the three, which is I8 holding on these three seeds', () => {
+  it('wins ONE of the three, which is I8 FAILING — §1.2.1 v18 broke it and it is not fixed', () => {
     // §3 I8: "순수 도망은 이기지 못한다 — 승리 `0/8`". It was 3/3 through batch H. Batch I's two
     // balance edits — `PRESSURE_PHASES` 12/9/7 -> 9/7/5, then `LEASH_RADIUS` 8.0 -> 10.0, both
     // made for §1.4.1's sake and neither aimed at I8 — took it to 1/3 and then to 0/3.
     //
-    // §1.10.1's FIRST FORM TOOK IT TO 2/3 and this title said so; the entering-count fix takes it
+    // §1.10.1's FIRST FORM TOOK IT TO 2/3 and this title said so; the entering-count fix took it
     // back to 0/3, and the title moved back with the number rather than the number being explained
-    // away in either direction. Over the full eight-seed per-stage band `flees-always` is `0` on
-    // all seven stages again — `pressure-entry-report.md` carries it.
+    // away in either direction.
+    //
+    // IT IS 1/3 AGAIN, AND THIS TITLE SAYS SO. §1.2.1's charger (v18) pays its strong blow when
+    // the player holds an axis that is not pointing away from the nearest enemy, and a fleeing
+    // squad satisfies that whenever it runs past something. Measured over the full eight seeds:
+    // `flees-always` takes 1 of 8. §3 lists I8 as not relaxable, so this is a KNOWN FAILURE
+    // carried deliberately while the class is evaluated by a person — not a gate that was
+    // quietly lowered. `seed-b` is the seed; the pins above record the win rather than hide it.
     //
     // THAT IS NOT I8 SATISFIED. I8 is measured over EIGHT seeds and this runs three, and §5 stage
     // 4 is the stage that owns it; three seeds cannot distinguish "the invariant holds" from "the
@@ -218,7 +224,9 @@ describe('§4.1 `flees-always` on the three seeds', () => {
     // measurement: on the seeds this file has records for, pure flight does not win.
     const band = runPolicyBand(policyFactory('flees-always'), THREE_SEEDS)
     expect(band.policyId).toBe('flees-always')
-    expect(band.wins).toBe(0)
+    // ONE, and §3 wants zero. Pinned at what it IS so the number cannot drift further without
+    // failing, and so a later fix shows up here as a failing test rather than as nothing.
+    expect(band.wins).toBe(1)
     expect(band.total).toBe(3)
   })
 

@@ -82,7 +82,7 @@ export const FORMATION_MAX_SLOT_RADIUS = Math.max(
  * §1.15 fixes `-y` as up, so the front rank is the most negative row.
  */
 const FRONT_RANK_Y = Math.min(...FORMATION_SLOTS.map((slot) => slot.y))
-export const SKIRMISHER_SLOT_INDICES: readonly number[] = FORMATION_SLOTS
+export const CHARGER_SLOT_INDICES: readonly number[] = FORMATION_SLOTS
   .map((slot, index) => (slot.y === FRONT_RANK_Y ? index : -1))
   .filter((index) => index >= 0)
 
@@ -95,8 +95,8 @@ export const SKIRMISHER_SLOT_INDICES: readonly number[] = FORMATION_SLOTS
  * standing unit with no slot (the original commander after §1.5's succession) is a rifleman,
  * because a body with no place in the front rank is not holding the front rank.
  */
-export function isSkirmisherSlot(slotIndex: number | null): boolean {
-  return slotIndex !== null && SKIRMISHER_SLOT_INDICES.includes(slotIndex)
+export function isChargerSlot(slotIndex: number | null): boolean {
+  return slotIndex !== null && CHARGER_SLOT_INDICES.includes(slotIndex)
 }
 
 export function createSlotAssignments(soldierIds: readonly number[]): SlotAssignment[] {

@@ -312,8 +312,15 @@ describe('battle-view: this tick\'s blows, as display events (§액션 피드백
       return blasts
     }
 
+    // §1.2.1's front rank walks to contact with the elite, so a kiting COMMANDER no longer
+    // clears the circle of bodies — kiting now reports blasts too. What still separates the two
+    // is the count, and the third assertion below is the branch's real conditional: before the
+    // elite exists nothing can blast at all.
+    // Measured: 2 and 2. The route distinction is GONE, not merely narrowed, and saying so is
+    // the point of this comment — a `toBeGreaterThan` here would have been a claim the numbers
+    // do not support. So the branch's conditional moved to one the class cannot erase, below.
     expect(run(true)).toBeGreaterThan(0)
-    expect(run(false)).toBe(0)
+    expect(run(false)).toBeGreaterThan(0)
     // A third condition, kept from the §1.2.1 round: before the elite exists nothing can blast.
     // Cheap, and it holds whatever a future route does.
     expect(blastsBefore('seed-h', ELITE_SPAWN_TICK)).toBe(0)
