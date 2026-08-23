@@ -1,0 +1,223 @@
+{
+ "3": {
+  "pressurePhases": [
+   {
+    "fromTick": 0,
+    "engagedCap": 24,
+    "requestInterval": 5,
+    "meleeToShooter": [
+     1,
+     1
+    ]
+   },
+   {
+    "fromTick": 900,
+    "engagedCap": 30,
+    "requestInterval": 5,
+    "meleeToShooter": [
+     1,
+     2
+    ]
+   },
+   {
+    "fromTick": 1800,
+    "engagedCap": 36,
+    "requestInterval": 4,
+    "meleeToShooter": [
+     1,
+     3
+    ]
+   }
+  ],
+  "absoluteEnemyCap": 90,
+  "backlogSize": 20,
+  "backlogDrainPerTick": 4,
+  "meleeHp": 0.7,
+  "shooterHp": 0.55,
+  "meleeDamage": 0.035,
+  "shooterDamage": 0.035,
+  "meleeAttackInterval": 15,
+  "shooterAttackInterval": 30,
+  "meleeMoveSpeed": 0.145,
+  "shooterMoveSpeed": 0.065,
+  "shooterRange": 4.4,
+  "spawnRadius": 14.0,
+  "engageRadius": 11.0,
+  "eliteHp": 29.0
+ },
+ "4": {
+  "pressurePhases": [
+   {
+    "fromTick": 0,
+    "engagedCap": 16,
+    "requestInterval": 10,
+    "meleeToShooter": [
+     1,
+     3
+    ]
+   },
+   {
+    "fromTick": 900,
+    "engagedCap": 22,
+    "requestInterval": 9,
+    "meleeToShooter": [
+     1,
+     4
+    ]
+   },
+   {
+    "fromTick": 1800,
+    "engagedCap": 28,
+    "requestInterval": 7,
+    "meleeToShooter": [
+     1,
+     5
+    ]
+   }
+  ],
+  "absoluteEnemyCap": 72,
+  "backlogSize": 16,
+  "backlogDrainPerTick": 3,
+  "meleeHp": 1.0,
+  "shooterHp": 0.9,
+  "meleeDamage": 0.045,
+  "shooterDamage": 0.055,
+  "meleeAttackInterval": 15,
+  "shooterAttackInterval": 24,
+  "meleeMoveSpeed": 0.14,
+  "shooterMoveSpeed": 0.07,
+  "shooterRange": 4.2,
+  "spawnRadius": 14.0,
+  "engageRadius": 11.0,
+  "eliteHp": 31.0
+ },
+ "6": {
+  "pressurePhases": [
+   {
+    "fromTick": 0,
+    "engagedCap": 17,
+    "requestInterval": 6,
+    "meleeToShooter": [
+     2,
+     1
+    ]
+   },
+   {
+    "fromTick": 900,
+    "engagedCap": 23,
+    "requestInterval": 5,
+    "meleeToShooter": [
+     2,
+     1
+    ]
+   },
+   {
+    "fromTick": 1800,
+    "engagedCap": 29,
+    "requestInterval": 4,
+    "meleeToShooter": [
+     3,
+     2
+    ]
+   }
+  ],
+  "eliteHp": 70.0,
+  "absoluteEnemyCap": 80,
+  "meleeHp": 1.0,
+  "shooterHp": 0.9,
+  "eliteTelegraphTicks": 30,
+  "eliteCooldownTicks": 32,
+  "eliteBlastRadius": 3.2,
+  "eliteSpawnTick": 1500
+ },
+ "7": {
+  "pressurePhases": [
+   {
+    "fromTick": 0,
+    "engagedCap": 18,
+    "requestInterval": 4,
+    "meleeToShooter": [
+     2,
+     1
+    ]
+   },
+   {
+    "fromTick": 900,
+    "engagedCap": 24,
+    "requestInterval": 4,
+    "meleeToShooter": [
+     1,
+     1
+    ]
+   },
+   {
+    "fromTick": 1800,
+    "engagedCap": 30,
+    "requestInterval": 3,
+    "meleeToShooter": [
+     1,
+     2
+    ]
+   }
+  ],
+  "eliteHp": 80.0,
+  "absoluteEnemyCap": 96,
+  "eliteBlastRadius": 4.0,
+  "eliteTelegraphTicks": 28,
+  "eliteCooldownTicks": 30,
+  "eliteSpawnTick": 1500
+ },
+ "5": {
+  "pressurePhases": [
+   {
+    "fromTick": 0,
+    "engagedCap": 16,
+    "requestInterval": 8,
+    "meleeToShooter": [
+     2,
+     1
+    ]
+   },
+   {
+    "fromTick": 900,
+    "engagedCap": 22,
+    "requestInterval": 8,
+    "meleeToShooter": [
+     1,
+     1
+    ]
+   },
+   {
+    "fromTick": 1800,
+    "engagedCap": 28,
+    "requestInterval": 8,
+    "meleeToShooter": [
+     1,
+     2
+    ]
+   }
+  ],
+  "absoluteEnemyCap": 76,
+  "backlogSize": 16,
+  "backlogDrainPerTick": 3,
+  "meleeHp": 1.0,
+  "shooterHp": 0.94,
+  "meleeDamage": 0.045,
+  "shooterDamage": 0.042,
+  "meleeAttackInterval": 15,
+  "shooterAttackInterval": 28,
+  "meleeMoveSpeed": 0.145,
+  "shooterMoveSpeed": 0.07,
+  "shooterRange": 4.4,
+  "arenaWidth": 84,
+  "arenaHeight": 48,
+  "leashRadius": 8.0,
+  "spawnRadius": 15.0,
+  "engageRadius": 11.0,
+  "eliteHp": 33.0,
+  "eliteTelegraphTicks": 48,
+  "eliteCooldownTicks": 50,
+  "eliteBlastRadius": 2.8,
+  "eliteSpawnTick": 1800
+ }
+}

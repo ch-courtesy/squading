@@ -83,8 +83,14 @@ if (args[0] === '--log') {
     .trim()
     .split('\n')
     .map((line) => JSON.parse(line))
-  const patchOf = (patches) =>
+  // ONLY THE ROWS THIS RESULT MEASURED. A batch-2 candidate patches five or six rows at once —
+  // the row under test plus the rows already chosen, held fixed so the relation guard sees the
+  // table the batch is building — and spelling all six out per line made the log four times its
+  // own content. The held rows are the same for every candidate inside one grid and the batch
+  // report names them per section, so the column carries the row that MOVED.
+  const patchOf = (patches, measured) =>
     Object.entries(patches)
+      .filter(([stageId]) => measured === null || measured.has(Number(stageId)))
       .map(([stageId, patch]) => {
         const { pressurePhases, ...rest } = patch
         const parts = Object.entries(rest).map(([name, value]) => `${name}=${JSON.stringify(value)}`)
@@ -110,17 +116,18 @@ if (args[0] === '--log') {
     const camp = result.campaigns && result.campaigns.length > 0 ? result.campaigns[0] : null
     if (result.rejected) {
       console.log(
-        [result.label, patchOf(result.patches), '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', `REJECTED ${result.rejected}`].join('\t'),
+        [result.label, patchOf(result.patches, null), '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', `REJECTED ${result.rejected}`].join('\t'),
       )
       continue
     }
+    const measured = new Set(result.stages.map((stage) => stage.stageId))
     for (const stage of result.stages) {
       const skilled = stage.policies['skilled']
       const cell = (id, field) => (stage.policies[id] ? stage.policies[id][field] : '')
       console.log(
         [
           result.label,
-          patchOf(result.patches),
+          patchOf(result.patches, measured),
           stage.stageId,
           cell('skilled', 'wins'),
           cell('flees-always', 'wins'),

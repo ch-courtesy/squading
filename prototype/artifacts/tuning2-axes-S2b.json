@@ -1,0 +1,16 @@
+{
+ "stage": 2,
+ "hold": { "4": { "shooterRange": 4.5, "pressurePhases": [
+   {"fromTick":0,"engagedCap":20,"requestInterval":7,"meleeToShooter":[1,2]},
+   {"fromTick":900,"engagedCap":26,"requestInterval":6,"meleeToShooter":[1,3]},
+   {"fromTick":1800,"engagedCap":32,"requestInterval":5,"meleeToShooter":[1,4]}] } },
+ "grid": { "policies": "screen", "stages": [2] },
+ "axes": {
+  "mix": ["4:1/3:1/2:1","4:1/3:1/3:2","3:1/2:1/3:2","3:1/2:1/1:1","2:1/3:2/1:1","2:1/1:1/1:2","3:2/1:1/1:2","1:1/1:1/1:2","1:1/1:2/1:3"],
+  "intervals": [[8,6,4]],
+  "caps": [[15,21,27]],
+  "absoluteEnemyCap": [62],
+  "backlogSize": [6, 12],
+  "backlogDrainPerTick": [1, 2]
+ }
+}

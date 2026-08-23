@@ -8,6 +8,11 @@ blob-report/
 # re-running the committed grids.
 artifacts/tuning1-search-log.jsonl
 artifacts/tuning1-search.json
-# Tuning batch 2's raw per-candidate log, same reason as batch 1's above.
+# Tuning batch 2's raw per-candidate log, same reason as batch 1's above, plus the per-grid
+# candidate files: a batch-2 grid restates the whole held table for every candidate and the
+# twenty-nine of them come to 6 MB. Everything they contain that a reader needs — the label, the
+# row that MOVED and every gate number it produced — is in the committed
+# `tuning2-search-log.tsv`, which `scripts/tuning2.mjs --log` folds out of the JSONL.
 artifacts/tuning2-search-log.jsonl
-artifacts/tuning2-search.json
+artifacts/tuning2-search*.json
+artifacts/tuning2-grid-*.json
