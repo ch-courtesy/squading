@@ -534,3 +534,14 @@
 - 검증 근거: RED는 두 번째 `enterUpgradeIfEligible`가 offered order를 재shuffle한 failure였다. GREEN focused progression+determinism+combat `39/39`, full Vitest `128/128`, TypeScript·Vite build, `git diff --check`를 직접 실행했다. Vite의 기존 500 kB chunk warning만 출력됐다.
 - 커밋 계보: Task 6 initial `cc68c9c` → fix implementation `453ff24`.
 - 다음 단계: 후속 Task 7은 phase 3 normal request stream order와 이 isolation contract를 그대로 유지한다.
+
+## 2026-08-24
+
+### 돌격병 표시 (§1.2.1 v20) — 시뮬레이션에만 있던 병종을 판 위에 올린다
+
+- 목표: 사람이 "왜 아직도 근접 무기가 없냐"고 물어 확인한 결함을 고친다. §1.2.1의 돌격병은 v18부터 사거리·피해·돌격 조항이 모두 동작하고 있었으나, 판 위에서는 소총병과 같은 몸에 같은 총이었고 접촉 거리에서 총구 연기를 뿜었다.
+- 진단: 규칙이 아니라 경로가 끊겨 있었다. 병종은 §1.4 슬롯에서 파생되는데 그 파생을 렌더러까지 나르는 값이 없었다 — `UnitKind`에 값이 없어 `projectFriendly`가 전원을 `'soldier'`로 투영했고(렌더러는 이 값으로 몸을 고른다), `DamageCause`에 값이 없어 타격이 `'friendly-attack'`으로 나갔다(렌더러는 이 값으로 베기와 사격을 가른다).
+- 주요 산출물: `UnitKind`에 `'charger'`, `DamageCause`에 `'charger-melee'`, `snapshot.ts`의 `friendlyKind` 파생(§1.17대로 저장하지 않는다), 렌더러의 `charger → melee` 조형 매핑, 그리고 `SCRAP_TINTS`를 조형 키에서 진영 키로 교체. 마지막 것은 그 표가 원래 진영 팔레트를 조형 이름으로 적어둔 것이었기 때문이다 — 아군이 적과 몸을 공유하는 순간 teal 병사가 보라색 종잇조각으로 터진다.
+- 검증 근거: `'charger-melee'`는 §1.4.2의 `'friendly-melee'`와 별도 값으로 두었다. 후자는 지휘 유닛의 베기를 뜻하고 세 fixture가 "지휘 유닛만 만들 수 있다"를 검사하므로, 합쳤다면 그 셋이 전부 엉뚱한 이유로 통과했을 것이다. 한 tick·한 대상에서 돌격병과 소총병의 `cause`를 함께 재는 회귀 테스트를 추가했고, 조형 6종 라인업 스크린샷(`artifacts/shot-class-silhouettes.png`)과 실전 캡처(`artifacts/shot-mid-fight.png`)로 눈으로 확인했다. Vitest `790/790`, 돌연변이 `79/79`(새 3건은 끊긴 고리 하나씩 — 타격을 사격으로 표시 / 앞열을 소총병으로 투영 / 돌격병의 베기에 총구 연기), 빌드 통과.
+- 알려진 실패: `tests/hybrid-renderer.spec.ts`의 지휘 유닛/병사 화면 높이 비 가정(`≤ 1.375`, 실측 `3`)이 이 작업 이전부터 깨져 있다. `git stash`로 baseline을 재서 확인했고 이번 변경과 무관하다. `battle-play`·`gameplay-play`의 장시간 조작 테스트 2건은 전체 병렬 실행에서만 실패하고 단독 실행에서는 통과한다(부하 민감).
+- 다음 단계: 위 화면 높이 비 실패를 진단한다. 테스트를 통과시키는 방향이 아니라 어느 쪽이 참인지부터 정한다.

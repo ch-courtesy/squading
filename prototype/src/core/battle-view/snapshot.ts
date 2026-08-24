@@ -48,6 +48,7 @@ import { DOWNED_TICKS, SOLDIER_RANGE } from '../battle/constants'
 import { stageConfigOf, type StageId } from '../battle/stages'
 import { rescueCandidateId } from '../battle/rescue'
 import { enemiesById, friendliesById } from '../battle/state'
+import { findAssignment, isChargerSlot } from '../battle/formation'
 import type {
   BattleState,
   DamageCause,
@@ -142,12 +143,24 @@ function friendlyState(
   return unit.targetId === null ? 'idle' : 'attacking'
 }
 
+/**
+ * §1.2.1's class, derived exactly where the simulation derives it — off the slot, never stored.
+ *
+ * The command unit is neither class (§1.4 gives it no slot), and a standing unit that lost its
+ * slot to §1.5's succession is a rifleman, which is `isChargerSlot(null)`'s answer already.
+ */
+function friendlyKind(state: Readonly<BattleState>, unit: Readonly<FriendlyUnit>): RenderUnit['kind'] {
+  if (unit.id === state.commandUnitId) return 'commander'
+  const assignment = findAssignment(state.slotAssignments, unit.id)
+  return isChargerSlot(assignment ? assignment.slotIndex : null) ? 'charger' : 'soldier'
+}
+
 function projectFriendly(state: Readonly<BattleState>, unit: Readonly<FriendlyUnit>): RenderUnit {
   const commands = unit.id === state.commandUnitId
   const squad = commands ? COMMAND_SQUAD : SQUAD
   return {
     id: unit.id,
-    kind: commands ? 'commander' : 'soldier',
+    kind: friendlyKind(state, unit),
     team: squad,
     squad,
     x: unit.position.x,
@@ -249,6 +262,7 @@ export type BattleTickEvents = {
 const ACTION_KIND_BY_CAUSE: Readonly<Record<DamageCause, RenderActionEventKind>> = {
   'friendly-attack': 'shot',
   'friendly-melee': 'melee',
+  'charger-melee': 'melee',
   'shooter-shot': 'shot',
   'melee-contact': 'melee',
   'elite-blast': 'blast',

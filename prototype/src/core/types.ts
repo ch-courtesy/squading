@@ -1,6 +1,14 @@
 export type Team = 'teal' | 'scarlet' | 'enemy'
 export type Squad = Exclude<Team, 'enemy'>
-export type UnitKind = 'commander' | 'soldier' | 'enemy-commander' | 'enemy' | 'elite'
+/**
+ * The class signal, and the ONLY one the renderer gets — it draws a body per value here.
+ *
+ * `charger` is §1.2.1's front rank. It was a simulation-only class for four batches: reach 1.1,
+ * damage paid on the tick it moved, and on the board a rifleman, because this union had no value
+ * for it and `projectFriendly` had nothing to say. A class the player cannot see is a class the
+ * player cannot use, so the union carries it now.
+ */
+export type UnitKind = 'commander' | 'soldier' | 'charger' | 'enemy-commander' | 'enemy' | 'elite'
 export type UnitState =
   | 'idle'
   | 'moving'

@@ -143,6 +143,9 @@ const TARGET_TESTS = [
   // the scaled cap, the scaled interval, the floor and the ENTERING count, so it catches all four
   // BY NAME. Verified with the digest block excluded — see the section header for the numbers.
   'tests/battle/battle-spawn.test.ts',
+  // §1.2.1's class as a DISPLAY fact: this is the only file that counts the split, so the
+  // "project the front rank as riflemen" mutation below is missed without it.
+  'tests/battle-view/battle-snapshot.test.ts',
 ]
 
 const VIEW = 'src/core/harness/policy/view.ts'
@@ -727,8 +730,8 @@ const MUTATIONS = [
   {
     file: ATTACKS,
     label: 'report a swing as a shot',
-    find: "      cause: melee ? 'friendly-melee' : 'friendly-attack',",
-    replace: "      cause: 'friendly-attack',",
+    find: "      cause: melee ? 'friendly-melee' : isCharger(state, unit) ? 'charger-melee' : 'friendly-attack',",
+    replace: "      cause: isCharger(state, unit) ? 'charger-melee' : 'friendly-attack',",
   },
 
   // --- targeting.ts: how §1.13's cards compose with the melee --------------------------------
@@ -779,6 +782,29 @@ const MUTATIONS = [
     label: 'paint a muzzle puff on the commander\'s swing',
     find: "  'friendly-melee': 'melee',",
     replace: "  'friendly-melee': 'shot',",
+  },
+
+  // --- §1.2.1: the class the player can SEE ---------------------------------------------------
+  // The charger was a melee class in the simulation and a rifleman on the board for four batches,
+  // because nothing between `attacks.ts` and the renderer carried the class. These three are that
+  // gap, one link each: the blow's label, the body's kind, and the puff on the swing.
+  {
+    file: ATTACKS,
+    label: 'label the charger\'s cleaver as a rifle shot',
+    find: "      cause: melee ? 'friendly-melee' : isCharger(state, unit) ? 'charger-melee' : 'friendly-attack',",
+    replace: "      cause: melee ? 'friendly-melee' : 'friendly-attack',",
+  },
+  {
+    file: SNAPSHOT,
+    label: 'project the front rank as riflemen',
+    find: "  return isChargerSlot(assignment ? assignment.slotIndex : null) ? 'charger' : 'soldier'",
+    replace: "  return 'soldier'",
+  },
+  {
+    file: SNAPSHOT,
+    label: 'paint a muzzle puff on the charger\'s swing',
+    find: "  'charger-melee': 'melee',",
+    replace: "  'charger-melee': 'shot',",
   },
 
   // --- the relay's decision points (campaign §1.1, §1.2, §1.3, §1.4, §1.5, §3.2) --------------

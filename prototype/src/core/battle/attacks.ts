@@ -33,7 +33,7 @@ import { COMMANDER_MELEE_RANGE } from './constants'
 import { stageOf } from './stages'
 import { enemyAttackIntervalOf, enemyDamageOf } from './enemy'
 import { enemiesById, findEnemy, findFriendly, friendliesById } from './state'
-import { attackDamageOf, attackIntervalOf, meleeDamageOf, meleeIntervalOf } from './targeting'
+import { attackDamageOf, attackIntervalOf, isCharger, meleeDamageOf, meleeIntervalOf } from './targeting'
 import type { BattleState, DamageEvent, EnemyUnit, FriendlyUnit } from './types'
 
 export type { DamageCause, DamageEvent, DamageSide } from './types'
@@ -146,13 +146,19 @@ export function resolveFriendlyAttacks(state: BattleState): DamageEvent[] {
     const target = findEnemy(state, unit.targetId)
     if (!target || target.life !== 'standing') continue
 
+    // Two independent questions, and only the first one changes the blow's numbers. §1.4.2 asks
+    // whether the COMMAND unit swings, which replaces amount, cause and cooldown together.
+    // §1.2.1's charger already has its own amount and cooldown — `attackDamageOf` and
+    // `attackIntervalOf` branch on the class — so all that is left to say is that the blow it
+    // lands is a cleaver's. That is a `cause` and nothing else; the class was already melee in
+    // every respect the simulation could see, and in none the player could.
     const melee = isCommandMeleeStrike(state, unit, target)
     events.push({
       side: 'friendly',
       attackerId: unit.id,
       targetId: target.id,
       amount: melee ? meleeDamageOf(state) : attackDamageOf(state, unit),
-      cause: melee ? 'friendly-melee' : 'friendly-attack',
+      cause: melee ? 'friendly-melee' : isCharger(state, unit) ? 'charger-melee' : 'friendly-attack',
     })
     unit.attackCooldown = melee ? meleeIntervalOf(state) : attackIntervalOf(state, unit)
   }

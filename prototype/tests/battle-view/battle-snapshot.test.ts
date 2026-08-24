@@ -7,7 +7,12 @@ import {
 } from '../../src/core/battle/constants'
 import { stageConfigOf } from '../../src/core/battle/stages'
 import { digestBattleState } from '../../src/core/battle/digest'
-import { FORMATION_MAX_SLOT_RADIUS } from '../../src/core/battle/formation'
+import {
+  CHARGER_SLOT_INDICES,
+  FORMATION_MAX_SLOT_RADIUS,
+  findAssignment,
+  isChargerSlot,
+} from '../../src/core/battle/formation'
 import { COMMANDER_ID, ELITE_ID, createEnemy, createInitialBattleState } from '../../src/core/battle/state'
 import type { BattleState } from '../../src/core/battle/types'
 import {
@@ -45,8 +50,15 @@ describe('battle-view: the display-only projection (§6)', () => {
 
     const commanders = snapshot.units.filter((unit) => unit.kind === 'commander')
     const soldiers = snapshot.units.filter((unit) => unit.kind === 'soldier')
+    const chargers = snapshot.units.filter((unit) => unit.kind === 'charger')
     expect(commanders).toHaveLength(1)
-    expect(soldiers).toHaveLength(15)
+    // §1.2.1 splits the fifteen by slot, so the count the projection owes is the SPLIT, not the
+    // total: front rank cleavers, everyone behind them rifles, and nobody counted twice.
+    expect(chargers).toHaveLength(CHARGER_SLOT_INDICES.length)
+    expect(soldiers).toHaveLength(15 - CHARGER_SLOT_INDICES.length)
+    expect(chargers.every((unit) => isChargerSlot(
+      findAssignment(stateAt().slotAssignments, unit.id)?.slotIndex ?? null,
+    ))).toBe(true)
     expect(commanders[0].id).toBe(COMMANDER_ID)
     // The renderer's diorama presentation is gated on `activeSquad`, and the command
     // unit is the body that wears it — the pulsing ring is "the body you are driving".

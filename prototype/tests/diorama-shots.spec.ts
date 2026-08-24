@@ -255,7 +255,7 @@ test('captures a unit standing inside the field clutter', async ({ page }) => {
 })
 
 /**
- * The five class silhouettes, side by side on one board.
+ * The six class silhouettes, side by side on one board.
  *
  * §미니어처 디테일 asks for the class to be readable from the silhouette alone, and a mid-fight
  * screenshot is the worst possible evidence for that: the bodies overlap, they face wherever
@@ -266,7 +266,7 @@ test('captures a unit standing inside the field clutter', async ({ page }) => {
  * The snapshot is hand-built and carries display inputs only (`kind`, `hp01`, `state`). It makes
  * no claim about the simulation and cannot reach it.
  */
-test('captures the five class silhouettes lined up', async ({ page }) => {
+test('captures the six class silhouettes lined up', async ({ page }) => {
   test.setTimeout(120_000)
   await page.goto('?lab=renderers')
   await page.waitForTimeout(400)
@@ -292,11 +292,15 @@ test('captures the five class silhouettes lined up', async ({ page }) => {
       tick: 40,
       elapsedMs: 1333,
       units: [
-        body(1, 'commander', 'scarlet', -6.6),
-        body(2, 'soldier', 'teal', -3.4),
-        body(3, 'enemy', 'enemy', -0.2),
-        body(4, 'enemy-commander', 'enemy', 3),
-        body(5, 'elite', 'enemy', 6.6),
+        body(1, 'commander', 'scarlet', -7.6),
+        body(2, 'soldier', 'teal', -4.7),
+        // §1.2.1's charger. It shares the cleaver body with the raider two places right, and the
+        // paint is the whole of the difference — which is the same read the board already asks a
+        // player to make between a teal trooper and a scarlet one.
+        body(3, 'charger', 'teal', -1.8),
+        body(4, 'enemy', 'enemy', 1.1),
+        body(5, 'enemy-commander', 'enemy', 4),
+        body(6, 'elite', 'enemy', 7.2),
       ],
       projectiles: [],
       effects: [],

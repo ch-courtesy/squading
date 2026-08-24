@@ -33,6 +33,7 @@ import {
 import { advanceTargeting, selectFriendlyTargetId } from '../../src/core/battle/targeting'
 import { advanceEnemyMovement, isEnemyEngaged } from '../../src/core/battle/enemy'
 import {
+  CHARGER_IDS,
   COMMANDER_ID,
   RIFLEMAN_IDS,
   createEnemy,
@@ -774,6 +775,34 @@ describe('§1.4.2 the command unit strikes in melee inside its melee range', () 
       },
     ])
     expect(commanderOf(closer).attackCooldown).toBe(COMMANDER_ATTACK_INTERVAL)
+  })
+
+  it('marks a charger\u2019s blow as a cleaver\u2019s and a rifleman\u2019s as a rifle\u2019s, in one tick', () => {
+    // THE REGRESSION THIS FILE MISSED FOR FOUR BATCHES. §1.2.1's charger had melee reach and melee
+    // damage from the day it landed, and every fixture that measured it measured a number — so
+    // nothing noticed that its blow went out with `cause: 'friendly-attack'`, the rifle's value.
+    // The renderer reads `cause` and nothing else to pick a swing over a shot, so on the board the
+    // whole class carried a rifle and puffed smoke at contact range. It was a melee class in every
+    // respect the simulation could see and none the player could.
+    //
+    // Both bodies are in the SAME tick against the SAME target, so the slot is the only variable:
+    // whatever separates these two causes cannot be distance, health, target or timing.
+    const rifleId = RIFLEMAN_IDS[0]
+    const chargerId = CHARGER_IDS[0]
+    const state = fixture({ friendlies: {
+      [rifleId]: { x: 28, y: 16 },
+      [chargerId]: { x: 28, y: 16.5 },
+    } })
+    state.enemies = [createEnemy(state, 101, 'melee', { x: 28.4, y: 16.2 })]
+
+    advanceTargeting(state)
+    const causes = new Map(resolveFriendlyAttacks(state).map((event) => [event.attackerId, event.cause]))
+    expect(causes.get(chargerId)).toBe('charger-melee')
+    expect(causes.get(rifleId)).toBe('friendly-attack')
+    // And it is a THIRD value, not §1.4.2's. `friendly-melee` names the command unit's swing and
+    // three fixtures in this file assert only the command unit can make one; folding the charger
+    // into it would leave each of them passing for the wrong reason.
+    expect([...causes.values()]).not.toContain('friendly-melee')
   })
 
   it('swings at the elite at melee range, which is the other half of the same clause', () => {

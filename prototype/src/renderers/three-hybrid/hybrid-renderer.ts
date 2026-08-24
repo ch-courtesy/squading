@@ -576,13 +576,18 @@ const MUZZLE_OFFSETS: Readonly<Record<MiniatureArchetype, readonly [number, numb
 }
 // Pooled particle tints, allocated once. `ParticlePool.spawn` copies out of them, so no
 // colour object is ever created per event.
-const SCRAP_TINTS: Readonly<Record<MiniatureArchetype, THREE.Color>> = {
-  command: new THREE.Color(0xf0e2c6),
-  soldier: new THREE.Color(0xf0e2c6),
-  melee: new THREE.Color(0xc9aef0),
-  shooter: new THREE.Color(0xc9aef0),
-  elite: new THREE.Color(0xe6cdff),
+//
+// KEYED BY FACTION, NOT BY BODY. The old table said `MiniatureArchetype` and held two colours:
+// warm paper for `command`/`soldier`, purple for `melee`/`shooter`/`elite` — which is the
+// friendly/hostile split spelled in archetype names, and it only read as a body table for as
+// long as no friendly shared a body with a hostile. §1.2.1's charger shares `melee` with the
+// raider, so under the old key a teal trooper would have burst into purple scraps.
+const SCRAP_TINTS: Readonly<Record<'friendly' | 'hostile', THREE.Color>> = {
+  friendly: new THREE.Color(0xf0e2c6),
+  hostile: new THREE.Color(0xc9aef0),
 }
+/** The elite is the one hostile whose scraps are its own — brighter, to match its bulk. */
+const ELITE_SCRAP_TINT = new THREE.Color(0xe6cdff)
 // --- Health gauge -------------------------------------------------------------------------
 // The fourth and last mesh a unit is allowed. §체력 게이지 of the visuals spec: friendlies are
 // always shown because the squad's state is the player's judgement material, hostiles only
@@ -2074,8 +2079,9 @@ class ThreeHybridRenderer implements HybridGameRenderer {
   private spawnDeathBurst(unit: RenderUnit, delayTicks: number, at: number = this.clock): void {
     const fx = this.fx
     if (!fx) return
-    const archetype = miniatureArchetype(unit)
-    const tint = SCRAP_TINTS[archetype]
+    const tint = unit.kind === 'elite'
+      ? ELITE_SCRAP_TINT
+      : SCRAP_TINTS[unit.team === 'enemy' ? 'hostile' : 'friendly']
     const burstAt = at + delayTicks
     const count = unit.kind === 'elite' ? 22 : 14
     for (let index = 0; index < count; index += 1) {
@@ -2812,6 +2818,7 @@ function miniatureArchetype(unit: RenderUnit): MiniatureArchetype {
   switch (unit.kind) {
     case 'elite': return 'elite'
     case 'commander': return 'command'
+    case 'charger': return 'melee'
     case 'enemy': return 'melee'
     case 'enemy-commander': return 'shooter'
     default: return unit.team === 'enemy' ? 'melee' : 'soldier'

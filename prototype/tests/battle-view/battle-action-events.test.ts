@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { createBattle } from '../../src/core/battle/battle'
 import { digestBattleState } from '../../src/core/battle/digest'
 import { stageConfigOf } from '../../src/core/battle/stages'
-import { COMMANDER_ID, createEnemy, createInitialBattleState } from '../../src/core/battle/state'
+import { CHARGER_IDS, COMMANDER_ID, createEnemy, createInitialBattleState } from '../../src/core/battle/state'
 import type { BattleState, DamageEvent } from '../../src/core/battle/types'
 import { projectBattleSnapshot, type BattleTickEvents } from '../../src/core/battle-view/snapshot'
 
@@ -112,7 +112,7 @@ describe('battle-view: this tick\'s blows, as display events (§액션 피드백
     expect(action!.targetId).toBe(COMMANDER_ID)
   })
 
-  it('splits the five causes into the three things they look like', () => {
+  it('splits the six causes into the three things they look like', () => {
     const state = stateAt()
     state.enemies.push(createEnemy(state, 101, 'melee', { x: 29, y: 16 }))
     state.enemies.push(createEnemy(state, 102, 'shooter', { x: 34, y: 16 }))
@@ -133,6 +133,9 @@ describe('battle-view: this tick\'s blows, as display events (§액션 피드백
     // measured, not assumed: `scripts/mutate.mjs`'s "paint a muzzle puff on the commander's
     // swing" was MISSED by the whole suite until this assertion existed.
     expect(kindOf(damage({ side: 'friendly', attackerId: COMMANDER_ID, targetId: 101, cause: 'friendly-melee' }))).toBe('melee')
+    // §1.2.1's charger, and the same defect one class over. Its body is now the cleaver
+    // miniature, so a muzzle puff on it is visibly a lie about which weapon landed the blow.
+    expect(kindOf(damage({ side: 'friendly', attackerId: CHARGER_IDS[0], targetId: 101, cause: 'charger-melee' }))).toBe('melee')
   })
 
   it('scales the blow by what fraction of the target it took', () => {

@@ -136,7 +136,13 @@ export type EnemyUnit = {
 export type DamageSide = 'friendly' | 'enemy'
 
 /**
- * Which weapon produced the blow. FIVE VALUES, one per thing that can hit something.
+ * Which weapon produced the blow. SIX VALUES, one per thing that can hit something.
+ *
+ * `charger-melee` is §1.2.1's. It is NOT `friendly-melee`: that value names §1.4.2's rule, which
+ * only the command unit can satisfy, and three tests assert exactly that. Folding the charger
+ * into it would make each of them pass for the wrong reason. The two are separate weapons that
+ * happen to share a hand, and the renderer wants them separate anyway — a charger's swing is a
+ * cleaver's, not the command unit's.
  *
  * `friendly-melee` is §1.4.2's (batch N): the command unit inside `COMMANDER_MELEE_RANGE` of a
  * `shooter` or the `elite` (v13 — a melee-class target gets the ranged attack). It is
@@ -151,6 +157,7 @@ export type DamageSide = 'friendly' | 'enemy'
 export type DamageCause =
   | 'friendly-attack'
   | 'friendly-melee'
+  | 'charger-melee'
   | 'melee-contact'
   | 'shooter-shot'
   | 'elite-blast'
