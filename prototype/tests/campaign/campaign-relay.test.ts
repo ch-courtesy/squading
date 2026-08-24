@@ -17,6 +17,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   CARD_POOL,
+  MAX_CARD_LEVEL,
   UPGRADE_KILL_THRESHOLDS,
   type CardId,
 } from '../../src/core/battle/constants'
@@ -26,10 +27,9 @@ import { stageConfigOf, type StageId } from '../../src/core/battle/stages'
 import { createStreamStates } from '../../src/core/battle/streams'
 import { resolveKillAccounting } from '../../src/core/battle/upgrades'
 import {
-  campaignKills,
-  chosenUpgradeCards,
+  cardLevelOf,
   firepowerMultiplierOf,
-  hasUpgrade,
+  offerableCards,
 } from '../../src/core/battle/upgrades'
 import type { BattleState } from '../../src/core/battle/types'
 import { startStageBattle } from '../../src/core/campaign/campaign'
@@ -144,8 +144,8 @@ describe('§1.1 the relay carries the squad, its names and its hp', () => {
         { id: 1, role: 'commander', nameIndex: 0, hp: 1.25, maxHp: 5 },
         { id: 2, role: 'soldier', nameIndex: 1, hp: 0.35, maxHp: 1.4 },
       ],
-      cards: [],
-      priorKills: 0,
+      cardLevels: emptyLevels(),
+      owedUpgradeRounds: 0,
     })
 
     expect(state.friendlies.find((unit) => unit.id === 1)!.hp).toBe(1.25)
@@ -172,7 +172,7 @@ describe('§1.1 the relay carries the squad, its names and its hp', () => {
     const before = finished.friendlies.find((unit) => unit.id === 2)!
     expect(next.friendlies.find((unit) => unit.id === 2)!.maxHp).toBe(before.maxHp)
     // The card is held, and it is NOT applied a second time on the way in.
-    expect(hasUpgrade(next, 'vitality')).toBe(true)
+    expect(cardLevelOf(next, 'vitality')).toBe(1)
     expect(next.friendlies.find((unit) => unit.id === 2)!.maxHp).not.toBe(before.maxHp * 1.25)
   })
 
@@ -291,8 +291,29 @@ describe('§1.3 a body still down when the stage ends is dead', () => {
   })
 })
 
-describe('§1.2 the cards and the kill count are the campaign\'s, not the stage\'s', () => {
-  it('keeps a held card working and never offers it again', () => {
+/** Every card at zero — the full-table shape §1.13 v2 carries. */
+function emptyLevels(): Record<CardId, number> {
+  const levels = {} as Record<CardId, number>
+  for (const card of CARD_POOL) levels[card] = 0
+  return levels
+}
+
+describe('§1.2 v2 the card LEVELS are the campaign\'s and the thresholds are the stage\'s', () => {
+  const noTransitions = (state: BattleState) => ({
+    enemyDeaths: [],
+    friendlyDowns: [],
+    friendlyDeaths: [],
+    previousCommandUnitId: state.commandUnitId,
+    commandUnitId: state.commandUnitId,
+    commandUnitChanged: false,
+    allUnitsLost: false,
+  })
+
+  it('carries a card as a LEVEL, and goes on offering it until the cap', () => {
+    // THE INVERSION. v1 asserted a carried card was never offered again, because a campaign
+    // allowed one of each. v2 carries the level and offers the card until it reaches the cap —
+    // so "offered again" is the rule, and what must hold instead is that the effect is live from
+    // tick 0 and that taking it again is what raises it.
     const finished = wonStage()
     finished.upgrades.rounds.push({
       round: 1,
@@ -300,80 +321,69 @@ describe('§1.2 the cards and the kill count are the campaign\'s, not the stage\
       offered: ['firepower', 'cover', 'rapid'],
       chosen: 'firepower',
     })
-    finished.upgrades.remainingPool = finished.upgrades.remainingPool.filter(
-      (card) => card !== 'firepower',
-    )
 
     const campaign = completeStage(createCampaignState('root-a'), finished)
     const next = enterNextStage(campaign)
     const state = next.state()
 
-    expect(campaign.cards).toEqual(['firepower'])
-    expect(state.upgrades.carriedCards).toEqual(['firepower'])
-    // The effect is live from tick 0 of the new stage, read through the same predicate as ever.
-    expect(hasUpgrade(state, 'firepower')).toBe(true)
+    expect(campaign.cardLevels.firepower).toBe(1)
+    expect(state.upgrades.carriedLevels.firepower).toBe(1)
+    // Live from tick 0 of the new stage, read through the same function as ever.
+    expect(cardLevelOf(state, 'firepower')).toBe(1)
     expect(firepowerMultiplierOf(state)).toBeCloseTo(1.3, 12)
-    expect(chosenUpgradeCards(state)).toEqual(['firepower'])
-
-    // §1.2: "한 캠페인에 같은 카드는 한 번만." Drive the new stage's first round and read what it
-    // offered — through the real accounting step, not by inspecting the pool.
-    state.stats.kills = UPGRADE_KILL_THRESHOLDS[0]
-    const opened = resolveKillAccounting(state, {
-      enemyDeaths: [],
-      friendlyDowns: [],
-      friendlyDeaths: [],
-      previousCommandUnitId: state.commandUnitId,
-      commandUnitId: state.commandUnitId,
-      commandUnitChanged: false,
-      allUnitsLost: false,
-    }).openedRound
-    expect(opened).not.toBeNull()
-    expect(opened!.offered).not.toContain('firepower')
-    expect(opened!.offered).toHaveLength(3)
+    // Still a candidate: one level of three.
+    expect(offerableCards(state)).toContain('firepower')
   })
 
-  it('measures §1.13 thresholds against the CAMPAIGN total, not the stage', () => {
+  it('stops carrying a card into the offer once its level is at the cap', () => {
     const finished = wonStage()
-    finished.stats.kills = 20
+    finished.upgrades.carriedLevels.firepower = MAX_CARD_LEVEL - 1
+    finished.upgrades.rounds.push({
+      round: 1,
+      tick: 400,
+      offered: ['firepower', 'cover', 'rapid'],
+      chosen: 'firepower',
+    })
 
     const campaign = completeStage(createCampaignState('root-a'), finished)
-    expect(campaign.kills).toBe(20)
-
     const state = enterNextStage(campaign).state()
-    expect(state.stats.priorKills).toBe(20)
-    expect(state.stats.kills).toBe(0)
-    expect(campaignKills(state)).toBe(20)
-    // 15 is spent; the next card is the 45 one.
-    expect(state.upgrades.nextThresholdIndex).toBe(1)
 
-    const transitions = {
-      enemyDeaths: [],
-      friendlyDowns: [],
-      friendlyDeaths: [],
-      previousCommandUnitId: state.commandUnitId,
-      commandUnitId: state.commandUnitId,
-      commandUnitChanged: false,
-      allUnitsLost: false,
-    }
-
-    // 24 more kills — 44 in the campaign, one short — opens nothing. Under a per-stage reading it
-    // would have opened at 15 and again nowhere near here.
-    state.stats.kills = 24
-    expect(resolveKillAccounting(state, transitions).openedRound).toBeNull()
-
-    state.stats.kills = 25
-    const opened = resolveKillAccounting(state, transitions).openedRound
-    expect(opened).not.toBeNull()
-    expect(campaignKills(state)).toBe(UPGRADE_KILL_THRESHOLDS[1])
-    expect(opened!.round).toBe(2)
+    expect(campaign.cardLevels.firepower).toBe(MAX_CARD_LEVEL)
+    expect(offerableCards(state)).not.toContain('firepower')
+    // And the effect is the capped one, not a fourth level acquired by carrying.
+    expect(firepowerMultiplierOf(state)).toBeCloseTo(1 + 0.3 * MAX_CARD_LEVEL, 12)
   })
 
-  it('ACCUMULATES across stages — kills, cards and the dead all add up', () => {
+  it('measures §1.13 v2 thresholds against THIS STAGE, and resets them every stage', () => {
+    // THE SECOND INVERSION, and the defect the whole redesign is about. v1 measured the campaign's
+    // cumulative kills, so a squad that killed 229 in stage 1 opened NOTHING in stages 2-7. The
+    // carried kills now spend no threshold at all.
+    const finished = wonStage()
+    finished.stats.kills = UPGRADE_KILL_THRESHOLDS[UPGRADE_KILL_THRESHOLDS.length - 1] * 3
+
+    const campaign = completeStage(createCampaignState('root-a'), finished)
+    expect(campaign.kills).toBe(finished.stats.kills)
+
+    const state = enterNextStage(campaign).state()
+    // The kill count is a RECORD on the campaign and reaches the battle nowhere.
+    expect(state.upgrades.nextThresholdIndex).toBe(0)
+    expect(state.stats.kills).toBe(0)
+
+    // One short of this stage's first threshold opens nothing...
+    state.stats.kills = UPGRADE_KILL_THRESHOLDS[0] - 1
+    expect(resolveKillAccounting(state, noTransitions(state)).openedRound).toBeNull()
+    // ...and reaching it opens round 1, in a stage that carried hundreds of kills in.
+    state.stats.kills = UPGRADE_KILL_THRESHOLDS[0]
+    const opened = resolveKillAccounting(state, noTransitions(state)).openedRound
+    expect(opened).not.toBeNull()
+    expect(opened!.round).toBe(1)
+  })
+
+  it('ACCUMULATES across stages — kills, card LEVELS and the dead all add up', () => {
     // TWO FOLDS, and the first fixture in this file that needs two. Everything above folds ONE
     // stage into a fresh campaign, where `campaign.kills + battle.stats.kills` and
     // `battle.stats.kills` are the same number and `[...campaign.fallen]` and `[]` are the same
     // list — so a relay that threw the campaign's history away every stage would pass all of them.
-    // §1.2 is about a total, and a total needs a second term.
     const first = wonStage()
     first.stats.kills = 20
     kill(first, [4])
@@ -387,18 +397,19 @@ describe('§1.2 the cards and the kill count are the campaign\'s, not the stage\
     const afterFirst = completeStage(createCampaignState('root-a'), first)
     expect(afterFirst.kills).toBe(20)
     expect(afterFirst.fallen.map((entry) => entry.id)).toEqual([4])
-    expect(afterFirst.cards).toEqual(['marksman'])
+    expect(afterFirst.cardLevels.marksman).toBe(1)
 
     const second = enterNextStage(afterFirst).state()
     second.mode = 'won'
     second.result = 'won'
     second.stats.kills = 30
     kill(second, [8])
+    // The SAME card again, which is the v2 case v1 could not express at all.
     second.upgrades.rounds.push({
-      round: 2,
+      round: 1,
       tick: 900,
-      offered: ['firepower', 'cover', 'rapid'],
-      chosen: 'firepower',
+      offered: ['marksman', 'cover', 'rapid'],
+      chosen: 'marksman',
     })
 
     // The campaign is on stage 2 by now because `enterNextStage` advanced it, and `completeStage`
@@ -407,37 +418,48 @@ describe('§1.2 the cards and the kill count are the campaign\'s, not the stage\
     const afterSecond = completeStage(advanceStage(afterFirst), second)
 
     expect(afterSecond.kills).toBe(50)
-    // The card taken in the first stage is still held, and the second stage's is behind it in the
-    // order it was taken.
-    expect(afterSecond.cards).toEqual(['marksman', 'firepower'])
-    // §1.14: the first stage's dead are still on the record two stages later, which is the whole
-    // reason the end screen can name them.
+    expect(afterSecond.cardLevels.marksman).toBe(2)
+    // §1.14: the first stage's dead are still on the record two stages later.
     expect(afterSecond.fallen.map((entry) => entry.id)).toEqual([4, 8])
     expect(afterSecond.squad!.members).toHaveLength(14)
 
     const third = enterNextStage(afterSecond).state()
-    expect(third.stats.priorKills).toBe(50)
-    expect(third.upgrades.carriedCards).toEqual(['marksman', 'firepower'])
-    expect(third.upgrades.nextThresholdIndex).toBe(2)
+    expect(third.upgrades.carriedLevels.marksman).toBe(2)
+    expect(third.upgrades.nextThresholdIndex).toBe(0)
   })
 
-  it('spends every threshold the carried kills have already passed', () => {
+  it('carries a round that the winning tick left unanswered (§1.2.1)', () => {
+    // §1.16 puts `won` above `awaiting-upgrade`, so a round opened on the tick the elite died is
+    // never answered and its card is simply gone. v1 recovered it by re-deriving "a threshold the
+    // cumulative kills passed with no card to show for it"; v2 has no such derivation — the
+    // thresholds reset and a LEVEL counts answered rounds — so the debt is carried explicitly.
     const finished = wonStage()
-    finished.stats.kills = UPGRADE_KILL_THRESHOLDS[2]
+    finished.upgrades.rounds.push({
+      round: 1,
+      tick: 1800,
+      offered: ['firepower', 'cover', 'rapid'],
+      chosen: null,
+    })
 
     const campaign = completeStage(createCampaignState('root-a'), finished)
-    const state = enterNextStage(campaign).state()
+    expect(campaign.owedUpgradeRounds).toBe(1)
 
-    expect(state.upgrades.nextThresholdIndex).toBe(3)
+    const state = enterNextStage(campaign).state()
+    expect(state.upgrades.owedRounds).toBe(1)
+    // It opens on the next accounting tick, with NO kills at all — a debt is not a threshold.
+    const opened = resolveKillAccounting(state, noTransitions(state)).openedRound
+    expect(opened).not.toBeNull()
+    expect(state.upgrades.owedRounds).toBe(0)
+    // And it did not consume this stage's own budget: the first threshold is still ahead.
+    expect(state.upgrades.nextThresholdIndex).toBe(0)
   })
 
-  it('leaves a first stage exactly as it was: no carry, no prior kills, no held cards', () => {
+  it('leaves a first stage exactly as it was: no carry, no debt, no levels', () => {
     const state = createInitialBattleState('seed-a')
-    expect(state.stats.priorKills).toBe(0)
-    expect(state.upgrades.carriedCards).toEqual([])
+    expect(state.upgrades.owedRounds).toBe(0)
     expect(state.upgrades.nextThresholdIndex).toBe(0)
-    expect(state.upgrades.remainingPool).toEqual([...CARD_POOL])
-    expect(campaignKills(state)).toBe(0)
+    expect(Object.values(state.upgrades.carriedLevels)).toEqual(new Array(CARD_POOL.length).fill(0))
+    expect(offerableCards(state)).toEqual([...CARD_POOL])
   })
 })
 
@@ -528,7 +550,7 @@ describe('§1.4 / §1.5 the campaign ends, and there is no stage retry', () => {
     // §1.1: advancing carries, it does not reset. The squad, the cards and the kills are the ones
     // `completeStage` folded in.
     expect(advanced.squad).toEqual(cleared.squad)
-    expect(advanced.cards).toEqual(cleared.cards)
+    expect(advanced.cardLevels).toEqual(cleared.cardLevels)
     expect(advanced.kills).toBe(cleared.kills)
 
     // §3.2: the stage's seed is derived from the root and the stage number. `stageSeed(root, 1)`
@@ -594,8 +616,8 @@ describe('the carried squad is checked, not trusted', () => {
       createInitialBattleState('seed-a', 1, {
         commandUnitId: 99,
         members: [{ id: 2, role: 'soldier', nameIndex: 0, hp: 1, maxHp: 1.4 }],
-        cards: [],
-        priorKills: 0,
+        cardLevels: emptyLevels(),
+        owedUpgradeRounds: 0,
       }),
     ).toThrow(/carried command unit 99/)
   })
@@ -605,8 +627,8 @@ describe('the carried squad is checked, not trusted', () => {
       createInitialBattleState('seed-a', 1, {
         commandUnitId: 1,
         members: [],
-        cards: [],
-        priorKills: 0,
+        cardLevels: emptyLevels(),
+        owedUpgradeRounds: 0,
       }),
     ).toThrow(/nobody in it/)
   })
@@ -623,8 +645,8 @@ describe('the carried squad is checked, not trusted', () => {
       createInitialBattleState('seed-a', 1, {
         commandUnitId: 1,
         members,
-        cards: [] as CardId[],
-        priorKills: 0,
+        cardLevels: emptyLevels(),
+        owedUpgradeRounds: 0,
       }),
     ).toThrow(/15 slots, got 16 soldiers/)
   })

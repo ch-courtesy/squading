@@ -7,11 +7,13 @@
 // It walks the WHOLE campaign state for §1.17's reason: a hand-picked list falls behind the rules,
 // and a field added to `CampaignState` that the digest cannot see is a field two replays may
 // legally disagree about. The canonicalization sorts the roster by id and the casualty list by
-// (stage, id) — array order is bookkeeping — and leaves `cards` alone, because the order cards
-// were taken in is data (§1.2 allows each card once, so the list is a history, not a set).
+// (stage, id) — array order is bookkeeping. `cardLevels` needs no canonicalization: §1.13 v2 made
+// it a full table with one entry per card in `CARD_POOL` order, so two campaigns holding the same
+// levels serialise identically without being sorted. v1's `cards` was a history array and was left
+// alone for the opposite reason — the order it was taken in was data.
 //
 // WHAT A CAMPAIGN DIGEST IS EVIDENCE OF, stated narrowly: two campaigns that played the same
-// stages with the same inputs from the same root seed end with the same roster, hp, cards, kill
+// stages with the same inputs from the same root seed end with the same roster, hp, levels, kill
 // count and dead. It is NOT a digest of the battles — each battle has its own §1.17 digest, and a
 // campaign digest agreeing while a battle digest differs would mean two different fights arrived
 // at the same survivors, which is possible and is not a defect.

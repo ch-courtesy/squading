@@ -205,7 +205,7 @@ describe('the v2 shell prints the projection and sends §1.15 inputs', () => {
     state.result = 'lost'
     state.failureReason = 'elite-survived'
     state.combatTick = 2700
-    state.stats = { kills: 200, rescues: 2, priorKills: 0 }
+    state.stats = { kills: 200, rescues: 2 }
     const fallen = state.friendlies.find((unit) => unit.id === 9)!
     fallen.life = 'dead'
     fallen.deathTick = 900
@@ -239,7 +239,7 @@ describe('the v2 shell prints the projection and sends §1.15 inputs', () => {
       phase: 'campaign-over',
       end: 'defeat',
       kills: 137,
-      cards: ['firepower', 'cover'],
+      cardLevels: { ...createCampaignState('stub').cardLevels, firepower: 2, cover: 1 },
       fallen: [
         { id: 4, nameIndex: 0, stageId: 1 },
         { id: 9, nameIndex: 5, stageId: 1 },
@@ -290,7 +290,7 @@ describe('the v2 shell prints the projection and sends §1.15 inputs', () => {
       ...createCampaignState('stub'),
       phase: 'stage-cleared',
       kills: 62,
-      cards: ['marksman'],
+      cardLevels: { ...createCampaignState('stub').cardLevels, marksman: 1 },
       squad: {
         commandUnitId: 1,
         members: [

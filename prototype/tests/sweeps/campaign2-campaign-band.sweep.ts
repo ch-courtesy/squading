@@ -64,7 +64,7 @@ type StageLeg = {
   /** §1.1: hp does not refill, so these say what the relay is actually carrying. */
   hpAtEnd: number
   maxHpAtEnd: number
-  cardsAfter: CardId[]
+  cardLevelsAfter: Record<CardId, number>
   campaignKillsAfter: number
 }
 
@@ -79,7 +79,7 @@ type CampaignRun = {
   outcome: 'won' | 'lost'
   finalSurvivors: number
   totalKills: number
-  cards: CardId[]
+  cardLevels: Record<CardId, number>
   fallenByStage: Record<string, number>
   digest: string
   legs: StageLeg[]
@@ -141,7 +141,7 @@ function runCampaign(policyId: PolicyId, rootSeed: string): CampaignRun {
       dead,
       hpAtEnd,
       maxHpAtEnd,
-      cardsAfter: [...after.cards],
+      cardLevelsAfter: { ...after.cardLevels },
       campaignKillsAfter: after.kills,
     })
 
@@ -167,7 +167,7 @@ function runCampaign(policyId: PolicyId, rootSeed: string): CampaignRun {
     outcome: final.end === 'complete' ? 'won' : 'lost',
     finalSurvivors: final.squad ? final.squad.members.length : 0,
     totalKills: final.kills,
-    cards: [...final.cards],
+    cardLevels: { ...final.cardLevels },
     fallenByStage,
     digest: campaign.digest(),
     legs,

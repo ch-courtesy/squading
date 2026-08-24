@@ -634,7 +634,12 @@ describe('§1.4.1 v11 — measured on a real run, not on a board', () => {
     // Re-measured under §1.2.1's front rank: a charger's band collapses to its melee reach, so it
     // walks PAST the ring the riflemen hold. The squad reads wider, which is the direction this
     // fixture cares about and why its assertions above did not move.
-    expect(measured).toEqual([9.48, 13.48, 11.35, 13.25, 12.71])
+    //
+    // The last sample moved 12.71 -> 12.33 under §1.13 v2. Only the last one: the per-stage
+    // thresholds put this run's first card at 40 kills instead of 15, and tick 600 is the first
+    // sample late enough for the difference in cards to have moved a body. Everything the fixture
+    // is about — wider than the lattice, never narrower — is unchanged.
+    expect(measured).toEqual([9.48, 13.48, 11.35, 13.25, 12.33])
 
     // And it is not a spike at five sampled ticks. Over the first 600 ticks all fifteen are
     // engaged on 536 of them, and on EXACTLY ONE of those — t30, the first tick anything is
@@ -671,12 +676,17 @@ describe('§1.4.1 v11 — measured on a real run, not on a board', () => {
     // that did not move, so this number going DOWN is the direct cost of that edit, paid in the
     // window it was already weakest in. It still clears the floor this fixture guards.
     const run = sample('seed-a', 901)
-    expect(run.meanInLeash).toBeCloseTo(2.1099, 3)
+    // 2.1099 -> 2.0699 under §1.13 v2's later first card. It still clears the floor below, which
+    // is the number this fixture guards; the mean itself is a record, not a target.
+    expect(run.meanInLeash).toBeCloseTo(2.0699, 3)
     expect(run.meanInLeash).toBeGreaterThan(1.8)
     // What the bearings actually get to spread across: five distinct targets at the peak, where
     // the same window at batch H's supply and leash peaks at three. It was six before tuning
     // batch 1's spawn ring moved out, and the point of the fixture is the comparison with three.
-    expect(run.maxDistinctTargets).toBe(5)
+    // Five -> four under §1.13 v2. The comparison this line is FOR is with batch H's three, and
+    // four still clears it; the peak fell because a squad whose first card lands at 40 kills
+    // instead of 15 kills a little slower early, so fewer distinct bodies are alive at once.
+    expect(run.maxDistinctTargets).toBe(4)
   })
 })
 

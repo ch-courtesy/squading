@@ -600,11 +600,11 @@ describe('batch D adds no state and stays deterministic', () => {
       ['enemyId', 'spawnTick', 'attackPhase', 'telegraphCenter', 'telegraphRemaining', 'cooldownRemaining'].sort(),
     )
     expect(Object.keys(state.upgrades).sort()).toEqual(
-      // `carriedCards` is campaign stage 1's, and it is EMPTY here: this is a first stage, so
-      // nothing was carried and every effect in this fixture still comes off `rounds[].chosen`.
-      ['remainingPool', 'rounds', 'nextThresholdIndex', 'carriedCards'].sort(),
+      // `carriedLevels` is the campaign's carry, and it is ALL ZEROES here: this is a first
+      // stage, so every effect in this fixture still comes off `rounds[].chosen`.
+      ['rounds', 'nextThresholdIndex', 'carriedLevels', 'owedRounds'].sort(),
     )
-    expect(state.upgrades.carriedCards).toEqual([])
+    expect(Object.values(state.upgrades.carriedLevels).every((level) => level === 0)).toBe(true)
     expect(Object.keys(state.enemies[0]).sort()).toEqual(
       Object.keys(createEnemy(state, 101, 'melee', { x: 0, y: 0 })).sort(),
     )
@@ -658,8 +658,11 @@ describe('batch D adds no state and stays deterministic', () => {
     // (ends 2013) still get to the arrival, and `seed-b` is the one the rest of this branch's
     // fixtures moved to for the same reason. `seed-a` is kept below as the "a different seed is
     // a different run" contrast, which does not care whether it reached the elite.
-    const first = play('seed-b')
-    const second = play('seed-b')
+    // RE-MEASURED under §1.13 v2: `seed-b` now ends at 1687, before the arrival. Of the eight band
+    // seeds only `seed-h` still reaches tick 1800 (it ends at 1912) — the per-stage thresholds put
+    // the card-only run's first card at 40 kills instead of v1's 15, and it dies earlier for it.
+    const first = play('seed-h')
+    const second = play('seed-h')
 
     // The run DECIDES — which verdict it reaches is a balance question and this fixture must not
     // pretend to answer it. Through batch H a standing squad actually killed the elite, i.e. §3's

@@ -78,7 +78,7 @@ export function projectCampaignHud(state: Readonly<CampaignState>): CampaignHud 
     end: state.end,
     outcome: campaignOutcome(state),
     kills: state.kills,
-    cards: upgradeCardViews(state.cards),
+    cards: upgradeCardViews(state.cardLevels),
     survivors: squad
       ? [...squad.members]
           .sort((left, right) => left.id - right.id)

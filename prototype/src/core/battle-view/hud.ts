@@ -17,6 +17,7 @@
 
 import {
   CARD_EFFECTS,
+  CARD_POOL,
   COMBAT_TICK_LIMIT,
   DOWNED_TICKS,
   type CardId,
@@ -24,7 +25,7 @@ import {
 import { nameOf } from '../battle/names'
 import { rescueCandidateId, rescueTicksOf } from '../battle/rescue'
 import { friendliesById } from '../battle/state'
-import { pendingUpgradeRound } from '../battle/upgrades'
+import { pendingUpgradeRound, upgradeCardLevels } from '../battle/upgrades'
 import type {
   BattleMode,
   BattleResult,
@@ -59,6 +60,14 @@ export type UpgradeCardView = {
   id: CardId
   name: string
   effect: string
+  /**
+   * §1.13 v2: which level this card view is about.
+   *
+   * On an OFFER it is the level the card would become if taken (`held + 1`), because that is the
+   * thing the player is choosing. On a HELD list it is the level the squad has. A card view with
+   * no level would put "화력" on screen twice with no way to tell the second one apart.
+   */
+  level: number
 }
 
 /** §1.14's 전사자 명단. */
@@ -131,8 +140,14 @@ export const UPGRADE_CARD_LABELS: Readonly<Record<CardId, { name: string; effect
   cohesion: { name: '결속', effect: `추종 속도 x${CARD_EFFECTS.cohesion}` },
 }
 
-function cardView(id: CardId, slot: number): UpgradeCardView {
-  return { slot, id, name: UPGRADE_CARD_LABELS[id].name, effect: UPGRADE_CARD_LABELS[id].effect }
+function cardView(id: CardId, slot: number, level: number): UpgradeCardView {
+  return {
+    slot,
+    id,
+    name: UPGRADE_CARD_LABELS[id].name,
+    effect: UPGRADE_CARD_LABELS[id].effect,
+    level,
+  }
 }
 
 /**
@@ -142,8 +157,10 @@ function cardView(id: CardId, slot: number): UpgradeCardView {
  * cards outlive the battle that offered them), and a second copy of `UPGRADE_CARD_LABELS` is how
  * the two screens would come to advertise different magnitudes for the same card.
  */
-export function upgradeCardViews(cards: readonly CardId[]): UpgradeCardView[] {
-  return cards.map((id, index) => cardView(id, index + 1))
+export function upgradeCardViews(levels: Readonly<Record<CardId, number>>): UpgradeCardView[] {
+  return CARD_POOL
+    .filter((id) => levels[id] > 0)
+    .map((id, index) => cardView(id, index + 1, levels[id]))
 }
 
 function rosterEntry(
@@ -200,6 +217,7 @@ export function projectBattleHud(state: Readonly<BattleState>): BattleHud {
   casualties.sort((left, right) => left.deathTick - right.deathTick)
 
   const round = pendingUpgradeRound(state)
+  const levels = upgradeCardLevels(state)
   const rescueTarget =
     state.rescue.active && state.rescue.targetId !== null
       ? state.friendlies.find((unit) => unit.id === state.rescue.targetId) ?? null
@@ -231,10 +249,13 @@ export function projectBattleHud(state: Readonly<BattleState>): BattleHud {
     pendingUpgrade:
       round === null
         ? null
-        : { round: round.round, cards: round.offered.map((id, index) => cardView(id, index + 1)) },
-    chosenCards: state.upgrades.rounds
-      .filter((entry) => entry.chosen !== null)
-      .map((entry, index) => cardView(entry.chosen!, index + 1)),
+        : {
+            round: round.round,
+            // §1.13 v2: the offer advertises the level it would BECOME, so a card the squad
+            // already holds reads as the upgrade it is rather than as a duplicate.
+            cards: round.offered.map((id, index) => cardView(id, index + 1, levels[id] + 1)),
+          },
+    chosenCards: upgradeCardViews(levels),
     casualties,
     rescueRecords,
     commanderSurvived,

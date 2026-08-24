@@ -2,6 +2,7 @@
 
 import { describe, expect, it } from 'vitest'
 
+
 import { createPrng, type Prng } from '../../src/core/prng'
 // Namespaced as well as named, so the test below can assert that a constant is ABSENT.
 import * as constants from '../../src/core/battle/constants'
@@ -14,7 +15,9 @@ import {
   COMMANDER_START,
   FOLLOW_MAX_SPEED,
   FOLLOW_SPEED_MULTIPLIER,
-  MAX_UPGRADES,
+  CARD_POOL,
+  MAX_UPGRADES_PER_STAGE,
+  type CardId,
   SOLDIER_ATTACK_INTERVAL,
   SOLDIER_MOVE_SPEED,
   SOLDIER_RANGE,
@@ -45,6 +48,13 @@ import {
 import { canonicalizeBattleState, digestBattleState } from '../../src/core/battle/digest'
 import { FORMATION_SLOTS } from '../../src/core/gameplay/formation'
 import { FORMATION_MAX_SLOT_RADIUS } from '../../src/core/battle/formation'
+
+/** Every card at zero, the shape §1.13 v2 carries. */
+function emptyCardLevels(): Record<CardId, number> {
+  const levels = {} as Record<CardId, number>
+  for (const card of CARD_POOL) levels[card] = 0
+  return levels
+}
 
 /**
  * The stage numbers this fixture pins, read off the one stage there is.
@@ -133,7 +143,7 @@ describe('§1.2 anchors and §1.4 structural invariants', () => {
     // A non-ascending pair opens two rounds off one kill: the second threshold is already
     // satisfied the moment the first is. `constants.ts` asserts this at import; the fixture
     // exists because "nothing else fails" is exactly what made it worth asserting.
-    expect(UPGRADE_KILL_THRESHOLDS).toHaveLength(MAX_UPGRADES)
+    expect(UPGRADE_KILL_THRESHOLDS).toHaveLength(MAX_UPGRADES_PER_STAGE)
     for (let index = 1; index < UPGRADE_KILL_THRESHOLDS.length; index += 1) {
       expect(UPGRADE_KILL_THRESHOLDS[index]).toBeGreaterThan(UPGRADE_KILL_THRESHOLDS[index - 1])
     }
@@ -237,8 +247,8 @@ describe('§1.14 names', () => {
         { id: 1, role: 'commander', nameIndex: 5, hp: 5, maxHp: 5 },
         { id: 2, role: 'soldier', nameIndex: 9, hp: 1.4, maxHp: 1.4 },
       ],
-      cards: [],
-      priorKills: 0,
+      cardLevels: emptyCardLevels(),
+      owedUpgradeRounds: 0,
     })
     expect(carried.prng.names).toBe(untouched.names)
     expect(carried.friendlies.map((unit) => unit.nameIndex)).toEqual([5, 9])
@@ -324,7 +334,10 @@ describe('initial authoritative state', () => {
     expect(state.elite.enemyId).toBeNull()
     expect(state.elite.attackPhase).toBe('idle')
     expect(state.upgrades.rounds).toEqual([])
-    expect(state.upgrades.remainingPool).toHaveLength(8)
+    // §1.13 v2 removed `remainingPool`: which cards may still be offered is a function of the
+    // levels now, so it is derived rather than stored. A fresh squad is every card at zero.
+    expect(Object.values(state.upgrades.carriedLevels)).toEqual(new Array(8).fill(0))
+    expect(state.upgrades.owedRounds).toBe(0)
     // Exactly §1.17's "구조 lock의 대상·진행도" and nothing else. §1.16 puts 구조 진행 after
     // 피해 적용, so "was the rescuer hit this tick" is read out of the damage step's return
     // value and never has to be remembered here.
@@ -404,23 +417,24 @@ describe('initial authoritative state', () => {
     )
     expect(Object.keys(state.upgrades).sort()).toEqual(
       [
-        'remainingPool',
         'rounds',
         'nextThresholdIndex',
-        // Campaign stage 1 (§1.2): cards taken in an EARLIER STAGE. One of the two keys that batch
-        // added, and the argument for it is at its declaration — this battle has no round for a
-        // card it never offered, so nothing else on the state can answer "does the squad hold it".
-        // Note what is NOT here: no threshold carry (`nextThresholdIndex` is derived from the
-        // carried kill count) and no multiplier of any kind.
-        'carriedCards',
+        // §1.13 v2: what level each card stands at when the stage opens. This battle has no round
+        // for a card taken in stage 3, so nothing else on the state can answer "what level is it".
+        'carriedLevels',
+        // §1.2.1: rounds that opened in an earlier stage and were never answered. It is stored
+        // because a LEVEL counts rounds that WERE answered — there is nothing to read it back off.
+        'owedRounds',
+        // Note what is NOT here: `remainingPool` (§1.13 v2 derives the offer candidates from the
+        // levels) and no multiplier of any kind.
       ].sort(),
     )
     expect(Object.keys(state.rescue).sort()).toEqual(['active', 'targetId', 'progress'].sort())
     expect(Object.keys(state.stats).sort()).toEqual(
-      // Campaign stage 1 (§1.2): the other key. §1.13's thresholds are measured against the
-      // CAMPAIGN's kills, and a battle cannot derive kills it did not make. One number — not a
-      // record of the stage that made them.
-      ['kills', 'rescues', 'priorKills'].sort(),
+      // §1.13 v2 REMOVED `priorKills`. It existed so the thresholds could be read against the
+      // campaign's cumulative kills; they are read against this stage's now, so a battle has no
+      // reason to know what earlier stages killed. Both counters here are this stage's.
+      ['kills', 'rescues'].sort(),
     )
     expect(Object.keys(state.input).sort()).toEqual(['move', 'spaceHeld'].sort())
 
@@ -558,15 +572,14 @@ describe('§1.17 determinism and digest', () => {
       ['elite.cooldownRemaining', (state) => void (state.elite.cooldownRemaining = 9)],
       ['elite.spawnTick', (state) => void (state.elite.spawnTick = 1800)],
       ['upgrades.rounds', (state) => void state.upgrades.rounds.push({ round: 1, tick: 10, offered: ['firepower'], chosen: null })],
-      ['upgrades.remainingPool', (state) => void state.upgrades.remainingPool.pop()],
+      ['upgrades.owedRounds', (state) => void (state.upgrades.owedRounds = 1)],
       ['upgrades.nextThresholdIndex', (state) => void (state.upgrades.nextThresholdIndex = 1)],
       ['rescue.active', (state) => void (state.rescue.active = true)],
       ['rescue.targetId', (state) => void (state.rescue.targetId = 4)],
       ['rescue.progress', (state) => void (state.rescue.progress = 1)],
       ['stats.kills', (state) => void (state.stats.kills = 1)],
       ['stats.rescues', (state) => void (state.stats.rescues = 1)],
-      ['stats.priorKills', (state) => void (state.stats.priorKills = 20)],
-      ['upgrades.carriedCards', (state) => void state.upgrades.carriedCards.push('firepower')],
+      ['upgrades.carriedLevels', (state) => void (state.upgrades.carriedLevels.firepower = 2)],
       ['prng.spawn', (state) => void (state.prng.spawn = 12345)],
       ['prng.cards', (state) => void (state.prng.cards = 12345)],
       ['prng.names', (state) => void (state.prng.names = 12345)],

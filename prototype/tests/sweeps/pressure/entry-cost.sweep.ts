@@ -37,7 +37,7 @@ import { dirname } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 import { createBattle } from '../../../src/core/battle/battle'
-import { COMBAT_TICK_LIMIT, COMMANDER_HP, ROSTER_SIZE, SOLDIER_HP } from '../../../src/core/battle/constants'
+import { CARD_POOL, COMBAT_TICK_LIMIT, COMMANDER_HP, ROSTER_SIZE, SOLDIER_HP, type CardId } from '../../../src/core/battle/constants'
 import { COMMANDER_ID } from '../../../src/core/battle/state'
 import { STAGES, type StageId } from '../../../src/core/battle/stages'
 import type { CarriedSquad } from '../../../src/core/battle/types'
@@ -71,7 +71,9 @@ function squadOf(entering: number): CarriedSquad {
       maxHp,
     }
   })
-  return { commandUnitId: COMMANDER_ID, members, cards: [], priorKills: 0 }
+  const cardLevels = {} as Record<CardId, number>
+  for (const card of CARD_POOL) cardLevels[card] = 0
+  return { commandUnitId: COMMANDER_ID, members, cardLevels, owedUpgradeRounds: 0 }
 }
 
 type EntryRun = {

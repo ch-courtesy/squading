@@ -17,13 +17,14 @@
 //
 //   * the campaign's WIN/LOSS is derived from `end` (`campaignOutcome`), not stored beside it;
 //   * "is there a next stage" is derived from `STAGES` (`nextStageIdOf`);
-//   * how many cards are due next is derived by the battle, from `kills` and §1.13's table.
+//   * how many cards are due next is derived by the battle, from ITS OWN kills and §1.13 v2's
+//     table — `kills` here is a record and nothing reads it back.
 //
 // A campaign digest walks this object exactly as §1.17's walks the battle's, so a field that is a
 // function of the others makes two campaigns that are the same campaign hash differently the day
 // one of them is written inconsistently.
 
-import type { CardId } from '../battle/constants'
+import { CARD_POOL, type CardId } from '../battle/constants'
 import { FIRST_STAGE_ID, STAGES, type StageId } from '../battle/stages'
 import type { CarriedMember, CarriedSquad } from '../battle/types'
 
@@ -79,10 +80,30 @@ export type CampaignState = {
   squad: CampaignSquad | null
   /** §1.14: everyone the campaign has lost, oldest stage first, ascending id within a stage. */
   fallen: CampaignCasualty[]
-  /** §1.2: the cards held, in the order they were taken. At most one of each per campaign. */
-  cards: CardId[]
-  /** §1.2: kills across every finished stage. §1.13's thresholds are measured against this. */
+  /** §1.2 v2: what level each card stands at. Every card in the pool has an entry, zeroes too. */
+  cardLevels: Record<CardId, number>
+  /**
+   * §1.2.1: rounds that opened in a finished stage and were never answered.
+   *
+   * The one number on this object that is not a record of what happened but a DEBT toward what
+   * happens next. It is stored because it cannot be derived: §1.13 v2 resets the thresholds every
+   * stage and carries levels, and a level counts rounds that were ANSWERED.
+   */
+  owedUpgradeRounds: number
+  /**
+   * §1.2: kills across every finished stage.
+   *
+   * A RECORD, and only that, since §1.13 v2. v1's thresholds were measured against this number;
+   * they are measured against the stage's own kills now, so nothing in a tick reads it.
+   */
   kills: number
+}
+
+/** §1.13 v2: every card at zero — the same full-table shape `BattleState` carries. */
+function emptyCardLevels(): Record<CardId, number> {
+  const levels = {} as Record<CardId, number>
+  for (const card of CARD_POOL) levels[card] = 0
+  return levels
 }
 
 export function createCampaignState(rootSeed: string): CampaignState {
@@ -94,7 +115,8 @@ export function createCampaignState(rootSeed: string): CampaignState {
     end: null,
     squad: null,
     fallen: [],
-    cards: [],
+    cardLevels: emptyCardLevels(),
+    owedUpgradeRounds: 0,
     kills: 0,
   }
 }
@@ -135,7 +157,7 @@ export function carriedSquadOf(state: Readonly<CampaignState>): CarriedSquad | n
   return {
     commandUnitId: state.squad.commandUnitId,
     members: state.squad.members.map((member) => ({ ...member })),
-    cards: [...state.cards],
-    priorKills: state.kills,
+    cardLevels: { ...state.cardLevels },
+    owedUpgradeRounds: state.owedUpgradeRounds,
   }
 }

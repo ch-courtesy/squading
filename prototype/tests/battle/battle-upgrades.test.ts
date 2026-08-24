@@ -28,7 +28,8 @@ import {
   COMMANDER_MOVE_SPEED,
   COMMANDER_RANGE,
   FOLLOW_MAX_SPEED,
-  MAX_UPGRADES,
+  MAX_CARD_LEVEL,
+  MAX_UPGRADES_PER_STAGE,
   RESCUE_REVIVE_FRACTION,
   RESCUE_TICKS,
   SOLDIER_ATTACK_INTERVAL,
@@ -85,8 +86,9 @@ import {
 import type { TransitionOutcome } from '../../src/core/battle/transitions'
 import {
   chooseUpgradeCard,
-  chosenUpgradeCards,
-  hasUpgrade,
+  cardLevelOf,
+  offerableCards,
+  upgradeCardLevels,
   pendingUpgradeRound,
   resolveKillAccounting,
 } from '../../src/core/battle/upgrades'
@@ -207,10 +209,10 @@ describe('§1.13 the card round', () => {
     expect(state.upgrades.rounds[0].offered).toEqual(['firstaid', 'firepower', 'cover'])
   })
 
-  it('offers three distinct cards out of the remaining pool, every round', () => {
+  it('offers three distinct cards out of the offerable set, every round', () => {
     const state = fixture()
 
-    for (let round = 1; round <= MAX_UPGRADES; round += 1) {
+    for (let round = 1; round <= MAX_UPGRADES_PER_STAGE; round += 1) {
       state.stats.kills = UPGRADE_KILL_THRESHOLDS[round - 1]
       resolveKillAccounting(state, deaths([{ id: 100 + round, kind: 'melee' }]))
       const pending = pendingUpgradeRound(state)
@@ -218,16 +220,21 @@ describe('§1.13 the card round', () => {
       const offered = pending!.offered
       expect(offered).toHaveLength(CARDS_OFFERED_PER_ROUND)
       expect(new Set(offered).size).toBe(CARDS_OFFERED_PER_ROUND)
-      for (const card of offered) expect(state.upgrades.remainingPool).toContain(card)
+      for (const card of offered) expect(offerableCards(state)).toContain(card)
       chooseUpgradeCard(state, offered[1])
     }
 
-    // Four rounds off an 8-card pool with only the chosen card leaving: the last round still
-    // draws from 5, so three draws are always available.
-    expect(state.upgrades.remainingPool).toHaveLength(CARD_POOL.length - MAX_UPGRADES)
+    // §1.13 v2: a chosen card does NOT leave — it goes up a level and stays offerable until the
+    // level cap. Three rounds of a fresh squad cannot take anything to level 3, so every card in
+    // the pool is still a candidate.
+    expect(offerableCards(state)).toHaveLength(CARD_POOL.length)
   })
 
-  it('removes only the chosen card from the pool', () => {
+  it('raises the chosen card a level and leaves it offerable (§1.13 v2)', () => {
+    // THE INVERSION. v1 asserted the chosen card LEFT the pool, because a card could be taken at
+    // most once in a run. v2 stacks levels instead, so the same card being offerable again is the
+    // rule rather than a leak — and the thing that must still be true is that ONE round raises ONE
+    // level, on the card that was actually taken.
     const state = fixture()
     state.stats.kills = UPGRADE_KILL_THRESHOLDS[0]
     resolveKillAccounting(state, deaths([{ id: 101, kind: 'melee' }]))
@@ -236,19 +243,34 @@ describe('§1.13 the card round', () => {
     chooseUpgradeCard(state, offered[1])
 
     expect(state.upgrades.rounds[0].chosen).toBe(offered[1])
-    expect(state.upgrades.remainingPool).toHaveLength(CARD_POOL.length - 1)
-    expect(state.upgrades.remainingPool).not.toContain(offered[1])
-    // The two cards that were shown and not taken are still in the pool for a later round.
-    expect(state.upgrades.remainingPool).toContain(offered[0])
-    expect(state.upgrades.remainingPool).toContain(offered[2])
-    expect(chosenUpgradeCards(state)).toEqual([offered[1]])
+    expect(cardLevelOf(state, offered[1])).toBe(1)
+    // Still a candidate — one level short of the cap, not out of the pool.
+    expect(offerableCards(state)).toContain(offered[1])
+    // And the two that were shown and refused gained nothing. Without this the test would pass
+    // for a rule that raised every offered card.
+    expect(cardLevelOf(state, offered[0])).toBe(0)
+    expect(cardLevelOf(state, offered[2])).toBe(0)
+    expect(upgradeCardLevels(state)[offered[1]]).toBe(1)
+  })
+
+  it('stops offering a card once it reaches the level cap (§1.13 v2)', () => {
+    // The other half of the level rule, and the one that keeps the offer honest: a card at the cap
+    // is not a choice, so it must not take a slot on the screen.
+    const state = fixture()
+    state.upgrades.carriedLevels.firepower = MAX_CARD_LEVEL
+
+    expect(offerableCards(state)).not.toContain('firepower')
+    expect(offerableCards(state)).toHaveLength(CARD_POOL.length - 1)
+    // One below the cap is still a choice — the boundary is closed on the right side only.
+    state.upgrades.carriedLevels.firepower = MAX_CARD_LEVEL - 1
+    expect(offerableCards(state)).toContain('firepower')
   })
 
   it('opens one round per tick even when the kill count jumps several thresholds', () => {
     const state = fixture()
 
     resolveKillAccounting(state, deaths([{ id: 101, kind: 'melee' }]))
-    state.stats.kills = UPGRADE_KILL_THRESHOLDS[MAX_UPGRADES - 1] + 500
+    state.stats.kills = UPGRADE_KILL_THRESHOLDS[MAX_UPGRADES_PER_STAGE - 1] + 500
     resolveKillAccounting(state, deaths([{ id: 102, kind: 'melee' }]))
 
     expect(state.upgrades.rounds).toHaveLength(1)
@@ -267,22 +289,25 @@ describe('§1.13 the card round', () => {
     expect(state.upgrades.nextThresholdIndex).toBe(1)
   })
 
-  it('stops at four rounds however far past the last threshold the kills run', () => {
+  it('stops at the per-stage cap however far past the last threshold the kills run', () => {
     const state = fixture()
 
     // Ten ticks of a kill count far beyond every threshold, each with a choice taken.
     for (let tick = 0; tick < 10; tick += 1) {
-      state.stats.kills = UPGRADE_KILL_THRESHOLDS[MAX_UPGRADES - 1] * 10
+      state.stats.kills = UPGRADE_KILL_THRESHOLDS[MAX_UPGRADES_PER_STAGE - 1] * 10
       resolveKillAccounting(state, deaths([{ id: 200 + tick, kind: 'melee' }]))
       const pending = pendingUpgradeRound(state)
       if (pending) chooseUpgradeCard(state, pending.offered[0])
     }
 
-    expect(state.upgrades.rounds).toHaveLength(MAX_UPGRADES)
-    expect(state.upgrades.rounds.map((round) => round.round)).toEqual([1, 2, 3, 4])
-    expect(state.upgrades.nextThresholdIndex).toBe(MAX_UPGRADES)
-    expect(state.upgrades.remainingPool).toHaveLength(CARD_POOL.length - MAX_UPGRADES)
-    expect(chosenUpgradeCards(state)).toHaveLength(MAX_UPGRADES)
+    expect(state.upgrades.rounds).toHaveLength(MAX_UPGRADES_PER_STAGE)
+    expect(state.upgrades.rounds.map((round) => round.round)).toEqual([1, 2, 3])
+    expect(state.upgrades.nextThresholdIndex).toBe(MAX_UPGRADES_PER_STAGE)
+    // Three rounds, three levels handed out — and the cap is on ROUNDS, so it holds however the
+    // levels landed. This is the assertion that would fail if the cap counted distinct cards.
+    const levels = upgradeCardLevels(state)
+    const total = CARD_POOL.reduce((sum, card) => sum + levels[card], 0)
+    expect(total).toBe(MAX_UPGRADES_PER_STAGE)
   })
 
   it('is the same offer for the same seed and a different one for another', () => {
@@ -353,8 +378,8 @@ describe('§1.13 card effects, read off the chosen cards', () => {
     const commander = unit(state, COMMANDER_ID)
     const soldier = unit(state, RIFLE)
 
-    expect(chosenUpgradeCards(state)).toEqual([])
-    expect(hasUpgrade(state, 'firepower')).toBe(false)
+    expect(Object.values(upgradeCardLevels(state))).toEqual(new Array(CARD_POOL.length).fill(0))
+    expect(cardLevelOf(state, 'firepower')).toBe(0)
     expect(attackDamageOf(state, commander)).toBe(COMMANDER_DAMAGE)
     expect(attackDamageOf(state, soldier)).toBe(SOLDIER_DAMAGE)
     expect(attackRangeOf(state, commander)).toBe(COMMANDER_RANGE)
@@ -379,7 +404,7 @@ describe('§1.13 card effects, read off the chosen cards', () => {
     const commander = unit(state, COMMANDER_ID)
     commander.targetId = 101
 
-    expect(hasUpgrade(state, 'firepower')).toBe(true)
+    expect(cardLevelOf(state, 'firepower')).toBe(1)
     expect(attackDamageOf(state, commander)).toBeCloseTo(0.26, 12)
     expect(attackDamageOf(state, unit(state, RIFLE))).toBeCloseTo(0.156, 12)
 
@@ -512,11 +537,11 @@ describe('§1.13 card effects, read off the chosen cards', () => {
     // A body that is already gone is not strengthened.
     expect(dead.maxHp).toBe(SOLDIER_HP)
     expect(dead.hp).toBe(0)
-    // The state carries no multiplier — the numbers themselves moved. `carriedCards` is campaign
-    // stage 1's list of cards taken in EARLIER stages, and it is not a multiplier either: it names
-    // cards, and `hasUpgrade` reads it exactly as it reads `rounds[].chosen`.
+    // The state carries no multiplier — the numbers themselves moved. `carriedLevels` is not one
+    // either: it counts ROUNDS taken in earlier stages, and `cardLevelOf` reads it exactly as it
+    // reads `rounds[].chosen`.
     expect(Object.keys(state.upgrades).sort()).toEqual(
-      ['remainingPool', 'rounds', 'nextThresholdIndex', 'carriedCards'].sort(),
+      ['rounds', 'nextThresholdIndex', 'carriedLevels', 'owedRounds'].sort(),
     )
   })
 
@@ -548,7 +573,26 @@ describe('§1.13 card effects, read off the chosen cards', () => {
     expect(attackDamageOf(state, commander)).toBeCloseTo(0.26, 12)
     expect(attackRangeOf(state, commander)).toBeCloseTo(7, 12)
     expect(attackIntervalOf(state, commander)).toBe(COMMANDER_ATTACK_INTERVAL)
-    expect(chosenUpgradeCards(state)).toEqual(['firepower', 'marksman'])
+    expect(cardLevelOf(state, 'firepower')).toBe(1)
+    expect(cardLevelOf(state, 'marksman')).toBe(1)
+  })
+
+  it('adds a level rather than repeating it, for both shapes of card (§1.13 v2)', () => {
+    // The v2 rule the whole redesign turns on, and the two shapes have to be measured separately
+    // because they are not the same arithmetic. An ADDITIVE card adds its scalar per level; a
+    // MULTIPLICATIVE one compounds, because three levels of a `-35%` card added would be `-105%`
+    // — a unit that heals when it is shot.
+    const state = withCards(fixture(), 'firepower', 'firepower', 'rapid', 'rapid')
+    const commander = unit(state, COMMANDER_ID)
+
+    expect(cardLevelOf(state, 'firepower')).toBe(2)
+    // +30% per level: x1.6, not x1.69 and not x1.3.
+    expect(attackDamageOf(state, commander)).toBeCloseTo(COMMANDER_DAMAGE * 1.6, 12)
+    // x0.85 compounded: 0.7225, applied to the interval and rounded to whole ticks.
+    expect(cardLevelOf(state, 'rapid')).toBe(2)
+    expect(attackIntervalOf(state, commander)).toBe(
+      Math.max(1, Math.round(COMMANDER_ATTACK_INTERVAL * 0.85 ** 2)),
+    )
   })
 })
 

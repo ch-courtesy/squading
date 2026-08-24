@@ -325,10 +325,15 @@ describe('§1.16 the verdict reads the transition row that actually ran', () => 
     // What it DOES depend on is the loop below reaching the arrival at all, and batch I is the
     // tune the paragraph above was waiting for: at `PRESSURE_PHASES` 9/7/5 and `LEASH_RADIUS`
     // 10.0 the card-only run is WIPED before tick 1800 on six of the eight band seeds. It still
-    // reaches the arrival on `seed-b` (ends 2190) and `seed-h` (ends 2013), so the seed moves to
+    // reaches the arrival on `seed-b` (ends 2190) and `seed-h` (ends 2013), so the seed moved to
     // `seed-b`. A tune that ends that one early breaks this fixture, and the `throw` two lines
-    // down is how it says so rather than passing quietly.
-    const state = running('seed-b')
+    // down is how it says so rather than passing quietly.    //
+    // RE-MEASURED under §1.13 v2 (per-stage thresholds 40/100/180, cap 3). The card-only run is
+    // weaker in stage 1 than it was under v1's 15/45/90/145 — its first card lands at 40 kills
+    // instead of 15 — and it now dies before the arrival on SEVEN of the eight band seeds
+    // (1415~1687). Only `seed-h` reaches it, ending at 1912 with the elite spawned at 1800, so
+    // the seed moves there. The `throw` below is how a future tune says it broke this.
+    const state = running('seed-h')
     while (state.elite.enemyId === null) {
       if (state.mode !== 'running' && state.mode !== 'awaiting-upgrade') {
         throw new Error(`the run ended at ${state.combatTick} before the elite arrived`)
@@ -445,9 +450,15 @@ describe('§1.16 the reducer runs a whole battle to a verdict', () => {
     // needs the elite to arrive and then live long enough to walk to its approach range, and at
     // `PRESSURE_PHASES` 9/7/5 with `LEASH_RADIUS` 10.0 the card-only run is wiped before tick 1800
     // on six of the eight band seeds — `seed-a` at 1653. Only `seed-b` (ends 2190) and `seed-h`
-    // (ends 2013) get there, and `seed-b` has every one of this fixture's four hazard counters
+    // (ends 2013) get there, and `seed-b` had every one of this fixture's four hazard counters
     // non-zero: approach 306, blast 4, friendly-vs-enemy 471, all three damage sources.
-    const run = playToVerdict('seed-b')
+    //
+    // MOVED AGAIN, to `seed-h`, under §1.13 v2. The per-stage thresholds (40/100/180) put the
+    // card-only run's first card at 40 kills instead of v1's 15, so it is weaker through the whole
+    // stage and now dies before the arrival on seven of the eight seeds — `seed-b` at 1687.
+    // `seed-h` is the only one left that reaches it, and the four hazard counters are checked
+    // below rather than assumed: they are what the assertions in this fixture read.
+    const run = playToVerdict('seed-h')
 
     // The run DECIDES, and this fixture prescribes WHICH verdict in the last block at the bottom.
     // That line is deliberate rather than an accident of what the balance happens to do today:

@@ -28,11 +28,11 @@
 //
 // WHAT THE RULE DOES NOT BAN, because campaign stage 1 had to draw the line: a value the battle
 // cannot DERIVE is not scratch, however convenient it also is. Two such values arrived with the
-// relay — `upgrades.carriedCards` and `stats.priorKills` — and each carries its own argument at
+// relay — `upgrades.carriedLevels` and `upgrades.owedRounds` — and each carries its own argument at
 // its declaration. The test is the same one stated above and it is not softened: a later tick
 // reads both (the card effects every tick, the threshold test on every kill), and neither is a
 // function of anything else on the state. A field that IS such a function is still scratch, which
-// is why `upgrades.nextThresholdIndex` is derived from `priorKills` at construction rather than
+// is why `upgrades.nextThresholdIndex` starts at zero in every stage rather than
 // carried, and why the roster arrives as `friendlies` rows rather than as a second copy.
 //
 // This is enforced, not merely asserted: `tests/battle/battle-state.test.ts` pins the
@@ -249,31 +249,46 @@ export type UpgradeRound = {
 }
 
 export type UpgradeState = {
-  /** §1.13: only the chosen card leaves the pool. */
-  remainingPool: CardId[]
   rounds: UpgradeRound[]
-  /** Index into `UPGRADE_KILL_THRESHOLDS`; at most 4 rounds ever fire. */
+  /**
+   * Index into `UPGRADE_KILL_THRESHOLDS`, and it starts at 0 in EVERY stage (§1.13 v2).
+   *
+   * v1 seeded it from the campaign's kills, which is what made a stage that opened with 200
+   * carried kills open no rounds at all.
+   */
   nextThresholdIndex: number
   /**
-   * Campaign §1.2: cards this squad ALREADY HELD when the stage opened.
+   * §1.13 v2: what level each card is at, from the stages BEFORE this one.
    *
-   * AUTHORITATIVE INPUT, NOT SCRATCH, and the test this file's header states is the one it passes:
-   * a later tick reads it — every tick that asks `hasUpgrade` does. It is not derivable from
-   * anything else on the state, because the battle's own record of what was taken is
-   * `rounds[].chosen`, and a card taken in stage 3 has no round in stage 4. Without it a carried
-   * stage would silently drop every effect the squad had earned, which is one of the three things
-   * §1.1 says must not reset.
+   * AUTHORITATIVE INPUT, NOT SCRATCH, and it passes the test this file's header states: a later
+   * tick reads it — every tick that asks `cardLevelOf` does — and it is not derivable from
+   * anything else the battle holds, because the battle's own record of what was taken is
+   * `rounds[].chosen` and a card taken in stage 3 has no round in stage 4.
    *
-   * THE ONE ENCODING THAT WOULD MAKE IT DERIVABLE WAS REJECTED DELIBERATELY. `remainingPool` could
-   * have been seeded as `CARD_POOL` minus the carried cards, and then "held" would be readable as
-   * "absent from the pool" with no new field. That makes one field answer two questions — what may
-   * still be OFFERED, and what the squad OWNS — so any future rule that removes a card from the
-   * pool for a third reason would hand out its effect for free. The pool keeps its §1.13 meaning
-   * (it starts full and loses only what was chosen HERE), and §1.2's "한 캠페인에 같은 카드는 한
-   * 번만" is enforced where the offer is drawn, by filtering on `hasUpgrade`.
+   * Every card in the pool has an entry, including the zeroes. A sparse map would make the digest
+   * depend on which cards happened to be taken, and "absent" and "level 0" would be two spellings
+   * of one fact.
    */
-  carriedCards: CardId[]
+  carriedLevels: Record<CardId, number>
+  /**
+   * §1.2.1: rounds that opened and were never answered, carried from the previous stage.
+   *
+   * The battle opens this many rounds before it looks at a threshold. It IS a stored number and
+   * it has to be: §1.13 v2 resets the thresholds every stage and carries levels rather than a
+   * card list, so nothing left on the state remembers that a round went unanswered — a card's
+   * level counts the rounds that were ANSWERED.
+   */
+  owedRounds: number
 }
+
+/**
+ * §1.13 v2 REMOVED `remainingPool`.
+ *
+ * It held "which cards may still be offered", and under v1 that was a fact of its own: a card
+ * left the pool when it was taken. Under v2 a card leaves when it reaches `MAX_CARD_LEVEL`, which
+ * makes the answer a function of the levels — and §1.17's no-scratch rule says a field that can be
+ * derived is not a field. `offerableCards` derives it.
+ */
 
 /**
  * §1.11: at most one rescue at a time.
@@ -320,7 +335,7 @@ export type CarriedMember = {
  * Everything a battle needs that it cannot derive, when the battle is not the campaign's first.
  *
  * A PARAMETER, not a field: it is read once by `createInitialBattleState` and what survives of it
- * on the state is `friendlies`, `commandUnitId`, `upgrades.carriedCards` and `stats.priorKills` —
+ * on the state is `friendlies`, `commandUnitId`, `upgrades.carriedLevels` and `upgrades.owedRounds` —
  * see the notes on the last two for why each of those two is authoritative input rather than the
  * scratch this file's header bans.
  */
@@ -334,10 +349,10 @@ export type CarriedSquad = {
    */
   commandUnitId: number
   members: readonly CarriedMember[]
-  /** §1.2: cards taken in earlier stages, in the order they were taken. */
-  cards: readonly CardId[]
-  /** §1.2: kills counted before this stage began. */
-  priorKills: number
+  /** §1.2 v2: what level each card stands at, from the stages before this one. */
+  cardLevels: Record<CardId, number>
+  /** §1.2.1: rounds that opened in an earlier stage and were never answered. */
+  owedUpgradeRounds: number
 }
 
 export type BattleState = {
@@ -384,29 +399,15 @@ export type BattleState = {
   upgrades: UpgradeState
   rescue: RescueLock
   /**
-   * §1.13: elite kills are excluded from `kills` on purpose.
+   * §1.13: elite kills are excluded from `kills` on purpose. Both counters are THIS STAGE's.
    *
-   * `kills` and `rescues` are THIS STAGE's. `priorKills` is campaign §1.2's carry — see below.
+   * §1.13 v2 REMOVED `priorKills`. It existed so the thresholds could be read against the
+   * campaign's cumulative kills; v2 reads them against this stage's, so a battle no longer has any
+   * reason to know what earlier stages killed. The campaign still keeps the total — as a record,
+   * on `CampaignState`, where nothing in a tick can read it.
    */
   stats: {
     kills: number
     rescues: number
-    /**
-     * Campaign §1.2: kills counted in the stages BEFORE this one.
-     *
-     * AUTHORITATIVE INPUT, NOT SCRATCH. §1.2 puts §1.13's thresholds `[15, 45, 90, 145]` on the
-     * CAMPAIGN's cumulative kills, so the round test is `priorKills + kills` against the table
-     * (`campaignKills`) — and a battle cannot derive kills it did not make. Twenty kills in stage
-     * one means the next card arrives at 45, not at 15, and nothing inside stage two can know that
-     * without being told the twenty.
-     *
-     * ONE NUMBER, deliberately. Not a per-stage record and not a copy of the earlier stages'
-     * upgrade rounds: what §1.13 compares against is a sum, so a sum is what carries.
-     *
-     * IT IS WRITTEN ONCE, at construction, and never again — every kill of this stage lands in
-     * `kills`. `upgrades.nextThresholdIndex` is NOT carried alongside it: it is derived from this
-     * number and the threshold table when the state is built.
-     */
-    priorKills: number
   }
 }

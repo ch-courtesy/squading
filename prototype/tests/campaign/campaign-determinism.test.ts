@@ -118,7 +118,7 @@ describe('§3.2 the campaign digest', () => {
       members: [{ id: 1, role: 'commander', nameIndex: 3, hp: 4, maxHp: 5 }],
     }
     base.fallen = [{ id: 9, nameIndex: 11, stageId: 1 }]
-    base.cards = ['firepower']
+    base.cardLevels.firepower = 1
     base.kills = 20
 
     type Mutation = [string, (state: CampaignState) => void]
@@ -128,7 +128,8 @@ describe('§3.2 the campaign digest', () => {
       ['phase', (s) => void (s.phase = 'campaign-over')],
       ['end', (s) => void (s.end = 'defeat')],
       ['kills', (s) => void (s.kills = 21)],
-      ['cards', (s) => void s.cards.push('cover')],
+      ['cardLevels', (s) => void (s.cardLevels.cover = 1)],
+      ['owedUpgradeRounds', (s) => void (s.owedUpgradeRounds = 1)],
       ['fallen.nameIndex', (s) => void (s.fallen[0].nameIndex = 12)],
       ['fallen.id', (s) => void (s.fallen[0].id = 10)],
       ['fallen.stageId', (s) => void (s.fallen[0].stageId = 2 as const)],
@@ -178,13 +179,17 @@ describe('§3.2 the campaign digest', () => {
 
     expect(digestCampaignState(shuffled)).toBe(digestCampaignState(base))
 
-    // The CARD order is data, not bookkeeping: §1.2 allows each card once, so the list is the
-    // order they were taken in and reversing it is a different campaign history.
-    const reordered = structuredClone(base)
-    reordered.cards = ['firepower', 'cover']
-    const other = structuredClone(reordered)
-    other.cards = ['cover', 'firepower']
-    expect(digestCampaignState(other)).not.toBe(digestCampaignState(reordered))
+    // §1.13 v2 made the card record a LEVEL TABLE, so "which card" and "how deep" are separate
+    // axes and both have to move the digest. v1's version of this check was about ORDER, because
+    // its record was a history array; a level table has no order to get wrong, and what it can get
+    // wrong instead is putting the level on the wrong card.
+    const swapped = structuredClone(base)
+    swapped.cardLevels.firepower = 2
+    swapped.cardLevels.cover = 1
+    const other = structuredClone(swapped)
+    other.cardLevels.firepower = 1
+    other.cardLevels.cover = 2
+    expect(digestCampaignState(other)).not.toBe(digestCampaignState(swapped))
   })
 
   it('canonicalizes to sorted keys', () => {

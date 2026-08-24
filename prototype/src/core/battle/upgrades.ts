@@ -57,7 +57,9 @@
 import {
   CARDS_OFFERED_PER_ROUND,
   CARD_EFFECTS,
-  MAX_UPGRADES,
+  CARD_POOL,
+  MAX_CARD_LEVEL,
+  MAX_UPGRADES_PER_STAGE,
   UPGRADE_KILL_THRESHOLDS,
   type CardId,
 } from './constants'
@@ -77,80 +79,112 @@ export type UpgradeAccounting = {
 }
 
 /**
- * §1.13: the cards this squad holds, in the order it took them (§1.14's result screen lists them).
+ * §1.13 v2: what level every card stands at — the carry, plus what was taken in this stage.
  *
- * Campaign §1.2 puts the earlier stages' cards in front of this stage's: they were taken first,
- * and the campaign screens read this list as the squad's history.
+ * The campaign hands this straight back as the next stage's `carriedLevels`, so it is the whole
+ * of the inheritance. Every card has an entry; see `UpgradeState.carriedLevels` for why the
+ * zeroes are written down rather than left absent.
  */
-export function chosenUpgradeCards(state: Readonly<BattleState>): CardId[] {
-  const chosen: CardId[] = [...state.upgrades.carriedCards]
-  for (const round of [...state.upgrades.rounds].sort((left, right) => left.round - right.round)) {
-    if (round.chosen !== null) chosen.push(round.chosen)
-  }
-  return chosen
-}
-
-/**
- * Has this card been taken? The whole read side of §1.13, and of campaign §1.2.
- *
- * A predicate rather than a count: each card exists once in the pool and only the chosen one
- * leaves it, so no card can be taken twice — and §1.2 extends that from "한 판에 한 번" to "한
- * 캠페인에 한 번", which is why a card carried in from an earlier stage answers true here. That is
- * the whole of the inheritance: the effect functions below read this predicate, so a carried card
- * keeps working without anything being re-applied, and `drawOfferedCards` reads it too, so a
- * carried card is never offered again.
- */
-export function hasUpgrade(state: Readonly<BattleState>, card: CardId): boolean {
-  if (state.upgrades.carriedCards.includes(card)) return true
+export function upgradeCardLevels(state: Readonly<BattleState>): Record<CardId, number> {
+  const levels = { ...state.upgrades.carriedLevels }
   for (const round of state.upgrades.rounds) {
-    if (round.chosen === card) return true
+    if (round.chosen !== null) levels[round.chosen] += 1
   }
-  return false
+  return levels
 }
 
 /**
- * §1.2: the kill count §1.13's thresholds are measured against — the CAMPAIGN's, not the stage's.
+ * §1.13 v2: how many levels of one card this squad holds. Zero if it has never taken it.
  *
- * "처치 임계 `[15, 45, 90, 145]`는 캠페인 누적 처치에 대해 적용한다. 스테이지마다 리셋하면
- * 스테이지 1에서 8장을 다 먹는다."
+ * v1's `hasUpgrade` was a predicate, and it could be, because a card left the pool when taken.
+ * Every effect function below multiplies by this count now, so a card taken twice is twice the
+ * card — which is what "레벨은 가산된다" means and the only reading that keeps `CARD_EFFECTS` a
+ * table of one scalar per card.
  */
-export function campaignKills(state: Readonly<BattleState>): number {
-  return state.stats.priorKills + state.stats.kills
+export function cardLevelOf(state: Readonly<BattleState>, card: CardId): number {
+  let level = state.upgrades.carriedLevels[card]
+  for (const round of state.upgrades.rounds) {
+    if (round.chosen === card) level += 1
+  }
+  return level
 }
 
-/** §1.13 `화력`: +30% on the damage a friendly deals. */
+/**
+ * §1.13 v2: the cards a round may offer — everything not yet at `MAX_CARD_LEVEL`.
+ *
+ * This replaces v1's `remainingPool` FIELD. Under v1 "may be offered" was a fact of its own
+ * (a card left the pool when it was taken); under v2 it is a function of the levels, and §1.17
+ * says a function of other state is not state. The order is `CARD_POOL`'s, which is what makes
+ * the partial Fisher-Yates below reproducible.
+ */
+export function offerableCards(state: Readonly<BattleState>): CardId[] {
+  return CARD_POOL.filter((card) => cardLevelOf(state, card) < MAX_CARD_LEVEL)
+}
+
+/**
+ * §1.13 v2: the kill count the thresholds are measured against — THIS STAGE's.
+ *
+ * v1 measured the campaign's cumulative kills, on the argument that per-stage thresholds would
+ * let stage 1 eat every card. Measured, cumulative did the same thing for the same reason: stage
+ * 1 alone kills 229~246 and the last threshold was 145. The cap that actually stops stage 1 from
+ * eating everything is `MAX_UPGRADES_PER_STAGE`, not the choice of counter.
+ */
+export function upgradeKills(state: Readonly<BattleState>): number {
+  return state.stats.kills
+}
+
+/**
+ * §1.13 v2: the two shapes a level takes, and why they are not the same shape.
+ *
+ * An ADDITIVE card adds its scalar once per level: firepower I/II/III is +30/60/90%. That is the
+ * reading §1.13 v2 states, and the one the player can do arithmetic on.
+ *
+ * A MULTIPLICATIVE card compounds instead: rapid is x0.85, x0.7225, x0.614. Adding a reduction
+ * per level would walk it towards zero and past it — three levels of a `-35%` card is `-105%`,
+ * which is a unit that heals when shot. Compounding cannot cross zero however many levels exist,
+ * so the shape is chosen by what the card DOES, not by taste.
+ */
+function additive(level: number, perLevel: number): number {
+  return 1 + perLevel * level
+}
+
+function compounded(level: number, perLevel: number): number {
+  return perLevel ** level
+}
+
+/** §1.13 `화력`: +30% per level on the damage a friendly deals. */
 export function firepowerMultiplierOf(state: Readonly<BattleState>): number {
-  return hasUpgrade(state, 'firepower') ? 1 + CARD_EFFECTS.firepower : 1
+  return additive(cardLevelOf(state, 'firepower'), CARD_EFFECTS.firepower)
 }
 
-/** §1.13 `사수`: +1.0 metre of weapon range. */
+/** §1.13 `사수`: +1.0 metre of weapon range per level. */
 export function rangeBonusOf(state: Readonly<BattleState>): number {
-  return hasUpgrade(state, 'marksman') ? CARD_EFFECTS.marksman : 0
+  return CARD_EFFECTS.marksman * cardLevelOf(state, 'marksman')
 }
 
-/** §1.13 `연사`: x0.85 attack interval. */
+/** §1.13 `연사`: x0.85 attack interval, compounded per level. */
 export function attackIntervalMultiplierOf(state: Readonly<BattleState>): number {
-  return hasUpgrade(state, 'rapid') ? CARD_EFFECTS.rapid : 1
+  return compounded(cardLevelOf(state, 'rapid'), CARD_EFFECTS.rapid)
 }
 
-/** §1.13 `기동`: +15% move speed for the body the player is driving. */
+/** §1.13 `기동`: +15% move speed per level, for the body the player is driving. */
 export function moveSpeedMultiplierOf(state: Readonly<BattleState>): number {
-  return hasUpgrade(state, 'mobility') ? 1 + CARD_EFFECTS.mobility : 1
+  return additive(cardLevelOf(state, 'mobility'), CARD_EFFECTS.mobility)
 }
 
-/** §1.13 `결속`: x1.2 on §1.2's follow-speed cap. */
+/** §1.13 `결속`: x1.2 on §1.2's follow-speed cap, compounded per level. */
 export function followSpeedMultiplierOf(state: Readonly<BattleState>): number {
-  return hasUpgrade(state, 'cohesion') ? CARD_EFFECTS.cohesion : 1
+  return compounded(cardLevelOf(state, 'cohesion'), CARD_EFFECTS.cohesion)
 }
 
-/** §1.13 `응급`: x0.7 rescue duration. */
+/** §1.13 `응급`: x0.7 rescue duration, compounded per level. */
 export function rescueTicksMultiplierOf(state: Readonly<BattleState>): number {
-  return hasUpgrade(state, 'firstaid') ? CARD_EFFECTS.firstaid : 1
+  return compounded(cardLevelOf(state, 'firstaid'), CARD_EFFECTS.firstaid)
 }
 
-/** §1.13 `차폐`: -35% damage TAKEN. Applied by the damage step, which owns defender-side. */
+/** §1.13 `차폐`: -35% damage TAKEN per level, compounded. Applied by the damage step. */
 export function damageTakenMultiplierFromCards(state: Readonly<BattleState>): number {
-  return hasUpgrade(state, 'cover') ? 1 - CARD_EFFECTS.cover : 1
+  return compounded(cardLevelOf(state, 'cover'), 1 - CARD_EFFECTS.cover)
 }
 
 /**
@@ -192,23 +226,15 @@ function applyVitality(state: BattleState): void {
  * two cards that were shown and refused have to be offerable again.
  */
 function drawOfferedCards(state: BattleState): CardId[] {
-  // §1.2: a card the squad already holds is not offered again, and the pool is filtered rather
-  // than emptied at construction — see `UpgradeState.carriedCards`. On a first stage the filter
-  // removes NOTHING: every card this battle has handed out has already left the pool, so the array
-  // below is `remainingPool` element for element, in the same order, and the partial Fisher-Yates
-  // that follows draws exactly what it drew before this batch existed.
-  const pool = state.upgrades.remainingPool.filter((card) => !hasUpgrade(state, card))
-  if (pool.length < CARDS_OFFERED_PER_ROUND) {
-    // Unreachable: 8 cards, at most 4 rounds, one card leaving per round, so the last round
-    // still draws from 5. It throws rather than offering two, because an offer of the wrong
-    // size would silently change the `cards` draw count and desynchronise every replay.
-    throw new Error(
-      `battle/upgrades: the pool holds ${pool.length} cards, fewer than the ${CARDS_OFFERED_PER_ROUND} §1.13 offers`,
-    )
-  }
+  // §1.13 v2: the candidates are everything below the level cap, derived rather than stored.
+  const pool = offerableCards(state)
+  // Fewer candidates than the offer wants is REACHABLE now and is not an error: with the cap at
+  // three levels and eight cards there are 24 levels to hand out, and a campaign that reaches the
+  // last of them offers what is left. v1 threw here because its pool could only shrink to five.
+  const count = Math.min(CARDS_OFFERED_PER_ROUND, pool.length)
 
   const offered: CardId[] = []
-  for (let index = 0; index < CARDS_OFFERED_PER_ROUND; index += 1) {
+  for (let index = 0; index < count; index += 1) {
     const pick = index + Math.floor(nextStreamFloat(state.prng, 'cards') * (pool.length - index))
     const swap = pool[index]
     pool[index] = pool[pick]
@@ -262,21 +288,37 @@ export function resolveKillAccounting(
 function openUpgradeRoundIfDue(state: BattleState): UpgradeRound | null {
   if (pendingUpgradeRound(state) !== null) return null
   const index = state.upgrades.nextThresholdIndex
-  if (index >= MAX_UPGRADES) return null
-  // §1.2: CAMPAIGN kills, not this stage's. Twenty kills carried in means the next card lands at
-  // the 45 threshold, not at 15, and `nextThresholdIndex` was built from the same number.
-  if (campaignKills(state) < UPGRADE_KILL_THRESHOLDS[index]) return null
 
+  // §1.2.1 first, and BEFORE the cap: a debt is a round that already happened, so paying it back
+  // must not be blocked by this stage's own budget — a stage that owed one and earned three would
+  // otherwise silently drop the debt, which is the accident the rule exists to prevent.
+  if (state.upgrades.owedRounds > 0) {
+    state.upgrades.owedRounds -= 1
+    return pushRound(state, index)
+  }
+
+  if (index >= MAX_UPGRADES_PER_STAGE) return null
+  // §1.13 v2: THIS STAGE's kills, and the index starts at zero in every stage.
+  if (upgradeKills(state) < UPGRADE_KILL_THRESHOLDS[index]) return null
+  state.upgrades.nextThresholdIndex = index + 1
+  return pushRound(state, index)
+}
+
+/**
+ * Append a round and hand it back. The round NUMBER is the count of rounds this stage has opened,
+ * not the threshold index — §1.2.1's debt opens a round that no threshold paid for, so the two
+ * stopped being the same number the moment debts existed.
+ */
+function pushRound(state: BattleState, _thresholdIndex: number): UpgradeRound {
   const round: UpgradeRound = {
-    round: index + 1,
+    round: state.upgrades.rounds.length + 1,
     // This step runs before the tick increment, so this is the tick the kill landed on — which
-    // is what I6 ("강화 4회차가 tick 2400 이전에") replays against.
+    // is what I6 ("강화 마지막 회차가 tick 2400 이전에") replays against.
     tick: state.combatTick,
     offered: drawOfferedCards(state),
     chosen: null,
   }
   state.upgrades.rounds.push(round)
-  state.upgrades.nextThresholdIndex = index + 1
   return round
 }
 
@@ -300,7 +342,8 @@ export function chooseUpgradeCard(state: BattleState, card: CardId): void {
   }
 
   round.chosen = card
-  state.upgrades.remainingPool = state.upgrades.remainingPool.filter((entry) => entry !== card)
+  // §1.13 v2: nothing leaves a pool. The card goes up a level, and `offerableCards` stops
+  // offering it once that level reaches the cap.
   if (card === 'vitality') applyVitality(state)
   if (state.mode === 'awaiting-upgrade') state.mode = 'running'
 }

@@ -253,6 +253,7 @@ describe('the facade', () => {
 })
 
 describe('§1.17 / §4.2 the same seed and the same log replay identically', () => {
+
   it('agrees at every checkpoint of a whole battle, with an input log', () => {
     // `seed-c`, NOT `seed-a`, and the swap is a measurement. §1.2.1 put five of the fifteen at
     // `SKIRMISHER_RANGE`, so the squad's ranged output fell by a third and this scripted route
@@ -260,8 +261,13 @@ describe('§1.17 / §4.2 the same seed and the same log replay identically', () 
     // the floor below exists to keep in the replay. Measured across the eight band seeds under
     // the same script: `seed-a` 1589 is the ONLY one that falls short; the rest run 1991-2197.
     // `seed-c` at 2055 keeps this a defeat route, which is what it was.
-    const first = replay('seed-c', scriptedLog())
-    const second = replay('seed-c', scriptedLog())
+    // MOVED AGAIN under §1.13 v2, to `seed-b`. The per-stage thresholds delay the scripted route's
+    // first card from 15 kills to 40, and `seed-c` now dies at 1636 — short of the elite again,
+    // for the same reason it was moved off `seed-a`. Measured over the eight band seeds under this
+    // script: a=1637, b=2245, c=1636, d=2113, e=1814, f=1925, g=2147, h=2075. `seed-b` is the
+    // longest and stays a defeat route, which is what this fixture wants.
+    const first = replay('seed-b', scriptedLog())
+    const second = replay('seed-b', scriptedLog())
 
     expect(second.checkpoints).toEqual(first.checkpoints)
     expect(second.steps).toBe(first.steps)
@@ -285,7 +291,9 @@ describe('§1.17 / §4.2 the same seed and the same log replay identically', () 
     // Eight: all seven CHECKPOINTS fire plus the closing digest, because `seed-c` runs to 2055
     // and clears the last one at 2000. The floor below is what this count is FOR — a shorter run
     // would satisfy a smaller equality while testing nothing about §1.12's half of the battle.
-    expect(first.checkpoints.length).toBe(7)
+    // Eight under v2 on `seed-b`: all seven checkpoints through 2000 fire, plus the closing
+    // digest, because the run reaches 2245.
+    expect(first.checkpoints.length).toBe(8)
     expect(first.battle.state().combatTick).toBeGreaterThan(ELITE_SPAWN_TICK)
     expect(first.battle.state().result).not.toBeNull()
   })

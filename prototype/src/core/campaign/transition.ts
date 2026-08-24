@@ -11,7 +11,8 @@
 // `tests/campaign/campaign-relay.test.ts`:
 //
 //   the roster and its names ... `CarriedMember.id` / `.role` / `.nameIndex`
-//   the cards .................. `CampaignState.cards` -> `upgrades.carriedCards`
+//   the card levels ............ `CampaignState.cardLevels` -> `upgrades.carriedLevels`
+//   the unanswered rounds ...... `CampaignState.owedUpgradeRounds` -> `upgrades.owedRounds`
 //   the dead ................... `CampaignState.fallen`, appended to and never rebuilt
 //
 // ---------------------------------------------------------------------------
@@ -53,7 +54,7 @@
 // them — the next battle is built from scratch by `createInitialBattleState` and inherits only
 // what it is handed. There is no "reset" step that could be forgotten.
 
-import { chosenUpgradeCards } from '../battle/upgrades'
+import { pendingUpgradeRound, upgradeCardLevels } from '../battle/upgrades'
 import { friendliesById } from '../battle/state'
 import type { BattleState, CarriedMember } from '../battle/types'
 import {
@@ -106,9 +107,14 @@ export function completeStage(
   }
 
   const kills = campaign.kills + battle.stats.kills
-  // Carried cards first, this stage's after them — `chosenUpgradeCards` already answers in that
-  // order, so the campaign's list IS the battle's read of what the squad holds.
-  const cards = chosenUpgradeCards(battle)
+  // §1.13 v2: the levels the squad ends the stage at — the carry plus what it took here.
+  // `upgradeCardLevels` already folds the two, so the campaign's table IS the battle's read.
+  const cardLevels = upgradeCardLevels(battle)
+  // §1.2.1: a round that was open when the stage ended was never answered — §1.16's `won` outranks
+  // `awaiting-upgrade`, so the card screen simply never came. The debt crosses to the next stage.
+  // Rounds still owed from BEFORE this stage are already spent or carried on the battle's own
+  // counter, so this reads the battle, not the campaign it came from.
+  const owedUpgradeRounds = battle.upgrades.owedRounds + (pendingUpgradeRound(battle) ? 1 : 0)
 
   // §1.5: whoever ends the stage in command leads the next one. The battle has already run §1.5
   // on the winning tick, so `commandUnitId` names a standing body unless nothing is standing; the
@@ -141,7 +147,8 @@ export function completeStage(
     end,
     squad,
     fallen,
-    cards,
+    cardLevels,
+    owedUpgradeRounds,
     kills,
   }
 }

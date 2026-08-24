@@ -115,10 +115,15 @@ describe('§1.17 the runner reproduces the digests batch H recorded', () => {
     // and the fraction is 1 for the whole of it. The rule is inert on this fixture BY CONSTRUCTION,
     // and that is the property I3 rests on: nothing a policy does to its own squad changes the
     // board it is facing. The eight-seed band is in `pressure-entry-report.md`.
+    //
+    // §1.13 v2 MOVED ALL THREE. The card-only run's first card lands at 40 kills instead of 15 and
+    // it gets three rounds in the stage instead of four, so it dies earlier and kills less on all
+    // three seeds. It still loses every one, which is what I3 asks. `1612/145/0/79cb23c5`,
+    // `2013/200/0/f1957616` and `1597/145/0/55f57f95` are what stood here.
     expect(THREE_SEEDS.map((seed) => runPolicySeed(policyFactory('tactical-no-input'), seed))).toEqual([
-      { seed: 'seed-a', outcome: 'lost', endTick: 1612, kills: 145, standing: 0, digest: '79cb23c5' },
-      { seed: 'seed-b', outcome: 'lost', endTick: 2013, kills: 200, standing: 0, digest: 'f1957616' },
-      { seed: 'seed-c', outcome: 'lost', endTick: 1597, kills: 145, standing: 0, digest: '55f57f95' },
+      { seed: 'seed-a', outcome: 'lost', endTick: 1557, kills: 131, standing: 0, digest: '3f4310a9' },
+      { seed: 'seed-b', outcome: 'lost', endTick: 1687, kills: 140, standing: 0, digest: 'e70f5f06' },
+      { seed: 'seed-c', outcome: 'lost', endTick: 1453, kills: 126, standing: 0, digest: 'bcfa4b59' },
     ])
   })
 })
@@ -195,40 +200,39 @@ describe('§4.1 `flees-always` on the three seeds', () => {
     // Scaling by the ENTERING count restores all three rows to the digit, for the same reason as
     // the `tactical-no-input` block above: a stage-1 run opens with a fresh sixteen, the fraction
     // is 1 throughout, and the rule cannot be moved by what the policy does to its own squad.
+    //
+    // §1.13 v2 MOVED EVERY COLUMN AND UNBROKE I8. Per-stage thresholds (40/100/180, cap 3) put
+    // this run's first card at 40 kills instead of 15, so flight is weaker for the whole stage:
+    // `seed-b`, which pure flight WON under v18's charger, is a defeat again at 2300. Over the
+    // full eight-seed band `flees-always` is 0/8. `2010/220/0/03c47f20`, `2077/231/9/f3eca208`
+    // (the win) and `2172/224/0/ff67e508` are what stood here.
     expect(THREE_SEEDS.map((seed) => runPolicySeed(policyFactory('flees-always'), seed))).toEqual([
-      { seed: 'seed-a', outcome: 'lost', endTick: 2010, kills: 220, standing: 0, digest: '03c47f20' },
-      { seed: 'seed-b', outcome: 'won', endTick: 2077, kills: 231, standing: 9, digest: 'f3eca208' },
-      { seed: 'seed-c', outcome: 'lost', endTick: 2172, kills: 224, standing: 0, digest: 'ff67e508' },
+      { seed: 'seed-a', outcome: 'lost', endTick: 2026, kills: 203, standing: 0, digest: '393274d4' },
+      { seed: 'seed-b', outcome: 'lost', endTick: 2300, kills: 214, standing: 0, digest: '558bc625' },
+      { seed: 'seed-c', outcome: 'lost', endTick: 1928, kills: 189, standing: 0, digest: 'f49cec13' },
     ])
   })
 
-  it('wins ONE of the three, which is I8 FAILING — §1.2.1 v18 broke it and it is not fixed', () => {
-    // §3 I8: "순수 도망은 이기지 못한다 — 승리 `0/8`". It was 3/3 through batch H. Batch I's two
-    // balance edits — `PRESSURE_PHASES` 12/9/7 -> 9/7/5, then `LEASH_RADIUS` 8.0 -> 10.0, both
-    // made for §1.4.1's sake and neither aimed at I8 — took it to 1/3 and then to 0/3.
+  it('wins NONE of the three, and over the eight-seed band I8 holds again', () => {
+    // §3 I8: "순수 도망은 이기지 못한다 — 승리 `0/8`". The history of this line is the history of
+    // this branch's balance: 3/3 through batch H, then 1/3 and 0/3 as batch I's two edits landed,
+    // then 2/3 under §1.10.1's first form, back to 0/3 with the entering-count fix, then 1/3 when
+    // §1.2.1 v18's charger gave a fleeing squad a strong blow every time it ran past something.
     //
-    // §1.10.1's FIRST FORM TOOK IT TO 2/3 and this title said so; the entering-count fix took it
-    // back to 0/3, and the title moved back with the number rather than the number being explained
-    // away in either direction.
+    // §1.13 v2 TOOK IT BACK TO ZERO, and not by touching the charger. Per-stage thresholds put
+    // the first card at 40 kills instead of 15, and flight — which kills slowly by construction —
+    // is the policy that pays most for a card that arrives later. Measured over the FULL eight
+    // seeds, not these three: `flees-always` 0/8, `tactical-no-input` 0/8, `camps-in-place` 0/8,
+    // `skilled` 8/8. I8 was a known deliberate failure for four batches and is not one now.
     //
-    // IT IS 1/3 AGAIN, AND THIS TITLE SAYS SO. §1.2.1's charger (v18) pays its strong blow when
-    // the player holds an axis that is not pointing away from the nearest enemy, and a fleeing
-    // squad satisfies that whenever it runs past something. Measured over the full eight seeds:
-    // `flees-always` takes 1 of 8. §3 lists I8 as not relaxable, so this is a KNOWN FAILURE
-    // carried deliberately while the class is evaluated by a person — not a gate that was
-    // quietly lowered. `seed-b` is the seed; the pins above record the win rather than hide it.
-    //
-    // THAT IS NOT I8 SATISFIED. I8 is measured over EIGHT seeds and this runs three, and §5 stage
-    // 4 is the stage that owns it; three seeds cannot distinguish "the invariant holds" from "the
-    // three seeds this branch has always used happen to lose". What the line below is, is the
-    // measurement: on the seeds this file has records for, pure flight does not win.
+    // THREE SEEDS STILL CANNOT PROVE I8. It is measured over eight and §5 stage 4 owns it; what
+    // this fixture is, is the record for the three seeds this file has always used.
     const band = runPolicyBand(policyFactory('flees-always'), THREE_SEEDS)
     expect(band.policyId).toBe('flees-always')
-    // ONE, and §3 wants zero. Pinned at what it IS so the number cannot drift further without
-    // failing, and so a later fix shows up here as a failing test rather than as nothing.
-    expect(band.wins).toBe(1)
+    expect(band.wins).toBe(0)
     expect(band.total).toBe(3)
   })
+
 
   it('counts wins by counting them, which a band of zero cannot show on its own', () => {
     // A ZERO IS NOT A MEASUREMENT OF A COUNTER. While `flees-always` was 3/3 the assertion above
@@ -237,12 +241,12 @@ describe('§4.1 `flees-always` on the three seeds', () => {
     // reasoned: `scripts/mutate.mjs`'s "count no wins" went from caught to MISSED the moment the
     // band above reached 0.
     //
-    // So the non-vacuity comes from a second policy that still wins. `skilled` is 2/3 on these
-    // three seeds since §1.11 v19 lengthened the lock to 45 ticks — non-zero is all this needs,
-    // and over the full eight-seed band `skilled` is 8/8, which is what §4.1 actually asks.
+    // So the non-vacuity comes from a second policy that still wins. `skilled` is 3/3 on these
+    // three seeds under §1.13 v2 — non-zero is all this needs, and over the full eight-seed band
+    // `skilled` is 8/8, which is what §4.1 actually asks.
     const skilled = runPolicyBand(policyFactory('skilled'), THREE_SEEDS)
     expect(skilled.policyId).toBe('skilled')
-    expect(skilled.wins).toBe(2)
+    expect(skilled.wins).toBe(3)
     expect(skilled.total).toBe(3)
   })
 })

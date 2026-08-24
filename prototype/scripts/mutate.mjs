@@ -866,23 +866,54 @@ const MUTATIONS = [
       '    }\n' +
       '    fallen.push({ id: unit.id, nameIndex: unit.nameIndex, stageId: battle.stageId })',
   },
+  // --- §1.13 v2 / §1.2 v2: the five links the per-stage redesign runs through -----------------
   {
     file: UPGRADES,
-    label: 'drop the cards earlier stages earned (§1.1)',
-    find: '  const chosen: CardId[] = [...state.upgrades.carriedCards]',
-    replace: '  const chosen: CardId[] = []',
+    label: 'drop the levels earlier stages earned (§1.2 v2)',
+    find: '  let level = state.upgrades.carriedLevels[card]',
+    replace: '  let level = 0',
   },
   {
     file: UPGRADES,
-    label: 'stop reading the carried cards, so their effects lapse (§1.2)',
-    find: '  if (state.upgrades.carriedCards.includes(card)) return true',
-    replace: '  if (false) return true',
+    label: 'count only the carry, so this stage\'s own choices do nothing (§1.2 v2)',
+    find: '    if (round.chosen === card) level += 1\n  }\n  return level',
+    replace: '    if (round.chosen === card) level += 0\n  }\n  return level',
   },
   {
     file: UPGRADES,
-    label: 'offer a card the squad already holds (§1.2)',
-    find: '  const pool = state.upgrades.remainingPool.filter((card) => !hasUpgrade(state, card))',
-    replace: '  const pool = [...state.upgrades.remainingPool]',
+    label: 'offer a card that is already at the level cap (§1.13 v2)',
+    find: '  return CARD_POOL.filter((card) => cardLevelOf(state, card) < MAX_CARD_LEVEL)',
+    replace: '  return [...CARD_POOL]',
+  },
+  {
+    file: UPGRADES,
+    label: 'lift the per-stage round cap (§1.13 v2)',
+    find: '  if (index >= MAX_UPGRADES_PER_STAGE) return null',
+    replace: '  if (false) return null',
+  },
+  {
+    file: UPGRADES,
+    label: 'spend a level on an additive card without counting it (§1.13 v2)',
+    find: '  return 1 + perLevel * level',
+    replace: '  return 1 + perLevel',
+  },
+  {
+    file: UPGRADES,
+    label: 'flatten a compounding card to one level (§1.13 v2)',
+    find: '  return perLevel ** level',
+    replace: '  return perLevel',
+  },
+  {
+    file: UPGRADES,
+    label: 'swallow a round owed from the previous stage (§1.2.1)',
+    find: '  if (state.upgrades.owedRounds > 0) {',
+    replace: '  if (false) {',
+  },
+  {
+    file: TRANSITION,
+    label: 'lose the round the winning tick left unanswered (§1.2.1)',
+    find: '  const owedUpgradeRounds = battle.upgrades.owedRounds + (pendingUpgradeRound(battle) ? 1 : 0)',
+    replace: '  const owedUpgradeRounds = battle.upgrades.owedRounds',
   },
   {
     file: TRANSITION,
@@ -895,18 +926,6 @@ const MUTATIONS = [
     label: 'forget the stages before this one when recording the dead (§1.14)',
     find: '  const fallen: CampaignCasualty[] = [...campaign.fallen]',
     replace: '  const fallen: CampaignCasualty[] = []',
-  },
-  {
-    file: UPGRADES,
-    label: 'measure §1.13 thresholds against the stage instead of the campaign (§1.2)',
-    find: '  if (campaignKills(state) < UPGRADE_KILL_THRESHOLDS[index]) return null',
-    replace: '  if (state.stats.kills < UPGRADE_KILL_THRESHOLDS[index]) return null',
-  },
-  {
-    file: STATE,
-    label: 'leave a threshold the carried kills already passed unspent (§1.2)',
-    find: '  while (index < UPGRADE_KILL_THRESHOLDS.length && UPGRADE_KILL_THRESHOLDS[index] <= priorKills) {',
-    replace: '  while (index < UPGRADE_KILL_THRESHOLDS.length && UPGRADE_KILL_THRESHOLDS[index] < priorKills) {',
   },
   {
     file: TRANSITION,

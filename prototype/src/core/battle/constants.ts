@@ -275,10 +275,25 @@ export const CARD_POOL: readonly CardId[] = [
 
 /** §1.13: three cards are offered per round. */
 export const CARDS_OFFERED_PER_ROUND = 3
-/** §1.13: at most four upgrades in a run. */
-export const MAX_UPGRADES = 4
-/** PLACEHOLDER — kill counts that trigger rounds 1..4 (elite kill excluded). */
-export const UPGRADE_KILL_THRESHOLDS: readonly number[] = [15, 45, 90, 145]
+/**
+ * §1.13 v2: at most three upgrade rounds PER STAGE.
+ *
+ * v1 was `MAX_UPGRADES = 4` for a whole run, with the thresholds on the campaign's cumulative
+ * kills. Measured, `skilled` takes 229~246 kills in stage 1 alone and the last threshold was 145,
+ * so all four rounds fired inside the first stage and the other six had none. The cap is per
+ * stage now, and the thresholds below are read against THIS STAGE's kills.
+ */
+export const MAX_UPGRADES_PER_STAGE = 3
+/**
+ * §1.13 v2: how many levels one card can hold.
+ *
+ * A card no longer leaves the pool when taken; it goes up a level and its effect adds. Without
+ * levels the eight-card pool dries up in the third stage of seven — and a card screen whose
+ * outcome is already determined is an order, not a choice.
+ */
+export const MAX_CARD_LEVEL = 3
+/** PLACEHOLDER — STAGE kill counts that trigger rounds 1..3 (elite kill excluded). */
+export const UPGRADE_KILL_THRESHOLDS: readonly number[] = [40, 100, 180]
 
 /**
  * PLACEHOLDER — the effect MAGNITUDE of each card, one scalar each.
@@ -405,7 +420,19 @@ assertRule(CHARGER_DAMAGE < SOLDIER_DAMAGE, 'CHARGER_DAMAGE must be < SOLDIER_DA
 assertRule(CHARGE_DAMAGE > SOLDIER_DAMAGE, 'CHARGE_DAMAGE must be > SOLDIER_DAMAGE (§1.2.1)')
 
 assertRule(CARD_POOL.length === 8, 'the card pool is exactly 8 cards (§1.13)')
-assertRule(UPGRADE_KILL_THRESHOLDS.length === MAX_UPGRADES, 'there are exactly 4 upgrade thresholds (§1.13)')
+assertRule(
+  UPGRADE_KILL_THRESHOLDS.length === MAX_UPGRADES_PER_STAGE,
+  'there is exactly one upgrade threshold per per-stage round (§1.13 v2)',
+)
+// §1.13 v2: levels are what keep the eight-card pool from drying up over seven stages, so a
+// campaign's worth of rounds has to FIT in the levels. Seven stages x the per-stage cap must not
+// exceed the pool's total capacity, or the last stages offer nothing and the rule that replaced
+// "the pool ran out" has itself run out.
+assertRule(MAX_CARD_LEVEL >= 1, 'a card must hold at least one level (§1.13 v2)')
+assertRule(
+  CARD_POOL.length * MAX_CARD_LEVEL >= MAX_UPGRADES_PER_STAGE * 7,
+  'the pool x level capacity must cover seven stages of rounds (§1.13 v2)',
+)
 // §1.13: the thresholds are walked by an index that advances when a round OPENS, exactly like
 // the pressure curve above is walked by tick — and they need the same guard for the same
 // reason. A non-ascending pair fires two rounds off ONE kill (the second threshold is already

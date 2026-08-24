@@ -16,6 +16,13 @@
 
 import { describe, expect, it } from 'vitest'
 
+/** Every card at zero, the shape §1.13 v2 carries. */
+function emptyCardLevels(): Record<CardId, number> {
+  const levels = {} as Record<CardId, number>
+  for (const card of CARD_POOL) levels[card] = 0
+  return levels
+}
+
 import {
   COMMANDER_HP,
   MIN_PRESSURE_FRACTION,
@@ -36,6 +43,7 @@ import {
   spawnKindForPhaseIndex,
 } from '../../src/core/battle/spawn'
 import { COMMANDER_ID, createEnemy, createInitialBattleState, findFriendly } from '../../src/core/battle/state'
+import { CARD_POOL, type CardId } from '../../src/core/battle/constants'
 import type { BattleState, EnemyKind, SpawnRequest, Vec2 } from '../../src/core/battle/types'
 
 /**
@@ -107,8 +115,8 @@ function enteredWith(entering: number): BattleState {
   const state = createInitialBattleState('seed-a', 1, {
     commandUnitId: COMMANDER_ID,
     members,
-    cards: [],
-    priorKills: 0,
+    cardLevels: emptyCardLevels(),
+    owedUpgradeRounds: 0,
   })
   state.mode = 'running'
   // The whole premise of the derivation: a stage opens with everybody standing.

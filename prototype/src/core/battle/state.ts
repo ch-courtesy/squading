@@ -25,7 +25,7 @@ import {
   COMMANDER_START,
   ROSTER_SIZE,
   SOLDIER_HP,
-  UPGRADE_KILL_THRESHOLDS,
+  type CardId,
 } from './constants'
 import { FIRST_STAGE_ID, stageOf, type StageId } from './stages'
 import { assignNameIndices } from './names'
@@ -181,24 +181,15 @@ export function createEnemy(
 }
 
 /**
- * §1.13/campaign §1.2: how many thresholds a squad has already spent, from the kills it has
- * already made.
+ * §1.13 v2: a full level table at zero — every card in the pool, none of them taken.
  *
- * DERIVED, and that is the point: "which card round is next" is a function of the cumulative kill
- * count and the fixed threshold table, so carrying it would be carrying scratch. A threshold at or
- * below the carried count has been reached and is spent.
- *
- * ONE CONSEQUENCE, WRITTEN DOWN RATHER THAN GLOSSED: a round that opened on the very tick a stage
- * was won is left unanswered by §1.16 (`won` outranks `awaiting-upgrade`), and this derivation
- * treats its threshold as spent — that card is lost. Nothing in the spec says what should happen
- * to it; this is the reading, not a rule.
+ * Written out rather than left sparse for the reason on `UpgradeState.carriedLevels`: a digest
+ * that walked a sparse map would depend on which cards happened to be taken.
  */
-function spentThresholdCount(priorKills: number): number {
-  let index = 0
-  while (index < UPGRADE_KILL_THRESHOLDS.length && UPGRADE_KILL_THRESHOLDS[index] <= priorKills) {
-    index += 1
-  }
-  return index
+function emptyCardLevels(): Record<CardId, number> {
+  const levels = {} as Record<CardId, number>
+  for (const card of CARD_POOL) levels[card] = 0
+  return levels
 }
 
 /** The fresh 16: §1.14 draws the names, §1.4 seats the soldiers, §1.2 gives everyone full hp. */
@@ -296,8 +287,8 @@ export function createInitialBattleState(
     ? createCarriedRoster(carried, start)
     : createFreshRoster(prng, start)
   const commandUnitId = carried ? carried.commandUnitId : COMMANDER_ID
-  const priorKills = carried ? carried.priorKills : 0
-  const carriedCards = carried ? [...carried.cards] : []
+  const carriedLevels = carried ? { ...carried.cardLevels } : emptyCardLevels()
+  const owedRounds = carried ? carried.owedUpgradeRounds : 0
 
   return {
     schemaVersion: 3,
@@ -343,15 +334,14 @@ export function createInitialBattleState(
       cooldownRemaining: 0,
     },
     upgrades: {
-      // FULL, even when cards are carried. §1.13's pool is "what this battle has not handed out",
-      // and §1.2's "already held" is a different question, answered by `hasUpgrade` where the
-      // offer is drawn. See `UpgradeState.carriedCards` for why the two are not merged.
-      remainingPool: [...CARD_POOL],
       rounds: [],
-      nextThresholdIndex: spentThresholdCount(priorKills),
-      carriedCards,
+      // §1.13 v2: ZERO in every stage. v1 seeded this from the campaign's kills, and that is
+      // precisely what left stages 2-7 with no card screen at all.
+      nextThresholdIndex: 0,
+      carriedLevels,
+      owedRounds,
     },
     rescue: { active: false, targetId: null, progress: 0 },
-    stats: { kills: 0, rescues: 0, priorKills },
+    stats: { kills: 0, rescues: 0 },
   }
 }
