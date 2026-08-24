@@ -109,6 +109,34 @@ describe('battle-view: the HUD projection', () => {
     expect(hud.pendingUpgrade?.cards[0].name).toBe(UPGRADE_CARD_LABELS.firepower.name)
   })
 
+  it('puts the LEVEL on screen, in the name and in the magnitude (§1.13 v2)', () => {
+    // THE SAME DEFECT THE CHARGER SPENT FOUR BATCHES IN, one screen over. §1.13 v2 lets a card be
+    // taken three times, and until this projection carried the level a squad holding 화력 III read
+    // as "화력, 공격 피해 +30%" — the same two words and the same number as the day it took the
+    // first one. A level the player cannot see is a level they cannot spend.
+    const state = stateAt()
+    state.upgrades.carriedLevels.firepower = 2
+    state.mode = 'awaiting-upgrade'
+    state.upgrades.rounds.push({ round: 1, tick: 400, offered: ['firepower', 'cover', 'rapid'], chosen: null })
+
+    const hud = projectBattleHud(state)
+    const offer = hud.pendingUpgrade!.cards[0]
+    // The OFFER advertises what taking it would make the card, not what it is now.
+    expect(offer.level).toBe(3)
+    expect(offer.name).toBe('화력 III')
+    // +30% per level: the third level is +90%, and the screen must say 90 and not 30.
+    expect(offer.effect).toContain('90')
+
+    // The HELD list is the level the squad actually has.
+    const held = hud.chosenCards.find((card) => card.id === 'firepower')!
+    expect(held.level).toBe(2)
+    expect(held.name).toBe('화력 II')
+    expect(held.effect).toContain('60')
+
+    // Level 1 keeps the bare name — a numeral on a card nobody has doubled is noise.
+    expect(hud.pendingUpgrade!.cards[1].name).toBe('방호')
+  })
+
   it('reports the cards already taken once the round is answered', () => {
     const state = stateAt()
     state.upgrades.rounds.push({ round: 1, tick: 400, offered: ['firepower', 'cover', 'rapid'], chosen: 'cover' })

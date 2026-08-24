@@ -58,6 +58,7 @@ import {
   CARDS_OFFERED_PER_ROUND,
   CARD_EFFECTS,
   CARD_POOL,
+  CARD_STACKING,
   MAX_CARD_LEVEL,
   MAX_UPGRADES_PER_STAGE,
   UPGRADE_KILL_THRESHOLDS,
@@ -134,57 +135,65 @@ export function upgradeKills(state: Readonly<BattleState>): number {
 }
 
 /**
- * §1.13 v2: the two shapes a level takes, and why they are not the same shape.
+ * §1.13 v2: one card's total multiplier at a given level, read off `CARD_STACKING`.
  *
- * An ADDITIVE card adds its scalar once per level: firepower I/II/III is +30/60/90%. That is the
- * reading §1.13 v2 states, and the one the player can do arithmetic on.
+ * EXPORTED, and that is the point of it: the card screen prints what a card does, and if the
+ * screen computed it separately a card could advertise `+30%` while dealing `+60%`. Both sides
+ * call this.
  *
- * A MULTIPLICATIVE card compounds instead: rapid is x0.85, x0.7225, x0.614. Adding a reduction
- * per level would walk it towards zero and past it — three levels of a `-35%` card is `-105%`,
- * which is a unit that heals when shot. Compounding cannot cross zero however many levels exist,
- * so the shape is chosen by what the card DOES, not by taste.
+ * Two cards do not pass through here, and each says why at its own function: `marksman` adds
+ * metres rather than scaling anything, and `cover` scales by the COMPLEMENT of its scalar.
  */
-function additive(level: number, perLevel: number): number {
-  return 1 + perLevel * level
-}
-
-function compounded(level: number, perLevel: number): number {
-  return perLevel ** level
+export function cardMultiplierAt(card: CardId, level: number): number {
+  return CARD_STACKING[card] === 'additive'
+    ? 1 + CARD_EFFECTS[card] * level
+    : CARD_EFFECTS[card] ** level
 }
 
 /** §1.13 `화력`: +30% per level on the damage a friendly deals. */
 export function firepowerMultiplierOf(state: Readonly<BattleState>): number {
-  return additive(cardLevelOf(state, 'firepower'), CARD_EFFECTS.firepower)
+  return cardMultiplierAt('firepower', cardLevelOf(state, 'firepower'))
 }
 
-/** §1.13 `사수`: +1.0 metre of weapon range per level. */
+/**
+ * §1.13 `사수`: +1.0 metre of weapon range per level.
+ *
+ * A BONUS, not a multiplier — `attackRangeOf` adds it — so `cardMultiplierAt` is the wrong shape
+ * and this is the whole of the exception.
+ */
 export function rangeBonusOf(state: Readonly<BattleState>): number {
   return CARD_EFFECTS.marksman * cardLevelOf(state, 'marksman')
 }
 
 /** §1.13 `연사`: x0.85 attack interval, compounded per level. */
 export function attackIntervalMultiplierOf(state: Readonly<BattleState>): number {
-  return compounded(cardLevelOf(state, 'rapid'), CARD_EFFECTS.rapid)
+  return cardMultiplierAt('rapid', cardLevelOf(state, 'rapid'))
 }
 
 /** §1.13 `기동`: +15% move speed per level, for the body the player is driving. */
 export function moveSpeedMultiplierOf(state: Readonly<BattleState>): number {
-  return additive(cardLevelOf(state, 'mobility'), CARD_EFFECTS.mobility)
+  return cardMultiplierAt('mobility', cardLevelOf(state, 'mobility'))
 }
 
 /** §1.13 `결속`: x1.2 on §1.2's follow-speed cap, compounded per level. */
 export function followSpeedMultiplierOf(state: Readonly<BattleState>): number {
-  return compounded(cardLevelOf(state, 'cohesion'), CARD_EFFECTS.cohesion)
+  return cardMultiplierAt('cohesion', cardLevelOf(state, 'cohesion'))
 }
 
 /** §1.13 `응급`: x0.7 rescue duration, compounded per level. */
 export function rescueTicksMultiplierOf(state: Readonly<BattleState>): number {
-  return compounded(cardLevelOf(state, 'firstaid'), CARD_EFFECTS.firstaid)
+  return cardMultiplierAt('firstaid', cardLevelOf(state, 'firstaid'))
 }
 
-/** §1.13 `차폐`: -35% damage TAKEN per level, compounded. Applied by the damage step. */
+/**
+ * §1.13 `차폐`: -35% damage TAKEN per level, compounded. Applied by the damage step.
+ *
+ * `CARD_EFFECTS.cover` is the REDUCTION (0.35) and what compounds is what gets through (0.65), so
+ * this is the second card `cardMultiplierAt` cannot express — it would raise 0.35 to the level and
+ * make three levels of cover a x0.043 multiplier instead of x0.275.
+ */
 export function damageTakenMultiplierFromCards(state: Readonly<BattleState>): number {
-  return compounded(cardLevelOf(state, 'cover'), 1 - CARD_EFFECTS.cover)
+  return (1 - CARD_EFFECTS.cover) ** cardLevelOf(state, 'cover')
 }
 
 /**

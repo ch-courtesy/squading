@@ -309,6 +309,33 @@ export const UPGRADE_KILL_THRESHOLDS: readonly number[] = [40, 100, 180]
  * a constant, so whether it is expressible at all is a §1.13 decision, not a number
  * batch A gets to pre-commit.
  */
+/**
+ * §1.13 v2: HOW each card's scalar stacks with itself, which is not the same for all of them.
+ *
+ * `additive` adds the scalar once per level — firepower I/II/III is +30/60/90%, the reading §1.13
+ * v2 states and the one a player can do arithmetic on. `compounded` multiplies — rapid is x0.85,
+ * x0.7225, x0.614 — because a reduction added per level walks past zero: three levels of a `-35%`
+ * card added is `-105%`, a unit that heals when it is shot.
+ *
+ * It is a TABLE rather than a branch inside each effect function because the screen has to print
+ * the same arithmetic the simulation applies. Two copies of this decision is how a card comes to
+ * advertise +30% and deal +60%.
+ */
+export const CARD_STACKING: Readonly<Record<CardId, 'additive' | 'compounded'>> = {
+  firepower: 'additive',
+  mobility: 'additive',
+  // `vitality` is applied once per choice (see `upgrades.ts`), so its levels compound by
+  // construction — the table says what is already true rather than deciding it.
+  vitality: 'compounded',
+  // `marksman` is a metre bonus, not a multiplier: it is added to a range. It is `additive` in the
+  // only sense the word has here — per level — and its effect function returns the bonus itself.
+  marksman: 'additive',
+  firstaid: 'compounded',
+  cover: 'compounded',
+  rapid: 'compounded',
+  cohesion: 'compounded',
+}
+
 export const CARD_EFFECTS: Readonly<Record<CardId, number>> = {
   /** +30% damage. */
   firepower: 0.3,

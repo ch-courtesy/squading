@@ -25,7 +25,7 @@ import {
 import { nameOf } from '../battle/names'
 import { rescueCandidateId, rescueTicksOf } from '../battle/rescue'
 import { friendliesById } from '../battle/state'
-import { pendingUpgradeRound, upgradeCardLevels } from '../battle/upgrades'
+import { cardMultiplierAt, pendingUpgradeRound, upgradeCardLevels } from '../battle/upgrades'
 import type {
   BattleMode,
   BattleResult,
@@ -129,23 +129,76 @@ function percent(fraction: number): string {
  * `cover` is labelled 방호 rather than 엄폐 on purpose — §1.6 deleted cover from the design and a
  * card wearing its name would read as terrain coming back.
  */
-export const UPGRADE_CARD_LABELS: Readonly<Record<CardId, { name: string; effect: string }>> = {
-  firepower: { name: '화력', effect: `공격 피해 +${percent(CARD_EFFECTS.firepower)}` },
-  mobility: { name: '기동', effect: `이동 속도 +${percent(CARD_EFFECTS.mobility)}` },
-  vitality: { name: '체력', effect: `최대 체력 x${CARD_EFFECTS.vitality}` },
-  marksman: { name: '사격술', effect: `사거리 +${CARD_EFFECTS.marksman}` },
-  firstaid: { name: '응급처치', effect: `구조 시간 x${CARD_EFFECTS.firstaid}` },
-  cover: { name: '방호', effect: `받는 피해 -${percent(CARD_EFFECTS.cover)}` },
-  rapid: { name: '속사', effect: `공격 간격 x${CARD_EFFECTS.rapid}` },
-  cohesion: { name: '결속', effect: `추종 속도 x${CARD_EFFECTS.cohesion}` },
+const CARD_NAMES: Readonly<Record<CardId, string>> = {
+  firepower: '화력',
+  mobility: '기동',
+  vitality: '체력',
+  marksman: '사격술',
+  firstaid: '응급처치',
+  cover: '방호',
+  rapid: '속사',
+  cohesion: '결속',
+}
+
+/**
+ * The labels at LEVEL 1, which is what the pre-campaign gameplay route still prints.
+ *
+ * The magnitudes are `cardEffectText`'s, not a second copy of them: §1.13 v2 made the printed
+ * magnitude depend on the level, and a table that kept its own strings would go on advertising
+ * `+30%` for a card at level 3.
+ */
+export const UPGRADE_CARD_LABELS: Readonly<Record<CardId, { name: string; effect: string }>> =
+  Object.fromEntries(
+    CARD_POOL.map((id) => [id, { name: CARD_NAMES[id], effect: cardEffectText(id, 1) }]),
+  ) as Record<CardId, { name: string; effect: string }>
+
+/** I, II, III — the level as a card game prints it. Never past `MAX_CARD_LEVEL`, so three suffice. */
+const LEVEL_NUMERALS = ['I', 'II', 'III', 'IV', 'V'] as const
+
+/**
+ * §1.13 v2: what one card DOES at one level, computed from the same helper the simulation uses.
+ *
+ * `cardMultiplierAt` is imported rather than reimplemented for the reason on its declaration: a
+ * screen that did its own arithmetic could advertise +30% on a card that deals +60%, and the
+ * player would have no way to find out which one was lying.
+ */
+function cardEffectText(id: CardId, level: number): string {
+  const at = Math.max(1, level)
+  switch (id) {
+    case 'firepower':
+      return `공격 피해 +${percent(cardMultiplierAt(id, at) - 1)}`
+    case 'mobility':
+      return `이동 속도 +${percent(cardMultiplierAt(id, at) - 1)}`
+    case 'vitality':
+      return `최대 체력 x${round2(cardMultiplierAt(id, at))}`
+    case 'marksman':
+      return `사거리 +${round2(CARD_EFFECTS.marksman * at)}`
+    case 'firstaid':
+      return `구조 시간 x${round2(cardMultiplierAt(id, at))}`
+    // The complement, exactly as `damageTakenMultiplierFromCards` computes it — see its comment
+    // for why this one card cannot go through `cardMultiplierAt`.
+    case 'cover':
+      return `받는 피해 -${percent(1 - (1 - CARD_EFFECTS.cover) ** at)}`
+    case 'rapid':
+      return `공격 간격 x${round2(cardMultiplierAt(id, at))}`
+    case 'cohesion':
+      return `추종 속도 x${round2(cardMultiplierAt(id, at))}`
+  }
+}
+
+function round2(value: number): number {
+  return Math.round(value * 100) / 100
 }
 
 function cardView(id: CardId, slot: number, level: number): UpgradeCardView {
   return {
     slot,
     id,
-    name: UPGRADE_CARD_LABELS[id].name,
-    effect: UPGRADE_CARD_LABELS[id].effect,
+    // §1.13 v2: the level is IN the name, because without it the same card at level 1 and level 3
+    // is the same two words on screen — which is the state the charger spent four batches in.
+    // Level 1 keeps the bare name: "화력 I" on a card nobody has taken twice is noise.
+    name: level > 1 ? `${CARD_NAMES[id]} ${LEVEL_NUMERALS[level - 1]}` : CARD_NAMES[id],
+    effect: cardEffectText(id, level),
     level,
   }
 }

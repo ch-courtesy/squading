@@ -146,6 +146,8 @@ const TARGET_TESTS = [
   // §1.2.1's class as a DISPLAY fact: this is the only file that counts the split, so the
   // "project the front rank as riflemen" mutation below is missed without it.
   'tests/battle-view/battle-snapshot.test.ts',
+  // §1.13 v2's level has to reach the SCREEN; this is the only file that reads it there.
+  'tests/battle-view/battle-hud.test.ts',
 ]
 
 const VIEW = 'src/core/harness/policy/view.ts'
@@ -157,6 +159,7 @@ const STAGES = 'src/core/battle/stages.ts'
 const ATTACKS = 'src/core/battle/attacks.ts'
 const TARGETING = 'src/core/battle/targeting.ts'
 const SNAPSHOT = 'src/core/battle-view/snapshot.ts'
+const HUD = 'src/core/battle-view/hud.ts'
 const STATE = 'src/core/battle/state.ts'
 const UPGRADES = 'src/core/battle/upgrades.ts'
 const SPAWN = 'src/core/battle/spawn.ts'
@@ -894,14 +897,26 @@ const MUTATIONS = [
   {
     file: UPGRADES,
     label: 'spend a level on an additive card without counting it (§1.13 v2)',
-    find: '  return 1 + perLevel * level',
-    replace: '  return 1 + perLevel',
+    find: '    ? 1 + CARD_EFFECTS[card] * level',
+    replace: '    ? 1 + CARD_EFFECTS[card]',
+  },
+  {
+    file: HUD,
+    label: 'print a level-3 card as though it were level 1 (§1.13 v2)',
+    find: '    effect: cardEffectText(id, level),',
+    replace: '    effect: cardEffectText(id, 1),',
+  },
+  {
+    file: HUD,
+    label: 'drop the level numeral, so 화력 III reads as 화력 (§1.13 v2)',
+    find: "    name: level > 1 ? `${CARD_NAMES[id]} ${LEVEL_NUMERALS[level - 1]}` : CARD_NAMES[id],",
+    replace: '    name: CARD_NAMES[id],',
   },
   {
     file: UPGRADES,
     label: 'flatten a compounding card to one level (§1.13 v2)',
-    find: '  return perLevel ** level',
-    replace: '  return perLevel',
+    find: '    : CARD_EFFECTS[card] ** level',
+    replace: '    : CARD_EFFECTS[card]',
   },
   {
     file: UPGRADES,
