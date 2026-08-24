@@ -73,6 +73,12 @@ export const COMMANDER_DAMAGE = 0.2
 
 export const SOLDIER_MOVE_SPEED = 0.1
 export const SOLDIER_RANGE = 5.0
+/** PLACEHOLDER — §1.4.1 v21: how near a swing has to be before a ranged soldier steps out of it. */
+export const STANDOFF_WINDUP_TICKS = 3
+/** PLACEHOLDER — §1.4.1 v21: how far past its own reach a body still counts as about to land one. */
+export const STANDOFF_MARGIN = 0.45
+/** PLACEHOLDER — §1.4.1 v21: how much of the leash the command unit must be inside to grant it. */
+export const STANDOFF_COMMAND_FRACTION = 0.4
 export const SOLDIER_ATTACK_INTERVAL = 12
 export const SOLDIER_DAMAGE = 0.12
 

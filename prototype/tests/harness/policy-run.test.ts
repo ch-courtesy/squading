@@ -206,8 +206,13 @@ describe('§4.1 `flees-always` on the three seeds', () => {
     // `seed-b`, which pure flight WON under v18's charger, is a defeat again at 2300. Over the
     // full eight-seed band `flees-always` is 0/8. `2010/220/0/03c47f20`, `2077/231/9/f3eca208`
     // (the win) and `2172/224/0/ff67e508` are what stood here.
+    //
+    // §1.4.1 v21 MOVED `seed-a` AND NOTHING ELSE. The dodge is gated on the player pressing in and
+    // on the command unit being inside 0.4 of the leash of the body that is swinging, and a
+    // fleeing squad satisfies all three only in passing — on `seed-a` it does, twice, and the run
+    // ends one tick earlier with one fewer kill. `2026/203/0/393274d4` is what stood here.
     expect(THREE_SEEDS.map((seed) => runPolicySeed(policyFactory('flees-always'), seed))).toEqual([
-      { seed: 'seed-a', outcome: 'lost', endTick: 2026, kills: 203, standing: 0, digest: '393274d4' },
+      { seed: 'seed-a', outcome: 'lost', endTick: 2009, kills: 202, standing: 0, digest: '6d595c9b' },
       { seed: 'seed-b', outcome: 'lost', endTick: 2300, kills: 214, standing: 0, digest: '558bc625' },
       { seed: 'seed-c', outcome: 'lost', endTick: 1928, kills: 189, standing: 0, digest: 'f49cec13' },
     ])

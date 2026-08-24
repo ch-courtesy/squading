@@ -34,6 +34,9 @@
 
 import {
   ARRIVE_EPSILON,
+  STANDOFF_COMMAND_FRACTION,
+  STANDOFF_MARGIN,
+  STANDOFF_WINDUP_TICKS,
   COMMANDER_MOVE_SPEED,
   FOLLOW_MAX_SPEED,
   SOLDIER_MOVE_SPEED,
@@ -41,7 +44,7 @@ import {
 import { stageOf } from './stages'
 import { FORMATION_SLOTS, findAssignment, slotPosition } from './formation'
 import { enemiesById, findEnemy } from './state'
-import { attackRangeOf, selectRankedEnemyId } from './targeting'
+import { attackRangeOf, isPressingIn, selectRankedEnemyId } from './targeting'
 import { followSpeedMultiplierOf, moveSpeedMultiplierOf } from './upgrades'
 import type { BattleState, EnemyUnit, FriendlyUnit, Vec2 } from './types'
 
@@ -309,13 +312,126 @@ function advanceEngagement(
   target: EnemyUnit,
   slotIndex: number,
   followSpeed: number,
+  enemies: readonly EnemyUnit[],
+  center: Vec2,
 ): void {
+  // §1.4.1 v21: the standoff outranks the goal. See `standoffRetreatOf`.
+  const retreat = standoffRetreatOf(state, unit, enemies, center)
+  if (retreat !== null) {
+    stepToward(state, unit, retreat, followSpeed)
+    return
+  }
   const goal = engagementGoalOf(state, unit, target, slotIndex)
   if (goal === null) {
     unit.lastDisplacement = 0
     return
   }
   stepToward(state, unit, goal, followSpeed)
+}
+
+/**
+ * §1.4.1 v21: where a RANGED soldier walks when something has got inside its range advantage —
+ * straight away from the nearest body, or null when nothing has.
+ *
+ * WHY IT EXISTS. v11's goal ring is measured against the unit's TARGET, and nothing else. A
+ * rifleman therefore stood at a perfect 5.0 from the body it was shooting while a melee brute
+ * walked into its face from another bearing, and it never moved, because the one body its movement
+ * rule looked at was still exactly where it wanted it. Played, that reads as a ranged class that
+ * does not use its range: "원거리 병종은 피해다니면서 쏴야지."
+ *
+ * It is the same correction §1.2.1's charge clause needed and for the same reason: the rule has to
+ * be about the FIGHT, not about one target.
+ *
+ * THE NEAR EDGE IS THE TRIGGER, and it is already the right number — `engagementBandOf`'s near
+ * edge is the stage's `shooterRange`, defined as the distance inside which the advantage is gone.
+ * A body closer than that is what "inside my advantage" means.
+ *
+ * ONLY A UNIT THAT HAS AN ADVANTAGE HOLDS ONE. When the band is degenerate (`far <= near`) the
+ * unit does not outrange the shooter, and §1.2.1's charger is exactly that case — its whole value
+ * is paid on the tick it MOVED TOWARD something. A charger that backed away would be a rifleman
+ * with a cleaver, so the guard below is what keeps the two classes different under one rule.
+ *
+ * IT CANNOT BECOME INVULNERABILITY, and that is a relation between constants rather than a hope:
+ * `meleeMoveSpeed` (0.14 at stage 1) is greater than `FOLLOW_MAX_SPEED` (0.13), asserted per
+ * stage in `stages.ts`. A retreating rifleman is always caught. What it buys is the shots it
+ * fires on the way — §1.3 fires while moving — and not escape.
+ */
+export function standoffRetreatOf(
+  state: BattleState,
+  unit: FriendlyUnit,
+  enemies: readonly EnemyUnit[],
+  center: Vec2,
+): Vec2 | null {
+  const [near, far] = engagementBandOf(state, unit)
+  if (far <= near) return null
+  // §1.4.1 v21: THE DODGE IS THE PLAYER'S, NOT THE SQUAD'S. Five autonomous shapes were measured
+  // and every one of them broke §3 — see this function's header for the table. The clause that
+  // works is §1.2.1's, unchanged and shared: the player is holding an axis, and it is not turned
+  // away from the fight. It is the same distinction for the same reason — a squad that dodges
+  // while nobody drives it is a squad that rewards doing nothing.
+  // BOTH readings of "pressing in", because each one alone leaves a way to flee into the dodge.
+  // §1.2.1's clause asks about the fight as a whole (the nearest body to the COMMAND unit) and on
+  // its own leaves §3's I8 at 1 of 8; the per-threat clause below asks about this one swing and on
+  // its own reads 2 of 8, because a fleeing squad is often running toward SOME body while the one
+  // at its heels swings. A squad that is genuinely pressing satisfies both.
+  // §1.11's lock counts as pressing in. The clause is about whether the PLAYER is committed to
+  // this fight, and a rescue is the most committed thing they can do — the command unit is stopped
+  // in the open, on purpose, next to a body. Measured: without this line the squad loses its dodge
+  // for the whole 45 ticks of every rescue, which is exactly the plays §3's I13 rewards, and I13
+  // read 2.88 against a floor of 3. The two policies that cannot reach it are the two that never
+  // rescue.
+  if (!isPressingIn(state) && !state.rescue.active) return null
+  const axis = state.input.move
+
+  // The body about to hit THIS soldier, not merely the nearest one. Both clauses matter: a body
+  // whose swing is not imminent is not something to dodge, and a body outside its own reach plus
+  // one step cannot land the swing wherever its cooldown stands.
+  let threat: EnemyUnit | null = null
+  let threatDistance = Infinity
+  for (const enemy of enemies) {
+    if (enemy.life !== 'standing') continue
+    if (enemy.attackCooldown > STANDOFF_WINDUP_TICKS) continue
+    const distance = Math.hypot(
+      enemy.position.x - unit.position.x,
+      enemy.position.y - unit.position.y,
+    )
+    // `enemy.ts` imports THIS module (`moveEnemyTowards`), so the reach is read off the stage
+    // here rather than through `enemyAttackRangeOf` — a type-only seam would not help, because
+    // this is a value call. The two readings are the same two fields.
+    const reach = enemy.kind === 'melee' ? stageOf(state).meleeRange : stageOf(state).shooterRange
+    if (distance > reach + STANDOFF_MARGIN) continue
+    if (distance < threatDistance) {
+      threatDistance = distance
+      threat = enemy
+    }
+  }
+  if (threat === null) return null
+  // AND THE AXIS IS NOT TURNED AWAY FROM THE BODY THAT IS SWINGING. §1.2.1's charge asks the same
+  // question about the nearest enemy to the COMMAND unit; a dodge is about one soldier and one
+  // swing, so it asks about that swing. Measured: the commander-nearest reading leaves §3's I8 at
+  // 1 of 8, because a fleeing squad runs PAST bodies and the one at its heels is not the one it
+  // is nearest to. Against the threat itself, running away fails the test where kiting passes it.
+  const towardX = threat.position.x - unit.position.x
+  const towardY = threat.position.y - unit.position.y
+  if (axis.x * towardX + axis.y * towardY < 0) return null
+  // AND THE COMMAND UNIT IS IN THIS FIGHT, not merely dragging it along behind. Two axis clauses
+  // still leave flight a way in: a squad running through a crowd is running TOWARD some of it, so
+  // both dot products can come out positive while the body the player is steering is at the far
+  // edge of the leash. Committed play puts the command unit near the bodies; flight does not.
+  const commandGap = Math.hypot(center.x - threat.position.x, center.y - threat.position.y)
+  if (commandGap > stageOf(state).leashRadius * STANDOFF_COMMAND_FRACTION) return null
+  const closest = threat
+
+  const dx = unit.position.x - closest.position.x
+  const dy = unit.position.y - closest.position.y
+  const length = Math.hypot(dx, dy)
+  // Standing exactly on the body has no away-direction. It is the one case where a retreat cannot
+  // be computed, and holding still is the honest answer rather than an invented bearing — the
+  // §1.4.1 bearing above takes the same position for the same reason.
+  if (length === 0) return null
+  // A point a full near-edge away, so the step below is never shortened by arriving: what limits
+  // the retreat is `followSpeed`, exactly as it limits every other friendly move.
+  return { x: unit.position.x + (dx / length) * far, y: unit.position.y + (dy / length) * far }
 }
 
 /**
@@ -362,7 +478,7 @@ export function advanceFormationFollow(state: BattleState): void {
     const engagementId = selectEngagementTargetIn(state, unit, enemies)
     const engagement = engagementId === null ? null : findEnemy(state, engagementId)
     if (engagement !== null) {
-      advanceEngagement(state, unit, engagement, assignment.slotIndex, followSpeed)
+      advanceEngagement(state, unit, engagement, assignment.slotIndex, followSpeed, enemies, center)
       continue
     }
 

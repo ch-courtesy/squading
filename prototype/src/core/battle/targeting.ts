@@ -98,6 +98,18 @@ export function attackIntervalOf(state: BattleState, unit: FriendlyUnit): number
 function isPressingCharge(state: BattleState, unit: FriendlyUnit): boolean {
   if (unit.lastDisplacement <= 0) return false
   if (unit.targetId === null) return false
+  return isPressingIn(state)
+}
+
+/**
+ * §1.2.1 and §1.4.1 v21's shared clause: is the PLAYER pressing into the fight this tick?
+ *
+ * Two conditions, and dropping either was measured to break a different invariant. See
+ * `isPressingCharge` above for the full argument — it was written for the charge and §1.4.1 v21's
+ * dodge needs exactly the same distinction, so it is one function and not two copies of one
+ * paragraph. A second copy is how the two rules come to disagree about what "pressing" means.
+ */
+export function isPressingIn(state: BattleState): boolean {
   const command = state.friendlies.find((body) => body.id === state.commandUnitId)
   if (!command) return false
   // THE NEAREST LIVE ENEMY, not the one this body happens to be hitting. Backing off is a fact

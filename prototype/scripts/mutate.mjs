@@ -498,6 +498,55 @@ const MUTATIONS = [
   // The batch H report records that run. With the fixtures in place all four are caught by
   // `tests/battle/battle-movement.test.ts` ALONE, which is the property that makes the verdict
   // legible: the failure names the rule instead of naming a hash.
+  // --- §1.4.1 v21: the dodge, and the five clauses that keep it the player's --------------------
+  {
+    file: MOVEMENT,
+    label: 'let the whole squad dodge with nobody driving it (§1.4.1 v21)',
+    find: '  if (!isPressingIn(state) && !state.rescue.active) return null',
+    replace: '  if (false) return null',
+  },
+  {
+    file: MOVEMENT,
+    label: 'dodge a swing that is not coming yet (§1.4.1 v21)',
+    find: '    if (enemy.attackCooldown > STANDOFF_WINDUP_TICKS) continue',
+    replace: '    if (false) continue',
+  },
+  {
+    file: MOVEMENT,
+    label: 'dodge a body far outside its own reach (§1.4.1 v21)',
+    find: '    if (distance > reach + STANDOFF_MARGIN) continue',
+    replace: '    if (false) continue',
+  },
+  {
+    file: MOVEMENT,
+    label: 'dodge while running away from the body that is swinging (§1.4.1 v21)',
+    find: '  if (axis.x * towardX + axis.y * towardY < 0) return null',
+    replace: '  if (false) return null',
+  },
+  {
+    file: MOVEMENT,
+    label: 'grant the dodge with the command unit nowhere near the fight (§1.4.1 v21)',
+    find: '  if (commandGap > stageOf(state).leashRadius * STANDOFF_COMMAND_FRACTION) return null',
+    replace: '  if (false) return null',
+  },
+  {
+    file: MOVEMENT,
+    label: 'give the charger a dodge, so closing costs it nothing (§1.2.1)',
+    find: '  const [near, far] = engagementBandOf(state, unit)\n  if (far <= near) return null',
+    replace: '  const [near, far] = engagementBandOf(state, unit)\n  if (far < near) return null',
+  },
+  {
+    file: MOVEMENT,
+    label: 'dodge INTO the swing instead of out of it (§1.4.1 v21)',
+    find: '  const dx = unit.position.x - closest.position.x\n  const dy = unit.position.y - closest.position.y',
+    replace: '  const dx = closest.position.x - unit.position.x\n  const dy = closest.position.y - unit.position.y',
+  },
+  {
+    file: MOVEMENT,
+    label: 'drop the dodge during a rescue, the play I13 rewards (§1.11)',
+    find: '  if (!isPressingIn(state) && !state.rescue.active) return null\n',
+    replace: '  if (!isPressingIn(state)) return null\n',
+  },
   {
     file: MOVEMENT,
     label: 'chase only the enemies OUTSIDE the leash',

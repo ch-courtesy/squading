@@ -16,6 +16,8 @@ import {
   FOLLOW_MAX_SPEED,
   SOLDIER_MOVE_SPEED,
   SOLDIER_RANGE,
+  STANDOFF_MARGIN,
+  STANDOFF_WINDUP_TICKS,
 } from '../../src/core/battle/constants'
 import { stageConfigOf } from '../../src/core/battle/stages'
 import { createBattle } from '../../src/core/battle/battle'
@@ -32,10 +34,13 @@ import {
   clampToArena,
   engagementBearingOf,
   moveEnemyTowards,
+  standoffRetreatOf,
   selectEngagementTargetId,
   stepMove,
 } from '../../src/core/battle/movement'
 import { createEnemy, createInitialBattleState, findFriendly ,
+  CHARGER_IDS,
+  COMMANDER_ID,
   RIFLEMAN_IDS,
 } from '../../src/core/battle/state'
 import type { BattleState , Vec2 } from '../../src/core/battle/types'
@@ -52,6 +57,7 @@ const {
   leashRadius: LEASH_RADIUS,
   meleeMoveSpeed: MELEE_MOVE_SPEED,
   shooterRange: SHOOTER_RANGE,
+  meleeRange: MELEE_RANGE,
 } = stageConfigOf(1)
 
 function slotTarget(state: BattleState, unitId: number): { x: number; y: number } {
@@ -840,5 +846,98 @@ describe('§1.7 moveEnemyTowards', () => {
     enemy.position = { x: ARENA_WIDTH - 0.02, y: 16 }
     expect(moveEnemyTowards(state, enemy, { x: 60, y: 16 }, MELEE_MOVE_SPEED)).toBeCloseTo(0.02, 10)
     expect(enemy.position.x).toBe(ARENA_WIDTH)
+  })
+})
+
+describe('§1.4.1 v21 the ranged dodge, and the four clauses that keep it the player\'s', () => {
+  /**
+   * A rifleman with one melee body about to swing at it, the command unit standing beside them,
+   * and the player holding an axis into the fight. Everything below varies exactly one of those.
+   */
+  function board(): { state: BattleState; rifle: ReturnType<typeof findFriendly>; enemy: ReturnType<typeof createEnemy> } {
+    const state = createInitialBattleState('seed-a')
+    state.mode = 'running'
+    const rifle = findFriendly(state, RIFLEMAN_IDS[0])!
+    rifle.position = { x: 28, y: 16 }
+    const command = findFriendly(state, COMMANDER_ID)!
+    command.position = { x: 28, y: 16 }
+    const enemy = createEnemy(state, 101, 'melee', { x: 28.7, y: 16 })
+    enemy.attackCooldown = 0
+    state.enemies = [enemy]
+    state.input.move = { x: 1, y: 0 }
+    return { state, rifle, enemy }
+  }
+
+  const retreat = (b: ReturnType<typeof board>) =>
+    standoffRetreatOf(b.state, b.rifle!, b.state.enemies, findFriendly(b.state, COMMANDER_ID)!.position)
+
+  it('steps a rifleman out of a swing that is about to land', () => {
+    const b = board()
+    const goal = retreat(b)
+    expect(goal).not.toBeNull()
+    // AWAY from the body, which is the whole of the direction: the enemy is at +x, so the goal is
+    // at -x of the soldier. A test on "is not null" alone would pass for a rule that walked in.
+    expect(goal!.x).toBeLessThan(b.rifle!.position.x)
+    expect(goal!.y).toBeCloseTo(b.rifle!.position.y, 12)
+  })
+
+  it('does not dodge a swing that is not coming yet', () => {
+    // §1.4.1 v21's first clause. Without it the squad backs away from everything all the time,
+    // which is the shape that put §3's I8 at 6-8 of 8 in every autonomous form that was measured.
+    const b = board()
+    b.enemy.attackCooldown = STANDOFF_WINDUP_TICKS + 1
+    expect(retreat(b)).toBeNull()
+  })
+
+  it('does not dodge a body that is too far away to land it', () => {
+    const b = board()
+    b.enemy.position = { x: 28 + MELEE_RANGE + STANDOFF_MARGIN + 0.01, y: 16 }
+    expect(retreat(b)).toBeNull()
+  })
+
+  it('gives no dodge to a hand that is off the keys', () => {
+    // The clause §1.2.1 already owns, shared rather than copied. A squad that dodges while nobody
+    // drives it rewards doing nothing, and `tactical-no-input` measured 1-2 of 8 wins on exactly
+    // that before this line existed.
+    const b = board()
+    b.state.input.move = { x: 0, y: 0 }
+    expect(retreat(b)).toBeNull()
+  })
+
+  it('gives no dodge to a squad running away from the body that is swinging', () => {
+    const b = board()
+    b.state.input.move = { x: -1, y: 0 }
+    expect(retreat(b)).toBeNull()
+  })
+
+  it('gives no dodge when the command unit is not in this fight', () => {
+    // The clause that took §3's I8 from 2/16 back to 0/16. Both axis tests can come out positive
+    // for a squad running THROUGH a crowd — it is moving toward some of it — while the body the
+    // player actually steers is at the far edge of the leash. Measured over sixteen fresh seeds.
+    const b = board()
+    const command = findFriendly(b.state, COMMANDER_ID)!
+    command.position = { x: 28 - LEASH_RADIUS * 0.9, y: 16 }
+    expect(retreat(b)).toBeNull()
+  })
+
+  it('gives no dodge to a charger, whose whole value is closing (§1.2.1)', () => {
+    // The band guard. A charger does not outrange the shooter, so `engagementBandOf` collapses and
+    // it has no advantage to hold — and its strong blow is paid on the tick it MOVED TOWARD
+    // something. A charger that backed off would be a rifleman with a cleaver.
+    const b = board()
+    const charger = findFriendly(b.state, CHARGER_IDS[0])!
+    charger.position = { x: 28, y: 16 }
+    expect(
+      standoffRetreatOf(b.state, charger, b.state.enemies, findFriendly(b.state, COMMANDER_ID)!.position),
+    ).toBeNull()
+  })
+
+  it('dodges during a rescue, which is the most committed thing the player can do (§1.11)', () => {
+    // Measured: without this the squad loses its dodge for all 45 ticks of every rescue — the
+    // plays §3's I13 exists to reward — and I13 read 2.88 against a floor of 3.
+    const b = board()
+    b.state.input.move = { x: 0, y: 0 }
+    b.state.rescue = { active: true, targetId: RIFLEMAN_IDS[1], progress: 3 }
+    expect(retreat(b)).not.toBeNull()
   })
 })
