@@ -56,9 +56,11 @@ const TOTAL_VOICE_BUDGET = 10
 type Bgm = {
   readonly gain: GainNode
   readonly bass: OscillatorNode
-  readonly pad: OscillatorNode
-  readonly padGain: GainNode
   readonly bassGain: GainNode
+  /** Three detuned saws, one per chord tone, through one lowpass. */
+  readonly voices: readonly OscillatorNode[]
+  readonly padGain: GainNode
+  readonly padFilter: BiquadFilterNode
   /** The pulse timer's next beat, in context time. */
   nextBeatAt: number
   beat: number
@@ -88,15 +90,36 @@ export type BattleAudio = {
 export type CueName = 'upgrade' | 'victory' | 'defeat' | 'ui'
 
 /**
- * The music, in one sentence: a two-note bass pulse under a slow pad, whose TEMPO and BRIGHTNESS
- * follow the board.
+ * The music: a pulse, a chord that moves, and a tick — whose TEMPO and BRIGHTNESS follow the board.
  *
  * It is not a loop of recorded music and it deliberately has no melody. A melody is a thing the
  * player hears the second time and the tenth time, and this runs for seven stages; a pulse that
  * tightens as the board fills reads as pressure rather than as a track.
+ *
+ * THE FIRST VERSION WAS INAUDIBLE, and the reason is worth writing down because it is not a bug
+ * anyone hears as a bug. It was a 55 Hz bass under an 82 Hz pad through a 220 Hz lowpass — which
+ * is a correct description of music that no laptop speaker can reproduce. Small drivers roll off
+ * hard below roughly 150-200 Hz, so the whole arrangement fell into the part of the spectrum the
+ * hardware discards, and the game had no music while every node in the graph ran. "Sound is
+ * playing" and "sound can be heard" are different claims, and a node count can only make the
+ * first. The voices below sit where a laptop can play them, and `tests/battle-audio.spec.ts`
+ * renders the graph offline and measures the energy above 200 Hz rather than trusting this
+ * paragraph.
  */
-const BGM_ROOT_HZ = 55 // A1
-const BGM_FIFTH_HZ = 82.41 // E2
+/** A2. The pulse. Low, but a triangle, so its harmonics reach a small speaker. */
+const BGM_ROOT_HZ = 110
+/**
+ * The chord, two of them, alternating every `BGM_CHORD_BEATS`.
+ *
+ * A minor and F major share two notes, so the move is a colour change rather than a progression
+ * going somewhere — which is what a drone that runs for seven stages needs. In the register a
+ * laptop actually reproduces: A3/C4/E4 and F3/A3/C4.
+ */
+const BGM_CHORDS: readonly (readonly number[])[] = [
+  [220, 261.63, 329.63],
+  [174.61, 220, 261.63],
+]
+const BGM_CHORD_BEATS = 8
 const BGM_MIN_BEAT_MS = 300
 const BGM_MAX_BEAT_MS = 620
 /** Enemy count at which the pulse is at its fastest. Above this it does not tighten further. */
@@ -267,20 +290,29 @@ export function createBattleAudio(): BattleAudio {
     if (bgm) return
     const gain = ctx.createGain()
     gain.gain.value = 0.0001
-    gain.gain.exponentialRampToValueAtTime(0.5, ctx.currentTime + 1.6)
+    gain.gain.exponentialRampToValueAtTime(0.6, ctx.currentTime + 1.6)
     gain.connect(master!)
 
-    const padGain = ctx.createGain()
-    padGain.gain.value = 0.06
-    const pad = ctx.createOscillator()
-    pad.type = 'sawtooth'
-    pad.frequency.value = BGM_FIFTH_HZ
+    // The chord. Sawtooth through a lowpass that OPENS with the board — the filter is the whole
+    // of the dynamics, so the music gets brighter under pressure without getting louder.
     const padFilter = ctx.createBiquadFilter()
     padFilter.type = 'lowpass'
-    padFilter.frequency.value = 220
-    padFilter.Q.value = 3
-    pad.connect(padGain).connect(padFilter).connect(gain)
-    pad.start()
+    padFilter.frequency.value = 700
+    padFilter.Q.value = 0.9
+    const padGain = ctx.createGain()
+    padGain.gain.value = 0.09
+    padFilter.connect(padGain).connect(gain)
+
+    const voices = BGM_CHORDS[0].map((hz, index) => {
+      const osc = ctx.createOscillator()
+      osc.type = 'sawtooth'
+      // A few cents apart per voice. Three saws exactly in tune are one saw; detuned, they beat
+      // against each other and the chord has width without a reverb to pay for.
+      osc.frequency.value = hz * (1 + (index - 1) * 0.0016)
+      osc.connect(padFilter)
+      osc.start()
+      return osc
+    })
 
     const bassGain = ctx.createGain()
     bassGain.gain.value = 0.0001
@@ -290,8 +322,9 @@ export function createBattleAudio(): BattleAudio {
     bass.connect(bassGain).connect(gain)
     bass.start()
 
-    bgm = { gain, bass, pad, padGain, bassGain, nextBeatAt: ctx.currentTime, beat: 0 }
+    bgm = { gain, bass, bassGain, voices, padGain, padFilter, nextBeatAt: ctx.currentTime, beat: 0 }
   }
+
 
   /**
    * Move the music with the board: the pulse tightens as enemies fill it, and the pad opens as the
@@ -315,14 +348,14 @@ export function createBattleAudio(): BattleAudio {
     }
     const pressure = clamp01(enemies / BGM_PRESSURE_ENEMIES)
     const beatMs = BGM_MAX_BEAT_MS - (BGM_MAX_BEAT_MS - BGM_MIN_BEAT_MS) * pressure
-    // A body on the ground is the loudest thing the music can say without a voice: the pad opens
-    // and the fifth bends, so "someone is down" is audible with the eyes elsewhere (§1.11).
+    // A body on the ground is the loudest thing the music can say without a voice: the filter
+    // opens, so "someone is down" is audible with the eyes elsewhere (§1.11).
     const urgency = friendlyDown > 0 ? 1 : 0
-    bgm.padGain.gain.setTargetAtTime(0.05 + urgency * 0.07 + pressure * 0.03, ctx.currentTime, 0.4)
-    bgm.pad.frequency.setTargetAtTime(urgency ? BGM_FIFTH_HZ * 1.06 : BGM_FIFTH_HZ, ctx.currentTime, 0.6)
+    bgm.padFilter.frequency.setTargetAtTime(620 + pressure * 900 + urgency * 700, ctx.currentTime, 0.5)
+    bgm.padGain.gain.setTargetAtTime(0.085 + urgency * 0.035, ctx.currentTime, 0.6)
     // A squad down to its last few is a quieter board, not a busier one.
-    const thin = friendlyStanding <= 4 ? 0.6 : 1
-    bgm.gain.gain.setTargetAtTime(0.5 * thin, ctx.currentTime, 0.8)
+    const thin = friendlyStanding <= 4 ? 0.7 : 1
+    bgm.gain.gain.setTargetAtTime(0.6 * thin, ctx.currentTime, 0.8)
 
     // Schedule the beats that fall inside the next second. Scheduling AHEAD rather than on the
     // frame is what keeps the pulse steady while frames jitter — a beat placed at `currentTime`
@@ -334,12 +367,23 @@ export function createBattleAudio(): BattleAudio {
       bgm.bass.frequency.setValueAtTime(strong ? BGM_ROOT_HZ : BGM_ROOT_HZ * 1.5, at)
       bgm.bassGain.gain.cancelScheduledValues(at)
       bgm.bassGain.gain.setValueAtTime(0.0001, at)
-      bgm.bassGain.gain.exponentialRampToValueAtTime(strong ? 0.5 : 0.28, at + 0.02)
+      bgm.bassGain.gain.exponentialRampToValueAtTime(strong ? 0.34 : 0.2, at + 0.02)
       bgm.bassGain.gain.exponentialRampToValueAtTime(0.0001, at + (strong ? 0.34 : 0.2))
+
+      // The chord moves on the bar, not on the beat, and it MOVES rather than repeats: two
+      // triads sharing two notes, so the third is the only thing that walks.
+      if (bgm.beat % BGM_CHORD_BEATS === 0) {
+        const chord = BGM_CHORDS[(bgm.beat / BGM_CHORD_BEATS) % BGM_CHORDS.length]
+        bgm.voices.forEach((osc, index) => {
+          osc.frequency.setTargetAtTime(chord[index] * (1 + (index - 1) * 0.0016), at, 0.25)
+        })
+      }
+
       bgm.beat += 1
       bgm.nextBeatAt = at + beatMs / 1000
     }
   }
+
 
   const stopBgm = (): void => {
     if (!bgm || !context) return
@@ -348,7 +392,7 @@ export function createBattleAudio(): BattleAudio {
     bgm.gain.gain.setValueAtTime(Math.max(0.0001, bgm.gain.gain.value), at)
     bgm.gain.gain.exponentialRampToValueAtTime(0.0001, at + 0.25)
     bgm.bass.stop(at + 0.3)
-    bgm.pad.stop(at + 0.3)
+    for (const osc of bgm.voices) osc.stop(at + 0.3)
     bgm = null
   }
 
