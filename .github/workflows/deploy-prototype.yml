@@ -54,11 +54,15 @@ jobs:
             pages_path="/$repository_name/"
           fi
           echo "url=http://127.0.0.1:4173$pages_path" >> "$GITHUB_OUTPUT"
+      # The BUILD and the BASE PATH, not the gameplay suite a second time. Most specs read
+      # `__SQUADING_TEST__` or import from `/src`, both of which exist only on the dev server, and
+      # they skip themselves on this flag rather than reporting a wall of "failed to fetch".
       - name: Test production Pages base
         env:
           PLAYWRIGHT_BASE_URL: ${{ steps.pages-url.outputs.url }}
           PLAYWRIGHT_SERVER_URL: ${{ steps.pages-url.outputs.url }}
           PLAYWRIGHT_SERVER_COMMAND: npm run preview:pages
+          PLAYWRIGHT_PRODUCTION: '1'
         run: npm run test:e2e -- --workers=1
       - name: Configure Pages
         uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6

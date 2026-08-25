@@ -1,5 +1,17 @@
 import { expect, test, type Page } from '@playwright/test'
 
+// DEV-ONLY SURFACE. This file reaches for `__SQUADING_TEST__` (mounted behind `import.meta.env.DEV`
+// and kept out of a production bundle by `assert-no-test-bridge.mjs`) or imports modules from
+// `/src`, which exists on the dev server and nowhere in `dist`. Against a built site both are
+// simply absent, so the run reports a wall of "failed to fetch" and timeouts that say nothing
+// about the build.
+//
+// The production pass is a check on the BUILD and the Pages BASE PATH — that the bundle loads and
+// runs where it will be served from. What it is not is a second run of the gameplay suite, which
+// has already run against the dev server in the step before it.
+test.skip(process.env.PLAYWRIGHT_PRODUCTION === '1', 'reads dev-only surface (see the note at the top of this file)')
+
+
 // These tests read the real Three.js scene graph through the dev-only
 // `__SQUADING_TEST__` bridge, because a canvas cannot tell us whether the elite
 // telegraph is a flat 2-unit circle or whether a downed card is actually laid

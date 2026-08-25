@@ -60,7 +60,11 @@ test('names the game on the screen the player starts from', async ({ page }) => 
   // The start screen carried a label over a description — "SQUAD SURVIVOR" small, the mode name
   // large — which is a screen with no name on it. Both the heading and the tab say Squading now,
   // and the tab matters as much: it is the name on a bookmark and on a shared link.
-  await page.goto('/')
+  // RELATIVE, not `/`. On Pages the app is served from `/<repo>/`, and an absolute path replaces
+  // that prefix instead of joining it — the production pass then loads a page that is not the app
+  // and reports "element not found". Every other navigation in this suite is relative for the
+  // same reason.
+  await page.goto('./')
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Squading')
   await expect(page).toHaveTitle(/Squading/)
   // The description survived, under the name rather than over it.

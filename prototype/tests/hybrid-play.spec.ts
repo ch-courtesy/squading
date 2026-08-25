@@ -1,5 +1,12 @@
 import { expect, test } from '@playwright/test'
 
+// DEV-ONLY SURFACE. `__TABLETOP_DIAGNOSTICS__.advance` is mounted behind `import.meta.env.DEV`
+// (see `app-shell.ts`), so a built site has the diagnostics object without the stepping hook this
+// file drives the run with. The production pass checks the BUILD and the Pages BASE PATH; the
+// gameplay it would re-check has already run against the dev server one step earlier.
+test.skip(process.env.PLAYWRIGHT_PRODUCTION === '1', 'drives the dev-only diagnostics stepper')
+
+
 type PlayDiagnostics = {
   readonly activeSquad: 'teal' | 'scarlet'
   readonly tick: number
