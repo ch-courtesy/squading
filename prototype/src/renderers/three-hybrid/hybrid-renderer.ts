@@ -2501,8 +2501,32 @@ class ThreeHybridRenderer implements HybridGameRenderer {
 
   private describeUnit(unit: RenderUnit, visual: UnitVisual | undefined) {
     if (!visual || !this.camera || !this.renderer) return { id: unit.id, x: unit.x, y: unit.y, tint: TEAM_TINTS[unit.team], billboard: false, facesCamera: false, screenY: 0, screenHeight: 0, kind: unit.kind, state: unit.state, cardCenter: { x: 0, y: 0, z: 0 }, shadowNormalY: 0, markerNormalY: 0, shadowFootprint: { x: 0, z: 0 } }
-    const bottom = visual.card.localToWorld(new THREE.Vector3(0, -0.55, 0)).project(this.camera)
-    const top = visual.card.localToWorld(new THREE.Vector3(0, 0.55, 0)).project(this.camera)
+    // HOW TALL IS THIS BODY ON SCREEN — measured from the card's own bounding box, projected.
+    //
+    // It used to project two hand-picked local points, `(0, ±0.55, 0)`. That is the height of the
+    // billboard quad in ITS OWN space, and it is only the height on SCREEN when the card's local
+    // Y happens to point up the screen. Measured, it does not: in the renderer lab every unit
+    // reported a `screenHeight` of about 1e-15 — the two points project to the same place, because
+    // the offset lies along the view axis and an orthographic camera flattens it. The ratio the
+    // fixture asserts on was 5.6e-15 over 1.9e-15, which is 3 for the same reason any two
+    // floating-point zeros have a ratio.
+    //
+    // A bounding box has no orientation to get wrong. It costs a traversal per unit and this runs
+    // only when `getDiagnostics()` is called, never in a frame.
+    const box = new THREE.Box3().setFromObject(visual.card)
+    let minY = Infinity
+    let maxY = -Infinity
+    for (let corner = 0; corner < 8; corner += 1) {
+      const point = new THREE.Vector3(
+        corner & 1 ? box.max.x : box.min.x,
+        corner & 2 ? box.max.y : box.min.y,
+        corner & 4 ? box.max.z : box.min.z,
+      ).project(this.camera)
+      if (point.y < minY) minY = point.y
+      if (point.y > maxY) maxY = point.y
+    }
+    const bottom = { y: minY }
+    const top = { y: maxY }
     const cardCenter = visual.card.getWorldPosition(new THREE.Vector3())
     const center = cardCenter.clone().project(this.camera)
     const canvasHeight = this.renderer.domElement.getBoundingClientRect().height || this.viewportHeight
