@@ -7,6 +7,7 @@ import { projectBattleHud, type BattleHud } from '../../src/core/battle-view/hud
 import { projectBattleSnapshot } from '../../src/core/battle-view/snapshot'
 import { projectCampaignHud } from '../../src/core/campaign-view/hud'
 import { createCampaignState, type CampaignState } from '../../src/core/campaign/state'
+import type { BattleAudio } from '../../src/audio/battle-audio'
 import type { BattleController } from '../../src/app/battle/battle-controller'
 import { mountApp } from '../../src/app/battle/battle-shell'
 
@@ -18,6 +19,7 @@ type Calls = {
   upgrades: number[]
   keysDown: string[]
   keysUp: string[]
+  cues: string[]
 }
 
 type Stub = {
@@ -35,13 +37,27 @@ function stubController(initial: BattleState): Stub {
     upgrades: [],
     keysDown: [],
     keysUp: [],
+    cues: [],
   }
+  let audioOn = true
   let state = initial
   let campaign = createCampaignState('stub')
   const listeners = new Set<(hud: BattleHud) => void>()
 
+  // A recording stand-in for the board's sound: the shell owns a mute toggle, so what this
+  // fixture needs is a place for those calls to land, not an `AudioContext`.
+  const audio: BattleAudio = {
+    resume: async () => {},
+    playFrame: () => {},
+    cue: (name) => { calls.cues.push(name) },
+    enabled: () => audioOn,
+    setEnabled: (next) => { audioOn = next; return audioOn },
+    dispose: () => {},
+  }
+
   const controller: BattleController = {
     start: async () => {},
+    audio: () => audio,
     begin: () => {
       calls.begin += 1
     },

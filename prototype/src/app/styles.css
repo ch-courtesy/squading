@@ -540,6 +540,24 @@ select {
   cursor: pointer;
 }
 
+/* The sound toggle is secondary to 전투 시작, so it is outlined rather than filled. */
+.bt-sound {
+  min-height: 2.25rem;
+  margin-top: 0.75rem;
+  padding: 0.4rem 1.25rem;
+  border: 1px solid #6d6552;
+  border-radius: 0.5rem;
+  color: #d8cfb8;
+  background: transparent;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.bt-sound[aria-pressed='false'] {
+  color: #8b8471;
+  border-color: #4c4638;
+}
+
 .bt-hud {
   position: absolute;
   top: 1rem;

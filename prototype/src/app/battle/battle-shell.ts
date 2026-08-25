@@ -72,8 +72,10 @@ function skeleton(): string {
           <div><dt>구조</dt><dd>쓰러진 병사 곁에서 Space 유지</dd></div>
           <div><dt>강화</dt><dd>1 2 3</dd></div>
           <div><dt>일시정지</dt><dd>Escape</dd></div>
+          <div><dt>소리</dt><dd>M</dd></div>
         </dl>
         <button type="button" class="bt-start" data-battle-begin>전투 시작</button>
+        <button type="button" class="bt-sound" data-battle-sound aria-pressed="true">소리 켜짐</button>
       </section>
 
       <section class="bt-hud" data-battle-hud hidden>
@@ -207,6 +209,29 @@ export function mountApp(root: HTMLElement, dependencies: BattleAppDependencies 
     })
 
   pick<HTMLButtonElement>('[data-battle-begin]').addEventListener('click', () => controller.begin())
+
+  /**
+   * The sound toggle, in one place.
+   *
+   * The button and the `M` key are the same call rather than two, because two would let the label
+   * and the state disagree the first time only one of them was updated — `setEnabled` returns the
+   * new state so there is nothing here to keep in sync.
+   */
+  const soundButton = pick<HTMLButtonElement>('[data-battle-sound]')
+  const renderSound = (enabled: boolean): void => {
+    soundButton.textContent = enabled ? '소리 켜짐' : '소리 꺼짐'
+    soundButton.setAttribute('aria-pressed', String(enabled))
+  }
+  const toggleSound = (): void => {
+    const audio = controller.audio()
+    const next = audio.setEnabled(!audio.enabled())
+    // A player who turns sound ON before the battle starts has given the gesture the autoplay
+    // policy wants, so this is also a legitimate place to open the context.
+    if (next) void audio.resume()
+    renderSound(next)
+  }
+  soundButton.addEventListener('click', toggleSound)
+  renderSound(controller.audio().enabled())
   pick<HTMLButtonElement>('[data-battle-resume]').addEventListener('click', () => controller.togglePause())
   // Campaign §1.4: 다시 시작 is a new campaign from stage 1, not a retry of the stage that ended.
   pick<HTMLButtonElement>('[data-battle-restart]').addEventListener('click', () => controller.restart())
@@ -233,6 +258,15 @@ export function mountApp(root: HTMLElement, dependencies: BattleAppDependencies 
   stage.addEventListener('pointerup', endDrag)
   stage.addEventListener('pointercancel', endDrag)
   stage.addEventListener('pointerleave', endDrag)
+
+  // §1.15 owns the keys the BATTLE reads and `M` is not one of them. Muting is a property of this
+  // shell, not of the run: routed through `controller.keyDown` it would be refused by the adapter's
+  // own allow-list anyway, and if it were not, it would land in §4.3's input log and move the
+  // digest — a replay that muted itself is a different recording of the same battle.
+  window.addEventListener('keydown', (event) => {
+    if (event.code !== 'KeyM' || event.repeat) return
+    toggleSound()
+  })
 
   createBattleInputAdapter({
     keyDown: (code) => controller.keyDown(code),

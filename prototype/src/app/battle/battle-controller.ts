@@ -30,6 +30,7 @@
 // a driver that gets this wrong; `tests/app/battle-controller.test.ts` and §4.4's browser gate
 // are what stand there instead.
 
+import { createBattleAudio, type BattleAudio } from '../../audio/battle-audio'
 import type { Battle } from '../../core/battle/battle'
 import type { PointerPhase } from '../../core/battle/input'
 import type { Vec2 } from '../../core/battle/types'
@@ -120,10 +121,24 @@ export type BattleControllerOptions = {
   readonly isVisible?: () => boolean
   readonly now?: () => number
   readonly onError?: (error: Error) => void
+  /**
+   * The audio engine, or a silent stand-in.
+   *
+   * A parameter rather than a module-level singleton for the reason every other seam here is one:
+   * a test that constructed a real `AudioContext` in jsdom would either fail or leave one open per
+   * case. The default is the real thing, which itself degrades to silence where `AudioContext`
+   * does not exist — so the shell passes nothing and gets sound in a browser and quiet elsewhere.
+   */
+  readonly audio?: BattleAudio
 }
 
 export interface BattleController {
   start(): Promise<void>
+  /**
+   * The board's sound (§액션 피드백). Exposed so the shell can put a toggle on it, and injectable
+   * through `BattleControllerOptions.audio` so a test drives a silent one.
+   */
+  audio(): BattleAudio
   /** §1.15 has no "start" command: `ready -> running` is the facade's own verb. */
   begin(): void
   /** Campaign §1.4: a restart is a NEW CAMPAIGN from stage 1. There is no stage retry. */
@@ -334,6 +349,30 @@ export function createBattleController(options: BattleControllerOptions): Battle
     if (document.hidden) pauseIfRunning()
   }
 
+  const audio = options.audio ?? createBattleAudio()
+  /**
+   * The mode and result the last frame ENDED on, so a transition can be heard once.
+   *
+   * The card screen, the win and the loss are not blows and the board publishes no event for
+   * them — they are changes of `mode`, and the only way to sound them once is to notice the edge.
+   */
+  let lastMode: BattleHud['mode'] | null = null
+  let lastResult: BattleHud['result'] = null
+
+  /** The one-shots that belong to a CHANGE rather than to a blow. */
+  const cueTransitions = (): void => {
+    const state = battle.state()
+    if (state.mode !== lastMode) {
+      if (state.mode === 'awaiting-upgrade') audio.cue('upgrade')
+      lastMode = state.mode
+    }
+    if (state.result !== lastResult) {
+      if (state.result === 'won') audio.cue('victory')
+      else if (state.result === 'lost') audio.cue('defeat')
+      lastResult = state.result
+    }
+  }
+
   /** The phase timings of the frame being drawn right now, reset at its head. */
   let phase = { steps: 0, sim: 0, project: 0, draw: 0, hud: 0, events: 0 }
 
@@ -359,6 +398,9 @@ export function createBattleController(options: BattleControllerOptions): Battle
     phase.project = beforeDraw - beforeProject
     phase.events = view.actionEvents?.length ?? 0
     renderer!.render(view, alpha)
+    // AFTER the draw and off the same projection. Audio reads what was just drawn, never the
+    // authority — see `battle-audio.ts` for why that boundary is the whole of its contract.
+    audio.playFrame(view)
     phase.draw = now() - beforeDraw
   }
 
@@ -410,6 +452,7 @@ export function createBattleController(options: BattleControllerOptions): Battle
         phase.sim = now() - beforeSim
       }
       lastFrameAt = timestamp
+      cueTransitions()
       drawFrame(interpolationAlpha(accumulatorMs))
       notifyTimed()
       recordFrame(startedAt)
@@ -473,6 +516,9 @@ export function createBattleController(options: BattleControllerOptions): Battle
   return {
     start,
     begin(): void {
+      // The gesture that starts the battle is the gesture the autoplay policy wants, and it is the
+      // only one the shell is guaranteed to get. `resume` is a no-op if it has already run.
+      void audio.resume()
       battle.start()
       notify()
     },
@@ -527,10 +573,12 @@ export function createBattleController(options: BattleControllerOptions): Battle
       send({ kind: 'command', command: { kind: 'toggle-pause' } })
       notify()
     },
+    audio: () => audio,
     inputLog: () => inputLog,
     stepCount: () => steps,
     frameSamples: () => frameSamples,
     dispose(): void {
+      audio.dispose()
       const cleanupError = stopActive()
       if (cleanupError) options.onError?.(cleanupError)
     },

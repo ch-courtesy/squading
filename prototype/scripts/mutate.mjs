@@ -148,6 +148,8 @@ const TARGET_TESTS = [
   'tests/battle-view/battle-snapshot.test.ts',
   // §1.13 v2's level has to reach the SCREEN; this is the only file that reads it there.
   'tests/battle-view/battle-hud.test.ts',
+  // §액션 피드백's audio half. Display-only, but the budget and the once-per-tick rule are rules.
+  'tests/audio/battle-audio.test.ts',
 ]
 
 const VIEW = 'src/core/harness/policy/view.ts'
@@ -160,6 +162,7 @@ const ATTACKS = 'src/core/battle/attacks.ts'
 const TARGETING = 'src/core/battle/targeting.ts'
 const SNAPSHOT = 'src/core/battle-view/snapshot.ts'
 const HUD = 'src/core/battle-view/hud.ts'
+const AUDIO = 'src/audio/battle-audio.ts'
 const STATE = 'src/core/battle/state.ts'
 const UPGRADES = 'src/core/battle/upgrades.ts'
 const SPAWN = 'src/core/battle/spawn.ts'
@@ -948,6 +951,30 @@ const MUTATIONS = [
     label: 'spend a level on an additive card without counting it (§1.13 v2)',
     find: '    ? 1 + CARD_EFFECTS[card] * level',
     replace: '    ? 1 + CARD_EFFECTS[card]',
+  },
+  {
+    file: AUDIO,
+    label: 'start a voice per shot, so a volley is static (§액션 피드백)',
+    find: '        if (used >= VOICE_BUDGET[event.kind]) continue',
+    replace: '        if (false) continue',
+  },
+  {
+    file: AUDIO,
+    label: 'drop the total voice budget, leaving only the per-kind one',
+    find: '        if (total >= TOTAL_VOICE_BUDGET) break',
+    replace: '        if (false) break',
+  },
+  {
+    file: AUDIO,
+    label: 'sound the same frame again every time it is read',
+    find: '      if (snapshot.tick === lastTick) return',
+    replace: '      if (false) return',
+  },
+  {
+    file: AUDIO,
+    label: 'go on playing after the player muted it',
+    find: '    if (disposed || !on || !context || !master) return null',
+    replace: '    if (disposed || !context || !master) return null',
   },
   {
     file: HUD,
