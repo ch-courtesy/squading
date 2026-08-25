@@ -122,6 +122,43 @@ function skeleton(): string {
         <button type="button" data-campaign-next>스테이지 <span data-campaign-next-stage></span> 시작</button>
       </section>
 
+      <!--
+        THE ENDING, and it is its own screen for a reason. A campaign that ran all seven stages and
+        a campaign that died in stage 2 both leave the battle at won/lost, and putting them in one
+        panel makes finishing the game look like losing it with a different heading. This one is
+        shown for exactly one state: a campaign whose end is "complete".
+      -->
+      <section class="bt-overlay bt-ending" data-campaign-ending role="dialog" aria-modal="true" aria-labelledby="bt-ending-title" hidden>
+        <div class="bt-ending-scroll">
+          <p class="bt-eyebrow bt-ending-step" style="--step: 1">일곱 판</p>
+          <h2 id="bt-ending-title" class="bt-ending-step" style="--step: 2">분대가 끝까지 갔다</h2>
+
+          <ol class="bt-ending-stages bt-ending-step" style="--step: 3" data-campaign-ending-stages></ol>
+
+          <dl class="bt-result-stats bt-ending-step" style="--step: 4">
+            <div><dt>누적 처치</dt><dd data-campaign-ending-kills></dd></div>
+            <div><dt>끝까지 선 인원</dt><dd data-campaign-ending-survivor-count></dd></div>
+            <div><dt>잃은 인원</dt><dd data-campaign-ending-lost-count></dd></div>
+          </dl>
+
+          <h3 class="bt-ending-step" style="--step: 5">돌아온 사람</h3>
+          <ul class="bt-record bt-ending-step" style="--step: 5" data-campaign-ending-survivors></ul>
+
+          <!--
+            §1.14 keeps every name, the tick it fell on and the stage it fell in. The memorial is
+            the reason those three fields are in the authoritative state at all, and an ending that
+            printed a casualty COUNT would throw away what the spec kept them for.
+          -->
+          <h3 class="bt-ending-step" style="--step: 6">돌아오지 못한 사람</h3>
+          <ul class="bt-record bt-ending-memorial bt-ending-step" style="--step: 6" data-campaign-ending-fallen></ul>
+
+          <h3 class="bt-ending-step" style="--step: 7">분대가 들고 끝낸 것</h3>
+          <p class="bt-ending-cards bt-ending-step" style="--step: 7" data-campaign-ending-cards></p>
+
+          <button type="button" class="bt-ending-step" style="--step: 8" data-campaign-ending-restart>다시 시작</button>
+        </div>
+      </section>
+
       <section class="bt-overlay bt-terminal" data-battle-terminal role="dialog" aria-modal="true" aria-label="전투 결과" hidden>
         <h2 data-battle-result-title></h2>
         <p data-battle-result-cause></p>
@@ -196,6 +233,14 @@ export function mountApp(root: HTMLElement, dependencies: BattleAppDependencies 
   const campaignTotalKills = pick('[data-campaign-total-kills]')
   const campaignHeldCards = pick('[data-campaign-held-cards]')
   const campaignFallen = pick('[data-campaign-fallen]')
+  const endingOverlay = pick('[data-campaign-ending]')
+  const endingStages = pick('[data-campaign-ending-stages]')
+  const endingKills = pick('[data-campaign-ending-kills]')
+  const endingSurvivorCount = pick('[data-campaign-ending-survivor-count]')
+  const endingLostCount = pick('[data-campaign-ending-lost-count]')
+  const endingSurvivors = pick('[data-campaign-ending-survivors]')
+  const endingFallen = pick('[data-campaign-ending-fallen]')
+  const endingCards = pick('[data-campaign-ending-cards]')
 
   const controller = dependencies.createController?.(stage)
     ?? createBattleController({
@@ -235,6 +280,7 @@ export function mountApp(root: HTMLElement, dependencies: BattleAppDependencies 
   pick<HTMLButtonElement>('[data-battle-resume]').addEventListener('click', () => controller.togglePause())
   // Campaign §1.4: 다시 시작 is a new campaign from stage 1, not a retry of the stage that ended.
   pick<HTMLButtonElement>('[data-battle-restart]').addEventListener('click', () => controller.restart())
+  pick<HTMLButtonElement>('[data-campaign-ending-restart]').addEventListener('click', () => controller.restart())
   pick<HTMLButtonElement>('[data-campaign-next]').addEventListener('click', () => controller.advanceStage())
   root.querySelectorAll<HTMLButtonElement>('[data-battle-card]').forEach((button) => {
     button.addEventListener('click', () => controller.chooseUpgrade(Number(button.dataset.battleCard)))
@@ -283,20 +329,28 @@ export function mountApp(root: HTMLElement, dependencies: BattleAppDependencies 
     // the survivors (§1.1's transition) or has finished with them (§1.4/§1.5's end).
     const stageEnded = mode === 'won' || mode === 'lost'
     const cleared = campaign.phase === 'stage-cleared'
+    // Finishing the game is not the same event as ending a stage, and it gets the screen instead
+    // of the result panel rather than as well as it — two overlays over one board is a stack.
+    const finished = campaign.end === 'complete'
 
     readyScreen.hidden = mode !== 'ready'
     hud.hidden = !HUD_VISIBLE_MODES.includes(mode)
     pauseOverlay.hidden = mode !== 'paused'
     upgradeOverlay.hidden = mode !== 'awaiting-upgrade'
     transitionOverlay.hidden = !cleared
-    terminalOverlay.hidden = !stageEnded || cleared
+    terminalOverlay.hidden = !stageEnded || cleared || finished
+    endingOverlay.hidden = !finished
 
     // Only on an actual transition: the HUD is rewritten every frame, and moving focus every
     // frame would yank it out of whatever the player is doing inside the visible section.
     if (mode === previousMode && campaign.phase === previousPhase) return
     previousMode = mode
     previousPhase = campaign.phase
-    const selector = cleared ? '[data-campaign-next]' : PRIMARY_BUTTON_SELECTOR[mode]
+    const selector = finished
+      ? '[data-campaign-ending-restart]'
+      : cleared
+        ? '[data-campaign-next]'
+        : PRIMARY_BUTTON_SELECTOR[mode]
     if (selector) root.querySelector<HTMLElement>(selector)?.focus()
   }
 
@@ -436,6 +490,35 @@ export function mountApp(root: HTMLElement, dependencies: BattleAppDependencies 
     campaignFallen.replaceChildren(...fallenItems(campaign))
   }
 
+  /**
+   * §1.4's OTHER end — the one where the campaign ran out of stages because the squad won them.
+   *
+   * `end === 'complete'` is the only state that reaches here, and it is checked rather than
+   * `outcome === 'won'` because those are not the same question: a campaign that ends with nobody
+   * standing (`no-survivors`) has won its last stage too, and it is not this screen.
+   */
+  const renderEnding = (campaign: CampaignHud): void => {
+    if (campaign.end !== 'complete') return
+    endingStages.replaceChildren(
+      ...Array.from({ length: campaign.stageCount }, (_, index) => {
+        const item = document.createElement('li')
+        item.textContent = String(index + 1)
+        return item
+      }),
+    )
+    endingKills.textContent = String(campaign.kills)
+    endingSurvivorCount.textContent = `${campaign.survivors.length}명`
+    endingLostCount.textContent = `${campaign.fallen.length}명`
+    endingSurvivors.replaceChildren(
+      ...(campaign.survivors.length === 0
+        ? [textItem('없음')]
+        : campaign.survivors.map((entry) =>
+            textItem(`${entry.isCommand ? '★ ' : ''}${entry.name}`))),
+    )
+    endingFallen.replaceChildren(...fallenItems(campaign))
+    endingCards.textContent = cardSummary(campaign)
+  }
+
   const render = (view: BattleHud): void => {
     const campaign = controller.campaign()
     renderVisibility(view.mode, campaign)
@@ -444,6 +527,7 @@ export function mountApp(root: HTMLElement, dependencies: BattleAppDependencies 
     renderTerminal(view)
     renderTransition(campaign)
     renderCampaignSummary(campaign)
+    renderEnding(campaign)
   }
 
   controller.subscribe(render)

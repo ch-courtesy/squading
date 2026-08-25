@@ -6,7 +6,7 @@ import type { BattleState } from '../../src/core/battle/types'
 import { projectBattleHud, type BattleHud } from '../../src/core/battle-view/hud'
 import { projectBattleSnapshot } from '../../src/core/battle-view/snapshot'
 import { projectCampaignHud } from '../../src/core/campaign-view/hud'
-import { createCampaignState, type CampaignState } from '../../src/core/campaign/state'
+import { campaignStageCount, createCampaignState, type CampaignState } from '../../src/core/campaign/state'
 import type { BattleAudio } from '../../src/audio/battle-audio'
 import type { BattleController } from '../../src/app/battle/battle-controller'
 import { mountApp } from '../../src/app/battle/battle-shell'
@@ -50,6 +50,7 @@ function stubController(initial: BattleState): Stub {
     resume: async () => {},
     playFrame: () => {},
     cue: (name) => { calls.cues.push(name) },
+    stopMusic: () => { calls.cues.push('stopMusic') },
     enabled: () => audioOn,
     setEnabled: (next) => { audioOn = next; return audioOn },
     dispose: () => {},
@@ -291,6 +292,68 @@ describe('the v2 shell prints the projection and sends §1.15 inputs', () => {
     })
     expect(root.querySelector('[data-campaign-outcome]')!.textContent).toBe('캠페인 완료')
     expect(root.querySelector('[data-campaign-fallen]')!.textContent).toBe('없음')
+  })
+
+  it('shows the ENDING when the campaign is complete, instead of the result panel', () => {
+    // Finishing seven stages and losing in stage 2 are both `won`/`lost` on the battle, and before
+    // this screen existed they were the same panel with a different heading. The assertion that
+    // the result panel is HIDDEN is the half that matters: two overlays over one board is a stack,
+    // and it is what showing the ending "as well" would produce.
+    const state = running()
+    state.mode = 'won'
+    state.result = 'won'
+    const { root, stub } = mount(state)
+    stub.publish(state, {
+      ...createCampaignState('stub'),
+      phase: 'campaign-over',
+      end: 'complete',
+      kills: 1420,
+      cardLevels: { ...createCampaignState('stub').cardLevels, firepower: 3, vitality: 2 },
+      squad: {
+        commandUnitId: 2,
+        members: [
+          { id: 2, role: 'soldier', nameIndex: 3, hp: 1.4, maxHp: 1.4 },
+          { id: 5, role: 'soldier', nameIndex: 7, hp: 1.4, maxHp: 1.4 },
+        ],
+      },
+      fallen: [{ id: 9, nameIndex: 11, stageId: 4 }],
+    })
+
+    expect(root.querySelector<HTMLElement>('[data-campaign-ending]')!.hidden).toBe(false)
+    expect(root.querySelector<HTMLElement>('[data-battle-terminal]')!.hidden).toBe(true)
+
+    // The seven stages are seven marks — the one place the number is on screen as a number.
+    expect(root.querySelectorAll('[data-campaign-ending-stages] li')).toHaveLength(campaignStageCount())
+    expect(root.querySelector('[data-campaign-ending-kills]')!.textContent).toBe('1420')
+    expect(root.querySelector('[data-campaign-ending-survivor-count]')!.textContent).toBe('2명')
+    expect(root.querySelector('[data-campaign-ending-lost-count]')!.textContent).toBe('1명')
+
+    // NAMES, not counts, on both lists. §1.14 keeps them for exactly this screen.
+    const survivors = root.querySelector('[data-campaign-ending-survivors]')!.textContent!
+    expect(survivors).toContain(NAME_POOL[3])
+    expect(survivors).toContain(NAME_POOL[7])
+    // The body holding command is marked, because after §1.5's succession it is rarely the one
+    // the run started with.
+    expect(survivors).toContain('★')
+    const fallen = root.querySelector('[data-campaign-ending-fallen]')!.textContent!
+    expect(fallen).toContain(NAME_POOL[11])
+    expect(fallen).toContain('스테이지 4')
+    // The build it finished holding, with levels (§1.13 v2).
+    expect(root.querySelector('[data-campaign-ending-cards]')!.textContent).toContain('화력 III')
+  })
+
+  it('does NOT show the ending for a campaign that ended any other way', () => {
+    // `no-survivors` also wins its last stage, and `defeat` is the common case. Neither is the
+    // ending, and `end` is what separates them — `outcome === 'won'` does not.
+    for (const end of ['defeat', 'no-survivors'] as const) {
+      const state = running()
+      state.mode = end === 'defeat' ? 'lost' : 'won'
+      state.result = end === 'defeat' ? 'lost' : 'won'
+      const { root, stub } = mount(state)
+      stub.publish(state, { ...createCampaignState('stub'), phase: 'campaign-over', end })
+      expect(root.querySelector<HTMLElement>('[data-campaign-ending]')!.hidden, end).toBe(true)
+      expect(root.querySelector<HTMLElement>('[data-battle-terminal]')!.hidden, end).toBe(false)
+    }
   })
 
   it('shows the stage transition instead of the result when a stage is cleared (§1.1)', () => {

@@ -80,6 +80,14 @@ export type BattleAudio = {
   playFrame(snapshot: RenderSnapshot): void
   /** The one-shots the BOARD does not publish: a card screen, a verdict, a menu press. */
   cue(name: CueName): void
+  /**
+   * Stop the music and leave everything else on.
+   *
+   * The ending needs silence under its cadence, and `setEnabled(false)` is the wrong tool: it
+   * would silence the cue too, and toggling it back on restarts the loop. The music stays stopped
+   * until something calls `resume` or `setEnabled(true)` — which is exactly what a restart does.
+   */
+  stopMusic(): void
   /** True when sound is ON. */
   enabled(): boolean
   /** Turn sound on or off. Returns the new state, so a toggle button has one source of truth. */
@@ -87,7 +95,7 @@ export type BattleAudio = {
   dispose(): void
 }
 
-export type CueName = 'upgrade' | 'victory' | 'defeat' | 'ui'
+export type CueName = 'upgrade' | 'victory' | 'defeat' | 'ui' | 'ending'
 
 /**
  * The music: a pulse, a chord that moves, and a tick — whose TEMPO and BRIGHTNESS follow the board.
@@ -139,6 +147,7 @@ function silentAudio(): BattleAudio {
     resume: async () => {},
     playFrame: () => {},
     cue: () => {},
+    stopMusic: () => {},
     enabled: () => false,
     setEnabled: () => false,
     dispose: () => {},
@@ -439,6 +448,10 @@ export function createBattleAudio(): BattleAudio {
       }
     },
 
+    stopMusic(): void {
+      stopBgm()
+    },
+
     cue(name: CueName): void {
       const ctx = ready()
       if (!ctx) return
@@ -460,6 +473,26 @@ export function createBattleAudio(): BattleAudio {
         case 'ui':
           tone(ctx, at, { duration: 0.07, gain: 0.12, from: 880 })
           break
+        // The ENDING, and it is the one cue that is not a signal. `victory` says "this stage is
+        // over" in three notes; seven stages deserve a cadence, so this is the chord the music has
+        // been circling for the whole run finally resolving — A minor to F to C. The music is
+        // stopped by the caller first, so nothing plays under it.
+        case 'ending': {
+          const chords: readonly (readonly number[])[] = [
+            [220, 261.63, 329.63],
+            [174.61, 220, 261.63],
+            [261.63, 329.63, 392],
+          ]
+          chords.forEach((chord, index) => {
+            const chordAt = at + index * 1.15
+            for (const hz of chord) {
+              tone(ctx, chordAt, { duration: index === chords.length - 1 ? 2.6 : 1.4, gain: 0.11, from: hz })
+            }
+            // An octave under each chord, so the resolution has a floor to land on.
+            tone(ctx, chordAt, { duration: index === chords.length - 1 ? 2.8 : 1.5, gain: 0.09, from: chord[0] / 2 })
+          })
+          break
+        }
       }
     },
 

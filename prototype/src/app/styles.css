@@ -748,3 +748,104 @@ select {
     width: calc(100% - 2rem);
   }
 }
+
+
+/* ---------------------------------------------------------------------------
+   The ending
+   ---------------------------------------------------------------------------
+   It reveals in steps rather than appearing whole. A screen that arrives all at
+   once reads as a dialog; one that arrives in order reads as an ending, and the
+   order is the argument it makes — the stages, then the cost, then who is left.
+
+   `--step` is set per element in the markup, so the sequence lives next to the
+   thing being sequenced instead of in a list here that would drift from it. */
+.bt-ending {
+  align-items: flex-start;
+  overflow-y: auto;
+  background: radial-gradient(ellipse at 50% 0%, #241f16 0%, #0d0b07 70%);
+}
+
+/* Tight enough that the last step — the button — is on screen at 1280x720 without
+   scrolling. An ending whose final action is below the fold ends with a scrollbar. */
+.bt-ending-scroll {
+  width: min(46rem, 92vw);
+  margin: 0 auto;
+  padding: 1.75rem 1rem 2rem;
+}
+
+.bt-ending-step {
+  opacity: 0;
+  transform: translateY(0.6rem);
+  animation: bt-ending-in 0.5s ease-out forwards;
+  animation-delay: calc(var(--step, 1) * 0.45s);
+}
+
+@keyframes bt-ending-in {
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* A player who has asked their system for less motion gets the same screen without
+   the reveal — the content is the ending, the timing is decoration. */
+@media (prefers-reduced-motion: reduce) {
+  .bt-ending-step {
+    opacity: 1;
+    transform: none;
+    animation: none;
+  }
+}
+
+.bt-ending h2 {
+  margin: 0.2rem 0 1.1rem;
+  font-size: 1.75rem;
+  letter-spacing: 0.02em;
+}
+
+.bt-ending h3 {
+  margin: 1.1rem 0 0.4rem;
+}
+
+/* The seven stages as seven marks. It is the shape of the run, and it is the one
+   place the number seven is visible as a number rather than as a count. */
+.bt-ending-stages {
+  display: flex;
+  gap: 0.5rem;
+  margin: 0 0 1.25rem;
+  padding: 0;
+  list-style: none;
+}
+
+.bt-ending-stages li {
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border: 1px solid #e1b55f;
+  border-radius: 0.4rem;
+  color: #e1b55f;
+  background: rgba(225, 181, 95, 0.12);
+  font-weight: 700;
+}
+
+.bt-ending-memorial li {
+  color: #b9b09a;
+}
+
+.bt-ending-cards {
+  margin: 0 0 1rem;
+  color: #d8cfb8;
+}
+
+.bt-ending [data-campaign-ending-restart] {
+  min-height: 2.75rem;
+  margin-top: 0.25rem;
+  padding: 0.75rem 2rem;
+  border: 1px solid #e1b55f;
+  border-radius: 0.5rem;
+  color: #171510;
+  background: #e1b55f;
+  font-weight: 700;
+  cursor: pointer;
+}

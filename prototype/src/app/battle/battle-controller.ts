@@ -367,11 +367,23 @@ export function createBattleController(options: BattleControllerOptions): Battle
       lastMode = state.mode
     }
     if (state.result !== lastResult) {
-      if (state.result === 'won') audio.cue('victory')
+      // THE END OF THE CAMPAIGN OUTRANKS THE END OF THE STAGE. Winning stage 7 is both, and it is
+      // the ending — playing the stage cue under it would put a three-note signal on top of a
+      // cadence. `foldFinishedStage` has already run on this step, so the campaign's own end is
+      // readable here and not one frame late.
+      const ended = campaign.state().end
+      if (ended === 'complete') {
+        // Nothing plays under it: the pulse that has run for seven stages stops, and the cadence
+        // is what fills the silence.
+        audio.stopMusic()
+        audio.cue('ending')
+      } else if (state.result === 'won') audio.cue('victory')
       else if (state.result === 'lost') audio.cue('defeat')
       lastResult = state.result
     }
   }
+
+
 
   /** The phase timings of the frame being drawn right now, reset at its head. */
   let phase = { steps: 0, sim: 0, project: 0, draw: 0, hud: 0, events: 0 }
