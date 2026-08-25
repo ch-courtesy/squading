@@ -490,11 +490,26 @@ select {
   letter-spacing: 0.16em;
 }
 
+/* The name of the game. Bigger than the h1 was when it held a description, and
+   spaced out — it is a title now, and a title is the one place on this screen
+   where the type is doing the work rather than carrying information. */
 .bt-ready h1 {
-  margin: 0;
+  margin: 0 0 0.35rem;
   font-family: Georgia, "Times New Roman", serif;
-  font-size: clamp(2rem, 6vw, 3.5rem);
+  font-size: clamp(2.5rem, 8vw, 4.75rem);
+  font-weight: 700;
+  letter-spacing: 0.06em;
   line-height: 1;
+  color: #f2e4c4;
+  text-shadow: 0 0.08em 0.5em rgba(225, 181, 95, 0.25);
+}
+
+/* The description now sits UNDER the name, so it reads at the eyebrow's size but
+   as a sentence rather than as a label. */
+.bt-ready .bt-eyebrow {
+  margin-bottom: 1.25rem;
+  font-size: 0.95rem;
+  letter-spacing: 0.1em;
 }
 
 .bt-objective {

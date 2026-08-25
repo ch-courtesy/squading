@@ -64,8 +64,14 @@ function skeleton(): string {
       <section class="bt-stage" data-battle-stage aria-label="전투 화면"></section>
 
       <section class="bt-ready" data-battle-ready>
-        <p class="bt-eyebrow">SQUAD SURVIVOR</p>
-        <h1>90초 지휘관 전투</h1>
+        <!--
+          THE TITLE, and it is the h1 rather than the eyebrow. The two lines used to be a label
+          over a description — "SQUAD SURVIVOR" small, "90초 지휘관 전투" large — which is a start
+          screen with no name on it. The game is called Squading; the description is what goes
+          small.
+        -->
+        <h1 class="bt-title">Squading</h1>
+        <p class="bt-eyebrow">90초 지휘관 전투</p>
         <p class="bt-objective">90초 안에 정예를 쓰러뜨리십시오. 쓰러지면 옆 병사가 지휘를 잇습니다.</p>
         <dl class="bt-controls">
           <div><dt>이동</dt><dd>WASD / 방향키 / 포인터 드래그</dd></div>

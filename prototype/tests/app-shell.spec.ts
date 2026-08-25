@@ -55,3 +55,14 @@ test('escapes and limits URL seed text', async ({ page }) => {
   await expect(page.locator('img')).toHaveCount(0)
   expect(await page.evaluate(() => Reflect.get(window, '__seedXss'))).toBeUndefined()
 })
+
+test('names the game on the screen the player starts from', async ({ page }) => {
+  // The start screen carried a label over a description — "SQUAD SURVIVOR" small, the mode name
+  // large — which is a screen with no name on it. Both the heading and the tab say Squading now,
+  // and the tab matters as much: it is the name on a bookmark and on a shared link.
+  await page.goto('/')
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Squading')
+  await expect(page).toHaveTitle(/Squading/)
+  // The description survived, under the name rather than over it.
+  await expect(page.locator('.bt-ready .bt-eyebrow')).toHaveText('90초 지휘관 전투')
+})
