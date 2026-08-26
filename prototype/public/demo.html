@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Squading — 데모 영상</title>
+    <style>
+      :root { color-scheme: dark; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        gap: 1.25rem;
+        padding: 2rem 1rem;
+        box-sizing: border-box;
+        background: #0d0b07;
+        color: #d8cfb8;
+        font-family: system-ui, -apple-system, "Apple SD Gothic Neo", sans-serif;
+      }
+      h1 { margin: 0; font-family: Georgia, serif; font-size: 2rem; letter-spacing: 0.05em; color: #f2e4c4; }
+      p { margin: 0; font-size: 0.95rem; }
+      video { width: min(1280px, 100%); border: 1px solid #4c4638; border-radius: 0.5rem; }
+      a { color: #e1b55f; }
+    </style>
+  </head>
+  <body>
+    <h1>Squading</h1>
+    <!-- The recording is silent: it was captured by driving the real game from a script, and a
+         screen capture does not pick up audio that is synthesised in the page. -->
+    <p>스크립트가 실제 게임을 조작해 녹화한 66초 데모입니다. 소리는 담기지 않습니다.</p>
+    <video src="media/demo.webm" controls autoplay muted loop playsinline></video>
+    <p><a href="./">게임 플레이하기 →</a></p>
+  </body>
+</html>

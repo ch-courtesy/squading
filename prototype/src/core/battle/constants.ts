@@ -349,8 +349,24 @@ export const CARD_EFFECTS: Readonly<Record<CardId, number>> = {
   mobility: 0.15,
   /** x1.25 on both maxHp and hp — there is no HP multiplier field (§1.13). */
   vitality: 1.25,
-  /** +1.0 range. */
-  marksman: 1.0,
+  /**
+   * +0.7 range per level (was +1.0).
+   *
+   * MEASURED, AND IT IS THE ONE CARD THAT BROKE THE CURVE. Played, firepower, rapid and marksman
+   * all felt too strong; measured over twelve campaigns, only this one bent the difficulty the
+   * wrong way. Survivors on a win fell 10.3 -> 7.9 through stage 5 and then ROSE to 10.8 and 10.3
+   * in stages 6 and 7 — later stages ending with more of the squad alive than earlier ones.
+   *
+   * Range is not damage. It is position: at +1.0 per level a rifleman ends the campaign reaching
+   * 8.0 against a shooter's 4.5, which is not "hits harder", it is "is never answered". Cutting it
+   * to 0.7 puts the curve back to a monotone decline (10.7 8.0) with `skilled` still 8/8.
+   *
+   * FIREPOWER AND RAPID WERE LEFT ALONE, and that is a measurement too. Cutting them only made
+   * stages 1-3 harder — where the squad holds few cards — while the late reversal stayed or got
+   * worse: at 0.2/0.6/0.88 the survivor count RISES from stage 3 on, and two of the three
+   * combinations tried put `skilled` at 5 of 8, under §4.1's floor.
+   */
+  marksman: 0.7,
   /** x0.7 rescue duration. */
   firstaid: 0.7,
   /** -35% damage taken. */

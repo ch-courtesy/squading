@@ -18,6 +18,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   CARDS_OFFERED_PER_ROUND,
+  CARD_EFFECTS,
   CARD_POOL,
   COMBAT_TICK_LIMIT,
   COMMANDER_ATTACK_INTERVAL,
@@ -418,8 +419,13 @@ describe('§1.13 card effects, read off the chosen cards', () => {
     const commander = unit(state, COMMANDER_ID)
     state.enemies.push(createEnemy(state, 101, 'melee', { x: 28 + 6.5, y: 16 }))
 
-    expect(attackRangeOf(state, commander)).toBeCloseTo(COMMANDER_RANGE + 1, 12)
-    expect(attackRangeOf(state, unit(state, RIFLE))).toBeCloseTo(SOLDIER_RANGE + 1, 12)
+    // FROM THE CONSTANT, not from a literal. What this fixture is about is that the bonus is
+    // ADDED to each unit's own range and that the gap it opens reaches a body the base range does
+    // not — 6.5 sits between `COMMANDER_RANGE` 6.0 and 6.0 + the bonus. A hardcoded `+ 1` made the
+    // test fail when §5's tuning moved the card, which is a tuning number telling a composition
+    // test what to assert.
+    expect(attackRangeOf(state, commander)).toBeCloseTo(COMMANDER_RANGE + CARD_EFFECTS.marksman, 12)
+    expect(attackRangeOf(state, unit(state, RIFLE))).toBeCloseTo(SOLDIER_RANGE + CARD_EFFECTS.marksman, 12)
     expect(selectFriendlyTargetId(state, commander)).toBe(101)
     // Without the card the same enemy is out of reach.
     const bare = fixtureWithEnemy()
@@ -454,7 +460,7 @@ describe('§1.13 card effects, read off the chosen cards', () => {
     // The range card moves the rifle's reach and leaves the melee envelope alone; the two live
     // in the same file, so the difference has to be asserted rather than assumed.
     const reaching = withCards(fixture(), 'marksman')
-    expect(attackRangeOf(reaching, unit(reaching, COMMANDER_ID))).toBeCloseTo(COMMANDER_RANGE + 1, 12)
+    expect(attackRangeOf(reaching, unit(reaching, COMMANDER_ID))).toBeCloseTo(COMMANDER_RANGE + CARD_EFFECTS.marksman, 12)
     // A `shooter`, not a melee-class body: §1.4.2's v13 clause would refuse the swing on class
     // alone, and this line is about the RANGE card not reaching the melee envelope.
     reaching.enemies.push(createEnemy(reaching, 101, 'shooter', { x: 28 + COMMANDER_MELEE_RANGE + 0.01, y: 16 }))
@@ -571,7 +577,7 @@ describe('§1.13 card effects, read off the chosen cards', () => {
     const commander = unit(state, COMMANDER_ID)
 
     expect(attackDamageOf(state, commander)).toBeCloseTo(0.26, 12)
-    expect(attackRangeOf(state, commander)).toBeCloseTo(7, 12)
+    expect(attackRangeOf(state, commander)).toBeCloseTo(COMMANDER_RANGE + CARD_EFFECTS.marksman, 12)
     expect(attackIntervalOf(state, commander)).toBe(COMMANDER_ATTACK_INTERVAL)
     expect(cardLevelOf(state, 'firepower')).toBe(1)
     expect(cardLevelOf(state, 'marksman')).toBe(1)

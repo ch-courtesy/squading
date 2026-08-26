@@ -42,7 +42,7 @@ import { stageConfigOf } from '../../src/core/battle/stages'
 import { digestBattleState } from '../../src/core/battle/digest'
 import { BattleInputQueue, commandBatch } from '../../src/core/battle/input'
 import type { BattleCommand } from '../../src/core/battle/input'
-import { COMMANDER_ID, createInitialBattleState, findFriendly } from '../../src/core/battle/state'
+import { COMMANDER_ID, ELITE_ID, createEnemy, createInitialBattleState, findFriendly } from '../../src/core/battle/state'
 import { advanceBattleTick } from '../../src/core/battle/tick'
 import type { ResolvedTick } from '../../src/core/battle/tick'
 import type { BattleMode, BattleState, DamageCause } from '../../src/core/battle/types'
@@ -315,6 +315,53 @@ describe('§1.15 the reducer path releases a pause in full, device half included
   })
 })
 
+describe('§1.16 orders the blast against another source', () => {
+  it('applies the elite blast after both attack passes, on a tick built to contain all three', () => {
+    // CONSTRUCTED, NOT WAITED FOR. This claim used to ride on a whole 90-second run happening to
+    // produce a tick where the elite's impact landed beside another source. Which seed does that
+    // is a balance fact: it was borrowed from a second run once, re-seeded once, and §5's tuning
+    // of `marksman` finally took it to zero on every seed that reaches the elite at all.
+    //
+    // The rule itself does not depend on any of that. §1.16 puts 아군 공격 at row 8, 적 공격 at
+    // row 9 and 정예 착탄 at row 10, so a tick holding all three must report them in that order —
+    // and a tick can be built to hold all three.
+    const state = running('seed-a')
+    state.combatTick = ELITE_SPAWN_TICK + 60
+
+    // One friendly and one enemy inside each other's reach: rows 8 and 9 both fire.
+    const commander = unit(state, COMMANDER_ID)
+    commander.position = { x: 28, y: 16 }
+    commander.attackCooldown = 0
+    const melee = createEnemy(state, 101, 'melee', { x: 28.5, y: 16 })
+    melee.attackCooldown = 0
+
+    // And the elite one tick from impact, centred on the same bodies: row 10 fires too.
+    const elite = createEnemy(state, ELITE_ID, 'elite', { x: 31, y: 16 })
+    state.enemies = [melee, elite]
+    state.elite = {
+      enemyId: ELITE_ID,
+      spawnTick: ELITE_SPAWN_TICK,
+      attackPhase: 'telegraph',
+      telegraphCenter: { x: 28, y: 16 },
+      telegraphRemaining: 1,
+      cooldownRemaining: 0,
+    }
+
+    const causes = resolved(advanceBattleTick(state, commandBatch(NO_COMMANDS))).damageEvents
+      .map((event) => event.cause)
+
+    // All three ranks present — the assertion is vacuous on a tick with one source in it, which
+    // is exactly what the retired version kept degrading into.
+    expect(causes.some((cause) => SOURCE_RANK[cause] === 1)).toBe(true)
+    expect(causes.some((cause) => SOURCE_RANK[cause] === 2)).toBe(true)
+    expect(causes.some((cause) => SOURCE_RANK[cause] === 3)).toBe(true)
+
+    // And in §1.16's order, never a lower rank after a higher one.
+    const ranks = causes.map((cause) => SOURCE_RANK[cause])
+    expect(ranks).toEqual([...ranks].sort((left, right) => left - right))
+  })
+})
+
 describe('§1.16 the verdict reads the transition row that actually ran', () => {
   it('claims the win on the tick the elite dies, without asking the state a second time', () => {
     // HAZARD 4b, on a fixture that does not depend on which VERDICT the balance sweep tunes the
@@ -445,6 +492,7 @@ function playToVerdict(seed: string) {
 }
 
 describe('§1.16 the reducer runs a whole battle to a verdict', () => {
+
   it('composes all sixteen rows, and holds the four the types do not', () => {
     // THE SEED MOVED FROM `seed-a` TO `seed-b`, and batch I's balance change is why. This fixture
     // needs the elite to arrive and then live long enough to walk to its approach range, and at
@@ -494,14 +542,15 @@ describe('§1.16 the reducer runs a whole battle to a verdict', () => {
     // the command unit — and on `seed-a` each impact then caught the command unit ALONE, so the
     // check was moved to `seed-b`, the nearest seed that was not vacuous.
     //
-    // BATCH I RETIRED THE BORROW, because the run itself is `seed-b` now — the seed the rank-3
-    // half used to be borrowed from. `run.ticksOrderingBlastAgainstAnother` is 1 on it, so the
-    // counter below is measured on the same run as everything else in this fixture and there is
-    // no second `playToVerdict` to keep in step with the first.
+    // THIS ASSERTION MOVED OUT OF THIS FIXTURE, and the move is the point rather than a
+    // concession. It required a whole 90-second run to happen to produce a tick where the elite's
+    // blast landed alongside another source — and which seed does that is a balance fact. It has
+    // been chased twice already (borrowed from a second run, then re-seeded), and §5's tuning of
+    // `marksman` took it to zero on every seed that reaches the elite at all: seven of the eight
+    // band seeds are wiped before tick 1800, and the one that gets there now reads 0.
     //
-    // Measured over the eight band seeds at 9/7/5, for whoever has to move this next: `seed-a`
-    // and `seed-h` are 0, the other six are 1~3.
-    expect(run.ticksOrderingBlastAgainstAnother).toBeGreaterThan(0)
+    // An ordering rule should not be tested by waiting for a battle to exhibit it. The fixture
+    // below constructs the tick instead — see "§1.16 orders the blast against another source".
 
     // HAZARD 4: both consumers read the transition row's return value.
     expect(run.killMismatches).toEqual([])
