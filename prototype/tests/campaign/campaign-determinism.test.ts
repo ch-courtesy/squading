@@ -62,6 +62,10 @@ describe('§3.2 stage seeds derive from the campaign root', () => {
 })
 
 describe('§3.2 the campaign digest', () => {
+  // A WHOLE CAMPAIGN, TWICE, PER CASE — seven stages of 2700 ticks driven by a policy. It runs in
+  // about a second alone and has been seen to pass vitest's 5s default under a loaded full-suite
+  // run and fail on the next one, with no assertion message: the bare `STACK_TRACE_ERROR` a
+  // timeout leaves behind. The work is real, so the budget is stated instead of being inherited.
   it('replays a whole campaign from the same root seed', () => {
     const left = playCampaign('seed-a', 'skilled')
     const right = playCampaign('seed-a', 'skilled')
@@ -71,13 +75,13 @@ describe('§3.2 the campaign digest', () => {
     // And it is a campaign that actually happened, not an empty one that trivially matches.
     expect(left.state().phase).toBe('campaign-over')
     expect(left.state().kills).toBeGreaterThan(0)
-  })
+  }, 30_000)
 
   it('separates two campaigns that differ only in root seed', () => {
     expect(playCampaign('seed-a', 'skilled').digest()).not.toBe(
       playCampaign('seed-b', 'skilled').digest(),
     )
-  })
+  }, 30_000)
 
   it('separates two campaigns that ended differently', () => {
     const far = playCampaign('seed-a', 'skilled')
@@ -94,7 +98,7 @@ describe('§3.2 the campaign digest', () => {
     expect(short.state().stageId).toBe(1)
     expect(far.state().stageId).toBeGreaterThan(short.state().stageId)
     expect(far.digest()).not.toBe(short.digest())
-  })
+  }, 30_000)
 
   it('separates a completed campaign from a defeated one', () => {
     // The `complete` end, on the path that produces it whatever the balance is: the fold of a won
