@@ -360,10 +360,29 @@ export function createBattleController(options: BattleControllerOptions): Battle
   let lastResult: BattleHud['result'] = null
 
   /** The one-shots that belong to a CHANGE rather than to a blow. */
+  /**
+   * §1.1's modes decide whether there is music, and this is the whole rule: the loop runs while
+   * the BATTLE runs.
+   *
+   * Reported, both of them: the music went on playing under the defeat screen and under the pause
+   * overlay. It stopped in exactly one place — the campaign ending — because that was the only
+   * place anything had thought to stop it, which is not a rule, it is one special case. A paused
+   * game still making noise is telling the player it is not paused.
+   *
+   * `awaiting-upgrade` KEEPS the music. The clock is stopped there too, but the player is standing
+   * in the fight choosing what to take into the rest of it, and the card cue is written to land on
+   * top of the loop rather than into a silence.
+   */
+  const MUSIC_MODES: readonly BattleHud['mode'][] = ['running', 'awaiting-upgrade']
+
   const cueTransitions = (): void => {
     const state = battle.state()
     if (state.mode !== lastMode) {
       if (state.mode === 'awaiting-upgrade') audio.cue('upgrade')
+      // `resume` restarts a stopped loop and is a no-op on a running one, so this can run on every
+      // mode change rather than only on the ones that turn it back on.
+      if (MUSIC_MODES.includes(state.mode)) void audio.resume()
+      else audio.stopMusic()
       lastMode = state.mode
     }
     if (state.result !== lastResult) {

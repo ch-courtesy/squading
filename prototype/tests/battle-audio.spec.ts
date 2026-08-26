@@ -252,3 +252,30 @@ test('renders music a laptop speaker can actually reproduce', async ({ page }) =
   // Not so loud it clips before a single blow has landed on top of it.
   expect(measured.rms).toBeLessThan(0.25)
 })
+
+test('goes quiet when the battle is not running', async ({ page }) => {
+  test.setTimeout(90_000)
+  await installProbe(page)
+  await page.goto('/?seed=audio-a')
+  await page.getByRole('button', { name: '전투 시작' }).click()
+
+  // Music first: oscillators are the loop, and the loop has to be running before "it stopped"
+  // means anything.
+  await expect.poll(async () => (await readProbe(page)).oscillators, { timeout: 15_000 }).toBeGreaterThan(0)
+  const running = await readProbe(page)
+
+  // §1.15's pause. Reported: the loop went on playing under the overlay, which tells the player
+  // the game is not paused.
+  await page.keyboard.press('Escape')
+  await expect(page.locator('[data-battle-pause]')).toBeVisible()
+  await page.waitForTimeout(1500)
+  const paused = await readProbe(page)
+  // The bass re-triggers per beat, so a running loop keeps STARTING oscillators. A stopped one
+  // adds at most the two it takes to fade out.
+  expect(paused.oscillators - running.oscillators).toBeLessThan(3)
+
+  // And it comes back with the battle, which is the half a "stop it everywhere" fix would break.
+  await page.keyboard.press('Escape')
+  await expect(page.locator('[data-battle-pause]')).toBeHidden()
+  await expect.poll(async () => (await readProbe(page)).oscillators, { timeout: 15_000 }).toBeGreaterThan(paused.oscillators + 2)
+})

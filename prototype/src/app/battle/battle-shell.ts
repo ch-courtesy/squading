@@ -72,7 +72,15 @@ function skeleton(): string {
         -->
         <h1 class="bt-title">Squading</h1>
         <p class="bt-eyebrow">90초 지휘관 전투</p>
-        <p class="bt-objective">90초 안에 정예를 쓰러뜨리십시오. 쓰러지면 옆 병사가 지휘를 잇습니다.</p>
+        <!--
+          The second sentence had no subject ("쓰러지면" — who falls?), said 옆 병사 where §1.5's
+          rule is the NEAREST standing body (ties by ascending id), and ended in 지휘를 잇습니다,
+          which is a translation of "succeeds to command" rather than something a person says.
+          The verb ending is the other half: this line exists to say the run does not end when the
+          body the player is driving goes down, and 쓰러지면 states a condition where 쓰러져도 gives
+          the reassurance.
+        -->
+        <p class="bt-objective">90초 안에 정예를 쓰러뜨리십시오. 지휘관이 쓰러져도 가장 가까운 병사가 지휘를 이어받습니다.</p>
         <dl class="bt-controls">
           <div><dt>이동</dt><dd>WASD / 방향키 / 포인터 드래그</dd></div>
           <div><dt>구조</dt><dd>쓰러진 병사 곁에서 Space 유지</dd></div>
