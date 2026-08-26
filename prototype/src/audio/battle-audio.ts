@@ -55,13 +55,15 @@ const TOTAL_VOICE_BUDGET = 10
 
 type Bgm = {
   readonly gain: GainNode
-  readonly bass: OscillatorNode
-  readonly bassGain: GainNode
-  /** Three detuned saws, one per chord tone, through one lowpass. */
+  readonly filter: BiquadFilterNode
+  /** The recorded loop, or null when this is the synthesised fallback. */
+  readonly track: AudioBufferSourceNode | null
+  readonly bass: OscillatorNode | null
+  readonly bassGain: GainNode | null
+  /** Three detuned saws, one per chord tone. Empty when a track is playing. */
   readonly voices: readonly OscillatorNode[]
-  readonly padGain: GainNode
-  readonly padFilter: BiquadFilterNode
-  /** The pulse timer's next beat, in context time. */
+  readonly padGain: GainNode | null
+  /** The pulse timer's next beat, in context time. Unused by the recorded loop. */
   nextBeatAt: number
   beat: number
 }
@@ -128,6 +130,52 @@ const BGM_CHORDS: readonly (readonly number[])[] = [
   [174.61, 220, 261.63],
 ]
 const BGM_CHORD_BEATS = 8
+/**
+ * The recorded loop, when there is one.
+ *
+ * `BASE_URL` rather than a leading slash: Pages serves the app from `/<repo>/`, and an absolute
+ * path would leave the prefix off and 404. The synthesised arrangement above stays as the
+ * FALLBACK — a test environment, an offline load or a failed fetch all end up there, and the game
+ * is never silent because a file did not arrive.
+ */
+/**
+ * The loops in `public/audio`, by the name `?bgm=` takes. Every one is CC0 and every one is
+ * recorded in `docs/assets-license.md` — a file in the bundle that is not in that table is a file
+ * nobody can say we have the right to ship.
+ *
+ * ONE ENTRY TODAY. Six were auditioned and one was chosen; the other five are not in the
+ * repository, because shipping ten megabytes of unused audio to every player is what "we might
+ * want it later" costs when the thing is downloaded rather than stored.
+ *
+ * A TABLE rather than a filename built from the parameter: `?bgm=` comes from the URL, and pasting
+ * a query string into a path is how a switch for auditioning music turns into a way to point the
+ * game at any file on the origin.
+ */
+const BGM_TRACKS: Readonly<Record<string, string>> = {
+  awake: 'bgm-awake.mp3',
+}
+
+const BGM_DEFAULT_TRACK = 'awake'
+
+/**
+ * Which loop to play, from `?bgm=`.
+ *
+ * IT EXISTS TO BE AUDITIONED. Picking music is the one decision in this file nobody can make by
+ * reading it — every other choice here was settled by measurement, and this one is settled by
+ * listening. A URL parameter swaps the track without a rebuild, and `?bgm=none` returns the
+ * synthesised arrangement, which is the fallback anyway.
+ *
+ * Any name that is not a file simply fails to fetch and falls back, so a typo costs a plainer
+ * loop rather than silence.
+ */
+function bgmTrackUrl(): string | null {
+  const params = typeof location === 'undefined' ? null : new URLSearchParams(location.search)
+  const name = params?.get('bgm') ?? BGM_DEFAULT_TRACK
+  if (name === 'none') return null
+  const file = BGM_TRACKS[name]
+  if (!file) return null
+  return `${import.meta.env.BASE_URL}audio/${file}`
+}
 const BGM_MIN_BEAT_MS = 300
 const BGM_MAX_BEAT_MS = 620
 /** Enemy count at which the pulse is at its fastest. Above this it does not tighten further. */
@@ -167,6 +215,9 @@ export function createBattleAudio(): BattleAudio {
   let master: GainNode | null = null
   let noise: AudioBuffer | null = null
   let bgm: Bgm | null = null
+  /** The decoded loop, fetched once. `null` once a fetch has failed, so it is not retried. */
+  let track: AudioBuffer | null = null
+  let trackState: 'idle' | 'loading' | 'ready' | 'failed' = 'idle'
   let on = true
   let disposed = false
   /** The last tick this frame's events were played for, so a re-read of the same frame is silent. */
@@ -295,22 +346,17 @@ export function createBattleAudio(): BattleAudio {
     }
   }
 
-  const startBgm = (ctx: AudioContext): void => {
-    if (bgm) return
-    const gain = ctx.createGain()
-    gain.gain.value = 0.0001
-    gain.gain.exponentialRampToValueAtTime(0.6, ctx.currentTime + 1.6)
-    gain.connect(master!)
-
-    // The chord. Sawtooth through a lowpass that OPENS with the board — the filter is the whole
-    // of the dynamics, so the music gets brighter under pressure without getting louder.
-    const padFilter = ctx.createBiquadFilter()
-    padFilter.type = 'lowpass'
-    padFilter.frequency.value = 700
-    padFilter.Q.value = 0.9
+  /**
+   * The synthesised arrangement — the fallback, and what shipped before there was a file.
+   *
+   * It stays because a game with no music when a fetch fails is worse than a game with plainer
+   * music, and because every test environment lands here: `vitest` has no `AudioContext` at all
+   * and the offline render harness has no network.
+   */
+  const startSynthBgm = (ctx: AudioContext, gain: GainNode, filter: BiquadFilterNode): Bgm => {
     const padGain = ctx.createGain()
     padGain.gain.value = 0.09
-    padFilter.connect(padGain).connect(gain)
+    filter.connect(padGain).connect(gain)
 
     const voices = BGM_CHORDS[0].map((hz, index) => {
       const osc = ctx.createOscillator()
@@ -318,7 +364,7 @@ export function createBattleAudio(): BattleAudio {
       // A few cents apart per voice. Three saws exactly in tune are one saw; detuned, they beat
       // against each other and the chord has width without a reverb to pay for.
       osc.frequency.value = hz * (1 + (index - 1) * 0.0016)
-      osc.connect(padFilter)
+      osc.connect(filter)
       osc.start()
       return osc
     })
@@ -331,8 +377,63 @@ export function createBattleAudio(): BattleAudio {
     bass.connect(bassGain).connect(gain)
     bass.start()
 
-    bgm = { gain, bass, bassGain, voices, padGain, padFilter, nextBeatAt: ctx.currentTime, beat: 0 }
+    return { gain, filter, track: null, bass, bassGain, voices, padGain, nextBeatAt: ctx.currentTime, beat: 0 }
   }
+
+  /** Fetch and decode the loop once. Failure is remembered, so a dead URL is not retried per start. */
+  const loadTrack = (ctx: AudioContext): void => {
+    if (trackState !== 'idle') return
+    const url = bgmTrackUrl()
+    if (url === null) {
+      trackState = 'failed'
+      return
+    }
+    trackState = 'loading'
+    void fetch(url)
+      .then((response) => (response.ok ? response.arrayBuffer() : Promise.reject(new Error(String(response.status)))))
+      .then((bytes) => ctx.decodeAudioData(bytes))
+      .then((decoded) => {
+        track = decoded
+        trackState = 'ready'
+        // The synthesised loop may already be playing — the fetch takes a moment and the battle
+        // does not wait. Swap it for the real thing rather than leaving whichever won the race.
+        if (bgm && !bgm.track) {
+          stopBgm()
+          if (on && context && context.state === 'running') startBgm(context)
+        }
+      })
+      .catch(() => {
+        trackState = 'failed'
+      })
+  }
+
+  const startBgm = (ctx: AudioContext): void => {
+    if (bgm) return
+    const gain = ctx.createGain()
+    gain.gain.value = 0.0001
+    gain.gain.exponentialRampToValueAtTime(0.6, ctx.currentTime + 1.6)
+    gain.connect(master!)
+
+    // One lowpass for either source, because the DYNAMICS are the same either way: the board opens
+    // and closes the filter, so the music gets brighter under pressure instead of louder.
+    const filter = ctx.createBiquadFilter()
+    filter.type = 'lowpass'
+    filter.frequency.value = 900
+    filter.Q.value = 0.9
+
+    if (track) {
+      const source = ctx.createBufferSource()
+      source.buffer = track
+      source.loop = true
+      source.connect(filter).connect(gain)
+      source.start()
+      bgm = { gain, filter, track: source, bass: null, bassGain: null, voices: [], padGain: null, nextBeatAt: 0, beat: 0 }
+    } else {
+      loadTrack(ctx)
+      bgm = startSynthBgm(ctx, gain, filter)
+    }
+  }
+
 
 
   /**
@@ -360,11 +461,18 @@ export function createBattleAudio(): BattleAudio {
     // A body on the ground is the loudest thing the music can say without a voice: the filter
     // opens, so "someone is down" is audible with the eyes elsewhere (§1.11).
     const urgency = friendlyDown > 0 ? 1 : 0
-    bgm.padFilter.frequency.setTargetAtTime(620 + pressure * 900 + urgency * 700, ctx.currentTime, 0.5)
-    bgm.padGain.gain.setTargetAtTime(0.085 + urgency * 0.035, ctx.currentTime, 0.6)
+    // ONE KNOB, EITHER SOURCE. The recorded loop and the synthesised one both run through
+    // `filter`, so "the board is loud, open up" is one line rather than two arrangements' worth.
+    bgm.filter.frequency.setTargetAtTime(620 + pressure * 900 + urgency * 700, ctx.currentTime, 0.5)
+    bgm.padGain?.gain.setTargetAtTime(0.085 + urgency * 0.035, ctx.currentTime, 0.6)
     // A squad down to its last few is a quieter board, not a busier one.
     const thin = friendlyStanding <= 4 ? 0.7 : 1
     bgm.gain.gain.setTargetAtTime(0.6 * thin, ctx.currentTime, 0.8)
+
+    // The rest is the synthesised loop's pulse. A recorded track brings its own.
+    const bass = bgm.bass
+    const bassGain = bgm.bassGain
+    if (!bass || !bassGain) return
 
     // Schedule the beats that fall inside the next second. Scheduling AHEAD rather than on the
     // frame is what keeps the pulse steady while frames jitter — a beat placed at `currentTime`
@@ -373,11 +481,11 @@ export function createBattleAudio(): BattleAudio {
     while (bgm.nextBeatAt < horizon) {
       const at = Math.max(bgm.nextBeatAt, ctx.currentTime + 0.01)
       const strong = bgm.beat % 4 === 0
-      bgm.bass.frequency.setValueAtTime(strong ? BGM_ROOT_HZ : BGM_ROOT_HZ * 1.5, at)
-      bgm.bassGain.gain.cancelScheduledValues(at)
-      bgm.bassGain.gain.setValueAtTime(0.0001, at)
-      bgm.bassGain.gain.exponentialRampToValueAtTime(strong ? 0.34 : 0.2, at + 0.02)
-      bgm.bassGain.gain.exponentialRampToValueAtTime(0.0001, at + (strong ? 0.34 : 0.2))
+      bass.frequency.setValueAtTime(strong ? BGM_ROOT_HZ : BGM_ROOT_HZ * 1.5, at)
+      bassGain.gain.cancelScheduledValues(at)
+      bassGain.gain.setValueAtTime(0.0001, at)
+      bassGain.gain.exponentialRampToValueAtTime(strong ? 0.34 : 0.2, at + 0.02)
+      bassGain.gain.exponentialRampToValueAtTime(0.0001, at + (strong ? 0.34 : 0.2))
 
       // The chord moves on the bar, not on the beat, and it MOVES rather than repeats: two
       // triads sharing two notes, so the third is the only thing that walks.
@@ -394,13 +502,15 @@ export function createBattleAudio(): BattleAudio {
   }
 
 
+
   const stopBgm = (): void => {
     if (!bgm || !context) return
     const at = context.currentTime
     bgm.gain.gain.cancelScheduledValues(at)
     bgm.gain.gain.setValueAtTime(Math.max(0.0001, bgm.gain.gain.value), at)
     bgm.gain.gain.exponentialRampToValueAtTime(0.0001, at + 0.25)
-    bgm.bass.stop(at + 0.3)
+    bgm.bass?.stop(at + 0.3)
+    bgm.track?.stop(at + 0.3)
     for (const osc of bgm.voices) osc.stop(at + 0.3)
     bgm = null
   }

@@ -24,12 +24,15 @@ type AudioProbe = {
   state: string | null
   sources: number
   oscillators: number
+  /** Looping buffer sources: the music track, started and stopped. Impact voices never loop. */
+  musicStarts: number
+  musicStops: number
 }
 
 /** Counts every node start in the page, by wrapping the constructors before the app loads. */
 async function installProbe(page: Page): Promise<void> {
   await page.addInitScript(() => {
-    const probe: AudioProbe = { contexts: 0, state: null, sources: 0, oscillators: 0 }
+    const probe: AudioProbe = { contexts: 0, state: null, sources: 0, oscillators: 0, musicStarts: 0, musicStops: 0 }
     ;(window as unknown as { __AUDIO_PROBE__: AudioProbe }).__AUDIO_PROBE__ = probe
     const Original = window.AudioContext
     if (!Original) return
@@ -49,6 +52,18 @@ async function installProbe(page: Page): Promise<void> {
       createBufferSource(): AudioBufferSourceNode {
         const node = super.createBufferSource()
         count(node, 'sources')
+        // `loop` is set before `start`, so reading it there separates the music from the effects
+        // without needing to know which call site made the node.
+        const start = node.start.bind(node)
+        const stop = node.stop.bind(node)
+        node.start = ((...args: Parameters<typeof start>) => {
+          if (node.loop) probe.musicStarts += 1
+          return start(...args)
+        }) as typeof node.start
+        node.stop = ((...args: Parameters<typeof stop>) => {
+          if (node.loop) probe.musicStops += 1
+          return stop(...args)
+        }) as typeof node.stop
         return node
       }
       createOscillator(): OscillatorNode {
@@ -259,23 +274,21 @@ test('goes quiet when the battle is not running', async ({ page }) => {
   await page.goto('/?seed=audio-a')
   await page.getByRole('button', { name: '전투 시작' }).click()
 
-  // Music first: oscillators are the loop, and the loop has to be running before "it stopped"
-  // means anything.
-  await expect.poll(async () => (await readProbe(page)).oscillators, { timeout: 15_000 }).toBeGreaterThan(0)
+  // The music has to be RUNNING before "it stopped" means anything. It is a looping buffer source
+  // — counting oscillators would have measured the synthesised fallback, which is not what plays
+  // in a browser that can fetch the track.
+  await expect.poll(async () => (await readProbe(page)).musicStarts, { timeout: 20_000 }).toBeGreaterThan(0)
   const running = await readProbe(page)
 
-  // §1.15's pause. Reported: the loop went on playing under the overlay, which tells the player
+  // §1.15's pause. Reported from play: the loop went on under the overlay, which tells the player
   // the game is not paused.
   await page.keyboard.press('Escape')
   await expect(page.locator('[data-battle-pause]')).toBeVisible()
-  await page.waitForTimeout(1500)
+  await expect.poll(async () => (await readProbe(page)).musicStops, { timeout: 10_000 }).toBeGreaterThan(running.musicStops)
   const paused = await readProbe(page)
-  // The bass re-triggers per beat, so a running loop keeps STARTING oscillators. A stopped one
-  // adds at most the two it takes to fade out.
-  expect(paused.oscillators - running.oscillators).toBeLessThan(3)
 
-  // And it comes back with the battle, which is the half a "stop it everywhere" fix would break.
+  // And it comes back with the battle — the half a "stop it everywhere" fix would break.
   await page.keyboard.press('Escape')
   await expect(page.locator('[data-battle-pause]')).toBeHidden()
-  await expect.poll(async () => (await readProbe(page)).oscillators, { timeout: 15_000 }).toBeGreaterThan(paused.oscillators + 2)
+  await expect.poll(async () => (await readProbe(page)).musicStarts, { timeout: 15_000 }).toBeGreaterThan(paused.musicStarts)
 })
