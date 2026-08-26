@@ -22,6 +22,16 @@
       p { margin: 0; font-size: 0.95rem; }
       video { width: min(1280px, 100%); border: 1px solid #4c4638; border-radius: 0.5rem; }
       a { color: #e1b55f; }
+      h2 { margin: 1rem 0 0; font-family: Georgia, serif; font-weight: 400; color: #f2e4c4; }
+      .shots {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(min(420px, 100%), 1fr));
+        gap: 1rem;
+        width: min(1280px, 100%);
+      }
+      figure { margin: 0; }
+      figure img { width: 100%; border: 1px solid #4c4638; border-radius: 0.4rem; display: block; }
+      figcaption { margin-top: 0.4rem; font-size: 0.85rem; color: #8b8471; }
     </style>
   </head>
   <body>
@@ -31,5 +41,16 @@
     <p>스크립트가 실제 게임을 조작해 녹화한 66초 데모입니다. 소리는 담기지 않습니다.</p>
     <video src="media/demo.webm" controls autoplay muted loop playsinline></video>
     <p><a href="./">게임 플레이하기 →</a></p>
+
+    <!-- The stills, at the same place, so a submission form can be filled from one page. -->
+    <h2>스틸</h2>
+    <div class="shots">
+      <figure><img src="media/thumbnail.png" alt="난전" /><figcaption>썸네일 — 난전</figcaption></figure>
+      <figure><img src="media/ending.png" alt="엔딩" /><figcaption>엔딩 — 일곱 판 완주</figcaption></figure>
+      <figure><img src="media/classes.png" alt="병종" /><figcaption>병종 여섯</figcaption></figure>
+      <figure><img src="media/title.png" alt="제목" /><figcaption>제목 화면</figcaption></figure>
+      <figure><img src="media/opening.png" alt="개시" /><figcaption>전투 개시</figcaption></figure>
+      <figure><img src="media/result.png" alt="결과" /><figcaption>결과</figcaption></figure>
+    </div>
   </body>
 </html>
